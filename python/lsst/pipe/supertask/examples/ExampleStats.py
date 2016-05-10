@@ -72,8 +72,8 @@ class ExampleMeanTask(SuperTask):
         self._statsControl.setNumIter(self.config.numIter)
         self._statsControl.setAndMask(self._badPixelMask)
 
-        calExp = dataRef.get("raw")
-        maskedImage = calExp.getMaskedImage()
+        rawExp = dataRef.get("raw")
+        maskedImage = rawExp.getMaskedImage()
         return self.run(maskedImage)
 
 
@@ -112,8 +112,8 @@ class ExampleStdTask(SuperTask):
         self._statsControl.setNumSigmaClip(self.config.numSigmaClip)
         self._statsControl.setNumIter(self.config.numIter)
         self._statsControl.setAndMask(self._badPixelMask)
-        calExp = dataRef.get("raw")
-        maskedImage = calExp.getMaskedImage()
+        rawExp = dataRef.get("raw")
+        maskedImage = rawExp.getMaskedImage()
         return self.run(maskedImage)
 
 
