@@ -65,7 +65,7 @@ class NewExampleCmdLineTask(pipeSuper.SuperTask):
 
     This task was written as an example for the documents \ref pipeTasks_writeTask
     and \ref pipeTasks_writeCmdLineTask.
-    The task reads in a "calexp" (a calibrated science \ref lsst::afw::image::Exposure "exposure"),
+    The task reads in a "raw" exposure (\ref lsst::afw::image::Exposure),
     computes statistics on the image plane, and logs and returns the statistics.
     In addition, if debugging is enabled, it displays the image in ds9.
 
@@ -115,7 +115,7 @@ class NewExampleCmdLineTask(pipeSuper.SuperTask):
     def execute(self, dataRef):
         """!Compute a few statistics on the image plane of an exposure
         
-        @param dataRef: data reference for a calibrated science exposure ("calexp")
+        @param dataRef: a daf.persistence.butlerSubset.ButlerDataRef reference to datasets
         @return a pipeBase Struct containing:
         - mean: mean of image plane
         - meanErr: uncertainty in mean
