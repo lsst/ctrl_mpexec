@@ -78,3 +78,26 @@ class SuperIsrTask(SuperTask):
         self.write_output_data(dataRef, result)
 
         return result
+
+    @classmethod
+    def _makeArgumentParser(cls):
+        """!Create and return an argument parser
+
+        @param[in] cls      the class object
+        @return the argument parser for this task.
+
+        This override is used to delay making the data ref list until the daset type is known;
+        this is done in @ref parseAndRun.
+        """
+        # Allow either _default_name or _DefaultName
+        if cls._default_name is not None:
+            task_name = cls._default_name
+        elif cls._DefaultName is not None:
+            task_name = cls._DefaultName
+        else:
+            raise RuntimeError("_default_name or _DefaultName is required for a task")
+        parser = pipeBase.ArgumentParser(name=task_name)
+        parser.add_id_argument(name="--id",
+                               datasetType=pipeBase.ConfigDatasetType(name="datasetType"),
+                               help="data IDs, e.g. --id visit=12345 ccd=1,2^0,3")
+        return parser
