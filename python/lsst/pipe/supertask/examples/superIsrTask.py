@@ -31,6 +31,30 @@ class SuperIsrTask(SuperTask):
     ConfigClass = IsrTaskConfig
     _default_name = "isr"
 
+    def __init__(self, *args, **kwargs):
+        super(SuperIsrTask, self).__init__(*args, **kwargs)
+        self.makeSubtask("assembleCcd")
+        self.makeSubtask("fringe")
+
+    def read_input_data(self, dataRef):
+        """Read needed data thru Butler in a pipeBase.Struct based on config"""
+        ccdExp = dataRef.get('raw', immediate=True)
+        isrData = IsrTask.readIsrData(IsrTask(self.config), dataRef, ccdExp)
+        isrDataDict = isrData.getDict()
+        return pipeBase.Struct(ccdExposure=ccdExp,
+                               bias=isrDataDict['bias'],
+                               linearizer=isrDataDict['linearizer'],
+                               dark=isrDataDict['dark'],
+                               flat=isrDataDict['flat'],
+                               defects=isrDataDict['defects'],
+                               fringes=isrDataDict['fringes'],
+                               bfKernel=isrDataDict['bfKernel'])
+
+    def write_output_data(self, dataRef, result):
+        """Write output data thru Butler based on config"""
+        if self.config.doWrite:
+            dataRef.put(result.exposure, "postISRCCD")
+
     @pipeBase.timeMethod
     def execute(self, dataRef):
         """!Apply common instrument signature correction algorithms to a raw frame
@@ -38,7 +62,19 @@ class SuperIsrTask(SuperTask):
         @param dataRef: butler data reference
         @return a pipeBase Struct containing:
         - exposure
-        """
-        self.log.info("Processing data ID %s" % (dataRef.dataId,))
 
-        return IsrTask.runDataRef(IsrTask(self.config), dataRef)
+        similar to IsrTask.runDataRef()
+        """
+        self.log.info("Performing Super ISR on sensor data ID %s" % (dataRef.dataId,))
+
+        # IsrTask.runDataRef includes these three steps
+        self.log.info("Reading input data using dataRef")
+        inputData = self.read_input_data(dataRef)
+
+        self.log.info("Running operations. The run() method should not take anything Butler")
+        result = IsrTask.run(IsrTask(self.config), **inputData.getDict())
+
+        self.log.info("Writing output data using dataRef")
+        self.write_output_data(dataRef, result)
+
+        return result
