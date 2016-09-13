@@ -75,7 +75,7 @@ class SuperCharacterizeImageTask(SuperTask):
         if self.config.doApCorr:
             self.makeSubtask('measureApCorr', schema=self.schema)
             self.makeSubtask('applyApCorr', schema=self.schema)
-        self.makeSubtask('afterburners', schema=self.schema)
+        self.makeSubtask('catalogCalculation', schema=self.schema)
         self._initialFrame = getDebugFrame(self._display, "frame") or 1
         self._frame = self._initialFrame
         self.schema.checkUnits(parse_strict=self.config.checkUnitsParseStrict)

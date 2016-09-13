@@ -99,7 +99,7 @@ class SuperCalibrateTask(SuperTask):
         self.makeSubtask('measurement', schema=self.schema, algMetadata=self.algMetadata)
         if self.config.doApCorr:
             self.makeSubtask('applyApCorr', schema=self.schema)
-        self.makeSubtask('afterburners', schema=self.schema)
+        self.makeSubtask('catalogCalculation', schema=self.schema)
 
         if self.config.doAstrometry or self.config.doPhotoCal:
             if refObjLoader is None:
