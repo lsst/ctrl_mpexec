@@ -35,21 +35,25 @@ from lsst.pipe.tasks.exampleStatsTasks import ExampleSigmaClippedStatsTask
 ##      An example intended to show how to write a command-line task.
 ## \}
 
+
 class NewExampleCmdLineConfig(pexConfig.Config):
+
     """!Configuration for ExampleCmdLineTask
     """
     stats = pexConfig.ConfigurableField(
-        doc = "Subtask to compute statistics of an image",
-        target = ExampleSigmaClippedStatsTask,
+        doc="Subtask to compute statistics of an image",
+        target=ExampleSigmaClippedStatsTask,
     )
     doFail = pexConfig.Field(
-        doc = "Raise an lsst.base.TaskError exception when processing each image? " \
-            + "This allows one to see the effects of the --doraise command line flag",
-        dtype = bool,
-        default = False,
+        doc="Raise an lsst.base.TaskError exception when processing each image? "
+        + "This allows one to see the effects of the --doraise command line flag",
+        dtype=bool,
+        default=False,
     )
 
+
 class NewExampleCmdLineTask(pipeSuper.SuperTask):
+
     """!Example command-line task that computes simple statistics on an image
 
     \section pipeTasks_ExampleCmdLineTask_Contents Contents
@@ -110,11 +114,11 @@ class NewExampleCmdLineTask(pipeSuper.SuperTask):
         super(NewExampleCmdLineTask, self).__init__(*args, **kwargs)
 
         self.makeSubtask("stats")
-    
+
     @pipeBase.timeMethod
     def execute(self, dataRef):
         """!Compute a few statistics on the image plane of an exposure
-        
+
         @param dataRef: a daf.persistence.butlerSubset.ButlerDataRef reference to datasets
         @return a pipeBase Struct containing:
         - mean: mean of image plane
@@ -131,7 +135,7 @@ class NewExampleCmdLineTask(pipeSuper.SuperTask):
         maskedImage = rawExp.getMaskedImage()
 
         # Support extra debug output.
-        # - 
+        # -
         import lsstDebug
         display = lsstDebug.Info(__name__).display
         if display:
@@ -164,7 +168,7 @@ class NewExampleCmdLineTask(pipeSuper.SuperTask):
         Normally if you override _getConfigName then you override _getMetadataName to match.
         """
         return None
-    
+
     def _getMetadataName(self):
         """!Get the name prefix for the task metadata's dataset type, or None to prevent persisting metadata
 

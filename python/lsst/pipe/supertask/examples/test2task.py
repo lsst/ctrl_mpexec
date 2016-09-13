@@ -11,6 +11,7 @@ import lsst.pex.config as pexConfig
 
 
 class Test2Config(pexConfig.Config):
+
     """
     Config
     """
@@ -20,8 +21,10 @@ class Test2Config(pexConfig.Config):
         default=22,
     )
 
+
 @stask.wrapclass(stask.wraprun)
 class Test2Task(SuperTask):
+
     """
     Task
     """
@@ -61,11 +64,10 @@ class Test2Task(SuperTask):
 
         myvalue = 2.5
 
-        self.output= Struct(
+        self.output = Struct(
             val2=myvalue,
             str2='value 2')
         return self.output
 
     def __str__(self):
         return str(self.__class__.__name__)+' named : '+self.name
-

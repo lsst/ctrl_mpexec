@@ -10,6 +10,7 @@ import lsst.pex.config as pexConfig
 
 
 class Test1Config(pexConfig.Config):
+
     """
     Config
     """
@@ -19,8 +20,10 @@ class Test1Config(pexConfig.Config):
         default=False,
     )
 
+
 @stask.wrapclass(stask.wraprun)
 class Test1Task(SuperTask):
+
     """
     Task
     """
@@ -30,10 +33,8 @@ class Test1Task(SuperTask):
     def __init__(self, *args, **kwargs):
         super(Test1Task, self).__init__(*args, **kwargs)  # # P3 would be super().__init__()
 
-
     def execute(self, dataRef):
         return self.run()
-
 
     def pre_run(self):
         print("Custom pre run commands at %s" % self.name)
@@ -55,4 +56,3 @@ class Test1Task(SuperTask):
 
     def __str__(self):
         return str(self.__class__.__name__)+' named : '+self.name
-

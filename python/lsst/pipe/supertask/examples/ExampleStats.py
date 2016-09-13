@@ -10,46 +10,47 @@ import lsst.pipe.supertask.super_task as super_task
 from lsst.pipe.supertask.super_task import SuperTask
 
 
-
-
 class ExampleMeanConfig(pexConfig.Config):
+
     """!Configuration for ExampleSigmaClippedStatsTask
     """
     badMaskPlanes = pexConfig.ListField(
-        dtype = str,
-        doc = "Mask planes that, if set, the associated pixel should not be included in the coaddTempExp.",
-        default = ("EDGE",),
+        dtype=str,
+        doc="Mask planes that, if set, the associated pixel should not be included in the coaddTempExp.",
+        default=("EDGE",),
     )
     numSigmaClip = pexConfig.Field(
-        doc = "number of sigmas at which to clip data",
-        dtype = float,
-        default = 3.0,
+        doc="number of sigmas at which to clip data",
+        dtype=float,
+        default=3.0,
     )
     numIter = pexConfig.Field(
-        doc = "number of iterations of sigma clipping",
-        dtype = int,
-        default = 2,
+        doc="number of iterations of sigma clipping",
+        dtype=int,
+        default=2,
     )
 
 
 class ExampleStdConfig(pexConfig.Config):
+
     """!Configuration for ExampleSigmaClippedStatsTask
     """
     badMaskPlanes = pexConfig.ListField(
-        dtype = str,
-        doc = "Mask planes that, if set, the associated pixel should not be included in the coaddTempExp.",
-        default = ("EDGE",),
+        dtype=str,
+        doc="Mask planes that, if set, the associated pixel should not be included in the coaddTempExp.",
+        default=("EDGE",),
     )
     numSigmaClip = pexConfig.Field(
-        doc = "number of sigmas at which to clip data",
-        dtype = float,
-        default = 3.0,
+        doc="number of sigmas at which to clip data",
+        dtype=float,
+        default=3.0,
     )
     numIter = pexConfig.Field(
-        doc = "number of iterations of sigma clipping",
-        dtype = int,
-        default = 2,
+        doc="number of iterations of sigma clipping",
+        dtype=int,
+        default=2,
     )
+
 
 @super_task.wrapclass(super_task.wraprun)
 class ExampleMeanTask(SuperTask):
@@ -62,7 +63,6 @@ class ExampleMeanTask(SuperTask):
         super(ExampleMeanTask, self).__init__(*args, **kwargs)
         #basetask.Task.__init__(self, *args, **kwargs)
 
-
     @pipeBase.timeMethod
     def execute(self, dataRef):
         self.log.info("Processing data ID %s" % (dataRef.dataId,))
@@ -76,18 +76,16 @@ class ExampleMeanTask(SuperTask):
         maskedImage = rawExp.getMaskedImage()
         return self.run(maskedImage)
 
-
-
     def run(self, maskedImage):
 
         statObj = afwMath.makeStatistics(maskedImage, afwMath.MEANCLIP | afwMath.STDEVCLIP | afwMath.ERRORS,
-            self._statsControl)
+                                         self._statsControl)
         mean, meanErr = statObj.getResult(afwMath.MEANCLIP)
         self.log.info("clipped mean=%0.2f; meanErr=%0.2f" % (mean, meanErr))
 
-        self.output= pipeBase.Struct(
-            mean = mean,
-            meanErr = meanErr,
+        self.output = pipeBase.Struct(
+            mean=mean,
+            meanErr=meanErr,
         )
         return self.output
 
@@ -96,7 +94,6 @@ class ExampleMeanTask(SuperTask):
         parser = pipeBase.InputOnlyArgumentParser(name=cls._default_name)
         parser.add_id_argument("--id", "raw", help="data IDs, e.g. --id visit=12345 ccd=1,2^0,3")
         return parser
-
 
 
 @super_task.wrapclass(super_task.wraprun)
@@ -109,7 +106,6 @@ class ExampleStdTask(SuperTask):
 
         super(ExampleStdTask, self).__init__(*args, **kwargs)
 
-
     @pipeBase.timeMethod
     def execute(self, dataRef):
         self.log.info("Processing data ID %s" % (dataRef.dataId,))
@@ -122,16 +118,15 @@ class ExampleStdTask(SuperTask):
         maskedImage = rawExp.getMaskedImage()
         return self.run(maskedImage)
 
-
     def run(self, maskedImage):
         statObj = afwMath.makeStatistics(maskedImage, afwMath.MEANCLIP | afwMath.STDEVCLIP | afwMath.ERRORS,
-            self._statsControl)
+                                         self._statsControl)
         stdDev, stdDevErr = statObj.getResult(afwMath.STDEVCLIP)
-        self.log.info("stdDev=%0.2f; stdDevErr=%0.2f" % \
-            (stdDev, stdDevErr))
+        self.log.info("stdDev=%0.2f; stdDevErr=%0.2f" %
+                      (stdDev, stdDevErr))
         self.output = pipeBase.Struct(
-            stdDev = stdDev,
-            stdDevErr = stdDevErr,
+            stdDev=stdDev,
+            stdDevErr=stdDevErr,
         )
         return self.output
 
