@@ -2,6 +2,7 @@
 Test1 Task
 """
 from __future__ import absolute_import, division, print_function
+from builtins import str
 from lsst.pipe.supertask.super_task import SuperTask
 from lsst.pipe.base.struct import Struct
 import lsst.pipe.supertask.super_task as stask
