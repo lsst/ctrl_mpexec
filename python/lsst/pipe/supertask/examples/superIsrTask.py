@@ -26,9 +26,12 @@ from lsst.pipe.supertask import SuperTask
 from lsst.ip.isr import IsrTask, IsrTaskConfig
 
 
+class SuperIsrConfig(IsrTaskConfig):
+    pass
+
 class SuperIsrTask(SuperTask):
     """!A SuperTask version of IsrTask"""
-    ConfigClass = IsrTaskConfig
+    ConfigClass = SuperIsrConfig
     _default_name = "isr"
 
     def __init__(self, *args, **kwargs):

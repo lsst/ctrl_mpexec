@@ -29,9 +29,13 @@ from lsst.pipe.supertask import SuperTask
 from lsst.pipe.tasks.characterizeImage import CharacterizeImageConfig, CharacterizeImageTask
 
 
+class SuperCharacterizeImageConfig(CharacterizeImageConfig):
+    pass
+
+
 class SuperCharacterizeImageTask(SuperTask):
     """!A SuperTask version of CharacterizeImageTask"""
-    ConfigClass = CharacterizeImageConfig
+    ConfigClass = SuperCharacterizeImageConfig
     _default_name = "characterizeImage"
 
     def __init__(self, butler=None, refObjLoader=None, schema=None, **kwargs):

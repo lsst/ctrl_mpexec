@@ -29,9 +29,13 @@ from lsst.pipe.supertask import SuperTask
 from lsst.pipe.tasks.calibrate import CalibrateConfig, CalibrateTask
 
 
+class SuperCalibrateConfig(CalibrateConfig):
+    pass
+
+
 class SuperCalibrateTask(SuperTask):
     """!A SuperTask version of CalibrateTask"""
-    ConfigClass = CalibrateConfig
+    ConfigClass = SuperCalibrateConfig
     _default_name = "calibrate"
 
     def __init__(self, butler=None, refObjLoader=None, icSourceSchema=None, **kwargs):
