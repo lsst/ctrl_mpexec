@@ -95,6 +95,13 @@ class ExampleMeanTask(SuperTask):
         parser.add_id_argument("--id", "raw", help="data IDs, e.g. --id visit=12345 ccd=1,2^0,3")
         return parser
 
+    def _get_config_name(self):
+        """!Get the name prefix for the task config's dataset type, or None to prevent persisting the config
+
+        This override returns None to avoid persisting metadata for this trivial task.
+        """
+        return None
+
 
 @super_task.wrapclass(super_task.wraprun)
 class ExampleStdTask(SuperTask):
@@ -135,3 +142,10 @@ class ExampleStdTask(SuperTask):
         parser = pipeBase.InputOnlyArgumentParser(name=cls._default_name)
         parser.add_id_argument("--id", "raw", help="data IDs, e.g. --id visit=12345 ccd=1,2^0,3")
         return parser
+
+    def _get_config_name(self):
+        """!Get the name prefix for the task config's dataset type, or None to prevent persisting the config
+
+        This override returns None to avoid persisting metadata for this trivial task.
+        """
+        return None

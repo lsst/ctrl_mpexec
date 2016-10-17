@@ -145,16 +145,16 @@ class NewExampleCmdLineTask(pipeSuper.SuperTask):
         # return the pipe_base Struct that is returned by self.stats.run
         return self.stats.run(maskedImage)
 
-    def _getConfigName(self):
+    def _get_config_name(self):
         """!Get the name prefix for the task config's dataset type, or None to prevent persisting the config
 
         This override returns None to avoid persisting metadata for this trivial task.
 
         However, if the method returns a name, then the full name of the dataset type will be <name>_config.
-        The default CmdLineTask._getConfigName returns _DefaultName,
+        The default SuperTask._get_config_name returns _DefaultName,
         which for this task would result in a dataset name of "exampleTask_config".
 
-        Normally you can use the default CmdLineTask._getConfigName, but here are two reasons
+        Normally you can use the default SuperTask._get_config_name, but here are two reasons
         why you might want to override it:
         - If you do not want your task to write its config, then have the override return None.
           That is done for this example task, because I didn't want to clutter up the
@@ -164,20 +164,5 @@ class NewExampleCmdLineTask(pipeSuper.SuperTask):
           \ref lsst.skymap.SkyMap "sky map" (sky pixelization for a coadd)
           for any of several different types of coadd, such as deep or goodSeeing.
           As such, the name of the persisted config must include the coadd type in order to be unique.
-
-        Normally if you override _getConfigName then you override _getMetadataName to match.
-        """
-        return None
-
-    def _getMetadataName(self):
-        """!Get the name prefix for the task metadata's dataset type, or None to prevent persisting metadata
-
-        This override returns None to avoid persisting metadata for this trivial task.
-
-        However, if the method returns a name, then the full name of the dataset type will be <name>_metadata.
-        The default CmdLineTask._getConfigName returns _DefaultName,
-        which for this task would result in a dataset name of "exampleTask_metadata".
-
-        See the description of _getConfigName for reasons to override this method.
         """
         return None

@@ -69,5 +69,12 @@ class Test2Task(SuperTask):
             str2='value 2')
         return self.output
 
+    def _get_config_name(self):
+        """!Get the name prefix for the task config's dataset type, or None to prevent persisting the config
+
+        This override returns None to avoid persisting metadata for this trivial task.
+        """
+        return None
+
     def __str__(self):
         return str(self.__class__.__name__)+' named : '+self.name
