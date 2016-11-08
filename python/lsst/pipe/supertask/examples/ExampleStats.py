@@ -54,7 +54,7 @@ class ExampleStdConfig(pexConfig.Config):
 class ExampleMeanTask(SuperTask):
 
     ConfigClass = ExampleMeanConfig
-    _default_name = "exampleMean"
+    _DefaultName = "exampleMean"
 
     def __init__(self, *args, **kwargs):
 
@@ -89,7 +89,7 @@ class ExampleMeanTask(SuperTask):
 
     @classmethod
     def _makeArgumentParser(cls):
-        parser = pipeBase.InputOnlyArgumentParser(name=cls._default_name)
+        parser = pipeBase.InputOnlyArgumentParser(name=cls._DefaultName)
         parser.add_id_argument("--id", "raw", help="data IDs, e.g. --id visit=12345 ccd=1,2^0,3")
         return parser
 
@@ -104,7 +104,7 @@ class ExampleMeanTask(SuperTask):
 class ExampleStdTask(SuperTask):
 
     ConfigClass = ExampleStdConfig
-    _default_name = "exampleStd"
+    _DefaultName = "exampleStd"
 
     def __init__(self, *args, **kwargs):
 
@@ -136,7 +136,7 @@ class ExampleStdTask(SuperTask):
 
     @classmethod
     def _makeArgumentParser(cls):
-        parser = pipeBase.InputOnlyArgumentParser(name=cls._default_name)
+        parser = pipeBase.InputOnlyArgumentParser(name=cls._DefaultName)
         parser.add_id_argument("--id", "raw", help="data IDs, e.g. --id visit=12345 ccd=1,2^0,3")
         return parser
 

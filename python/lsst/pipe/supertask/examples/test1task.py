@@ -26,7 +26,7 @@ class Test1Task(SuperTask):
     Task
     """
     ConfigClass = Test1Config  # ConfigClass = pexConfig.Config
-    _default_name = 'Test1'
+    _DefaultName = 'Test1'
 
     def __init__(self, *args, **kwargs):
         super(Test1Task, self).__init__(*args, **kwargs)  # # P3 would be super().__init__()
