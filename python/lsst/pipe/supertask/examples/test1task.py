@@ -5,7 +5,6 @@ from __future__ import absolute_import, division, print_function
 from builtins import str
 from lsst.pipe.supertask.super_task import SuperTask
 from lsst.pipe.base.struct import Struct
-import lsst.pipe.supertask.super_task as stask
 import lsst.pex.config as pexConfig
 
 
@@ -21,7 +20,6 @@ class Test1Config(pexConfig.Config):
     )
 
 
-@stask.wrapclass(stask.wraprun)
 class Test1Task(SuperTask):
 
     """
@@ -36,15 +34,12 @@ class Test1Task(SuperTask):
     def execute(self, dataRef):
         return self.run()
 
-    def pre_run(self):
-        print("Custom pre run commands at %s" % self.name)
-
     def run(self):
         """
         Run method
         :return:
         """
-        print('I am running %s Using %s activator' % (self.name, self.activator))
+        print('I am running %s' % (self.name,))
         if self.config.do_print:
             print("Displaying Info...")
 

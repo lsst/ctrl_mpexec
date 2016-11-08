@@ -3,9 +3,7 @@ Test2 Task
 """
 from __future__ import absolute_import, division, print_function
 from builtins import str
-from lsst.pipe.base.task import Task
 from lsst.pipe.supertask.super_task import SuperTask
-import lsst.pipe.supertask.super_task as stask
 from lsst.pipe.base.struct import Struct
 import lsst.pex.config as pexConfig
 
@@ -22,7 +20,6 @@ class Test2Config(pexConfig.Config):
     )
 
 
-@stask.wrapclass(stask.wraprun)
 class Test2Task(SuperTask):
 
     """
@@ -37,30 +34,12 @@ class Test2Task(SuperTask):
     def execute(self, dataRef):
         return self.run()
 
-    def pre_run(self):
-        #check for inputs
-        #missing = []
-        #needs = ['val1']
-        #try:
-        #    input_keys = self.input.getDict().keys()
-        #except:
-        #    input_keys = []
-        #for key in needs:
-        #    if key not in input_keys:
-        #        missing.append(key)
-        #if len(missing) > 0 :
-        #    print('Missing these: ',missing)
-        #    raise RuntimeError("Missing inputs for %s" % self.name)
-        #else:
-        #    print('good to go')
-        pass
-
     def run(self):
         """
         Run method
         :return:
         """
-        print('I am running %s Using %s activator' % (self.name, self.activator))
+        print('I am running %s' % (self.name,))
 
         myvalue = 2.5
 
