@@ -88,7 +88,7 @@ class ExampleMeanTask(SuperTask):
         return self.output
 
     @classmethod
-    def _makeArgumentParser(cls):
+    def makeArgumentParser(cls):
         parser = pipeBase.InputOnlyArgumentParser(name=cls._DefaultName)
         parser.add_id_argument("--id", "raw", help="data IDs, e.g. --id visit=12345 ccd=1,2^0,3")
         return parser
@@ -135,7 +135,7 @@ class ExampleStdTask(SuperTask):
         return self.output
 
     @classmethod
-    def _makeArgumentParser(cls):
+    def makeArgumentParser(cls):
         parser = pipeBase.InputOnlyArgumentParser(name=cls._DefaultName)
         parser.add_id_argument("--id", "raw", help="data IDs, e.g. --id visit=12345 ccd=1,2^0,3")
         return parser

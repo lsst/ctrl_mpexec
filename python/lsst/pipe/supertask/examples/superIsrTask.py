@@ -83,7 +83,7 @@ class SuperIsrTask(SuperTask):
         return result
 
     @classmethod
-    def _makeArgumentParser(cls):
+    def makeArgumentParser(cls):
         """!Create and return an argument parser
 
         @param[in] cls      the class object
