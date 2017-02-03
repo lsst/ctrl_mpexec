@@ -39,7 +39,7 @@ class Test1Task(SuperTask):
         Run method
         :return:
         """
-        print('I am running %s' % (self.name,))
+        print('I am running %s' % (self.getName(),))
         if self.config.do_print:
             print("Displaying Info...")
 
@@ -57,4 +57,4 @@ class Test1Task(SuperTask):
         return None
 
     def __str__(self):
-        return str(self.__class__.__name__)+' named : '+self.name
+        return str(self.__class__.__name__) + ' named : ' + self.getName()
