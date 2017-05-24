@@ -23,6 +23,7 @@
 #
 
 from argparse import ArgumentParser
+from collections import OrderedDict
 import unittest
 
 import lsst.utils.tests
@@ -84,6 +85,56 @@ class CmdLineParserTestCase(unittest.TestCase):
         args = parser.parse_args("-c 1 2 3 -c 4 5 6".split())
         self.assertEqual(args.config_overrides, [1, 2, 3, 4, 5, 6])
 
+    def testIdValueAction(self):
+        """Test for parser._IdValueAction
+        """
+        parser = _NoExitParser()
+        parser.add_argument("--type", dest='_data_type')
+        parser.add_argument("--id", dest='id', nargs="+",
+                            action=parser_mod._IdValueAction)
+
+        args = parser.parse_args([])
+        self.assertTrue(hasattr(args, 'id'))
+
+#         with self.assertRaises(_Error):
+#             args = parser.parse_args("--id key=1".split())
+
+        args = parser.parse_args("--type type1 --id key=1".split())
+        self.assertTrue(isinstance(args.id, dict))
+        expect = dict(type1=[OrderedDict([("key", "1")])])
+        self.assertEqual(args.id, expect)
+
+        args = parser.parse_args("--type type1 --id key=1 foo=bar".split())
+        expect = dict(type1=[OrderedDict([("key", "1"), ("foo", "bar")])])
+        self.assertEqual(args.id, expect)
+
+        args = parser.parse_args("--type type1 --id key=1^3 foo=bar^baz".split())
+        expect = dict(type1=[OrderedDict([("key", "1"), ("foo", "bar")]),
+                             OrderedDict([("key", "1"), ("foo", "baz")]),
+                             OrderedDict([("key", "3"), ("foo", "bar")]),
+                             OrderedDict([("key", "3"), ("foo", "baz")])])
+        self.assertEqual(args.id, expect)
+
+        args = parser.parse_args("--type type1 --id key=1^3..5 foo=bar".split())
+        expect = dict(type1=[OrderedDict([("key", "1"), ("foo", "bar")]),
+                             OrderedDict([("key", "3"), ("foo", "bar")]),
+                             OrderedDict([("key", "4"), ("foo", "bar")]),
+                             OrderedDict([("key", "5"), ("foo", "bar")])])
+        self.assertEqual(args.id, expect)
+
+        with self.assertRaises(_Error):
+            parser.parse_args("--type x --id key=1 key=2".split())
+
+        args = parser.parse_args("--type type1 --id key=1 foo=bar --id key=2 foo=baz".split())
+        expect = dict(type1=[OrderedDict([("key", "1"), ("foo", "bar")]),
+                             OrderedDict([("key", "2"), ("foo", "baz")])])
+        self.assertEqual(args.id, expect)
+
+        args = parser.parse_args("--type type1 --id key=1 foo=bar --type type2 --id key=2 foo=baz".split())
+        expect = dict(type1=[OrderedDict([("key", "1"), ("foo", "bar")])],
+                      type2=[OrderedDict([("key", "2"), ("foo", "baz")])])
+        self.assertEqual(args.id, expect)
+
     def testConfigOverrides(self):
         """Test for a _config_override and _config_file conversions
         """
@@ -121,6 +172,7 @@ class CmdLineParserTestCase(unittest.TestCase):
 
         # know attributes to appear in parser output
         global_options = """
+            id _data_type
             calibRepo clobberConfig clobberOutput clobberVersions debug
             doraise inputRepo loglevel longlog noBackupConfig noVersions
             outputRepo packages processes profile rerun subcommand timeout
