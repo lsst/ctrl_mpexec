@@ -1,3 +1,5 @@
+"""Package for SuperTask"""
+
 from __future__ import absolute_import
 
 try:
@@ -7,6 +9,8 @@ except:
     __version__ = "unknown"
 
 from .activator import *
-from .super_task import *
-from .resource_config import *
+from .pipeline import *
+from .quantum import *
+from .resourceConfig import *
+from .superTask import *
 from .taskLoader import *

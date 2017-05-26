@@ -24,6 +24,9 @@ Module defining TaskLoader class and related methods.
 """
 from builtins import object
 
+# "exported" names
+__all__ = ['TaskLoader']
+
 #--------------------------------
 #  Imports of standard modules --
 #--------------------------------
@@ -37,9 +40,6 @@ import pkgutil
 from lsst.pipe.base import CmdLineTask, Task
 from lsst.pipe.supertask import SuperTask
 import lsst.log as lsstLog
-
-# "exported" names
-__all__ = ['TaskLoader']
 
 #----------------------------------
 # Local non-exported definitions --

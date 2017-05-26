@@ -26,9 +26,12 @@ Module defining CmdLineFwk class and related methods.
 from __future__ import print_function
 from builtins import object
 
+__all__ = ['CmdLineFwk']
+
 #--------------------------------
 #  Imports of standard modules --
 #--------------------------------
+import contextlib
 import multiprocessing
 import os
 import sys
@@ -42,8 +45,7 @@ import lsst.daf.persistence as dafPersist
 import lsst.log as lsstLog
 import lsst.obs.base.repodb.tests as repodbTest
 from lsst.pipe.base.task import TaskError
-from .activator import profile
-from .activator_new import ButlerFactory
+from .activator import ButlerFactory
 from .configOverrides import ConfigOverrides
 from .parser import makeParser, DEFAULT_INPUT_NAME, DEFAULT_CALIB_NAME, DEFAULT_OUTPUT_NAME
 from .taskLoader import (TaskLoader, KIND_SUPERTASK)
@@ -56,7 +58,7 @@ __all__ = ['CmdLineFwk']
 #----------------------------------
 
 # logging properties
-_logProp = """\
+_LOG_PROP = """\
 log4j.rootLogger=INFO, A1
 log4j.appender.A1=ConsoleAppender
 log4j.appender.A1.Target=System.err
@@ -103,6 +105,41 @@ def _fixPath(defName, path):
             return None
         return os.path.abspath(path)
     return os.path.abspath(os.path.join(defRoot, path or ""))
+
+
+@contextlib.contextmanager
+def profile(filename, log=None):
+    """!Context manager for profiling with cProfile
+
+    @param filename     filename to which to write profile (profiling disabled if None or empty)
+    @param log          log object for logging the profile operations
+
+    If profiling is enabled, the context manager returns the cProfile.Profile object (otherwise
+    it returns None), which allows additional control over profiling.  You can obtain this using
+    the "as" clause, e.g.:
+
+        with profile(filename) as prof:
+            runYourCodeHere()
+
+    The output cumulative profile can be printed with a command-line like:
+
+        python -c 'import pstats; pstats.Stats("<filename>").sort_stats("cumtime").print_stats(30)'
+    """
+    if not filename:
+        # Nothing to do
+        yield
+        return
+    from cProfile import Profile
+
+    prof = Profile()
+    if log is not None:
+        log.info("Enabling cProfile profiling")
+    prof.enable()
+    yield prof
+    prof.disable()
+    prof.dump_stats(filename)
+    if log is not None:
+        log.info("cProfile stats written to %s" % filename)
 
 
 class _MPMap(object):
@@ -247,7 +284,7 @@ class CmdLineFwk(object):
             message_fmt = "%c %p: %m%n"
 
         # global logging config
-        lsstLog.configure_prop(_logProp.format(message_fmt))
+        lsstLog.configure_prop(_LOG_PROP.format(message_fmt))
 
         # configure individual loggers
         for component, level in logLevels:
@@ -335,7 +372,7 @@ class CmdLineFwk(object):
         if taskClass is None:
             print("Failed to load task `{}'".format(args.taskname))
             return None
-        if taskKind not in (KIND_SUPERTASK):
+        if taskKind != KIND_SUPERTASK:
             print("Task `{}' is not a SuperTask".format(taskName))
             return None
 
@@ -517,11 +554,10 @@ class CmdLineFwk(object):
 
         # setup logging, include dataId into MDC
 #         if dataRef is not None:
-#             logger = lsstLog.Log.getDefaultLogger()
 #             if hasattr(dataRef, "dataId"):
-#                 logger.MDC("LABEL", str(dataRef.dataId))
+#                 lsstLog.MDC("LABEL", str(dataRef.dataId))
 #             elif isinstance(dataRef, (list, tuple)):
-#                 logger.MDC("LABEL", str([ref.dataId for ref in dataRef if hasattr(ref, "dataId")]))
+#                 lsstLog.MDC("LABEL", str([ref.dataId for ref in dataRef if hasattr(ref, "dataId")]))
 
         # make task instance
         task = taskClass(config=config, butler=butler)
@@ -536,9 +572,8 @@ class CmdLineFwk(object):
             raise  # No worries
         except:
             # Need to wrap the exception with something multiprocessing will recognise
-            cls, exc, tb = sys.exc_info()
-            log = lsstLog.Log.getDefaultLogger()
-            log.warn("Unhandled exception %s (%s):\n%s" % (cls.__name__, exc, traceback.format_exc()))
+            cls, exc, _ = sys.exc_info()
+            lsstLog.warn("Unhandled exception %s (%s):\n%s" % (cls.__name__, exc, traceback.format_exc()))
             raise Exception("Unhandled exception: %s (%s)" % (cls.__name__, exc))
 
 

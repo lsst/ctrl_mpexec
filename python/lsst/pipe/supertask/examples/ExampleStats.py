@@ -6,7 +6,7 @@ from lsst.afw.image import MaskU
 import lsst.afw.math as afwMath
 import lsst.pex.config as pexConfig
 import lsst.pipe.base as pipeBase
-from lsst.pipe.supertask.super_task import SuperTask
+from lsst.pipe.supertask import SuperTask
 
 
 class ExampleMeanConfig(pexConfig.Config):
