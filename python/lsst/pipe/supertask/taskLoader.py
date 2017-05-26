@@ -38,8 +38,8 @@ import pkgutil
 # Imports for other modules --
 #-----------------------------
 from lsst.pipe.base import CmdLineTask, Task
-from lsst.pipe.supertask import SuperTask
 import lsst.log as lsstLog
+from .superTask import SuperTask
 
 #----------------------------------
 # Local non-exported definitions --
