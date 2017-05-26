@@ -438,7 +438,7 @@ class CmdLineFwk(object):
         for taskName, task, config, taskClass in taskList:
 
             # call task to make its quanta
-            quanta = task.defineQuanta(repoGraph)
+            quanta = task.defineQuanta(repoGraph, butler)
 
             # undefined yet: dataset graph needs to be updated with the
             # outputs produced by this task. We can do it in the task
@@ -475,14 +475,14 @@ class CmdLineFwk(object):
         -------
         RepoGraph instance.
         """
-        backend = self.makeRepodbBackend(args)
-        repoGraph = backend.makeGraph(UnitClasses=unitClasses,
-                                      where=args.data_query,
-                                      NeededDatasets=inputClasses,
-                                      FutureDatasets=ouputClasses)
+        repodb = self.makeRepodb(args)
+        repoGraph = repodb.makeGraph(UnitClasses=unitClasses,
+                                     where=args.data_query,
+                                     NeededDatasets=inputClasses,
+                                     FutureDatasets=ouputClasses)
         return repoGraph
 
-    def makeRepodbBackend(self, args):
+    def makeRepodb(self, args):
         """Make repodb instance.
 
         Parameters
@@ -492,11 +492,11 @@ class CmdLineFwk(object):
 
         Returns
         -------
-        repodb.Backend instance.
+        repodb.RepoDatabase instance.
         """
         # TODO: Backend instance needs to be created in configurable way
-        backend = repodbTest.makeBackend()
-        return backend
+        repodb = repodbTest.makeRepoDatabase()
+        return repodb
 
     def runPipeline(self, plan, butler, args):
         """
