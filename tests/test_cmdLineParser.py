@@ -172,7 +172,7 @@ class CmdLineParserTestCase(unittest.TestCase):
 
         # know attributes to appear in parser output
         global_options = """
-            data_query
+            data_query repo_db
             calibRepo clobberConfig clobberOutput clobberVersions debug
             doraise inputRepo loglevel longlog noBackupConfig noVersions
             outputRepo packages processes profile rerun subcommand timeout
@@ -239,7 +239,7 @@ class CmdLineParserTestCase(unittest.TestCase):
             --debug
             --doraise
             --input inputRepo
-            --loglevel DEBUG component=trace
+            --loglevel DEBUG -L component=trace
             --longlog
             --no-backup-config
             --no-versions

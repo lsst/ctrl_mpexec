@@ -34,6 +34,7 @@ __all__ = ['CmdLineFwk']
 import contextlib
 import multiprocessing
 import os
+import pickle
 import sys
 import traceback
 
@@ -488,8 +489,12 @@ class CmdLineFwk(object):
         -------
         repodb.RepoDatabase instance.
         """
-        # TODO: Backend instance needs to be created in configurable way
-        repodb = repodbTest.makeRepoDatabase()
+        if args.repo_db is not None:
+            with open(args.repo_db, "rb") as fileObj:
+                repodb = pickle.load(fileObj)
+        else:
+            # use some test database
+            repodb = repodbTest.makeRepoDatabase()
         return repodb
 
     def runPipeline(self, plan, butler, args):
