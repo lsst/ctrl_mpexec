@@ -172,7 +172,7 @@ class CmdLineParserTestCase(unittest.TestCase):
 
         # know attributes to appear in parser output
         global_options = """
-            id _data_type
+            data_query
             calibRepo clobberConfig clobberOutput clobberVersions debug
             doraise inputRepo loglevel longlog noBackupConfig noVersions
             outputRepo packages processes profile rerun subcommand timeout
@@ -191,7 +191,7 @@ class CmdLineParserTestCase(unittest.TestCase):
             """
             show cmd
             """.split())
-        show_options = ['taskname', 'show', 'config_overrides', 'subparser', 'do_help']
+        show_options = ['taskname', 'show', 'config_overrides', 'subparser']
         self.assertEqual(set(vars(args).keys()), set(global_options + show_options))
         self.assertEqual(args.subcommand, 'show')
 
@@ -199,7 +199,7 @@ class CmdLineParserTestCase(unittest.TestCase):
             """
             run taskname
             """.split())
-        run_options = ['taskname', 'show', 'config_overrides', 'subparser', 'do_help']
+        run_options = ['taskname', 'show', 'config_overrides', 'subparser']
         self.assertEqual(set(vars(args).keys()), set(global_options + run_options))
         self.assertEqual(args.subcommand, 'run')
 
@@ -228,7 +228,6 @@ class CmdLineParserTestCase(unittest.TestCase):
         self.assertEqual(args.show, [])
         self.assertEqual(args.config_overrides, [])
         self.assertIsNotNone(args.subparser)
-        self.assertFalse(args.do_help)
 
         # bunch of random options
         args = parser.parse_args(
@@ -253,8 +252,8 @@ class CmdLineParserTestCase(unittest.TestCase):
             --show config config=Task.*
             -c a=b
             -C filename1
-            -c c=d e=f
-            -C filename2 filename3
+            -c c=d -c e=f
+            -C filename2 -C filename3
             """.split())
         self.assertEqual(args.calibRepo, 'calibRepo')
         self.assertTrue(args.clobberConfig)

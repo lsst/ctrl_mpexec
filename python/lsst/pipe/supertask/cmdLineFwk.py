@@ -40,6 +40,8 @@ import traceback
 from lsst.base import disableImplicitThreading
 import lsst.daf.persistence as dafPersist
 import lsst.log as lsstLog
+import lsst.obs.base.repodb.tests as repodbTest
+from lsst.pipe.base.task import TaskError
 from .activator import profile
 from .activator_new import ButlerFactory
 from .configOverrides import ConfigOverrides
@@ -221,7 +223,7 @@ class CmdLineFwk(object):
         butler = bfactory.getButler()
 
         # make execution plan (a.k.a. DAG) for pipeline
-        plan = self.makeExecuionGraph(pipeline, butler)
+        plan = self.makeExecuionGraph(pipeline, args, butler)
 
         # execute
         return self.runPipeline(plan, butler, args)
@@ -352,13 +354,15 @@ class CmdLineFwk(object):
 
         return [(taskName, config, taskClass)]
 
-    def makeExecuionGraph(self, pipeline, butler):
+    def makeExecuionGraph(self, pipeline, args, butler):
         """Create execution plan for a pipeline.
 
         Parameters
         ----------
         pipeline : list of tuples
             Each tuple is (taskName, config, taskClass)
+        args : argparse.Namespace
+            Parsed command line
         butler : Butler
             data butler instance
 
@@ -376,20 +380,28 @@ class CmdLineFwk(object):
         # to build initial dataset graph we have to collect info about all
         # units and datasets to be used by this pipeline
         units = {}
-        datasets = {}
+        inputs = {}
+        outputs = {}
         for taskName, task, config, taskClass in taskList:
             units.update(task.getUnitClasses())
-            datasets.update(task.getDatasetClasses())
+            taskInputs, taskOutputs = task.getDatasetClasses()
+            inputs.update(taskInputs)
+            outputs.update(taskOutputs)
+
+        unitClasses = set(units.values())
+        inputClasses = set(inputs.values())
+        outputClasses = set(outputs.values())
+        inputClasses -= outputClasses
 
         # make dataset graph
-        dsGraph = self.makeDataSetGraph(units, datasets, butler)
+        repoGraph = self.makeRepoGraph(unitClasses, inputClasses, outputClasses, args, butler)
 
         # instantiate all tasks
         plan = []
         for taskName, task, config, taskClass in taskList:
 
             # call task to make its quanta
-            quanta = task.defineQuanta(dsGraph)
+            quanta = task.defineQuanta(repoGraph)
 
             # undefined yet: dataset graph needs to be updated with the
             # outputs produced by this task. We can do it in the task
@@ -397,29 +409,57 @@ class CmdLineFwk(object):
             # and adding them to dataset graph
 #             for quantum in quanta:
 #                 for dsTypeName, datasets in quantum.outputs.items():
-#                     exisitng = dsGraph.datasets.setdefault(dsTypeName, set())
+#                     existing = repoGraph.datasets.setdefault(dsTypeName, set())
 #                     existing |= datasets
 
             plan.append((taskName, taskClass, config, quanta))
 
         return plan
 
-    def makeDataSetGraph(self, units, datasets, butler):
+    def makeRepoGraph(self, unitClasses, inputClasses, ouputClasses, args, butler):
         """Make initial dataset graph instance.
 
         Parameters
         ----------
-        units : dict {units_name: units_class}
-            Dictionary of the units for all tasks in a pipeline
-        datasets : dict {ds_name: ds_class}
-            Dictionary of the datasets for all tasks in a pipeline
+        unitClasses : list of type
+            List contains sub-classes (type objects) of UnitClass
+        inputClasses : list of type
+            List contains sub-classes (type objects) of Dataset which
+            should already exist in input repository
+        outputClasses : list of type
+            List contains sub-classes (type objects) of Dataset which
+            will be created by tasks
+        args : argparse.Namespace
+            Parsed command line
         butler : DataButler
             Data butler instance
+
+        Returns
+        -------
+        RepoGraph instance.
         """
-        unitClasses = units.values()
-        unitClasses = units.values()
-        unitdb.makeGraph()
-        return None
+        backend = self.makeRepodbBackend(args)
+        repoGraph = backend.makeGraph(UnitClasses=unitClasses,
+                                      where=args.data_query,
+                                      NeededDatasets=inputClasses,
+                                      FutureDatasets=ouputClasses)
+        return repoGraph
+
+    def makeRepodbBackend(self, args):
+        """Make repodb instance.
+
+        Parameters
+        ----------
+        args : argparse.Namespace
+            Parsed command line
+
+        Returns
+        -------
+        repodb.Backend instance.
+        """
+        # TODO: Backend instance needs to be created in configurable way
+        backend = repodbTest.makeBackend()
+        return backend
 
     def runPipeline(self, plan, butler, args):
         """
@@ -464,7 +504,7 @@ class CmdLineFwk(object):
             target_list = [(taskClass, config, quantum, butler) for quantum in quanta]
             # call task on each argument in a list
             profile_name = getattr(args, "profile", None)
-            with profile(profile_name, log):
+            with profile(profile_name, lsstLog):
                 mapFunc(self._executeSuperTask, target_list)
 
     def _executeSuperTask(self, target):
