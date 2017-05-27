@@ -46,6 +46,7 @@ import lsst.daf.persistence as dafPersist
 import lsst.log as lsstLog
 import lsst.obs.base.repodb.tests as repodbTest
 from lsst.pipe.base.task import TaskError
+import lsst.utils
 from .activator import ButlerFactory
 from .configOverrides import ConfigOverrides
 from .parser import makeParser, DEFAULT_INPUT_NAME, DEFAULT_CALIB_NAME, DEFAULT_OUTPUT_NAME
@@ -363,6 +364,11 @@ class CmdLineFwk(object):
             Parsed command line
         """
 
+        # need camera/package name to find overrides
+        mapperClass = dafPersist.Butler.getMapperClass(args.input)
+        camera = mapperClass.getCameraName()
+        obsPkg = mapperClass.getPackageName()
+
         # make task loader
         loader = TaskLoader(args.packages)
 
@@ -379,6 +385,22 @@ class CmdLineFwk(object):
 
         # package config overrides
         overrides = ConfigOverrides()
+
+        # camera/package overrides
+        configName = taskClass._DefaultName
+        obsPkgDir = lsst.utils.getPackageDir(obsPkg)
+        fileName = configName + ".py"
+        for filePath in (
+            os.path.join(obsPkgDir, "config", fileName),
+            os.path.join(obsPkgDir, "config", camera, fileName),
+        ):
+            if os.path.exists(filePath):
+                lsstLog.info("Loading config overrride file %r", filePath)
+                overrides.addFileOverride(filePath)
+            else:
+                lsstLog.debug("Config override file does not exist: %r", filePath)
+
+        # command line overrides
         for override in args.config_overrides:
             if override.type == "override":
                 key, sep, val = override.value.partition('=')
@@ -421,8 +443,10 @@ class CmdLineFwk(object):
         outputs = {}
         for taskName, task, config, taskClass in taskList:
             taskInputs, taskOutputs = task.getDatasetClasses()
-            inputs.update(taskInputs)
-            outputs.update(taskOutputs)
+            if taskInputs:
+                inputs.update(taskInputs)
+            if taskOutputs:
+                outputs.update(taskOutputs)
 
         inputClasses = set(inputs.values())
         outputClasses = set(outputs.values())
