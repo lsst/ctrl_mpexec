@@ -50,10 +50,9 @@ import lsst.utils
 from .activator import ButlerFactory
 from .configOverrides import ConfigOverrides
 from .parser import makeParser, DEFAULT_INPUT_NAME, DEFAULT_CALIB_NAME, DEFAULT_OUTPUT_NAME
+from .taskFactory import TaskFactory
 from .taskLoader import (TaskLoader, KIND_SUPERTASK)
-
-# "exported" names
-__all__ = ['CmdLineFwk']
+from . import util
 
 #----------------------------------
 # Local non-exported definitions --
@@ -67,81 +66,6 @@ log4j.appender.A1.Target=System.err
 log4j.appender.A1.layout=PatternLayout
 log4j.appender.A1.layout.ConversionPattern={}
 """
-
-
-def _printTable(rows, header):
-    """Nice formatting of 2-column table.
-
-    Parameters
-    ----------
-    rows : `list` of `tuple`
-        Each item in the list is a 2-tuple containg left and righ column values
-    header: `tuple` or `None`
-        If `None` then table header are not prined, otherwise it's a 2-tuple
-        with column headings.
-    """
-    if not rows:
-        return
-    width = max(len(x[0]) for x in rows)
-    if header:
-        width = max(width, len(header[0]))
-        print(header[0].ljust(width), header[1])
-        print("".ljust(width, "-"), "".ljust(len(header[1]), "-"))
-    for col1, col2 in rows:
-        print(col1.ljust(width), col2)
-
-
-def _fixPath(defName, path):
-    """!Apply environment variable as default root, if present, and abspath
-
-    @param[in] defName  name of environment variable containing default root path;
-        if the environment variable does not exist then the path is relative
-        to the current working directory
-    @param[in] path     path relative to default root path
-    @return abspath: path that has been expanded, or None if the environment variable does not exist
-        and path is None
-    """
-    defRoot = os.environ.get(defName)
-    if defRoot is None:
-        if path is None:
-            return None
-        return os.path.abspath(path)
-    return os.path.abspath(os.path.join(defRoot, path or ""))
-
-
-@contextlib.contextmanager
-def profile(filename, log=None):
-    """!Context manager for profiling with cProfile
-
-    @param filename     filename to which to write profile (profiling disabled if None or empty)
-    @param log          log object for logging the profile operations
-
-    If profiling is enabled, the context manager returns the cProfile.Profile object (otherwise
-    it returns None), which allows additional control over profiling.  You can obtain this using
-    the "as" clause, e.g.:
-
-        with profile(filename) as prof:
-            runYourCodeHere()
-
-    The output cumulative profile can be printed with a command-line like:
-
-        python -c 'import pstats; pstats.Stats("<filename>").sort_stats("cumtime").print_stats(30)'
-    """
-    if not filename:
-        # Nothing to do
-        yield
-        return
-    from cProfile import Profile
-
-    prof = Profile()
-    if log is not None:
-        log.info("Enabling cProfile profiling")
-    prof.enable()
-    yield prof
-    prof.disable()
-    prof.dump_stats(filename)
-    if log is not None:
-        log.info("cProfile stats written to %s" % filename)
 
 
 class _MPMap(object):
@@ -245,9 +169,12 @@ class CmdLineFwk(object):
         # First thing to do is to setup logging.
         self.configLog(args.longlog, args.loglevel)
 
+        self.taskLoader = TaskLoader(args.packages)
+        self.taskFactory = TaskFactory(self.taskLoader)
+
         if args.subcommand == "list":
             # just dump some info about where things may be found
-            return self.doList(args.packages, args.show, args.show_headers)
+            return self.doList(args.show, args.show_headers)
 
         # update all locations
         self._parseDirectories(args)
@@ -295,21 +222,16 @@ class CmdLineFwk(object):
                 logger = lsstLog.Log.getLogger(component or "")
                 logger.setLevel(level)
 
-    def doList(self, packages, show, show_headers):
+    def doList(self, show, show_headers):
         """Implementation of the "list" command.
 
         Parameters
         ----------
-        packages : list of str
-            List of packages to look for tasks
         show : `list` of `str`
             List of items to show.
         show_headers : `bool`
             True to display additional headers
         """
-
-        # make task loader
-        loader = TaskLoader(packages)
 
         if not show:
             show = ["super-tasks"]
@@ -319,12 +241,12 @@ class CmdLineFwk(object):
                 print()
                 print("Modules search path")
                 print("-------------------")
-            for pkg in sorted(loader.packages):
+            for pkg in sorted(self.taskLoader.packages):
                 print(pkg)
 
         if "modules" in show:
             try:
-                modules = loader.modules()
+                modules = self.taskLoader.modules()
             except ImportError as exc:
                 print("Failed to import package, check --package option or $PYTHONPATH:", exc,
                       file=sys.stderr)
@@ -334,11 +256,11 @@ class CmdLineFwk(object):
             if show_headers:
                 print()
                 headers = ("Module or package name", "Type    ")
-            _printTable(modules, headers)
+            util.printTable(modules, headers)
 
         if "tasks" in show or "super-tasks" in show:
             try:
-                tasks = loader.tasks()
+                tasks = self.taskLoader.tasks()
             except ImportError as exc:
                 print("Failed to import package, check --packages option or PYTHONPATH:", exc,
                       file=sys.stderr)
@@ -353,7 +275,7 @@ class CmdLineFwk(object):
             if show_headers:
                 print()
                 headers = ("Task class name", "Kind     ")
-            _printTable(tasks, headers)
+            util.printTable(tasks, headers)
 
     def makePipeline(self, args):
         """Construct pipeline from command line arguments
@@ -369,18 +291,12 @@ class CmdLineFwk(object):
         camera = mapperClass.getCameraName()
         obsPkg = mapperClass.getPackageName()
 
-        # make task loader
-        loader = TaskLoader(args.packages)
-
         # for now parser supports just a single task on command line
 
         # load task class
-        taskClass, taskName, taskKind = loader.loadTaskClass(args.taskname)
+        taskClass, taskName = self.taskFactory.loadTaskClass(args.taskname)
         if taskClass is None:
             print("Failed to load task `{}'".format(args.taskname))
-            return None
-        if taskKind != KIND_SUPERTASK:
-            print("Task `{}' is not a SuperTask".format(taskName))
             return None
 
         # package config overrides
@@ -434,11 +350,11 @@ class CmdLineFwk(object):
         # make all task instances
         taskList = []
         for taskName, config, taskClass in pipeline:
-            task = taskClass(config=config, butler=butler)
+            task = self.taskFactory.makeTask(taskClass, config, None, butler)
             taskList += [(taskName, task, config, taskClass)]
 
         # to build initial dataset graph we have to collect info about all
-        # units and datasets to be used by this pipeline
+        # datasets to be used by this pipeline
         inputs = {}
         outputs = {}
         for taskName, task, config, taskClass in taskList:
@@ -538,7 +454,7 @@ class CmdLineFwk(object):
 
         # pre-flight check
         for taskName, taskClass, config, quanta in plan:
-            task = taskClass(config=config, butler=butler)
+            task = self.taskFactory.makeTask(taskClass, config, None, butler)
             if not self.precall(task, butler, args):
                 # non-zero means failure
                 return 1
@@ -559,12 +475,11 @@ class CmdLineFwk(object):
 
         # tasks are executed sequentially but quanta can run in parallel
         for taskName, taskClass, config, quanta in plan:
-            task = taskClass(config=config, butler=butler)
-
+            # targets for map function
             target_list = [(taskClass, config, quantum, butler) for quantum in quanta]
             # call task on each argument in a list
             profile_name = getattr(args, "profile", None)
-            with profile(profile_name, lsstLog):
+            with util.profile(profile_name, lsstLog):
                 mapFunc(self._executeSuperTask, target_list)
 
     def _executeSuperTask(self, target):
@@ -583,7 +498,7 @@ class CmdLineFwk(object):
 #                 lsstLog.MDC("LABEL", str([ref.dataId for ref in dataRef if hasattr(ref, "dataId")]))
 
         # make task instance
-        task = taskClass(config=config, butler=butler)
+        task = self.taskFactory.makeTask(taskClass, config, None, butler)
 
         # Call task runQuantum() method and wrap it to catch exceptions that
         # don't inherit from Exception. Such exceptions aren't caught by
@@ -658,12 +573,12 @@ class CmdLineFwk(object):
         Modifications are made to the 'namespace' object in-place.
         """
 
-        namespace.input = _fixPath(DEFAULT_INPUT_NAME, namespace.inputRepo)
-        namespace.calib = _fixPath(DEFAULT_CALIB_NAME, namespace.calibRepo)
+        namespace.input = util.fixPath(DEFAULT_INPUT_NAME, namespace.inputRepo)
+        namespace.calib = util.fixPath(DEFAULT_CALIB_NAME, namespace.calibRepo)
 
         # If an output directory is specified, process it and assign it to the namespace
         if namespace.outputRepo:
-            namespace.output = _fixPath(DEFAULT_OUTPUT_NAME, namespace.outputRepo)
+            namespace.output = util.fixPath(DEFAULT_OUTPUT_NAME, namespace.outputRepo)
         else:
             namespace.output = None
 
