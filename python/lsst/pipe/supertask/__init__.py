@@ -8,7 +8,7 @@ try:
 except:
     __version__ = "unknown"
 
-from .activator import *
+from .graphBuilder import *
 from .pipeline import *
 from .quantum import *
 from .resourceConfig import *

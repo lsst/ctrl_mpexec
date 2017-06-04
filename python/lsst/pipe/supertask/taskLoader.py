@@ -90,6 +90,7 @@ class TaskLoader(object):
     """
 
     # default locations for packages
+    # TODO: examples should be removed later.
     DEFAULT_PACKAGES = ['lsst.pipe.supertask.examples', 'lsst.pipe.tasks']
 
     def __init__(self, packages=None):
@@ -188,6 +189,10 @@ class TaskLoader(object):
             fully-qualified class name ("package.module.TaskClass")
         taks_kind
             one of KIND_TASK, KIND_CMDLINETASK, or KIND_SUPERTASK
+
+        Raises
+        ------
+        `ImportError` is raised when task class cannot be imported.
         """
         self._log.debug("load_task_class: will look for %r", task_class_name)
         dot = task_class_name.rfind('.')
@@ -248,4 +253,4 @@ class TaskLoader(object):
                                 if kind is not None:
                                     return (obj, module_name + '.' + task_class_name, kind)
 
-        return None, None, None
+        raise ImportError('Cannot find class named "' + task_class_name + '" in known packages')

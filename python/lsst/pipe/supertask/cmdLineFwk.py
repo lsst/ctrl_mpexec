@@ -47,9 +47,10 @@ import lsst.log as lsstLog
 import lsst.obs.base.repodb.tests as repodbTest
 from lsst.pipe.base.task import TaskError
 import lsst.utils
-from .activator import ButlerFactory
 from .configOverrides import ConfigOverrides
+from .graphBuilder import GraphBuilder
 from .parser import makeParser, DEFAULT_INPUT_NAME, DEFAULT_CALIB_NAME, DEFAULT_OUTPUT_NAME
+from .pipeline import Pipeline, TaskDef
 from .taskFactory import TaskFactory
 from .taskLoader import (TaskLoader, KIND_SUPERTASK)
 from . import util
@@ -100,7 +101,7 @@ class _MPMap(object):
         return result.get(self.timeout)
 
 
-class BFactory(ButlerFactory):
+class BFactory(object):
     """Implement ButlerFactory using command line arguments.
 
     Parameters
@@ -179,20 +180,24 @@ class CmdLineFwk(object):
         # update all locations
         self._parseDirectories(args)
 
+        # make butler instance
+        bfactory = BFactory(args)
+        butler = bfactory.getButler()
+
         # make pipeline out of command line arguments
         pipeline = self.makePipeline(args)
         if pipeline is None:
             return 2
 
-        # make butler instance
-        bfactory = BFactory(args)
-        butler = bfactory.getButler()
+        # make RepoDatabsae instance
+        repoDb = self.makeRepodb(args)
 
         # make execution plan (a.k.a. DAG) for pipeline
-        plan = self.makeExecuionGraph(pipeline, args, butler)
+        graphBuilder = GraphBuilder(self.taskFactory, butler, repoDb, args.data_query)
+        graph = graphBuilder.makeGraph(pipeline)
 
         # execute
-        return self.runPipeline(plan, butler, args)
+        return self.runPipeline(graph, butler, args)
 
     @staticmethod
     def configLog(longlog, logLevels):
@@ -284,6 +289,10 @@ class CmdLineFwk(object):
         ----------
         args : argparse.Namespace
             Parsed command line
+
+        Returns
+        -------
+        `Pipeline` instance.
         """
 
         # need camera/package name to find overrides
@@ -292,130 +301,50 @@ class CmdLineFwk(object):
         obsPkg = mapperClass.getPackageName()
 
         # for now parser supports just a single task on command line
+        tasks = [(args.taskname, args.config_overrides)]
 
-        # load task class
-        taskClass, taskName = self.taskFactory.loadTaskClass(args.taskname)
-        if taskClass is None:
-            print("Failed to load task `{}'".format(args.taskname))
-            return None
+        pipeline = Pipeline()
+        for taskName, configOverrides in tasks:
 
-        # package config overrides
-        overrides = ConfigOverrides()
+            # load task class
+            try:
+                taskClass, taskName = self.taskFactory.loadTaskClass(taskName)
+            except ImportError:
+                print("Failed to load task `{}'".format(taskName))
+                return None
 
-        # camera/package overrides
-        configName = taskClass._DefaultName
-        obsPkgDir = lsst.utils.getPackageDir(obsPkg)
-        fileName = configName + ".py"
-        for filePath in (
-            os.path.join(obsPkgDir, "config", fileName),
-            os.path.join(obsPkgDir, "config", camera, fileName),
-        ):
-            if os.path.exists(filePath):
-                lsstLog.info("Loading config overrride file %r", filePath)
-                overrides.addFileOverride(filePath)
-            else:
-                lsstLog.debug("Config override file does not exist: %r", filePath)
+            # package all config overrides into a single object
+            overrides = ConfigOverrides()
 
-        # command line overrides
-        for override in args.config_overrides:
-            if override.type == "override":
-                key, sep, val = override.value.partition('=')
-                overrides.addValueOverride(key, val)
-            elif override.type == "file":
-                overrides.addFileOverride(override.value)
+            # camera/package overrides
+            configName = taskClass._DefaultName
+            obsPkgDir = lsst.utils.getPackageDir(obsPkg)
+            fileName = configName + ".py"
+            for filePath in (
+                os.path.join(obsPkgDir, "config", fileName),
+                os.path.join(obsPkgDir, "config", camera, fileName),
+            ):
+                if os.path.exists(filePath):
+                    lsstLog.info("Loading config overrride file %r", filePath)
+                    overrides.addFileOverride(filePath)
+                else:
+                    lsstLog.debug("Config override file does not exist: %r", filePath)
 
-        # make config instance with defaults and overrides
-        config = taskClass.ConfigClass()
-        overrides.applyTo(config)
+            # command line overrides
+            for override in configOverrides:
+                if override.type == "override":
+                    key, sep, val = override.value.partition('=')
+                    overrides.addValueOverride(key, val)
+                elif override.type == "file":
+                    overrides.addFileOverride(override.value)
 
-        return [(taskName, config, taskClass)]
+            # make config instance with defaults and overrides
+            config = taskClass.ConfigClass()
+            overrides.applyTo(config)
 
-    def makeExecuionGraph(self, pipeline, args, butler):
-        """Create execution plan for a pipeline.
+            pipeline.append(TaskDef(taskName, config, taskClass))
 
-        Parameters
-        ----------
-        pipeline : list of tuples
-            Each tuple is (taskName, config, taskClass)
-        args : argparse.Namespace
-            Parsed command line
-        butler : Butler
-            data butler instance
-
-        Returns
-        -------
-        List of tuples (taskName, taskClass, config, quanta).
-        """
-
-        # make all task instances
-        taskList = []
-        for taskName, config, taskClass in pipeline:
-            task = self.taskFactory.makeTask(taskClass, config, None, butler)
-            taskList += [(taskName, task, config, taskClass)]
-
-        # to build initial dataset graph we have to collect info about all
-        # datasets to be used by this pipeline
-        inputs = {}
-        outputs = {}
-        for taskName, task, config, taskClass in taskList:
-            taskInputs, taskOutputs = task.getDatasetClasses()
-            if taskInputs:
-                inputs.update(taskInputs)
-            if taskOutputs:
-                outputs.update(taskOutputs)
-
-        inputClasses = set(inputs.values())
-        outputClasses = set(outputs.values())
-        inputClasses -= outputClasses
-
-        # make dataset graph
-        repoGraph = self.makeRepoGraph(inputClasses, outputClasses, args, butler)
-
-        # instantiate all tasks
-        plan = []
-        for taskName, task, config, taskClass in taskList:
-
-            # call task to make its quanta
-            quanta = task.defineQuanta(repoGraph, butler)
-
-            # undefined yet: dataset graph needs to be updated with the
-            # outputs produced by this task. We can do it in the task
-            # itself or we can do it here by scannint quanta outputs
-            # and adding them to dataset graph
-#             for quantum in quanta:
-#                 for dsTypeName, datasets in quantum.outputs.items():
-#                     existing = repoGraph.datasets.setdefault(dsTypeName, set())
-#                     existing |= datasets
-
-            plan.append((taskName, taskClass, config, quanta))
-
-        return plan
-
-    def makeRepoGraph(self, inputClasses, ouputClasses, args, butler):
-        """Make initial dataset graph instance.
-
-        Parameters
-        ----------
-        inputClasses : list of type
-            List contains sub-classes (type objects) of Dataset which
-            should already exist in input repository
-        outputClasses : list of type
-            List contains sub-classes (type objects) of Dataset which
-            will be created by tasks
-        args : argparse.Namespace
-            Parsed command line
-        butler : DataButler
-            Data butler instance
-
-        Returns
-        -------
-        RepoGraph instance.
-        """
-        repodb = self.makeRepodb(args)
-        repoGraph = repodb.makeGraph(where=args.data_query,
-                                     NeededDatasets=inputClasses,
-                                     FutureDatasets=ouputClasses)
-        return repoGraph
+        return pipeline
 
     def makeRepodb(self, args):
         """Make repodb instance.
@@ -442,7 +371,7 @@ class CmdLineFwk(object):
         Parameters
         ----------
         plan : list of tuples
-            Each tuple is (taskName, taskClass, config, quanta).
+            Each tuple is (taskDef, quanta).
         butler : Butler
             data butler instance
         args : argparse.Namespace
@@ -453,13 +382,13 @@ class CmdLineFwk(object):
         numProc = args.processes
 
         # pre-flight check
-        for taskName, taskClass, config, quanta in plan:
-            task = self.taskFactory.makeTask(taskClass, config, None, butler)
+        for taskDef, quanta in plan:
+            task = self.taskFactory.makeTask(taskDef.taskClass, taskDef.config, None, butler)
             if not self.precall(task, butler, args):
                 # non-zero means failure
                 return 1
 
-            if numProc > 1 and not taskClass.canMultiprocess:
+            if numProc > 1 and not taskDef.taskClass.canMultiprocess:
                 lsstLog.warn("Task %s does not support multiprocessing; using one process", taskName)
                 numProc = 1
 
@@ -474,9 +403,10 @@ class CmdLineFwk(object):
             mapFunc = lambda func, iterable: list(map(func, iterable))
 
         # tasks are executed sequentially but quanta can run in parallel
-        for taskName, taskClass, config, quanta in plan:
+        for taskDef, quanta in plan:
             # targets for map function
-            target_list = [(taskClass, config, quantum, butler) for quantum in quanta]
+            target_list = [(taskDef.taskClass, taskDef.config, quantum, butler)
+                           for quantum in quanta]
             # call task on each argument in a list
             profile_name = getattr(args, "profile", None)
             with util.profile(profile_name, lsstLog):

@@ -42,16 +42,17 @@ class TaskFactory(object):
         taskName : `str`
             Full task class name including package and module, or None on
             failure.
+
+        Raises
+        ------
+        `ImportError` is raised if task classes cannot be imported.
+        `TypeError` is raised if imported task is not a SuperTask.
         """
 
-        # load the class
+        # load the class, this will raise ImportError on failure
         taskClass, fullTaskName, taskKind = self.taskLoader.loadTaskClass(taskName)
-        if taskClass is None:
-            _LOG.error("Failed to load task class %s", taskName)
-            return None, None
         if taskKind != 'SuperTask':
-            _LOG.error("Task class %s is not a SuperTask", fullTaskName)
-            return None, None
+            raise TypeError("Task class {} is not a SuperTask".format(fullTaskName))
 
         return taskClass, fullTaskName
 
