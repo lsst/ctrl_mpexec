@@ -134,11 +134,9 @@ class BFactory(object):
 
 
 class CmdLineFwk(object):
-    """
-    CmdLineActivator implements an activator for SuperTasks which executes
-    tasks from command line.
+    """SuperTask framework which executes tasks from command line.
 
-    In addition to executing taks this activator provides additional methods
+    In addition to executing tasks this activator provides additional methods
     for task management like dumping configuration or execution chain.
     """
 
