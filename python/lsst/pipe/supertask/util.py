@@ -25,7 +25,7 @@ Few utility methods used by the rest of a package.
 
 from __future__ import print_function
 
-__all__ = ["profile", "printTable", "fixPath"]
+__all__ = ["profile", "printTable", "fixPath", "filterTasks", "subTaskIter"]
 
 #--------------------------------
 #  Imports of standard modules --
@@ -117,3 +117,57 @@ def fixPath(defName, path):
             return None
         return os.path.abspath(path)
     return os.path.abspath(os.path.join(defRoot, path or ""))
+
+
+def filterTasks(pipeline, name):
+    """Finds list of tasks matching given name.
+
+    For matching task either task label or task name after last dot should
+    be identical to `name`. If task label is non-empty then task name is not
+    checked.
+
+    Parameters
+    ----------
+    pipeline : `Pipeline`
+    name : str or none
+        If empty or None then all tasks are returned
+
+    Returns
+    -------
+    Lsit of `TaskDef` instances.
+    """
+    if not name:
+        return list(pipeline)
+    tasks = []
+    for taskDef in pipeline:
+        if taskDef.label:
+            if taskDef.label == name:
+                tasks.append(taskDef)
+        elif taskDef.taskName.split('.')[-1] == name:
+            tasks.append(taskDef)
+    return tasks
+
+
+def subTaskIter(config):
+    """Recursively generates subtask names.
+
+    Parameters
+    ----------
+    config : `lsst.pex.config.Config`
+        Configuration of the task
+
+    Returns
+    -------
+    Iterator which returns tuples of (configFieldPath, taskName).
+    """
+    for fieldName, field in sorted(config.items()):
+        if hasattr(field, "value") and hasattr(field, "target"):
+            subConfig = field.value
+            if isinstance(subConfig, pexConfig.Config):
+                try:
+                    taskName = "%s.%s" % (field.target.__module__, field.target.__name__)
+                except Exception:
+                    taskName = repr(field.target)
+                yield fieldName, taskName
+                for subFieldName, taskName in subTaskIter(subConfig):
+                    yield fieldName + '.' + subFieldName, taskName

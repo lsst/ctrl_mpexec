@@ -85,6 +85,40 @@ class CmdLineParserTestCase(unittest.TestCase):
         args = parser.parse_args("-c 1 2 3 -c 4 5 6".split())
         self.assertEqual(args.config_overrides, [1, 2, 3, 4, 5, 6])
 
+    def testTaskConfigAction(self):
+        """Test for a _TaskConfigAction class
+        """
+
+        parser = _NoExitParser()
+        parser.add_argument("-t", dest="taskname", action='append')
+        parser.add_argument("-c", dest='config_overrides',
+                            action=parser_mod._TaskConfigAction)
+
+        # without task name it must generate error
+        with self.assertRaises(_Error):
+            parser.parse_args("-c cfg".split())
+
+        args = parser.parse_args("-t task".split())
+        self.assertEqual(args.taskname, ["task"])
+        self.assertIsNone(args.config_overrides)
+
+        args = parser.parse_args("-t task -c 1".split())
+        self.assertEqual(args.taskname, ["task"])
+        self.assertEqual(args.config_overrides, [["1"]])
+
+        args = parser.parse_args("-t task -c 1 -c 2 -c 3 -c 4".split())
+        self.assertEqual(args.taskname, ["task"])
+        self.assertEqual(args.config_overrides, [["1", "2", "3", "4"]])
+
+        args = parser.parse_args("-t task1 -t task2 -c 1".split())
+        self.assertEqual(args.taskname, ["task1", "task2"])
+        self.assertEqual(args.config_overrides, [None, ["1"]])
+
+        args = parser.parse_args("-t task1 -c 1 -t task2 -c 2".split())
+        self.assertEqual(args.taskname, ["task1", "task2"])
+        self.assertEqual(args.config_overrides, [["1"], ["2"]])
+
+
     def testIdValueAction(self):
         """Test for parser._IdValueAction
         """
@@ -139,28 +173,29 @@ class CmdLineParserTestCase(unittest.TestCase):
         """Test for a _config_override and _config_file conversions
         """
         parser = ArgumentParser()
-        parser.add_argument("-c", dest='config_overrides', nargs="+",
-                            action=parser_mod._AppendFlattenAction,
+        parser.add_argument("taskname", default=[], action='append')
+        parser.add_argument("-c", dest='config_overrides',
+                            action=parser_mod._TaskConfigAction,
                             type=parser_mod._config_override)
-        parser.add_argument("-C", dest='config_overrides', nargs="+",
-                            action=parser_mod._AppendFlattenAction,
+        parser.add_argument("-C", dest='config_overrides',
+                            action=parser_mod._TaskConfigAction,
                             type=parser_mod._config_file)
 
         Override = parser_mod._Override
-        args = parser.parse_args("-c a=b".split())
-        self.assertEqual(args.config_overrides, [Override("override", "a=b")])
+        args = parser.parse_args("task -c a=b".split())
+        self.assertEqual(args.config_overrides, [[Override("override", "a=b")]])
 
-        args = parser.parse_args("-C filename".split())
-        self.assertEqual(args.config_overrides, [Override("file", "filename")])
+        args = parser.parse_args("task -C filename".split())
+        self.assertEqual(args.config_overrides, [[Override("file", "filename")]])
 
-        args = parser.parse_args("-c a=b c=d -C filename1 filename2 -c e=f -C filename3".split())
-        self.assertEqual(args.config_overrides, [Override("override", "a=b"),
+        args = parser.parse_args("task -c a=b -c c=d -C filename1 -C filename2 -c e=f -C filename3".split())
+        self.assertEqual(args.config_overrides, [[Override("override", "a=b"),
                                                  Override("override", "c=d"),
                                                  Override("file", "filename1"),
                                                  Override("file", "filename2"),
                                                  Override("override", "e=f"),
                                                  Override("file", "filename3"),
-                                                 ])
+                                                 ]])
 
     def testCmdLineParser(self):
         """Test for parser_mod.CmdLineParser
@@ -189,24 +224,31 @@ class CmdLineParserTestCase(unittest.TestCase):
 
         args = parser.parse_args(
             """
-            show cmd
+            show -t cmd
             """.split())
-        show_options = ['taskname', 'show', 'config_overrides', 'subparser']
+        show_options = ['taskname', 'show', 'config_overrides', 'subparser', 'pipeline',
+                        'save_pipeline']
         self.assertEqual(set(vars(args).keys()), set(global_options + show_options))
         self.assertEqual(args.subcommand, 'show')
 
         args = parser.parse_args(
             """
-            run taskname
+            run -t taskname
             """.split())
-        run_options = ['taskname', 'show', 'config_overrides', 'subparser']
+        run_options = ['taskname', 'show', 'config_overrides', 'subparser', 'pipeline',
+                       'save_pipeline']
         self.assertEqual(set(vars(args).keys()), set(global_options + run_options))
         self.assertEqual(args.subcommand, 'run')
+
+
+    def testCmdLineTasks(self):
+
+        parser = parser_mod.makeParser(parser_class=_NoExitParser)
 
         # default options
         args = parser.parse_args(
             """
-            run taskname
+            run -t taskname
             """.split())
         self.assertIsNone(args.calibRepo)
         self.assertFalse(args.clobberConfig)
@@ -224,10 +266,11 @@ class CmdLineParserTestCase(unittest.TestCase):
         self.assertIsNone(args.profile)
         self.assertIsNone(args.rerun)
         self.assertIsNone(args.timeout)
-        self.assertEqual(args.taskname, 'taskname')
+        self.assertEqual(args.taskname, ['taskname'])
         self.assertEqual(args.show, [])
-        self.assertEqual(args.config_overrides, [])
+        self.assertIsNone(args.config_overrides)
         self.assertIsNotNone(args.subparser)
+        self.assertIsNone(args.pipeline)
 
         # bunch of random options
         args = parser.parse_args(
@@ -248,8 +291,9 @@ class CmdLineParserTestCase(unittest.TestCase):
             --profile profile.out
             --rerun rerunRepo
             --timeout 10.10
-            run taskname
-            --show config config=Task.*
+            run -t taskname
+            --show config
+            --show config=Task.*
             -c a=b
             -C filename1
             -c c=d -c e=f
@@ -271,9 +315,62 @@ class CmdLineParserTestCase(unittest.TestCase):
         self.assertEqual(args.profile, 'profile.out')
         self.assertEqual(args.rerun, 'rerunRepo')
         self.assertEqual(args.timeout, 10.10)
-        self.assertEqual(args.taskname, 'taskname')
         self.assertEqual(args.show, ['config', 'config=Task.*'])
-        self.assertEqual(len(args.config_overrides), 6)
+        self.assertEqual(args.taskname, ['taskname'])
+        self.assertEqual(len(args.config_overrides), 1)
+        self.assertEqual(len(args.config_overrides[0]), 6)
+        self.assertIsNone(args.pipeline)
+
+        # multiple tasks
+        args = parser.parse_args(
+            """
+            run -t task1
+            --show config
+            -c a=b
+            -C filename1
+            -t task2
+            -c c=d -c e=f
+            -C filename2 -C filename3
+            --show config=Task.*
+            -t task3
+            -t task4
+            -C filename4 -c x=y
+            """.split())
+        self.assertEqual(args.show, ['config', 'config=Task.*'])
+        self.assertEqual(args.taskname, ['task1', 'task2', 'task3', 'task4'])
+        self.assertEqual(len(args.config_overrides), 4)
+        self.assertEqual(len(args.config_overrides[0]), 2)
+        self.assertEqual(len(args.config_overrides[1]), 4)
+        self.assertIsNone(args.config_overrides[2])
+        self.assertEqual(len(args.config_overrides[3]), 2)
+        self.assertIsNone(args.pipeline)
+
+    def testCmdLinePipeline(self):
+
+        parser = parser_mod.makeParser(parser_class=_NoExitParser)
+
+        args = parser.parse_args(
+            """
+            run -e pipeline
+            --show config
+            --show config=Task.*
+            """.split())
+        self.assertEqual(args.show, ['config', 'config=Task.*'])
+        self.assertIsNone(args.taskname)
+        self.assertIsNone(args.config_overrides)
+        self.assertEqual(args.pipeline, 'pipeline')
+
+        # -e and -t are exclusive
+        with self.assertRaises(_Error):
+            parser.parse_args("run -e pipeline -t task".split())
+
+        # one of -e or -t is required
+        with self.assertRaises(_Error):
+            parser.parse_args("run --show show".split())
+
+        # -e and -c cannot be used together (-c needs -t)
+        with self.assertRaises(_Error):
+            parser.parse_args("run -e pipeline -c config".split())
 
 
 class MyMemoryTestCase(lsst.utils.tests.MemoryTestCase):

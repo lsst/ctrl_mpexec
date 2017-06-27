@@ -32,9 +32,11 @@ __all__ = ['CmdLineFwk']
 #  Imports of standard modules --
 #--------------------------------
 import contextlib
+import fnmatch
 import multiprocessing
 import os
 import pickle
+import re
 import sys
 import traceback
 
@@ -45,6 +47,7 @@ from lsst.base import disableImplicitThreading
 import lsst.daf.persistence as dafPersist
 import lsst.log as lsstLog
 import lsst.obs.base.repodb.tests as repodbTest
+import lsst.pex.config as pexConfig
 from lsst.pipe.base.task import TaskError
 import lsst.utils
 from .configOverrides import ConfigOverrides
@@ -187,15 +190,23 @@ class CmdLineFwk(object):
         if pipeline is None:
             return 2
 
-        # make RepoDatabsae instance
+        if args.save_pipeline:
+            with open(args.save_pipeline, "wb") as pickleFile:
+                pickle.dump(pipeline, pickleFile)
+
+        # make RepoDatabase instance
         repoDb = self.makeRepodb(args)
 
         # make execution plan (a.k.a. DAG) for pipeline
         graphBuilder = GraphBuilder(self.taskFactory, butler, repoDb, args.data_query)
         graph = graphBuilder.makeGraph(pipeline)
 
+        # optionally dump some info
+        self.showInfo(args.show, butler, pipeline, repoDb, graph)
+
         # execute
-        return self.runPipeline(graph, butler, args)
+        if args.subcommand == "run":
+            return self.runPipeline(graph, butler, args)
 
     @staticmethod
     def configLog(longlog, logLevels):
@@ -298,49 +309,68 @@ class CmdLineFwk(object):
         camera = mapperClass.getCameraName()
         obsPkg = mapperClass.getPackageName()
 
-        # for now parser supports just a single task on command line
-        tasks = [(args.taskname, args.config_overrides)]
 
-        pipeline = Pipeline()
-        for taskName, configOverrides in tasks:
+        if args.pipeline:
 
-            # load task class
+            # load it from a pickle file
             try:
-                taskClass, taskName = self.taskFactory.loadTaskClass(taskName)
-            except ImportError:
-                print("Failed to load task `{}'".format(taskName))
+                with open(args.pipeline) as pickleFile:
+                    pipeline = pickle.load(pickleFile)
+            except Exception as exc:
+                print("Failed to load pipeline from file `{}': {}".format(args.pipeline, exc))
                 return None
 
-            # package all config overrides into a single object
-            overrides = ConfigOverrides()
+            # check type
+            if not isinstance(pipeline, Pipeline):
+                print("Pickle file `{}' contains something other than Pipeline".format(args.pipeline))
+                return None
 
-            # camera/package overrides
-            configName = taskClass._DefaultName
-            obsPkgDir = lsst.utils.getPackageDir(obsPkg)
-            fileName = configName + ".py"
-            for filePath in (
-                os.path.join(obsPkgDir, "config", fileName),
-                os.path.join(obsPkgDir, "config", camera, fileName),
-            ):
-                if os.path.exists(filePath):
-                    lsstLog.info("Loading config overrride file %r", filePath)
-                    overrides.addFileOverride(filePath)
-                else:
-                    lsstLog.debug("Config override file does not exist: %r", filePath)
+        else:
 
-            # command line overrides
-            for override in configOverrides:
-                if override.type == "override":
-                    key, sep, val = override.value.partition('=')
-                    overrides.addValueOverride(key, val)
-                elif override.type == "file":
-                    overrides.addFileOverride(override.value)
+            # align config overrides list with task list
+            config_overrides = args.config_overrides or []
+            config_overrides += [None] * (len(args.taskname) - len(config_overrides))
 
-            # make config instance with defaults and overrides
-            config = taskClass.ConfigClass()
-            overrides.applyTo(config)
+            pipeline = Pipeline()
+            for taskName, configOverrides in zip(args.taskname, config_overrides):
 
-            pipeline.append(TaskDef(taskName, config, taskClass))
+                # load task class
+                try:
+                    taskClass, taskName = self.taskFactory.loadTaskClass(taskName)
+                except ImportError:
+                    print("Failed to load task `{}'".format(taskName))
+                    return None
+
+                # package all config overrides into a single object
+                overrides = ConfigOverrides()
+
+                # camera/package overrides
+                configName = taskClass._DefaultName
+                obsPkgDir = lsst.utils.getPackageDir(obsPkg)
+                fileName = configName + ".py"
+                for filePath in (
+                    os.path.join(obsPkgDir, "config", fileName),
+                    os.path.join(obsPkgDir, "config", camera, fileName),
+                ):
+                    if os.path.exists(filePath):
+                        lsstLog.info("Loading config overrride file %r", filePath)
+                        overrides.addFileOverride(filePath)
+                    else:
+                        lsstLog.debug("Config override file does not exist: %r", filePath)
+
+                # command line overrides
+                for override in configOverrides or []:
+                    if override.type == "override":
+                        key, sep, val = override.value.partition('=')
+                        overrides.addValueOverride(key, val)
+                    elif override.type == "file":
+                        overrides.addFileOverride(override.value)
+
+                # make config instance with defaults and overrides
+                config = taskClass.ConfigClass()
+                overrides.applyTo(config)
+
+                pipeline.append(TaskDef(taskName, config, taskClass))
 
         return pipeline
 
@@ -364,12 +394,12 @@ class CmdLineFwk(object):
             repodb = repodbTest.makeRepoDatabase()
         return repodb
 
-    def runPipeline(self, plan, butler, args):
+    def runPipeline(self, graph, butler, args):
         """
         Parameters
         ----------
-        plan : list of tuples
-            Each tuple is (taskDef, quanta).
+        graph : `GraphOfTasks`
+            Execution graph.
         butler : Butler
             data butler instance
         args : argparse.Namespace
@@ -380,7 +410,8 @@ class CmdLineFwk(object):
         numProc = args.processes
 
         # pre-flight check
-        for taskDef, quanta in plan:
+        for taskNodes in graph:
+            taskDef, quanta = taskNodes.taskDef, taskNodes.quanta
             task = self.taskFactory.makeTask(taskDef.taskClass, taskDef.config, None, butler)
             if not self.precall(task, butler, args):
                 # non-zero means failure
@@ -401,7 +432,8 @@ class CmdLineFwk(object):
             mapFunc = lambda func, iterable: list(map(func, iterable))
 
         # tasks are executed sequentially but quanta can run in parallel
-        for taskDef, quanta in plan:
+        for taskNodes in graph:
+            taskDef, quanta = taskNodes.taskDef, taskNodes.quanta
             # targets for map function
             target_list = [(taskDef.taskClass, taskDef.config, quantum, butler)
                            for quantum in quanta]
@@ -539,3 +571,162 @@ class CmdLineFwk(object):
         del namespace.inputRepo
         del namespace.calibRepo
         del namespace.outputRepo
+
+    def showInfo(self, showOpts, butler, pipeline, repoDb, graph):
+        """Display useful info about pipeline and environment.
+
+        Parameters
+        ----------
+        showOpts : list of strings
+            Defines what to show
+        butler : Butler
+            Data butler instance
+        pipeline : Pipeline
+            Pipeline definition
+        repoDb : RepoDatabase
+            RepoDatabase instance
+        graph : `GraphOfTasks`
+            Execution graph.
+        """
+
+        for what in showOpts:
+            showCommand, _, showArgs = what.partition("=")
+
+            if showCommand == "pipeline":
+                for taskDef in pipeline:
+                    print(taskDef)
+            elif showCommand == "config":
+                self._showConfig(pipeline, showArgs)
+            elif showCommand == "history":
+                self._showConfigHistory(pipeline, showArgs)
+            elif showCommand == "tasks":
+                self._showTaskHierarchy(pipeline)
+            elif showCommand == "graph":
+                self._showGraph(graph)
+            else:
+                print("Unknown value for show: %s (choose from '%s')" %
+                      (what, "', '".join("pipeline config[=XXX] history=XXX tasks graph".split())),
+                      file=sys.stderr)
+                sys.exit(1)
+
+    def _showConfig(self, pipeline, showArgs):
+        """Show task configuration
+
+        Parameters
+        ----------
+        pipeline : Pipeline
+            Pipeline definition
+        showArgs : str
+            Defines what to show
+        """
+        matConfig = re.search(r"^(?:(\w+)::)?(?:config.)?(.+)?", showArgs)
+        taskName = matConfig.group(1)
+        pattern = matConfig.group(2)
+        if pattern:
+            class FilteredStream(object):
+                """A file object that only prints lines that match the glob "pattern"
+
+                N.b. Newlines are silently discarded and reinserted;  crude but effective.
+                """
+
+                def __init__(self, pattern):
+                    # obey case if pattern isn't lowecase or requests NOIGNORECASE
+                    mat = re.search(r"(.*):NOIGNORECASE$", pattern)
+
+                    if mat:
+                        pattern = mat.group(1)
+                        self._pattern = re.compile(fnmatch.translate(pattern))
+                    else:
+                        if pattern != pattern.lower():
+                            print(u"Matching \"%s\" without regard to case "
+                                  "(append :NOIGNORECASE to prevent this)" % (pattern,), file=sys.stdout)
+                        self._pattern = re.compile(fnmatch.translate(pattern), re.IGNORECASE)
+
+                def write(self, showStr):
+                    showStr = showStr.rstrip()
+                    # Strip off doc string line(s) and cut off at "=" for string matching
+                    matchStr = showStr.split("\n")[-1].split("=")[0]
+                    if self._pattern.search(matchStr):
+                        print(u"\n" + showStr)
+
+            fd = FilteredStream(pattern)
+        else:
+            fd = sys.stdout
+
+        tasks = util.filterTasks(pipeline, taskName)
+        if not tasks:
+            print("Pipeline has not tasks named {}".format(taskName), file=sys.stderr)
+            sys.exit(1)
+
+        for taskDef in tasks:
+            print("### Configuration for task `{}'".format(taskDef.taskName))
+            taskDef.config.saveToStream(fd, "config")
+
+    def _showConfigHistory(self, pipeline, showArgs):
+        """Show history for task configuration
+
+        Parameters
+        ----------
+        pipeline : Pipeline
+            Pipeline definition
+        showArgs : str
+            Defines what to show
+        """
+
+        matHistory = re.search(r"^(?:(\w+)::)(?:config.)?(.+)?", showArgs)
+        taskName = matHistory.group(1)
+        pattern = matHistory.group(2)
+        if not pattern:
+            print("Please provide a value with --show history (e.g. history=XXX)", file=sys.stderr)
+            sys.exit(1)
+
+        tasks = util.filterTasks(pipeline, taskName)
+        if not tasks:
+            print("Pipeline has not tasks named {}".format(taskName), file=sys.stderr)
+            sys.exit(1)
+
+        pattern = pattern.split(".")
+        cpath, cname = pattern[:-1], pattern[-1]
+        found = False
+        for taskDef in tasks:
+            hconfig = taskDef.config
+            for i, cpt in enumerate(cpath):
+                hconfig = getattr(hconfig, cpt, None)
+                if hconfig is None:
+                    break
+
+            if hconfig is not None and hasattr(hconfig, cname):
+                print("### Configuration field for task `{}'".format(taskDef.taskName))
+                print(pexConfig.history.format(hconfig, cname))
+                found = True
+
+        if not found:
+            print("None of the tasks has field named {}".format(showArgs), file=sys.stderr)
+            sys.exit(1)
+
+    def _showTaskHierarchy(self, pipeline):
+        """Print task hierarchy to stdout
+
+        Parameters
+        ----------
+        pipeline: `Pipeline`
+        """
+        for taskDef in pipeline:
+            print("### Subtasks for task `{}'".format(taskDef.taskName))
+
+            for configName, taskName in util.subTaskIter(taskDef.config):
+                print("{}: {}".format(configName, taskName))
+
+    def _showGraph(self, graph):
+        """Print task hierarchy to stdout
+
+        Parameters
+        ----------
+        graph :
+            Execution graph, list of tuples currently but may change.
+        """
+        for taskNodes in graph:
+            print(taskNodes.taskDef)
+
+            for quantum in taskNodes.quanta:
+                print("   {}".format(quantum))
