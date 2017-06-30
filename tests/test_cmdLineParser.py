@@ -240,6 +240,34 @@ class CmdLineParserTestCase(unittest.TestCase):
         self.assertEqual(set(vars(args).keys()), set(global_options + run_options))
         self.assertEqual(args.subcommand, 'run')
 
+    def testCmdLineList(self):
+
+        parser = parser_mod.makeParser(parser_class=_NoExitParser)
+
+        # check list subcommand with options
+        args = parser.parse_args("list".split())
+        self.assertIsNone(args.show)
+
+        args = parser.parse_args("list -p".split())
+        self.assertEqual(args.show, ["packages"])
+
+        args = parser.parse_args("list -m".split())
+        self.assertEqual(args.show, ["modules"])
+
+        args = parser.parse_args("list -t".split())
+        self.assertEqual(args.show, ["tasks"])
+
+        args = parser.parse_args("list -s".split())
+        self.assertEqual(args.show, ["super-tasks"])
+
+        args = parser.parse_args("list -s --super-tasks".split())
+        self.assertEqual(args.show, ["super-tasks", "super-tasks"])
+
+        args = parser.parse_args("list --packages --modules".split())
+        self.assertEqual(args.show, ["packages", "modules"])
+
+        args = parser.parse_args("list --super-tasks --tasks".split())
+        self.assertEqual(args.show, ["super-tasks", "tasks"])
 
     def testCmdLineTasks(self):
 
@@ -351,7 +379,8 @@ class CmdLineParserTestCase(unittest.TestCase):
 
         args = parser.parse_args(
             """
-            run -e pipeline
+            -p package
+            run -p pipeline
             --show config
             --show config=Task.*
             """.split())
@@ -360,17 +389,17 @@ class CmdLineParserTestCase(unittest.TestCase):
         self.assertIsNone(args.config_overrides)
         self.assertEqual(args.pipeline, 'pipeline')
 
-        # -e and -t are exclusive
+        # -p and -t are exclusive
         with self.assertRaises(_Error):
-            parser.parse_args("run -e pipeline -t task".split())
+            parser.parse_args("run -p pipeline -t task".split())
 
-        # one of -e or -t is required
+        # one of -p or -t is required
         with self.assertRaises(_Error):
             parser.parse_args("run --show show".split())
 
-        # -e and -c cannot be used together (-c needs -t)
+        # -p and -c cannot be used together (-c needs -t)
         with self.assertRaises(_Error):
-            parser.parse_args("run -e pipeline -c config".split())
+            parser.parse_args("run -p pipeline -c config".split())
 
 
 class MyMemoryTestCase(lsst.utils.tests.MemoryTestCase):
