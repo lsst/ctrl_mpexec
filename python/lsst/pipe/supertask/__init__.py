@@ -8,8 +8,10 @@ try:
 except:
     __version__ = "unknown"
 
+from .config import *
 from .graphBuilder import *
 from .pipeline import *
+from .pipelineTools import *
 from .quantum import *
 from .resourceConfig import *
 from .superTask import *
