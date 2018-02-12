@@ -54,6 +54,7 @@ from .configOverrides import ConfigOverrides
 from .graphBuilder import GraphBuilder
 from .parser import makeParser, DEFAULT_INPUT_NAME, DEFAULT_CALIB_NAME, DEFAULT_OUTPUT_NAME
 from .pipeline import Pipeline, TaskDef
+from .pipelineBuilder import PipelineBuilder
 from .taskFactory import TaskFactory
 from .taskLoader import (TaskLoader, KIND_SUPERTASK)
 from . import util
@@ -186,8 +187,11 @@ class CmdLineFwk(object):
         butler = bfactory.getButler()
 
         # make pipeline out of command line arguments
-        pipeline = self.makePipeline(args)
-        if pipeline is None:
+        try:
+            pipeBuilder = PipelineBuilder(self.taskFactory)
+            pipeline = pipeBuilder.makePipeline(args)
+        except Exception as exc:
+            print("Failed to build pipeline: {}".format(exc))
             return 2
 
         if args.save_pipeline:
@@ -291,88 +295,6 @@ class CmdLineFwk(object):
                 headers = ("Task class name", "Kind     ")
             util.printTable(tasks, headers)
 
-    def makePipeline(self, args):
-        """Construct pipeline from command line arguments
-
-        Parameters
-        ----------
-        args : argparse.Namespace
-            Parsed command line
-
-        Returns
-        -------
-        `Pipeline` instance.
-        """
-
-        # need camera/package name to find overrides
-        mapperClass = dafPersist.Butler.getMapperClass(args.input)
-        camera = mapperClass.getCameraName()
-        obsPkg = mapperClass.getPackageName()
-
-
-        if args.pipeline:
-
-            # load it from a pickle file
-            try:
-                with open(args.pipeline) as pickleFile:
-                    pipeline = pickle.load(pickleFile)
-            except Exception as exc:
-                print("Failed to load pipeline from file `{}': {}".format(args.pipeline, exc))
-                return None
-
-            # check type
-            if not isinstance(pipeline, Pipeline):
-                print("Pickle file `{}' contains something other than Pipeline".format(args.pipeline))
-                return None
-
-        else:
-
-            # align config overrides list with task list
-            config_overrides = args.config_overrides or []
-            config_overrides += [None] * (len(args.taskname) - len(config_overrides))
-
-            pipeline = Pipeline()
-            for taskName, configOverrides in zip(args.taskname, config_overrides):
-
-                # load task class
-                try:
-                    taskClass, taskName = self.taskFactory.loadTaskClass(taskName)
-                except ImportError:
-                    print("Failed to load task `{}'".format(taskName))
-                    return None
-
-                # package all config overrides into a single object
-                overrides = ConfigOverrides()
-
-                # camera/package overrides
-                configName = taskClass._DefaultName
-                obsPkgDir = lsst.utils.getPackageDir(obsPkg)
-                fileName = configName + ".py"
-                for filePath in (
-                    os.path.join(obsPkgDir, "config", fileName),
-                    os.path.join(obsPkgDir, "config", camera, fileName),
-                ):
-                    if os.path.exists(filePath):
-                        lsstLog.info("Loading config overrride file %r", filePath)
-                        overrides.addFileOverride(filePath)
-                    else:
-                        lsstLog.debug("Config override file does not exist: %r", filePath)
-
-                # command line overrides
-                for override in configOverrides or []:
-                    if override.type == "override":
-                        key, sep, val = override.value.partition('=')
-                        overrides.addValueOverride(key, val)
-                    elif override.type == "file":
-                        overrides.addFileOverride(override.value)
-
-                # make config instance with defaults and overrides
-                config = taskClass.ConfigClass()
-                overrides.applyTo(config)
-
-                pipeline.append(TaskDef(taskName, config, taskClass))
-
-        return pipeline
 
     def makeRepodb(self, args):
         """Make repodb instance.
