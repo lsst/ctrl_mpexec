@@ -12,7 +12,7 @@ from .config import *
 from .graphBuilder import *
 from .pipeline import *
 from .pipelineBuilder import *
-from .quantum import *
+from .graph import *
 from .resourceConfig import *
 from .superTask import *
 from .taskLoader import *

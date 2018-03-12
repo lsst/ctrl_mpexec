@@ -138,10 +138,9 @@ class CmdLineParserTestCase(unittest.TestCase):
 
         # know attributes to appear in parser output
         global_options = """
-            data_query repo_db
-            calibRepo clobberConfig clobberOutput clobberVersions debug
-            doraise inputRepo loglevel longlog noBackupConfig noVersions
-            outputRepo packages processes profile rerun subcommand timeout
+            data_query butler_config clobberConfig clobberVersions debug
+            doraise input loglevel longlog noBackupConfig noVersions
+            output packages processes profile subcommand timeout
             """.split()
 
         # test for the set of options defined in each command
@@ -223,21 +222,18 @@ class CmdLineParserTestCase(unittest.TestCase):
             """
             run -t taskname
             """.split())
-        self.assertIsNone(args.calibRepo)
         self.assertFalse(args.clobberConfig)
-        self.assertFalse(args.clobberOutput)
         self.assertFalse(args.clobberVersions)
         self.assertFalse(args.debug)
         self.assertFalse(args.doraise)
-        self.assertIsNone(args.inputRepo)
+        self.assertIsNone(args.input)
         self.assertEqual(args.loglevel, [])
         self.assertFalse(args.longlog)
         self.assertFalse(args.noBackupConfig)
         self.assertFalse(args.noVersions)
-        self.assertIsNone(args.outputRepo)
+        self.assertIsNone(args.output)
         self.assertEqual(args.processes, 1)
         self.assertIsNone(args.profile)
-        self.assertIsNone(args.rerun)
         self.assertIsNone(args.timeout)
         self.assertEqual(args.pipeline_actions, [PipelineAction("new_task", None, "taskname")])
         self.assertEqual(args.show, [])
@@ -247,21 +243,18 @@ class CmdLineParserTestCase(unittest.TestCase):
         # bunch of random options
         args = parser.parse_args(
             """
-            --calib calibRepo
             --clobber-config
-            --clobber-output
             --clobber-versions
             --debug
             --doraise
-            --input inputRepo
+            --input inputColl
             --loglevel DEBUG -L component=trace
             --longlog
             --no-backup-config
             --no-versions
-            --output outputRepo
+            --output outputColl
             -j 66
             --profile profile.out
-            --rerun rerunRepo
             --timeout 10.10
             run -t taskname:label
             --show config
@@ -271,21 +264,18 @@ class CmdLineParserTestCase(unittest.TestCase):
             -c label.c=d -c label.e=f
             -C label:filename2 -C label:filename3
             """.split())
-        self.assertEqual(args.calibRepo, 'calibRepo')
         self.assertTrue(args.clobberConfig)
-        self.assertTrue(args.clobberOutput)
         self.assertTrue(args.clobberVersions)
         self.assertTrue(args.debug)
         self.assertTrue(args.doraise)
-        self.assertEqual(args.inputRepo, 'inputRepo')
+        self.assertEqual(args.input, 'inputColl')
         self.assertEqual(args.loglevel, [(None, 'DEBUG'), ('component', 'TRACE')])
         self.assertTrue(args.longlog)
         self.assertTrue(args.noBackupConfig)
         self.assertTrue(args.noVersions)
-        self.assertEqual(args.outputRepo, 'outputRepo')
+        self.assertEqual(args.output, 'outputColl')
         self.assertEqual(args.processes, 66)
         self.assertEqual(args.profile, 'profile.out')
-        self.assertEqual(args.rerun, 'rerunRepo')
         self.assertEqual(args.timeout, 10.10)
         self.assertEqual(args.show, ['config', 'config=Task.*'])
         self.assertEqual(args.pipeline_actions, [PipelineAction("new_task", "label", "taskname"),
