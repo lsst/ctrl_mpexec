@@ -27,23 +27,23 @@ from builtins import object
 # "exported" names
 __all__ = ['TaskLoader']
 
-#--------------------------------
+# -------------------------------
 #  Imports of standard modules --
-#--------------------------------
+# -------------------------------
 import importlib
 import inspect
 import pkgutil
 
-#-----------------------------
-# Imports for other modules --
-#-----------------------------
+# -----------------------------
+#  Imports for other modules --
+# -----------------------------
 from lsst.pipe.base import CmdLineTask, Task
 import lsst.log as lsstLog
 from .superTask import SuperTask
 
-#----------------------------------
-# Local non-exported definitions --
-#----------------------------------
+# ----------------------------------
+#  Local non-exported definitions --
+# ----------------------------------
 
 
 def _task_kind(task_class):
@@ -70,9 +70,10 @@ def _task_kind(task_class):
             kind = KIND_TASK
     return kind
 
-#-------------------------
+# ------------------------
 #  Exported definitions --
-#-------------------------
+# ------------------------
+
 
 KIND_TASK = 'Task'
 KIND_CMDLINETASK = 'CmdLineTask'

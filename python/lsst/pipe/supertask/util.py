@@ -27,22 +27,25 @@ from __future__ import print_function
 
 __all__ = ["profile", "printTable", "fixPath", "filterTasks", "subTaskIter"]
 
-#--------------------------------
+# -------------------------------
 #  Imports of standard modules --
-#--------------------------------
+# -------------------------------
 import contextlib
 import os
 
-#-----------------------------
-# Imports for other modules --
-#-----------------------------
-#----------------------------------
-# Local non-exported definitions --
-#----------------------------------
+# -----------------------------
+#  Imports for other modules --
+# -----------------------------
+import lsst.pex.config as pexConfig
 
-#------------------------
-# Exported definitions --
-#------------------------
+# ----------------------------------
+#  Local non-exported definitions --
+# ----------------------------------
+
+# ------------------------
+#  Exported definitions --
+# ------------------------
+
 
 @contextlib.contextmanager
 def profile(filename, log=None):

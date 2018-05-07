@@ -5,7 +5,7 @@ from __future__ import absolute_import, division, print_function
 
 import lsst.log as lsstLog
 import lsst.pex.config as pexConfig
-from lsst.pipe  import supertask
+from lsst.pipe import supertask
 from lsst.pipe.base.struct import Struct
 
 _LOG = lsstLog.Log.getLogger(__name__)
@@ -69,7 +69,7 @@ class Test1Task(supertask.SuperTask):
         # for output data the order of items should correspond to the order
         # of units in `output` parameter, but in this simple case we expect
         # just one DataRef in both input and output.
-        data = [x ** 2 for x in data]
+        data = [x ** 2 for x in input]
 
         # attribute name of struct is the same as a config field name
         return Struct(output=data)

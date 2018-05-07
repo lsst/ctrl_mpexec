@@ -90,7 +90,7 @@ class TaskFactory(object):
                 overrides.applyTo(config)
         elif overrides is not None:
             _LOG.waring("Both config and overrides are specified for task %s, overrides are ignored",
-                        taskName)
+                        taskClass.__name__)
 
         # make task instance
         task = taskClass(config=config, butler=butler)

@@ -28,24 +28,21 @@ from builtins import object
 
 __all__ = ['CmdLineFwk']
 
-#--------------------------------
+# -------------------------------
 #  Imports of standard modules --
-#--------------------------------
-import contextlib
+# -------------------------------
 import fnmatch
 import multiprocessing
-import os
 import pickle
 import re
 import sys
 import traceback
 
-#-----------------------------
-# Imports for other modules --
-#-----------------------------
+# -----------------------------
+#  Imports for other modules --
+# -----------------------------
 from lsst.base import disableImplicitThreading
 from lsst.daf.butler.butler import Butler
-from lsst.daf.butler.core.registry import Registry
 import lsst.log as lsstLog
 import lsst.pex.config as pexConfig
 from lsst.pipe.base.task import TaskError
@@ -56,9 +53,9 @@ from .taskFactory import TaskFactory
 from .taskLoader import (TaskLoader, KIND_SUPERTASK)
 from . import util
 
-#----------------------------------
-# Local non-exported definitions --
-#----------------------------------
+# ----------------------------------
+#  Local non-exported definitions --
+# ----------------------------------
 
 # logging properties
 _LOG_PROP = """\
@@ -101,10 +98,9 @@ class _MPMap(object):
         result = pool.map_async(function, iterable)
         return result.get(self.timeout)
 
-
-#------------------------
-# Exported definitions --
-#------------------------
+# ------------------------
+#  Exported definitions --
+# ------------------------
 
 
 class CmdLineFwk(object):
@@ -168,7 +164,6 @@ class CmdLineFwk(object):
         if args.subcommand == "build":
             # stop here
             return 0
-
 
         # make execution plan (a.k.a. DAG) for pipeline
         graphBuilder = GraphBuilder(self.taskFactory, registry, args.data_query)
@@ -296,7 +291,8 @@ class CmdLineFwk(object):
                 return 1
 
             if numProc > 1 and not taskDef.taskClass.canMultiprocess:
-                lsstLog.warn("Task %s does not support multiprocessing; using one process", taskName)
+                lsstLog.warn("Task %s does not support multiprocessing; using one process",
+                             taskDef.taskName)
                 numProc = 1
 
         # chose map function being simple sequential map or multi-process map
@@ -306,8 +302,12 @@ class CmdLineFwk(object):
                 timeout = self.MP_TIMEOUT
             mapFunc = _MPMap(numProc, timeout)
         else:
-            # map in Py3 returns iterable and we want a complete result
-            mapFunc = lambda func, iterable: list(map(func, iterable))
+
+            def _mapFunc(func, iterable):
+                """Call function for all items sequentially"""
+                return [func(item) for item in iterable]
+
+            mapFunc = _mapFunc
 
         # tasks are executed sequentially but quanta can run in parallel
         for taskNodes in graph:
@@ -338,20 +338,9 @@ class CmdLineFwk(object):
         # make task instance
         task = self.taskFactory.makeTask(taskClass, config, None, butler)
 
-        # Call task runQuantum() method and wrap it to catch exceptions that
-        # don't inherit from Exception. Such exceptions aren't caught by
-        # multiprocessing, which causes the slave process to crash and
-        # you end up hitting the timeout.
-        try:
-            return task.runQuantum(quantum, butler)
-        except Exception:
-            raise  # No worries
-        except:
-            # Need to wrap the exception with something multiprocessing will recognise
-            cls, exc, _ = sys.exc_info()
-            lsstLog.warn("Unhandled exception %s (%s):\n%s" % (cls.__name__, exc, traceback.format_exc()))
-            raise Exception("Unhandled exception: %s (%s)" % (cls.__name__, exc))
-
+        # Call task runQuantum() method. Any exception thrown here propagates
+        # to multiprocessing module and to parent process.
+        return task.runQuantum(quantum, butler)
 
     @staticmethod
     def _precallImpl(task, butler, args):

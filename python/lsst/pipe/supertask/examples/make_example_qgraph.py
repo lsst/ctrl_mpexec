@@ -5,18 +5,17 @@
 
 from __future__ import absolute_import, division, print_function
 
-#--------------------------------
+# -------------------------------
 #  Imports of standard modules --
-#--------------------------------
+# -------------------------------
 from argparse import ArgumentParser, FileType
 import logging
-import os
 import pickle
 import sys
 
-#-----------------------------
-# Imports for other modules --
-#-----------------------------
+# -----------------------------
+#  Imports for other modules --
+# -----------------------------
 from lsst.daf.butler.core.datasets import DatasetRef
 from lsst.daf.butler.core.quantum import Quantum
 from lsst.daf.butler.core.run import Run
@@ -25,11 +24,12 @@ from lsst.pipe.supertask import (Pipeline, QuantumGraph, QuantumGraphNodes,
 from lsst.pipe.supertask.pipeTools import orderPipeline
 from lsst.pipe.supertask.examples import test1task, test2task
 # this is not used but need to be imported to register a storage class
-from lsst.pipe.supertask.examples.exampleStorageClass import ExampleStorageClass
+from lsst.pipe.supertask.examples.exampleStorageClass import ExampleStorageClass  # noqa: F401
 
-#---------------------
-# Local definitions --
-#---------------------
+# ---------------------
+#  Local definitions --
+# ---------------------
+
 
 def _configLogger(verbosity):
     """ configure logging based on verbosity level """
@@ -39,10 +39,10 @@ def _configLogger(verbosity):
 
     logging.basicConfig(level=levels.get(verbosity, logging.DEBUG), format=logfmt)
 
-
-#----------------------------
+# ---------------------------
 #  Main application method --
-#----------------------------
+# ---------------------------
+
 
 def main():
 
@@ -115,7 +115,7 @@ def main():
             (1, 2, (2, 3, 4, 5)),
             (1, 3, (4, 5, 6, 7)),
             (2, 0, (6, 7, 8, 9)),
-            )
+        )
         quanta = []
         for tract, patch, visits in patch2visits:
             quantum = Quantum(run=run, task=None)

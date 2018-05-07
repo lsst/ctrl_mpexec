@@ -33,6 +33,7 @@ import lsst.pipe.supertask.parser as parser_mod
 class _Error(Exception):
     pass
 
+
 class _NoExitParser(ArgumentParser):
     """Special parser subclass which does not exit on errors or help.
     """
@@ -369,6 +370,7 @@ class MyMemoryTestCase(lsst.utils.tests.MemoryTestCase):
 
 def setup_module(module):
     lsst.utils.tests.init()
+
 
 if __name__ == "__main__":
     lsst.utils.tests.init()

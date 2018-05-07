@@ -4,24 +4,23 @@ Module defining ExampleStorageClass class and related methods.
 
 from __future__ import absolute_import, division, print_function
 
-#--------------------------------
+# -------------------------------
 #  Imports of standard modules --
-#--------------------------------
-import sys
+# -------------------------------
 
-#-----------------------------
-# Imports for other modules --
-#-----------------------------
+# -----------------------------
+#  Imports for other modules --
+# -----------------------------
 from lsst.daf.butler.core.storageClass import StorageClass
 from lsst.pipe.supertask import SuperTask
 
-#----------------------------------
-# Local non-exported definitions --
-#----------------------------------
+# ----------------------------------
+#  Local non-exported definitions --
+# ----------------------------------
 
-#------------------------
-# Exported definitions --
-#------------------------
+# ------------------------
+#  Exported definitions --
+# ------------------------
 
 
 class ExampleStorageClass(StorageClass):
