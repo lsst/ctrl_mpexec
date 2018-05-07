@@ -27,11 +27,10 @@ from lsst.pipe.supertask import SuperTask
 class ExampleStorageClass(StorageClass):
     """Implementation of the StorageClass used in examples in this package.
     """
-
-    name = "example"
+    pass
 
 
 # This registers ExampleStorageClass with the "global" SuperTask
 # StorageClass factory. This is useful for unit tests to avoid
 # multiple registration from each unit test.
-SuperTask.storageClassFactory.registerStorageClass(ExampleStorageClass)
+SuperTask.storageClassFactory.registerStorageClass(ExampleStorageClass("example"))

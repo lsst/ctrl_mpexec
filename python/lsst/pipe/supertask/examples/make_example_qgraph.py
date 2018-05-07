@@ -20,10 +20,11 @@ import sys
 from lsst.daf.butler.core.datasets import DatasetRef
 from lsst.daf.butler.core.quantum import Quantum
 from lsst.daf.butler.core.run import Run
-from lsst.daf.butler.core import units
-from lsst.pipe.supertask import Pipeline, QuantumGraph, QuantumGraphNodes, TaskDef, SuperTask
+from lsst.pipe.supertask import (Pipeline, QuantumGraph, QuantumGraphNodes,
+                                 TaskDef, SuperTask)
 from lsst.pipe.supertask.pipeTools import orderPipeline
 from lsst.pipe.supertask.examples import test1task, test2task
+# this is not used but need to be imported to register a storage class
 from lsst.pipe.supertask.examples.exampleStorageClass import ExampleStorageClass
 
 #---------------------
@@ -130,17 +131,17 @@ def main():
 
 def _makeDSRefVisit(dstype, visitId):
         return DatasetRef(datasetType=dstype,
-                          dataId=dict(Camera=units.Camera("X"),
-                                      Visit=units.Visit(visitId),
-                                      PhysicalFilter=units.PhysicalFilter(),
-                                      AbstractFilter=units.AbstractFilter()))
+                          dataId=dict(Camera="X",
+                                      Visit=visitId,
+                                      physical_filter='f',
+                                      abstract_filter='f'))
 
 
 def _makeDSRefPatch(dstype, tractId, patchId):
         return DatasetRef(datasetType=dstype,
-                          dataId=dict(SkyMap=units.SkyMap(1),
-                                      Tract=units.Tract(tractId),
-                                      Patch=units.Patch(patchId)))
+                          dataId=dict(skymap=1,
+                                      tract=tractId,
+                                      patch=patchId))
 
 
 def _makeStep1TaskDef():
