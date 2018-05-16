@@ -47,7 +47,7 @@ import lsst.log as lsstLog
 import lsst.pex.config as pexConfig
 from lsst.pipe.base.task import TaskError
 from .graphBuilder import GraphBuilder
-from .parser import makeParser
+from .cmdLineParser import makeParser
 from .pipelineBuilder import PipelineBuilder
 from .dotTools import graph2dot, pipeline2dot
 from .taskFactory import TaskFactory
