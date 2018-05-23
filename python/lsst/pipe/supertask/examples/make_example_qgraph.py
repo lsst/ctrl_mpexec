@@ -21,7 +21,8 @@ from lsst.daf.butler.core.quantum import Quantum
 from lsst.daf.butler.core.run import Run
 from lsst.pipe.supertask import (Pipeline, QuantumGraph, QuantumGraphNodes,
                                  TaskDef, SuperTask)
-from lsst.pipe.supertask.pipeTools import orderPipeline
+from lsst.pipe.supertask.graphTools import graph2dot
+from lsst.pipe.supertask.pipeTools import orderPipeline, pipeline2dot
 from lsst.pipe.supertask.examples import test1task, test2task
 # this is not used but need to be imported to register a storage class
 from lsst.pipe.supertask.examples.exampleStorageClass import ExampleStorageClass  # noqa: F401
@@ -57,6 +58,13 @@ def main():
     parser.add_argument('-g', '--qgraph', dest='qgraph', default=None,
                         type=FileType("wb"),
                         help='Name of the output file for QunatumGraph pickle dump.')
+    parser.add_argument("--pipeline-dot", dest="pipeline_dot",
+                        help="Location for storing GraphViz DOT representation of a pipeline.",
+                        metavar="PATH")
+    parser.add_argument("--qgraph-dot", dest="qgraph_dot",
+                        help="Location for storing GraphViz DOT representation of a "
+                        "quantum graph.",
+                        metavar="PATH")
     args = parser.parse_args()
 
     # configure logging
@@ -65,10 +73,11 @@ def main():
     #
     #  Application logic goes here
     #
-    if args.pipeline is None and args.qgraph is None:
+    if (args.pipeline is None and args.qgraph is None and
+        args.pipeline_dot is None and args.qgraph_dot is None):
         parser.error("Need one of -p or -g options")
 
-    if args.pipeline:
+    if args.pipeline or args.pipeline_dot:
 
         pipeline = Pipeline([_makeStep1TaskDef(), _makeStep2TaskDef(), _makeStep3TaskDef()])
 
@@ -76,9 +85,14 @@ def main():
         pipeline = orderPipeline(pipeline)
 
         # save to file
-        pickle.dump(pipeline, args.pipeline)
+        if args.pipeline:
+            pickle.dump(pipeline, args.pipeline)
 
-    if args.qgraph:
+        # save to DOT file
+        if args.pipeline_dot:
+            pipeline2dot(pipeline, args.pipeline_dot)
+
+    if args.qgraph or args.qgraph_dot:
 
         run = Run(collection=1, environment=None, pipeline=None)
 
@@ -123,10 +137,15 @@ def main():
                 quantum.addPredictedInput(_makeDSRefVisit(dstype2, visit))
             quantum.addOutput(_makeDSRefPatch(dstype3, tract, patch))
             quanta.append(quantum)
-        step3nodes = QuantumGraphNodes(step2, quanta)
+        step3nodes = QuantumGraphNodes(step3, quanta)
 
         qgraph = QuantumGraph([step1nodes, step2nodes, step3nodes])
-        pickle.dump(qgraph, args.qgraph)
+
+        if args.qgraph:
+            pickle.dump(qgraph, args.qgraph)
+
+        if args.qgraph_dot:
+            graph2dot(qgraph, args.qgraph_dot)
 
 
 def _makeDSRefVisit(dstype, visitId):

@@ -56,7 +56,7 @@ class TaskFactory(object):
 
         return taskClass, fullTaskName
 
-    def makeTask(self, taskClass, config, overrides, butler):
+    def makeTask(self, taskClass, config, overrides):
         """Create new SuperTask instance from its class.
 
         Parameters
@@ -70,8 +70,6 @@ class TaskFactory(object):
             Configuration overrides, this should contain all overrides to be
             applied to a default task config, including camera-specific,
             obs-package specific, and possibly command-line overrides.
-        butler :
-            Data butler instance.
 
         Returns
         -------
@@ -93,6 +91,6 @@ class TaskFactory(object):
                         taskClass.__name__)
 
         # make task instance
-        task = taskClass(config=config, butler=butler)
+        task = taskClass(config=config)
 
         return task

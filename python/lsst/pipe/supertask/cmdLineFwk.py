@@ -47,9 +47,10 @@ import lsst.log as lsstLog
 import lsst.pex.config as pexConfig
 from lsst.pipe.base.task import TaskError
 from .graphBuilder import GraphBuilder
+from .graphTools import graph2dot
 from .parser import makeParser
 from .pipelineBuilder import PipelineBuilder
-from .pipeTools import pipeline2gv
+from .pipeTools import pipeline2dot
 from .taskFactory import TaskFactory
 from .taskLoader import (TaskLoader, KIND_SUPERTASK)
 from . import util
@@ -161,7 +162,7 @@ class CmdLineFwk(object):
                 pickle.dump(pipeline, pickleFile)
 
         if args.pipeline_dot:
-            pipeline2gv(pipeline, args.pipeline_dot, self.taskFactory)
+            pipeline2dot(pipeline, args.pipeline_dot, self.taskFactory)
 
         if args.subcommand == "build":
             # stop here
@@ -171,16 +172,29 @@ class CmdLineFwk(object):
         butler = Butler(args.butler_config)
         registry = butler.registry
 
-        # make execution plan (a.k.a. DAG) for pipeline
-        graphBuilder = GraphBuilder(self.taskFactory, registry, args.data_query)
-        qgraph = graphBuilder.makeGraph(pipeline)
+        if args.qgraph:
+            with open(args.qgraph, 'rb') as pickleFile:
+                qgraph = pickle.load(pickleFile)
+            # TODO: pipeline is ignored in this case, make sure that user
+            # does not specify any pipeline-related options
+        else:
+            # make execution plan (a.k.a. DAG) for pipeline
+            graphBuilder = GraphBuilder(self.taskFactory, registry, args.data_query)
+            qgraph = graphBuilder.makeGraph(pipeline)
 
         if args.save_qgraph:
             with open(args.save_qgraph, "wb") as pickleFile:
                 pickle.dump(qgraph, pickleFile)
 
+        if args.qgraph_dot:
+            graph2dot(qgraph, args.qgraph_dot)
+
         # optionally dump some info
         self.showInfo(args.show, butler, pipeline, registry, qgraph)
+
+        if args.subcommand == "qgraph":
+            # stop here
+            return 0
 
         # execute
         if args.subcommand == "run":
@@ -287,7 +301,7 @@ class CmdLineFwk(object):
         # pre-flight check
         for taskNodes in graph:
             taskDef, quanta = taskNodes.taskDef, taskNodes.quanta
-            task = self.taskFactory.makeTask(taskDef.taskClass, taskDef.config, None, butler)
+            task = self.taskFactory.makeTask(taskDef.taskClass, taskDef.config, None)
             if not self.precall(task, butler, args):
                 # non-zero means failure
                 return 1
@@ -338,7 +352,7 @@ class CmdLineFwk(object):
 #                 lsstLog.MDC("LABEL", str([ref.dataId for ref in dataRef if hasattr(ref, "dataId")]))
 
         # make task instance
-        task = self.taskFactory.makeTask(taskClass, config, None, butler)
+        task = self.taskFactory.makeTask(taskClass, config, None)
 
         # Call task runQuantum() method. Any exception thrown here propagates
         # to multiprocessing module and to parent process.
