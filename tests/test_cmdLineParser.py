@@ -167,10 +167,10 @@ class CmdLineParserTestCase(unittest.TestCase):
             """
             qgraph -t cmd
             """.split())
-        show_options = ['pipeline_actions', 'show', 'subparser', 'pipeline',
-                        'order_pipeline', 'save_pipeline', 'pipeline_dot',
-                        'qgraph_dot', 'save_qgraph', 'camera_overrides']
-        self.assertEqual(set(vars(args).keys()), set(global_options + show_options))
+        qgraph_options = ['pipeline_actions', 'show', 'subparser', 'pipeline',
+                          'order_pipeline', 'save_pipeline', 'pipeline_dot',
+                          'qgraph_dot', 'qgraph', 'save_qgraph', 'camera_overrides']
+        self.assertEqual(set(vars(args).keys()), set(global_options + qgraph_options))
         self.assertEqual(args.subcommand, 'qgraph')
 
         args = parser.parse_args(
