@@ -49,9 +49,12 @@ from lsst.pipe.base.task import TaskError
 from .graphBuilder import GraphBuilder
 from .parser import makeParser
 from .pipelineBuilder import PipelineBuilder
+from .pipeTools import pipeline2gv
 from .taskFactory import TaskFactory
 from .taskLoader import (TaskLoader, KIND_SUPERTASK)
 from . import util
+
+from lsst.pipe.supertask.examples.exampleStorageClass import ExampleStorageClass  # noqa: F401
 
 # ----------------------------------
 #  Local non-exported definitions --
@@ -145,10 +148,6 @@ class CmdLineFwk(object):
             # just dump some info about where things may be found
             return self.doList(args.show, args.show_headers)
 
-        # make butler instance
-        butler = Butler(args.butler_config)
-        registry = butler.registry
-
         # make pipeline out of command line arguments
         try:
             pipeBuilder = PipelineBuilder(self.taskFactory)
@@ -161,9 +160,16 @@ class CmdLineFwk(object):
             with open(args.save_pipeline, "wb") as pickleFile:
                 pickle.dump(pipeline, pickleFile)
 
+        if args.pipeline_dot:
+            pipeline2gv(pipeline, args.pipeline_dot, self.taskFactory)
+
         if args.subcommand == "build":
             # stop here
             return 0
+
+        # make butler instance
+        butler = Butler(args.butler_config)
+        registry = butler.registry
 
         # make execution plan (a.k.a. DAG) for pipeline
         graphBuilder = GraphBuilder(self.taskFactory, registry, args.data_query)
@@ -175,10 +181,6 @@ class CmdLineFwk(object):
 
         # optionally dump some info
         self.showInfo(args.show, butler, pipeline, registry, qgraph)
-
-        if args.subcommand == "build":
-            # stop here
-            return 0
 
         # execute
         if args.subcommand == "run":
