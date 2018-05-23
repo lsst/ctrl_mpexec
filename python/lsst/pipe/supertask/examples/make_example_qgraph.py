@@ -21,8 +21,8 @@ from lsst.daf.butler.core.quantum import Quantum
 from lsst.daf.butler.core.run import Run
 from lsst.pipe.supertask import (Pipeline, QuantumGraph, QuantumGraphNodes,
                                  TaskDef, SuperTask)
-from lsst.pipe.supertask.graphTools import graph2dot
-from lsst.pipe.supertask.pipeTools import orderPipeline, pipeline2dot
+from lsst.pipe.supertask.dotTools import graph2dot, pipeline2dot
+from lsst.pipe.supertask.pipeTools import orderPipeline
 from lsst.pipe.supertask.examples import test1task, test2task
 # this is not used but need to be imported to register a storage class
 from lsst.pipe.supertask.examples.exampleStorageClass import ExampleStorageClass  # noqa: F401

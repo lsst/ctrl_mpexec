@@ -47,10 +47,9 @@ import lsst.log as lsstLog
 import lsst.pex.config as pexConfig
 from lsst.pipe.base.task import TaskError
 from .graphBuilder import GraphBuilder
-from .graphTools import graph2dot
 from .parser import makeParser
 from .pipelineBuilder import PipelineBuilder
-from .pipeTools import pipeline2dot
+from .dotTools import graph2dot, pipeline2dot
 from .taskFactory import TaskFactory
 from .taskLoader import (TaskLoader, KIND_SUPERTASK)
 from . import util
