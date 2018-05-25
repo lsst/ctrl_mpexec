@@ -258,21 +258,18 @@ def makeParser(fromfile_prefix_chars='@', parser_class=ArgumentParser, **kwargs)
                              "It should not include module name. This option overrides default "
                              "built-in list of modules. It can be used multiple times."))
 
-    # output options
-    group = parser.add_argument_group("Data selection options")
-    group.add_argument("-d", "--data-query", dest="data_query", default=None, metavar="QUERY",
-                       help="Data selection query as expected by units database backend.")
+    # butler options
+    group = parser.add_argument_group("Data repository and selection options")
     group.add_argument("-b", "--butler-config", dest="butler_config", default=None, metavar="PATH",
                        help="Location of the gen3 butler/registry config file.")
-
-    # repository options
-    group = parser.add_argument_group('Data repository options')
     group.add_argument("-i", "--input", dest="input",
                        metavar="COLLECTION", default=None,
                        help="Name of the data butler collection used for input")
-    group.add_argument("--output", dest="output",
+    group.add_argument("-o", "--output", dest="output",
                        metavar="COLLECTION", default=None,
                        help="Name of the data butler collection used for output")
+    group.add_argument("-d", "--data-query", dest="data_query", default="", metavar="QUERY",
+                       help="User data selection expression.")
 
     # output options
     group = parser.add_argument_group("Meta-information output options")
