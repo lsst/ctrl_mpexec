@@ -264,10 +264,14 @@ def makeParser(fromfile_prefix_chars='@', parser_class=ArgumentParser, **kwargs)
                        help="Location of the gen3 butler/registry config file.")
     group.add_argument("-i", "--input", dest="input",
                        metavar="COLLECTION", default=None,
-                       help="Name of the data butler collection used for input")
+                       help=("Name of the data butler collection used for "
+                             "input, overrides collection specified in Butler "
+                             "configuration file"))
     group.add_argument("-o", "--output", dest="output",
                        metavar="COLLECTION", default=None,
-                       help="Name of the data butler collection used for output")
+                       help=("Name of the data butler collection used for "
+                             "output, overrides collection specified in Butler "
+                             "configuration file"))
     group.add_argument("-d", "--data-query", dest="data_query", default="", metavar="QUERY",
                        help="User data selection expression.")
 

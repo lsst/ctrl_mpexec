@@ -11,7 +11,7 @@ from __future__ import absolute_import, division, print_function
 # -----------------------------
 #  Imports for other modules --
 # -----------------------------
-from lsst.daf.butler.core.storageClass import StorageClass
+from lsst.daf.butler import StorageClass
 from lsst.pipe.supertask import SuperTask
 
 # ----------------------------------

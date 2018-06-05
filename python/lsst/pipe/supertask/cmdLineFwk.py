@@ -36,16 +36,14 @@ import multiprocessing
 import pickle
 import re
 import sys
-import traceback
 
 # -----------------------------
 #  Imports for other modules --
 # -----------------------------
 from lsst.base import disableImplicitThreading
-from lsst.daf.butler.butler import Butler
+from lsst.daf.butler import Butler
 import lsst.log as lsstLog
 import lsst.pex.config as pexConfig
-from lsst.pipe.base.task import TaskError
 from .graphBuilder import GraphBuilder
 from .cmdLineParser import makeParser
 from .pipelineBuilder import PipelineBuilder
@@ -168,8 +166,10 @@ class CmdLineFwk(object):
             return 0
 
         # make butler instance
-        butler = Butler(args.butler_config)
+        butler = Butler(config=args.butler_config, collection=args.input,
+                        run=args.output)
         registry = butler.registry
+        collection = butler.collection
 
         if args.qgraph:
             with open(args.qgraph, 'rb') as pickleFile:
@@ -179,7 +179,7 @@ class CmdLineFwk(object):
         else:
             # make execution plan (a.k.a. DAG) for pipeline
             graphBuilder = GraphBuilder(self.taskFactory, registry, args.data_query)
-            qgraph = graphBuilder.makeGraph(pipeline)
+            qgraph = graphBuilder.makeGraph(pipeline, collection)
 
         if args.save_qgraph:
             with open(args.save_qgraph, "wb") as pickleFile:
@@ -205,7 +205,7 @@ class CmdLineFwk(object):
 
         Parameters
         ----------
-        longlog : bool
+        longlog : `bool`
             If True then make log messages appear in "long format"
         logLevels : `list` of `tuple`
             per-component logging levels, each item in the list is a tuple
@@ -364,13 +364,13 @@ class CmdLineFwk(object):
 
         Parameters
         ----------
-        task
+        task : `SuperTask`
             instance of SuperTask
-        butler : Butler
+        butler : `lsst.daf.butler.Butler`
             data butler instance
         """
         initOutputs = task.getInitOutputDatasets()
-        initOutputDatasetTypes = task.getInitOutputDatasetTypes()
+        initOutputDatasetTypes = task.getInitOutputDatasetTypes(task.config)
         for key, obj in initOutputs.items():
             butler.put(obj, initOutputDatasetTypes[key], {})
 
@@ -416,9 +416,9 @@ class CmdLineFwk(object):
 
         Parameters
         ----------
-        pipeline : Pipeline
+        pipeline : `Pipeline`
             Pipeline definition
-        showArgs : str
+        showArgs : `str`
             Defines what to show
         """
         matConfig = re.search(r"^(?:(\w+)::)?(?:config.)?(.+)?", showArgs)
@@ -469,9 +469,9 @@ class CmdLineFwk(object):
 
         Parameters
         ----------
-        pipeline : Pipeline
+        pipeline : `Pipeline`
             Pipeline definition
-        showArgs : str
+        showArgs : `str`
             Defines what to show
         """
 
@@ -524,11 +524,17 @@ class CmdLineFwk(object):
 
         Parameters
         ----------
-        graph :
-            Execution graph, list of tuples currently but may change.
+        graph : `QuantumGraph`
+            Execution graph.
         """
         for taskNodes in graph:
             print(taskNodes.taskDef)
 
-            for quantum in taskNodes.quanta:
-                print("   {}".format(quantum))
+            for iq, quantum in enumerate(taskNodes.quanta):
+                print("  Quantum {}:".format(iq))
+                print("    inputs:")
+                for key, refs in quantum.predictedInputs.items():
+                    print("      {}: [{}]".format(key, ", ".join([str(ref) for ref in refs])))
+                print("    outputs:")
+                for key, refs in quantum.outputs.items():
+                    print("      {}: [{}]".format(key, ", ".join([str(ref) for ref in refs])))

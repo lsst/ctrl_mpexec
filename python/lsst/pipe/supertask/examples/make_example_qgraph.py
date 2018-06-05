@@ -16,9 +16,7 @@ import sys
 # -----------------------------
 #  Imports for other modules --
 # -----------------------------
-from lsst.daf.butler.core.datasets import DatasetRef
-from lsst.daf.butler.core.quantum import Quantum
-from lsst.daf.butler.core.run import Run
+from lsst.daf.butler import DatasetRef, Quantum, Run
 from lsst.pipe.supertask import (Pipeline, QuantumGraph, QuantumGraphNodes,
                                  TaskDef, SuperTask)
 from lsst.pipe.supertask.dotTools import graph2dot, pipeline2dot
@@ -74,7 +72,7 @@ def main():
     #  Application logic goes here
     #
     if (args.pipeline is None and args.qgraph is None and
-        args.pipeline_dot is None and args.qgraph_dot is None):
+            args.pipeline_dot is None and args.qgraph_dot is None):
         parser.error("Need one of -p or -g options")
 
     if args.pipeline or args.pipeline_dot:
