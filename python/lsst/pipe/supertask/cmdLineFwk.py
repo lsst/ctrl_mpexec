@@ -298,12 +298,14 @@ class CmdLineFwk(object):
         numProc = args.processes
 
         # pre-flight check
+        # TODO: see if Pipeline and software versions are already written
+        # to butler and associated with Run, check for consistency if they
+        # are, and if so skip writing TaskInitOutputs (because those should
+        # also only be done once).  If not, write them.
         for taskNodes in graph:
             taskDef, quanta = taskNodes.taskDef, taskNodes.quanta
-            task = self.taskFactory.makeTask(taskDef.taskClass, taskDef.config, None)
-            if not self.precall(task, butler, args):
-                # non-zero means failure
-                return 1
+            task = self.taskFactory.makeTask(taskDef.taskClass, taskDef.config, None, butler)
+            self.writeTaskInitOutputs(task, butler)
 
             if numProc > 1 and not taskDef.taskClass.canMultiprocess:
                 lsstLog.warn("Task %s does not support multiprocessing; using one process",
@@ -351,18 +353,14 @@ class CmdLineFwk(object):
 #                 lsstLog.MDC("LABEL", str([ref.dataId for ref in dataRef if hasattr(ref, "dataId")]))
 
         # make task instance
-        task = self.taskFactory.makeTask(taskClass, config, None)
+        task = self.taskFactory.makeTask(taskClass, config, None, butler)
 
         # Call task runQuantum() method. Any exception thrown here propagates
         # to multiprocessing module and to parent process.
         return task.runQuantum(quantum, butler)
 
-    @staticmethod
-    def _precallImpl(task, butler, args):
-        """The main work of 'precall'
-
-        We write package versions, schemas and configs, or compare these to existing
-        files on disk if present.
+    def writeTaskInitOutputs(self, task, butler):
+        """Write any datasets produced by initializing the given SuperTask.
 
         Parameters
         ----------
@@ -370,43 +368,11 @@ class CmdLineFwk(object):
             instance of SuperTask
         butler : Butler
             data butler instance
-        args : `argparse.Namespace`
-            parsed command line
         """
-#         if not args.noVersions:
-#             task.writePackageVersions(args.butler, clobber=args.clobberVersions)
-        do_backup = not args.noBackupConfig
-        task.write_config(butler, clobber=args.clobberConfig, do_backup=do_backup)
-        task.write_schemas(butler, clobber=args.clobberConfig, do_backup=do_backup)
-
-    def precall(self, task, butler, args):
-        """Hook for code that should run exactly once, before multiprocessing is invoked.
-
-        The default implementation writes package versions, schemas and configs, or compares
-        them to existing files on disk if present.
-
-        Parameters
-        ----------
-        task
-            instance of SuperTask
-        args : `argparse.Namespace`
-            parsed command line
-
-        Returns
-        -------
-        `bool`, True if SuperTask should subsequently be called.
-        """
-        if args.doraise:
-            self._precallImpl(task, butler, args)
-        else:
-            try:
-                self._precallImpl(task, butler, args)
-            except Exception as exc:
-                task.log.fatal("Failed in task initialization: %s", exc)
-                if not isinstance(exc, TaskError):
-                    traceback.print_exc(file=sys.stderr)
-                return False
-        return True
+        initOutputs = task.getInitOutputs()
+        initOutputDatasetTypes = task.getInitOutputDatasetTypes()
+        for key, obj in initOutputs:
+            butler.put(obj, initOutputDatasetTypes[key], {})
 
     def showInfo(self, showOpts, butler, pipeline, registry, graph):
         """Display useful info about pipeline and environment.

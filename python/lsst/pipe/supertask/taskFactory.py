@@ -56,7 +56,7 @@ class TaskFactory(object):
 
         return taskClass, fullTaskName
 
-    def makeTask(self, taskClass, config, overrides):
+    def makeTask(self, taskClass, config, overrides, butler):
         """Create new SuperTask instance from its class.
 
         Parameters
@@ -70,6 +70,9 @@ class TaskFactory(object):
             Configuration overrides, this should contain all overrides to be
             applied to a default task config, including camera-specific,
             obs-package specific, and possibly command-line overrides.
+        butler : `lsst.daf.base.Butler` or None
+            Butler instance used to obtain initialization inputs for
+            SuperTasks.  If None, some SuperTasks will not be usable
 
         Returns
         -------
@@ -90,7 +93,14 @@ class TaskFactory(object):
             _LOG.waring("Both config and overrides are specified for task %s, overrides are ignored",
                         taskClass.__name__)
 
+        # if we don't have a butler, try to construct without initInputs;
+        # let SuperTasks raise if that's impossible
+        if butler is None:
+            initInputs = None
+        else:
+            initInputs = {k: butler.get(v) for k, v in taskClass.getInitInputDatasetTypes(config).items()}
+
         # make task instance
-        task = taskClass(config=config)
+        task = taskClass(config=config, initInputs=initInputs)
 
         return task
