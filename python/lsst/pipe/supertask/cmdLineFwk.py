@@ -369,9 +369,9 @@ class CmdLineFwk(object):
         butler : Butler
             data butler instance
         """
-        initOutputs = task.getInitOutputs()
+        initOutputs = task.getInitOutputDatasets()
         initOutputDatasetTypes = task.getInitOutputDatasetTypes()
-        for key, obj in initOutputs:
+        for key, obj in initOutputs.items():
             butler.put(obj, initOutputDatasetTypes[key], {})
 
     def showInfo(self, showOpts, butler, pipeline, registry, graph):

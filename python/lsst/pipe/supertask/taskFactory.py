@@ -70,7 +70,7 @@ class TaskFactory(object):
             Configuration overrides, this should contain all overrides to be
             applied to a default task config, including camera-specific,
             obs-package specific, and possibly command-line overrides.
-        butler : `lsst.daf.base.Butler` or None
+        butler : `lsst.daf.butler.Butler` or None
             Butler instance used to obtain initialization inputs for
             SuperTasks.  If None, some SuperTasks will not be usable
 
