@@ -178,8 +178,8 @@ class CmdLineFwk(object):
             # does not specify any pipeline-related options
         else:
             # make execution plan (a.k.a. DAG) for pipeline
-            graphBuilder = GraphBuilder(self.taskFactory, registry, args.data_query)
-            qgraph = graphBuilder.makeGraph(pipeline, collection)
+            graphBuilder = GraphBuilder(self.taskFactory, registry)
+            qgraph = graphBuilder.makeGraph(pipeline, collection, args.data_query)
 
         if args.save_qgraph:
             with open(args.save_qgraph, "wb") as pickleFile:
