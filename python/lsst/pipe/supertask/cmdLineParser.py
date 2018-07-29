@@ -220,8 +220,7 @@ Notes:
 
 
 def makeParser(fromfile_prefix_chars='@', parser_class=ArgumentParser, **kwargs):
-    """Make instance of command line parser for
-    :py:`lsst.pipe.supertask.CmdLineActivator`.
+    """Make instance of command line parser for `CmdLineFwk`.
 
     Creates instance of parser populated with all options that are supported
     by command line activator. There is no additional logic in this class,

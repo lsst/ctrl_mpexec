@@ -1,42 +1,35 @@
-"""Simple example SuperTask for testing purposes.
+"""Simple example PipelineTask for testing purposes.
 """
 
-import lsst.log as lsstLog
-from lsst.pex.config import ConfigField
-from lsst.pipe import supertask
-from lsst.pipe.base.struct import Struct
+import lsst.log
+from lsst.pipe.base import (Struct, PipelineTask, PipelineTaskConfig,
+                            InputDatasetField, OutputDatasetField)
 
-_LOG = lsstLog.Log.getLogger(__name__)
+_LOG = lsst.log.Log.getLogger(__name__)
 
 
-class PatchSkyMapTaskConfig(supertask.SuperTaskConfig):
-    coadd = ConfigField(dtype=supertask.InputDatasetConfig,
-                        doc="DatasetType for the input image")
-    inputCatalog = ConfigField(dtype=supertask.InputDatasetConfig,
-                               doc="DatasetType for the input catalog (merged detections).")
-    outputCatalog = ConfigField(dtype=supertask.OutputDatasetConfig,
-                                doc="DatasetType for the output catalog (deblended per-band measurements)")
+class PatchSkyMapTaskConfig(PipelineTaskConfig):
+    coadd = InputDatasetField(name="deepCoadd_calexp",
+                              units=["SkyMap", "Tract", "Patch", "AbstractFilter"],
+                              storageClass="Exposure",
+                              doc="DatasetType for the input image")
+    inputCatalog = InputDatasetField(name="deepCoadd_mergeDet",
+                                     units=["SkyMap", "Tract", "Patch"],
+                                     storageClass="SourceCatalog",
+                                     doc="DatasetType for the input catalog (merged detections).")
+    outputCatalog = OutputDatasetField(name="deepCoadd_meas",
+                                       units=["SkyMap", "Tract", "Patch", "AbstractFilter"],
+                                       storageClass="SourceCatalog",
+                                       doc=("DatasetType for the output catalog "
+                                            "(deblended per-band measurements)"))
 
     def setDefaults(self):
         # set units of a quantum, this task uses per-tract-patch-filter quanta
         self.quantum.units = ["SkyMap", "Tract", "Patch", "AbstractFilter"]
-        self.quantum.sql = None
-
-        self.coadd.name = "deepCoadd_calexp"
-        self.coadd.units = ["SkyMap", "Tract", "Patch", "AbstractFilter"]
-        self.coadd.storageClass = "Exposure"
-
-        self.inputCatalog.name = "deepCoadd_mergeDet"
-        self.inputCatalog.units = ["SkyMap", "Tract", "Patch"]
-        self.inputCatalog.storageClass = "SourceCatalog"
-
-        self.outputCatalog.name = "deepCoadd_meas"
-        self.outputCatalog.units = ["SkyMap", "Tract", "Patch", "AbstractFilter"]
-        self.outputCatalog.storageClass = "SourceCatalog"
 
 
-class PatchSkyMapTask(supertask.SuperTask):
-    """Simple example SuperTask.
+class PatchSkyMapTask(PipelineTask):
+    """Simple example PipelineTask.
     """
     ConfigClass = PatchSkyMapTaskConfig
     _DefaultName = 'patchSkyMapTask'
@@ -61,8 +54,8 @@ class PatchSkyMapTask(supertask.SuperTask):
         `Struct` instance with produced result.
         """
 
-        _LOG.info("executing supertask: coadd=%s inputCatalog=%s outputCatalog=%s",
-                  coadd, inputCatalog, outputCatalog)
+        _LOG.info("executing %s: coadd=%s inputCatalog=%s outputCatalog=%s",
+                  self.getName(), coadd, inputCatalog, outputCatalog)
 
         # output data, length must be equal to len(outputCatalog)
         data = [None]

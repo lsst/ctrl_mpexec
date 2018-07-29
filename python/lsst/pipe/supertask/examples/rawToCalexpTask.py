@@ -1,38 +1,30 @@
-"""Simple example SuperTask for testing purposes.
+"""Simple example PipelineTask for testing purposes.
 """
 
-import lsst.log as lsstLog
-import lsst.pex.config as pexConfig
-from lsst.pipe import supertask
-from lsst.pipe.base.struct import Struct
+import lsst.log
+from lsst.pipe.base import (Struct, PipelineTask, PipelineTaskConfig,
+                            InputDatasetField, OutputDatasetField)
 
-_LOG = lsstLog.Log.getLogger(__name__)
+_LOG = lsst.log.Log.getLogger(__name__)
 
 
-class RawToCalexpTaskConfig(supertask.SuperTaskConfig):
-    input = pexConfig.ConfigField(dtype=supertask.InputDatasetConfig,
-                                  doc="Input dataset type for this task")
-    output = pexConfig.ConfigField(dtype=supertask.OutputDatasetConfig,
-                                   doc="Output dataset type for this task")
+class RawToCalexpTaskConfig(PipelineTaskConfig):
+    input = InputDatasetField(name="raw",
+                              units=["Camera", "Exposure", "Sensor"],
+                              storageClass="DecoratedImageU",
+                              doc="Input dataset type for this task")
+    output = OutputDatasetField(name="calexp",
+                                units=["Camera", "Visit", "Sensor"],
+                                storageClass="ExposureF",
+                                doc="Output dataset type for this task")
 
     def setDefaults(self):
         # set units of a quantum, this task uses per-visit-sensor quanta
         self.quantum.units = ["Camera", "Visit", "Sensor"]
-        self.quantum.sql = None
-
-        # default config for input dataset type
-        self.input.name = "raw"
-        self.input.units = ["Camera", "Exposure", "Sensor"]
-        self.input.storageClass = "example"
-
-        # default config for output dataset type
-        self.output.name = "calexp"
-        self.output.units = ["Camera", "Visit", "Sensor"]
-        self.output.storageClass = "example"
 
 
-class RawToCalexpTask(supertask.SuperTask):
-    """Simple example SuperTask.
+class RawToCalexpTask(PipelineTask):
+    """Simple example PipelineTask.
     """
     ConfigClass = RawToCalexpTaskConfig
     _DefaultName = 'RawToCalexpTask'
@@ -55,7 +47,7 @@ class RawToCalexpTask(supertask.SuperTask):
         `Struct` instance with produced result.
         """
 
-        _LOG.info("executing supertask: input=%s output=%s", input, output)
+        _LOG.info("executing %s: input=%s output=%s", self.getName(), input, output)
 
         data = input
 

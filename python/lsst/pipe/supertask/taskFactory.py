@@ -7,9 +7,10 @@ __all__ = ["TaskFactory"]
 
 from builtins import object
 
-import lsst.log as lsstLog
+from .taskLoader import KIND_PIPELINETASK
+import lsst.log
 
-_LOG = lsstLog.Log.getLogger(__name__)
+_LOG = lsst.log.Log.getLogger(__name__)
 
 
 class TaskFactory(object):
@@ -24,7 +25,7 @@ class TaskFactory(object):
         self.taskLoader = taskLoader
 
     def loadTaskClass(self, taskName):
-        """Locate and import SuperTask class.
+        """Locate and import PipelineTask class.
 
         Returns tuple of task class and its full name, `None` is returned
         for both if loading fails.
@@ -32,13 +33,13 @@ class TaskFactory(object):
         Parameters
         ----------
         taskName : `str`
-            Name of the SuperTask class, interpretation depends entirely on
+            Name of the PipelineTask class, interpretation depends entirely on
             activator, e.g. it may or may not include dots.
 
         Returns
         -------
         taskClass : `type`
-            SuperTask class object, or None on failure.
+            PipelineTask class object, or None on failure.
         taskName : `str`
             Full task class name including package and module, or None on
             failure.
@@ -46,23 +47,23 @@ class TaskFactory(object):
         Raises
         ------
         `ImportError` is raised if task classes cannot be imported.
-        `TypeError` is raised if imported task is not a SuperTask.
+        `TypeError` is raised if imported task is not a PipelineTask.
         """
 
         # load the class, this will raise ImportError on failure
         taskClass, fullTaskName, taskKind = self.taskLoader.loadTaskClass(taskName)
-        if taskKind != 'SuperTask':
-            raise TypeError("Task class {} is not a SuperTask".format(fullTaskName))
+        if taskKind != KIND_PIPELINETASK:
+            raise TypeError("Task class {} is not a PipelineTask".format(fullTaskName))
 
         return taskClass, fullTaskName
 
     def makeTask(self, taskClass, config, overrides, butler):
-        """Create new SuperTask instance from its class.
+        """Create new PipelineTask instance from its class.
 
         Parameters
         ----------
         taskClass : type
-            SuperTask class.
+            PipelineTask class.
         config : `pex.Config` or None
             Configuration object, if ``None`` then use task-defined
             configuration class to create new instance.
@@ -72,15 +73,15 @@ class TaskFactory(object):
             obs-package specific, and possibly command-line overrides.
         butler : `lsst.daf.butler.Butler` or None
             Butler instance used to obtain initialization inputs for
-            SuperTasks.  If None, some SuperTasks will not be usable
+            PipelineTasks.  If None, some PipelineTasks will not be usable
 
         Returns
         -------
-        Instance of a SuperTask class or None on errors.
+        Instance of a PipelineTask class or None on errors.
 
         Raises
         ------
-        Any exceptions that are raised by SuperTask constructor or its
+        Any exceptions that are raised by PipelineTask constructor or its
         configuration class are propagated back to caller.
         """
 
@@ -94,7 +95,7 @@ class TaskFactory(object):
                         taskClass.__name__)
 
         # if we don't have a butler, try to construct without initInputs;
-        # let SuperTasks raise if that's impossible
+        # let PipelineTasks raise if that's impossible
         if butler is None:
             initInputs = None
         else:

@@ -16,14 +16,14 @@ import sys
 # -----------------------------
 #  Imports for other modules --
 # -----------------------------
-from lsst.daf.butler import DatasetRef, Quantum, Run
+from lsst.daf.butler import (DatasetRef, Quantum, Run, StorageClass,
+                             StorageClassFactory)
+from lsst.pipe.base import PipelineTask
 from lsst.pipe.supertask import (Pipeline, QuantumGraph, QuantumGraphNodes,
-                                 TaskDef, SuperTask)
+                                 TaskDef)
 from lsst.pipe.supertask.dotTools import graph2dot, pipeline2dot
 from lsst.pipe.supertask.pipeTools import orderPipeline
 from lsst.pipe.supertask.examples import test1task, test2task
-# this is not used but need to be imported to register a storage class
-from lsst.pipe.supertask.examples.exampleStorageClass import ExampleStorageClass  # noqa: F401
 
 # ---------------------
 #  Local definitions --
@@ -75,6 +75,9 @@ def main():
             args.pipeline_dot is None and args.qgraph_dot is None):
         parser.error("Need one of -p or -g options")
 
+    # make a storage class with example name
+    StorageClassFactory().registerStorageClass(StorageClass("example"))
+
     if args.pipeline or args.pipeline_dot:
 
         pipeline = Pipeline([_makeStep1TaskDef(), _makeStep2TaskDef(), _makeStep3TaskDef()])
@@ -98,10 +101,10 @@ def main():
         step2 = _makeStep2TaskDef()
         step3 = _makeStep3TaskDef()
 
-        dstype0 = SuperTask.makeDatasetType(step1.config.input)
-        dstype1 = SuperTask.makeDatasetType(step1.config.output)
-        dstype2 = SuperTask.makeDatasetType(step2.config.output)
-        dstype3 = SuperTask.makeDatasetType(step3.config.output)
+        dstype0 = PipelineTask.makeDatasetType(step1.config.input)
+        dstype1 = PipelineTask.makeDatasetType(step1.config.output)
+        dstype2 = PipelineTask.makeDatasetType(step2.config.output)
+        dstype3 = PipelineTask.makeDatasetType(step3.config.output)
 
         # quanta for first step which is 1-to-1 tasks
         quanta = []

@@ -1,36 +1,30 @@
-"""Simple example SuperTask for testing purposes.
+"""Simple example PipelineTask for testing purposes.
 """
 
-import lsst.log as lsstLog
-from lsst.pex.config import ConfigField
-from lsst.pipe import supertask
-from lsst.pipe.base.struct import Struct
+import lsst.log
+from lsst.pipe.base import (Struct, PipelineTask, PipelineTaskConfig,
+                            InputDatasetField, OutputDatasetField)
 
-_LOG = lsstLog.Log.getLogger(__name__)
+_LOG = lsst.log.Log.getLogger(__name__)
 
 
-class CalexpToCoaddTaskConfig(supertask.SuperTaskConfig):
-    calexp = ConfigField(dtype=supertask.InputDatasetConfig,
-                         doc="DatasetType for the input image")
-    coadd = ConfigField(dtype=supertask.OutputDatasetConfig,
-                        doc="DatasetType for the output image")
+class CalexpToCoaddTaskConfig(PipelineTaskConfig):
+    calexp = InputDatasetField(name="calexp",
+                               units=["Camera", "Visit", "Sensor"],
+                               storageClass="ExposureF",
+                               doc="DatasetType for the input image")
+    coadd = OutputDatasetField(name="deepCoadd_calexp",
+                               units=["SkyMap", "Tract", "Patch", "AbstractFilter"],
+                               storageClass="ExposureF",
+                               doc="DatasetType for the output image")
 
     def setDefaults(self):
         # set units of a quantum, this task uses per-tract-patch-filter quanta
         self.quantum.units = ["SkyMap", "Tract", "Patch", "AbstractFilter"]
-        self.quantum.sql = None
-
-        self.calexp.name = "calexp"
-        self.calexp.units = ["Camera", "Visit", "Sensor"]
-        self.calexp.storageClass = "ExposureF"
-
-        self.coadd.name = "deepCoadd_calexp"
-        self.coadd.units = ["SkyMap", "Tract", "Patch", "AbstractFilter"]
-        self.coadd.storageClass = "ExposureF"
 
 
-class CalexpToCoaddTask(supertask.SuperTask):
-    """Simple example SuperTask.
+class CalexpToCoaddTask(PipelineTask):
+    """Simple example PipelineTask.
     """
     ConfigClass = CalexpToCoaddTaskConfig
     _DefaultName = 'calexpToCoaddTask'
@@ -53,8 +47,8 @@ class CalexpToCoaddTask(supertask.SuperTask):
         `Struct` instance with produced result.
         """
 
-        _LOG.info("executing supertask: calexp=%s coadd=%s",
-                  calexp, coadd)
+        _LOG.info("executing %s: calexp=%s coadd=%s",
+                  self.getName(), calexp, coadd)
 
         # output data, length must be equal to len(outputCatalog)
         data = [None]

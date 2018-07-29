@@ -49,10 +49,8 @@ from .cmdLineParser import makeParser
 from .pipelineBuilder import PipelineBuilder
 from .dotTools import graph2dot, pipeline2dot
 from .taskFactory import TaskFactory
-from .taskLoader import (TaskLoader, KIND_SUPERTASK)
+from .taskLoader import (TaskLoader, KIND_PIPELINETASK)
 from . import util
-
-from lsst.pipe.supertask.examples.exampleStorageClass import ExampleStorageClass  # noqa: F401
 
 # ----------------------------------
 #  Local non-exported definitions --
@@ -105,7 +103,7 @@ class _MPMap(object):
 
 
 class CmdLineFwk(object):
-    """SuperTask framework which executes tasks from command line.
+    """PipelineTask framework which executes tasks from command line.
 
     In addition to executing tasks this activator provides additional methods
     for task management like dumping configuration or execution chain.
@@ -273,7 +271,7 @@ class CmdLineFwk(object):
 
             if "tasks" not in show:
                 # only show super-tasks
-                tasks = [(name, kind) for name, kind in tasks if kind == KIND_SUPERTASK]
+                tasks = [(name, kind) for name, kind in tasks if kind == KIND_PIPELINETASK]
             tasks.sort()
 
             headers = None
@@ -335,9 +333,9 @@ class CmdLineFwk(object):
             # call task on each argument in a list
             profile_name = getattr(args, "profile", None)
             with util.profile(profile_name, lsstLog):
-                mapFunc(self._executeSuperTask, target_list)
+                mapFunc(self._executePipelineTask, target_list)
 
-    def _executeSuperTask(self, target):
+    def _executePipelineTask(self, target):
         """Execute super-task on a single data item.
 
         Parameters:
@@ -360,12 +358,12 @@ class CmdLineFwk(object):
         return task.runQuantum(quantum, butler)
 
     def writeTaskInitOutputs(self, task, butler):
-        """Write any datasets produced by initializing the given SuperTask.
+        """Write any datasets produced by initializing the given PipelineTask.
 
         Parameters
         ----------
-        task : `SuperTask`
-            instance of SuperTask
+        task : `PipelineTask`
+            instance of PipelineTask
         butler : `lsst.daf.butler.Butler`
             data butler instance
         """
@@ -534,7 +532,9 @@ class CmdLineFwk(object):
                 print("  Quantum {}:".format(iq))
                 print("    inputs:")
                 for key, refs in quantum.predictedInputs.items():
-                    print("      {}: [{}]".format(key, ", ".join([str(ref) for ref in refs])))
+                    dataIds = ["DataId({})".format(ref.dataId) for ref in refs]
+                    print("      {}: [{}]".format(key, ", ".join(dataIds)))
                 print("    outputs:")
                 for key, refs in quantum.outputs.items():
-                    print("      {}: [{}]".format(key, ", ".join([str(ref) for ref in refs])))
+                    dataIds = ["DataId({})".format(ref.dataId) for ref in refs]
+                    print("      {}: [{}]".format(key, ", ".join(dataIds)))

@@ -1,4 +1,4 @@
-"""Package for SuperTask"""
+"""Package for pipeline execution framework"""
 
 from __future__ import absolute_import
 
@@ -8,11 +8,8 @@ try:
 except:
     __version__ = "unknown"
 
-from .config import *
 from .graphBuilder import *
 from .pipeline import *
 from .pipelineBuilder import *
 from .graph import *
-from .resourceConfig import *
-from .superTask import *
 from .taskLoader import *

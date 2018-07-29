@@ -1,41 +1,31 @@
-"""Simple example SuperTask for testing purposes.
+"""Simple example PipelineTask for testing purposes.
 """
 
-from __future__ import absolute_import, division, print_function
+import lsst.log
+from lsst.pipe.base import (Struct, PipelineTask, PipelineTaskConfig,
+                            InputDatasetField, OutputDatasetField)
 
-import lsst.log as lsstLog
-import lsst.pex.config as pexConfig
-from lsst.pipe import supertask
-from lsst.pipe.base.struct import Struct
-
-_LOG = lsstLog.Log.getLogger(__name__)
+_LOG = lsst.log.Log.getLogger(__name__)
 
 
-class Test1Config(supertask.SuperTaskConfig):
-    input = pexConfig.ConfigField(dtype=supertask.InputDatasetConfig,
-                                  doc="Input dataset type for this task")
-    output = pexConfig.ConfigField(dtype=supertask.OutputDatasetConfig,
-                                   doc="Output dataset type for this task")
+class Test1Config(PipelineTaskConfig):
+    input = InputDatasetField(name="input",
+                              units=["Camera", "Visit"],
+                              storageClass = "example",
+                              doc="Input dataset type for this task")
+    output = OutputDatasetField(name="output",
+                                units=["Camera", "Visit"],
+                                storageClass="example",
+                                doc="Output dataset type for this task")
 
     def setDefaults(self):
         # set units of a quantum, this task uses per-visit quanta and it
         # expects datset units to be the same
         self.quantum.units = ["Camera", "Visit"]
-        self.quantum.sql = None
-
-        # default config for input dataset type
-        self.input.name = "input"
-        self.input.units = ["Camera", "Visit"]
-        self.input.storageClass = "example"
-
-        # default config for output dataset type
-        self.output.name = "output"
-        self.output.units = ["Camera", "Visit"]
-        self.output.storageClass = "example"
 
 
-class Test1Task(supertask.SuperTask):
-    """Simple example SuperTask.
+class Test1Task(PipelineTask):
+    """Simple example PipelineTask.
 
     It reads input data that is expected to be a number, performs
     simple arithmetic on that and stores in output dataset.
@@ -64,7 +54,7 @@ class Test1Task(supertask.SuperTask):
         `Struct` instance with produced result.
         """
 
-        _LOG.info("executing supertask: input=%s output=%s", input, output)
+        _LOG.info("executing %s: input=%s output=%s", self.getName(), input, output)
 
         # for output data the order of items should correspond to the order
         # of units in `output` parameter, but in this simple case we expect

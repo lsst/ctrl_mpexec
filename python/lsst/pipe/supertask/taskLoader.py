@@ -39,7 +39,7 @@ import pkgutil
 # -----------------------------
 from lsst.pipe.base import CmdLineTask, Task
 import lsst.log as lsstLog
-from .superTask import SuperTask
+from lsst.pipe.base import PipelineTask
 
 # ----------------------------------
 #  Local non-exported definitions --
@@ -57,13 +57,13 @@ def _task_kind(task_class):
     Returns
     -------
     None if `task_class` is not a class or does not inherit from Task.
-    Otherwise returns one of KIND_TASK, KIND_CMDLINETASK, or KIND_SUPERTASK.
+    Otherwise returns one of KIND_TASK, KIND_CMDLINETASK, or KIND_PIPELINETASK.
     """
     kind = None
     if inspect.isclass(task_class):
         bases = inspect.getmro(task_class)
-        if SuperTask in bases:
-            kind = KIND_SUPERTASK
+        if PipelineTask in bases:
+            kind = KIND_PIPELINETASK
         elif CmdLineTask in bases:
             kind = KIND_CMDLINETASK
         elif Task in bases:
@@ -77,7 +77,7 @@ def _task_kind(task_class):
 
 KIND_TASK = 'Task'
 KIND_CMDLINETASK = 'CmdLineTask'
-KIND_SUPERTASK = 'SuperTask'
+KIND_PIPELINETASK = 'PipelineTask'
 
 
 class TaskLoader(object):
@@ -136,7 +136,7 @@ class TaskLoader(object):
         -------
         `list` of tuples (name, kind), `name` is the full task name including package
         and module name, `kind` is a task kind, one of the constants `KIND_TASK`,
-        `KIND_CMDLINETASK`, or `KIND_SUPERTASK`.
+        `KIND_CMDLINETASK`, or `KIND_PIPELINETASK`.
 
         Raises
         ------
@@ -189,7 +189,7 @@ class TaskLoader(object):
         taks_name
             fully-qualified class name ("package.module.TaskClass")
         taks_kind
-            one of KIND_TASK, KIND_CMDLINETASK, or KIND_SUPERTASK
+            one of KIND_TASK, KIND_CMDLINETASK, or KIND_PIPELINETASK
 
         Raises
         ------
