@@ -16,6 +16,7 @@ class RawToCalexpTaskConfig(PipelineTaskConfig):
     output = OutputDatasetField(name="calexp",
                                 units=["Camera", "Visit", "Sensor"],
                                 storageClass="ExposureF",
+                                scalar=True,
                                 doc="Output dataset type for this task")
 
     def setDefaults(self):
@@ -29,7 +30,7 @@ class RawToCalexpTask(PipelineTask):
     ConfigClass = RawToCalexpTaskConfig
     _DefaultName = 'RawToCalexpTask'
 
-    def run(self, input, output):
+    def run(self, input):
         """Operate on in-memory data.
 
         With default implementation of `runQuantum()` keyword arguments
@@ -39,17 +40,16 @@ class RawToCalexpTask(PipelineTask):
         ----------
         input : `list`
             List of input data objects
-        output : `list`
-            List of units for output, not used in this simple task.
 
         Returns
         -------
         `Struct` instance with produced result.
         """
 
-        _LOG.info("executing %s: input=%s output=%s", self.getName(), input, output)
+        _LOG.info("executing %s: input=%s", self.getName(), input)
 
-        data = input
+        # result, scalar in this case
+        data = None
 
         # attribute name of struct is the same as a config field name
         return Struct(output=data)

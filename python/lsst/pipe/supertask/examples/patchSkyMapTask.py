@@ -12,14 +12,17 @@ class PatchSkyMapTaskConfig(PipelineTaskConfig):
     coadd = InputDatasetField(name="deepCoadd_calexp",
                               units=["SkyMap", "Tract", "Patch", "AbstractFilter"],
                               storageClass="Exposure",
+                              scalar=True,
                               doc="DatasetType for the input image")
     inputCatalog = InputDatasetField(name="deepCoadd_mergeDet",
                                      units=["SkyMap", "Tract", "Patch"],
                                      storageClass="SourceCatalog",
+                                     scalar=True,
                                      doc="DatasetType for the input catalog (merged detections).")
     outputCatalog = OutputDatasetField(name="deepCoadd_meas",
                                        units=["SkyMap", "Tract", "Patch", "AbstractFilter"],
                                        storageClass="SourceCatalog",
+                                       scalar=True,
                                        doc=("DatasetType for the output catalog "
                                             "(deblended per-band measurements)"))
 
@@ -34,7 +37,7 @@ class PatchSkyMapTask(PipelineTask):
     ConfigClass = PatchSkyMapTaskConfig
     _DefaultName = 'patchSkyMapTask'
 
-    def run(self, coadd, inputCatalog, outputCatalog):
+    def run(self, coadd, inputCatalog):
         """Operate on in-memory data.
 
         With default implementation of `runQuantum()` keyword arguments
@@ -42,23 +45,21 @@ class PatchSkyMapTask(PipelineTask):
 
         Parameters
         ----------
-        coadd : `list`
-            List of input data objects
-        inputCatalog : `list`
-            List of input data objects
-        outputCatalog : `list`
-            List of units for output, not used in this simple task.
+        coadd : object
+            Input data object (input dataset type is configured as scalar)
+        inputCatalog : object
+            Input data object (input dataset type is configured as scalar)
 
         Returns
         -------
         `Struct` instance with produced result.
         """
 
-        _LOG.info("executing %s: coadd=%s inputCatalog=%s outputCatalog=%s",
-                  self.getName(), coadd, inputCatalog, outputCatalog)
+        _LOG.info("executing %s: coadd=%s inputCatalog=%s",
+                  self.getName(), coadd, inputCatalog)
 
-        # output data, length must be equal to len(outputCatalog)
-        data = [None]
+        # output data, scalar in this case
+        data = None
 
         # attribute name of struct is the same as a config field name
         return Struct(outputCatalog=data)

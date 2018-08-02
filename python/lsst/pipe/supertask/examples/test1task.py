@@ -12,10 +12,12 @@ class Test1Config(PipelineTaskConfig):
     input = InputDatasetField(name="input",
                               units=["Camera", "Visit"],
                               storageClass = "example",
+                              scalar=True,
                               doc="Input dataset type for this task")
     output = OutputDatasetField(name="output",
                                 units=["Camera", "Visit"],
                                 storageClass="example",
+                                scalar=True,
                                 doc="Output dataset type for this task")
 
     def setDefaults(self):
@@ -36,7 +38,7 @@ class Test1Task(PipelineTask):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-    def run(self, input, output):
+    def run(self, input):
         """Operate on in-memory data.
 
         With default implementation of `runQuantum()` keyword arguments
@@ -44,22 +46,17 @@ class Test1Task(PipelineTask):
 
         Parameters
         ----------
-        input : `list`
-            Lsit of input data objects
-        output : `list`
-            List of units for output, not used in this simple task.
+        input : object
+            Input data objects (scalar)
 
         Returns
         -------
         `Struct` instance with produced result.
         """
 
-        _LOG.info("executing %s: input=%s output=%s", self.getName(), input, output)
+        _LOG.info("executing %s: input=%s", self.getName(), input)
 
-        # for output data the order of items should correspond to the order
-        # of units in `output` parameter, but in this simple case we expect
-        # just one DataRef in both input and output.
-        data = [x ** 2 for x in input]
+        data = input**2
 
         # attribute name of struct is the same as a config field name
         return Struct(output=data)

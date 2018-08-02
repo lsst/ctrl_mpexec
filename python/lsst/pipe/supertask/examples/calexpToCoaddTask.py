@@ -16,6 +16,7 @@ class CalexpToCoaddTaskConfig(PipelineTaskConfig):
     coadd = OutputDatasetField(name="deepCoadd_calexp",
                                units=["SkyMap", "Tract", "Patch", "AbstractFilter"],
                                storageClass="ExposureF",
+                               scalar=True,
                                doc="DatasetType for the output image")
 
     def setDefaults(self):
@@ -29,29 +30,21 @@ class CalexpToCoaddTask(PipelineTask):
     ConfigClass = CalexpToCoaddTaskConfig
     _DefaultName = 'calexpToCoaddTask'
 
-    def run(self, calexp, coadd):
+    def adaptArgsAndRun(self, inputData, inputDataIds, outputDataIds):
         """Operate on in-memory data.
-
-        With default implementation of `runQuantum()` keyword arguments
-        correspond to field names in a config.
-
-        Parameters
-        ----------
-        calexp : `list`
-            List of input data objects
-        coadd : `list`
-            List of units for output.
 
         Returns
         -------
         `Struct` instance with produced result.
         """
-
+        # calexps = inputData["calexp"]
+        calexpDataIds = inputDataIds["calexp"]
+        coaddDataIds = outputDataIds["coadd"]
         _LOG.info("executing %s: calexp=%s coadd=%s",
-                  self.getName(), calexp, coadd)
+                  self.getName(), calexpDataIds, coaddDataIds)
 
-        # output data, length must be equal to len(outputCatalog)
-        data = [None]
+        # output data, scalar in this case
+        data = None
 
         # attribute name of struct is the same as a config field name
         return Struct(coadd=data)
