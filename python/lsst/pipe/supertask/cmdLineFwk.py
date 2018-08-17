@@ -32,6 +32,7 @@ __all__ = ['CmdLineFwk']
 #  Imports of standard modules --
 # -------------------------------
 import fnmatch
+import logging
 import multiprocessing
 import pickle
 import re
@@ -224,6 +225,11 @@ class CmdLineFwk(object):
             if level is not None:
                 logger = lsstLog.Log.getLogger(component or "")
                 logger.setLevel(level)
+
+        # Forward all Python logging to lsst.log
+        lgr = logging.getLogger()
+        lgr.setLevel(logging.DEBUG)
+        lgr.addHandler(lsstLog.LogHandler())
 
     def doList(self, show, show_headers):
         """Implementation of the "list" command.
