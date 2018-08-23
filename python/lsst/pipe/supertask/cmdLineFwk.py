@@ -164,21 +164,21 @@ class CmdLineFwk(object):
             # stop here
             return 0
 
-        # make butler instance
-        butler = Butler(config=args.butler_config, collection=args.input,
-                        run=args.output)
-        registry = butler.registry
-        collection = butler.collection
-
         if args.qgraph:
             with open(args.qgraph, 'rb') as pickleFile:
                 qgraph = pickle.load(pickleFile)
             # TODO: pipeline is ignored in this case, make sure that user
             # does not specify any pipeline-related options
         else:
+            # Make butler instance. From this Butler we only need Registry
+            # instance. Input/output collections are handled by pre-flight
+            # and we don't want to be constrained here by Butler's restrictions
+            # on collection names.
+            butler = Butler(config=args.butler_config, collection=args.input)
+
             # make execution plan (a.k.a. DAG) for pipeline
-            graphBuilder = GraphBuilder(self.taskFactory, registry)
-            qgraph = graphBuilder.makeGraph(pipeline, collection, args.data_query)
+            graphBuilder = GraphBuilder(self.taskFactory, butler.registry)
+            qgraph = graphBuilder.makeGraph(pipeline, [args.input], args.output, args.data_query)
 
         if args.save_qgraph:
             with open(args.save_qgraph, "wb") as pickleFile:
@@ -188,7 +188,7 @@ class CmdLineFwk(object):
             graph2dot(qgraph, args.qgraph_dot)
 
         # optionally dump some info
-        self.showInfo(args.show, butler, pipeline, registry, qgraph)
+        self.showInfo(args.show, pipeline, qgraph)
 
         if args.subcommand == "qgraph":
             # stop here
@@ -196,6 +196,11 @@ class CmdLineFwk(object):
 
         # execute
         if args.subcommand == "run":
+
+            # make butler instance
+            butler = Butler(config=args.butler_config, collection=args.input,
+                            run=args.output)
+
             return self.runPipeline(qgraph, butler, args)
 
     @staticmethod
@@ -378,19 +383,15 @@ class CmdLineFwk(object):
         for key, obj in initOutputs.items():
             butler.put(obj, initOutputDatasetTypes[key], {})
 
-    def showInfo(self, showOpts, butler, pipeline, registry, graph):
+    def showInfo(self, showOpts, pipeline, graph):
         """Display useful info about pipeline and environment.
 
         Parameters
         ----------
         showOpts : `list` of `str`
             Defines what to show
-        butler : `Butler`
-            Data butler instance
         pipeline : `Pipeline`
             Pipeline definition
-        registry : `Registry`
-            Registry instance
         graph : `QuantumGraph`
             Execution graph.
         """
