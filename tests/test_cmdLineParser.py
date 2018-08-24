@@ -23,7 +23,6 @@
 #
 
 from argparse import ArgumentParser
-from collections import OrderedDict
 import unittest
 
 import lsst.utils.tests
@@ -79,55 +78,66 @@ class CmdLineParserTestCase(unittest.TestCase):
         with self.assertRaises(_Error):
             parser.parse_args("-m label:notANumber".split())
 
-    def testIdValueAction(self):
-        """Test for parser._IdValueAction
+    def testInputCollectionType(self):
+        """Test for a _inputCollectionType
         """
+
         parser = _NoExitParser()
-        parser.add_argument("--type", dest='_data_type')
-        parser.add_argument("--id", dest='id', nargs="+",
-                            action=parser_mod._IdValueAction)
+        parser.add_argument("-i", dest="input", type=parser_mod._inputCollectionType,
+                            default={})
 
-        args = parser.parse_args([])
-        self.assertTrue(hasattr(args, 'id'))
+        args = parser.parse_args("".split())
+        self.assertEqual(args.input, {})
 
-#         with self.assertRaises(_Error):
-#             args = parser.parse_args("--id key=1".split())
+        args = parser.parse_args("-i coll".split())
+        self.assertEqual(args.input, {"": ["coll"]})
 
-        args = parser.parse_args("--type type1 --id key=1".split())
-        self.assertTrue(isinstance(args.id, dict))
-        expect = dict(type1=[OrderedDict([("key", "1")])])
-        self.assertEqual(args.id, expect)
+        args = parser.parse_args("-i coll1,coll2,coll3".split())
+        self.assertEqual(args.input, {"": ["coll1", "coll2", "coll3"]})
 
-        args = parser.parse_args("--type type1 --id key=1 foo=bar".split())
-        expect = dict(type1=[OrderedDict([("key", "1"), ("foo", "bar")])])
-        self.assertEqual(args.id, expect)
+        args = parser.parse_args("-i ds:coll".split())
+        self.assertEqual(args.input, {"ds": ["coll"]})
 
-        args = parser.parse_args("--type type1 --id key=1^3 foo=bar^baz".split())
-        expect = dict(type1=[OrderedDict([("key", "1"), ("foo", "bar")]),
-                             OrderedDict([("key", "1"), ("foo", "baz")]),
-                             OrderedDict([("key", "3"), ("foo", "bar")]),
-                             OrderedDict([("key", "3"), ("foo", "baz")])])
-        self.assertEqual(args.id, expect)
+        args = parser.parse_args("-i ds1:coll1,ds2:coll2,ds2:coll3".split())
+        self.assertEqual(args.input, {"ds1": ["coll1"],
+                                      "ds2": ["coll2", "coll3"]})
 
-        args = parser.parse_args("--type type1 --id key=1^3..5 foo=bar".split())
-        expect = dict(type1=[OrderedDict([("key", "1"), ("foo", "bar")]),
-                             OrderedDict([("key", "3"), ("foo", "bar")]),
-                             OrderedDict([("key", "4"), ("foo", "bar")]),
-                             OrderedDict([("key", "5"), ("foo", "bar")])])
-        self.assertEqual(args.id, expect)
+        args = parser.parse_args("-i coll1,ds1:coll1,coll2,ds2:coll2,ds2:coll3,coll3".split())
+        self.assertEqual(args.input, {"": ["coll1", "coll2", "coll3"],
+                                      "ds1": ["coll1"],
+                                      "ds2": ["coll2", "coll3"]})
+
+    def testOutputCollectionType(self):
+        """Test for a _outputCollectionType
+        """
+
+        parser = _NoExitParser()
+        parser.add_argument("-o", dest="output", type=parser_mod._outputCollectionType,
+                            default={})
+
+        args = parser.parse_args("".split())
+        self.assertEqual(args.output, {})
+
+        args = parser.parse_args("-o coll".split())
+        self.assertEqual(args.output, {"": "coll"})
 
         with self.assertRaises(_Error):
-            parser.parse_args("--type x --id key=1 key=2".split())
+            args = parser.parse_args("-o coll1,coll2,coll3".split())
 
-        args = parser.parse_args("--type type1 --id key=1 foo=bar --id key=2 foo=baz".split())
-        expect = dict(type1=[OrderedDict([("key", "1"), ("foo", "bar")]),
-                             OrderedDict([("key", "2"), ("foo", "baz")])])
-        self.assertEqual(args.id, expect)
+        args = parser.parse_args("-o ds:coll".split())
+        self.assertEqual(args.output, {"ds": "coll"})
 
-        args = parser.parse_args("--type type1 --id key=1 foo=bar --type type2 --id key=2 foo=baz".split())
-        expect = dict(type1=[OrderedDict([("key", "1"), ("foo", "bar")])],
-                      type2=[OrderedDict([("key", "2"), ("foo", "baz")])])
-        self.assertEqual(args.id, expect)
+        args = parser.parse_args("-o ds1:coll1,ds2:coll2,ds3:coll3".split())
+        self.assertEqual(args.output, {"ds1": "coll1",
+                                       "ds2": "coll2",
+                                       "ds3": "coll3"})
+
+        args = parser.parse_args("-o coll1,ds2:coll2".split())
+        self.assertEqual(args.output, {"": "coll1",
+                                       "ds2": "coll2"})
+
+        with self.assertRaises(_Error):
+            args = parser.parse_args("-o coll1,ds2:coll2,coll3".split())
 
     def testCmdLineParser(self):
         """Test for parser_mod.CmdLineParser
@@ -227,12 +237,12 @@ class CmdLineParserTestCase(unittest.TestCase):
         self.assertFalse(args.clobberVersions)
         self.assertFalse(args.debug)
         self.assertFalse(args.doraise)
-        self.assertIsNone(args.input)
+        self.assertEqual(args.input, {})
         self.assertEqual(args.loglevel, [])
         self.assertFalse(args.longlog)
         self.assertFalse(args.noBackupConfig)
         self.assertFalse(args.noVersions)
-        self.assertIsNone(args.output)
+        self.assertEqual(args.output, {})
         self.assertEqual(args.processes, 1)
         self.assertIsNone(args.profile)
         self.assertIsNone(args.timeout)
@@ -269,12 +279,12 @@ class CmdLineParserTestCase(unittest.TestCase):
         self.assertTrue(args.clobberVersions)
         self.assertTrue(args.debug)
         self.assertTrue(args.doraise)
-        self.assertEqual(args.input, 'inputColl')
+        self.assertEqual(args.input, {"": ["inputColl"]})
         self.assertEqual(args.loglevel, [(None, 'DEBUG'), ('component', 'TRACE')])
         self.assertTrue(args.longlog)
         self.assertTrue(args.noBackupConfig)
         self.assertTrue(args.noVersions)
-        self.assertEqual(args.output, 'outputColl')
+        self.assertEqual(args.output, {"": "outputColl"})
         self.assertEqual(args.processes, 66)
         self.assertEqual(args.profile, 'profile.out')
         self.assertEqual(args.timeout, 10.10)

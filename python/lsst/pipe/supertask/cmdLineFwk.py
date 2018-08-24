@@ -42,7 +42,7 @@ import sys
 #  Imports for other modules --
 # -----------------------------
 from lsst.base import disableImplicitThreading
-from lsst.daf.butler import Butler
+from lsst.daf.butler import (Butler, PreFlightCollectionsDef)
 import lsst.log as lsstLog
 import lsst.pex.config as pexConfig
 from .graphBuilder import GraphBuilder
@@ -170,15 +170,32 @@ class CmdLineFwk(object):
             # TODO: pipeline is ignored in this case, make sure that user
             # does not specify any pipeline-related options
         else:
+
+            # build collection names
+            inputs = args.input.copy()
+            defaultInputs = inputs.pop("", None)
+            outputs = args.output.copy()
+            defaultOutputs = outputs.pop("", None)
+
             # Make butler instance. From this Butler we only need Registry
             # instance. Input/output collections are handled by pre-flight
             # and we don't want to be constrained here by Butler's restrictions
             # on collection names.
-            butler = Butler(config=args.butler_config, collection=args.input)
+            collection = defaultInputs[0] if defaultInputs else None
+            butler = Butler(config=args.butler_config, collection=collection)
+
+            # if default input collections are not given on command line then
+            # use one from Butler (has to be configured in butler config)
+            if not defaultInputs:
+                defaultInputs = [butler.collection]
+            coll = PreFlightCollectionsDef(defaultInputs=defaultInputs,
+                                           defaultOutput=defaultOutputs,
+                                           inputOverrides=inputs,
+                                           outputOverrides=outputs)
 
             # make execution plan (a.k.a. DAG) for pipeline
             graphBuilder = GraphBuilder(self.taskFactory, butler.registry)
-            qgraph = graphBuilder.makeGraph(pipeline, [args.input], args.output, args.data_query)
+            qgraph = graphBuilder.makeGraph(pipeline, coll, args.data_query)
 
         if args.save_qgraph:
             with open(args.save_qgraph, "wb") as pickleFile:
@@ -197,9 +214,15 @@ class CmdLineFwk(object):
         # execute
         if args.subcommand == "run":
 
+            # If input/output collections are given then use them to override
+            # butler-configured ones.
+            collection = args.input.get("", [])
+            collection = collection[0] if collection else None
+            run = args.output.get("", None)
+
             # make butler instance
-            butler = Butler(config=args.butler_config, collection=args.input,
-                            run=args.output)
+            butler = Butler(config=args.butler_config, collection=collection,
+                            run=run)
 
             return self.runPipeline(qgraph, butler, args)
 

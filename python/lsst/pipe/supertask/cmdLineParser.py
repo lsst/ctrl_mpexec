@@ -34,7 +34,6 @@ __all__ = ["makeParser"]
 from argparse import Action, ArgumentParser, RawDescriptionHelpFormatter
 from builtins import object
 import collections
-import itertools
 import re
 import textwrap
 
@@ -129,79 +128,70 @@ class _LogLevelAction(Action):
         dest.append((component, logLevelUpr))
 
 
-# copied with small mods from pipe.base.argumentParser
-class _IdValueAction(Action):
-    """argparse action callback to process a data ID into a dict
+def _inputCollectionType(value):
+    """Special argument type for input collections.
+
+    Accepts string vlues in format:
+
+        value :== collection[,collection[...]]
+        collection :== [dataset_type:]collection_name
+
+    and converts value into a dictionary whose keys a dataset type names
+    (or empty string when dataset type name is missing) and values are
+    ordered lists of collection names.
+
+    Parameters
+    ----------
+    value : `str`
+        Value of the command line option
+
+    Returns
+    -------
+    `dict`
     """
+    res = {}
+    for collstr in value.split(","):
+        dsType, sep, coll = collstr.partition(':')
+        if not sep:
+            dsType, coll = "", dsType
+        res.setdefault(dsType, []).append(coll)
+    return res
 
-    def __call__(self, parser, namespace, values, option_string=None):
-        """Parse dataId option values
 
-        The option value format is:
-        key1=value1_1[^value1_2[^value1_3...] key2=value2_1[^value2_2[^value2_3...]...
+def _outputCollectionType(value):
+    """Special argument type for input collections.
 
-        The values (e.g. value1_1) may either be a string, or of the form "int..int" (e.g. "1..3")
-        which is interpreted as "1^2^3" (inclusive, unlike a python range). So "0^2..4^7..9" is
-        equivalent to "0^2^3^4^7^8^9".  You may also specify a stride: "1..5:2" is "1^3^5"
+    Accepts string vlues in format:
 
-        The cross product is computed for keys with multiple values. For example:
-            --id visit 1^2 ccd 1,1^2,2
-        results in the following data ID dicts being appended to namespace.<dest>:
-            {"visit":1, "ccd":"1,1"}
-            {"visit":2, "ccd":"1,1"}
-            {"visit":1, "ccd":"2,2"}
-            {"visit":2, "ccd":"2,2"}
+        value :== collection[,collection[...]]
+        collection :== [dataset_type:]collection_name
 
-        Option values are store in the dict were the key is the value of
-        --type option used before --id and the value is the list of dicts
-        corresponding to each --id option values.
+    and converts value into a dictionary whose keys a dataset type names
+    (or empty string when dataset type name is missing) and values are
+    collection names.
 
-        Parameters
-        ----------
-        parser : argparse.ArgumentParser
-            argument parser
-        namespace : argparse.Namespace
-            parsed command
-        values : list
-            a list of data IDs; see option value format
-        option_string : str
-            option name specified by the user
-        """
+    Parameters
+    ----------
+    value : `str`
+        Value of the command line option
 
-        # need --type option before --id
-        if not hasattr(namespace, "_data_type"):
-            parser.error("--type option must be defined in parser")
-        if namespace._data_type is None:
-            parser.error("%s option requires --type to be used before it" % (option_string))
+    Returns
+    -------
+    `dict`
 
-        dest = getattr(namespace, self.dest)
-        if dest is None:
-            dest = {}
-            setattr(namespace, self.dest, dest)
-
-        idDict = collections.OrderedDict()
-        for nameValue in values:
-            name, _, valueStr = nameValue.partition("=")
-            if name in idDict:
-                parser.error("%s appears multiple times in one ID argument: %s" % (name, option_string))
-            idDict[name] = []
-            for oneVal in valueStr.split("^"):
-                mat = re.search(r"^(\d+)\.\.(\d+)(?::(\d+))?$", oneVal)
-                if mat:
-                    val1 = int(mat.group(1))
-                    val2 = int(mat.group(2))
-                    val3 = mat.group(3)
-                    val3 = int(val3) if val3 else 1
-                    for val in range(val1, val2 + 1, val3):
-                        idDict[name].append(str(val))
-                else:
-                    idDict[name].append(oneVal)
-
-        iterList = [idDict[key] for key in idDict.keys()]
-        idDictList = [collections.OrderedDict(zip(idDict.keys(), valList))
-                      for valList in itertools.product(*iterList)]
-
-        dest.setdefault(namespace._data_type, []).extend(idDictList)
+    Raises
+    ------
+    `ValueError` if there is more than one collection per dataset type.
+    """
+    res = {}
+    for collstr in value.split(","):
+        dsType, sep, coll = collstr.partition(':')
+        if not sep:
+            dsType, coll = "", dsType
+        if dsType in res:
+            raise ValueError("multiple collection names: " + value)
+        res[dsType] = coll
+    return res
 
 
 _EPILOG = """\
@@ -261,16 +251,19 @@ def makeParser(fromfile_prefix_chars='@', parser_class=ArgumentParser, **kwargs)
     group = parser.add_argument_group("Data repository and selection options")
     group.add_argument("-b", "--butler-config", dest="butler_config", default=None, metavar="PATH",
                        help="Location of the gen3 butler/registry config file.")
-    group.add_argument("-i", "--input", dest="input",
-                       metavar="COLLECTION", default=None,
-                       help=("Name of the data butler collection used for "
-                             "input, overrides collection specified in Butler "
-                             "configuration file"))
-    group.add_argument("-o", "--output", dest="output",
-                       metavar="COLLECTION", default=None,
-                       help=("Name of the data butler collection used for "
-                             "output, overrides collection specified in Butler "
-                             "configuration file"))
+    group.add_argument("-i", "--input", dest="input", type=_inputCollectionType,
+                       metavar="COLL,DSTYPE:COLL", default={},
+                       help=("Comma-separated names of the data butler collection. "
+                             "If collection includes dataset type name separated by colon "
+                             "then collection is only used for that specific dataset type. "
+                             "Pre-flight uses these collections to search for input datasets. "
+                             "Task execution stage only uses first global collection name "
+                             "to override collection specified in Butler configuration file."))
+    group.add_argument("-o", "--output", dest="output", type=_outputCollectionType,
+                       metavar="COLL,DSTYPE:COLL", default={},
+                       help=("Comma-separated names of the data butler collection. "
+                             "See description of --input option.  This option only allows "
+                             "single collection (per-dataset type or global)."))
     group.add_argument("-d", "--data-query", dest="data_query", default="", metavar="QUERY",
                        help="User data selection expression.")
 
