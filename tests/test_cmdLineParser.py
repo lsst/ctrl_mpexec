@@ -179,7 +179,8 @@ class CmdLineParserTestCase(unittest.TestCase):
             """.split())
         qgraph_options = ['pipeline_actions', 'show', 'subparser', 'pipeline',
                           'order_pipeline', 'save_pipeline', 'pipeline_dot',
-                          'qgraph_dot', 'qgraph', 'save_qgraph', 'camera_overrides']
+                          'qgraph_dot', 'qgraph', 'save_qgraph', 'camera_overrides',
+                          'skip_existing']
         self.assertEqual(set(vars(args).keys()), set(global_options + qgraph_options))
         self.assertEqual(args.subcommand, 'qgraph')
 
@@ -189,7 +190,8 @@ class CmdLineParserTestCase(unittest.TestCase):
             """.split())
         run_options = ['pipeline_actions', 'show', 'subparser', 'pipeline',
                        'order_pipeline', 'save_pipeline', 'pipeline_dot',
-                       'qgraph_dot', 'qgraph', 'save_qgraph', 'camera_overrides']
+                       'qgraph_dot', 'qgraph', 'save_qgraph', 'camera_overrides',
+                       'skip_existing']
         self.assertEqual(set(vars(args).keys()), set(global_options + run_options))
         self.assertEqual(args.subcommand, 'run')
 

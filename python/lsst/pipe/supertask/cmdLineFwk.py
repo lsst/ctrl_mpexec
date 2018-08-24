@@ -194,7 +194,7 @@ class CmdLineFwk(object):
                                            outputOverrides=outputs)
 
             # make execution plan (a.k.a. DAG) for pipeline
-            graphBuilder = GraphBuilder(self.taskFactory, butler.registry)
+            graphBuilder = GraphBuilder(self.taskFactory, butler.registry, args.skip_existing)
             qgraph = graphBuilder.makeGraph(pipeline, coll, args.data_query)
 
         if args.save_qgraph:

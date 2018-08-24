@@ -388,6 +388,11 @@ def makeParser(fromfile_prefix_chars='@', parser_class=ArgumentParser, **kwargs)
                                help="Order tasks in pipeline based on their data dependencies, "
                                "ordering is performed as last step before saving or executing "
                                "pipeline.")
+        if subcommand in ("qgraph", "run"):
+            subparser.add_argument("--skip-existing", dest="skip_existing",
+                                   default=False, action="store_true",
+                                   help="If all Quantum outputs already exist in output collection "
+                                   "then Qauntum will be excluded from QuantumGraph.")
         subparser.add_argument("-s", "--save-pipeline", dest="save_pipeline",
                                help="Location for storing a serialized pipeline definition (pickle file).",
                                metavar="PATH")
