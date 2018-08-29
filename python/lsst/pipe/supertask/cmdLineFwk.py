@@ -42,7 +42,7 @@ import sys
 #  Imports for other modules --
 # -----------------------------
 from lsst.base import disableImplicitThreading
-from lsst.daf.butler import (Butler, PreFlightCollectionsDef)
+from lsst.daf.butler import Butler, DatasetOriginInfoDef
 import lsst.log as lsstLog
 import lsst.pex.config as pexConfig
 from .graphBuilder import GraphBuilder
@@ -188,10 +188,10 @@ class CmdLineFwk(object):
             # use one from Butler (has to be configured in butler config)
             if not defaultInputs:
                 defaultInputs = [butler.collection]
-            coll = PreFlightCollectionsDef(defaultInputs=defaultInputs,
-                                           defaultOutput=defaultOutputs,
-                                           inputOverrides=inputs,
-                                           outputOverrides=outputs)
+            coll = DatasetOriginInfoDef(defaultInputs=defaultInputs,
+                                        defaultOutput=defaultOutputs,
+                                        inputOverrides=inputs,
+                                        outputOverrides=outputs)
 
             # make execution plan (a.k.a. DAG) for pipeline
             graphBuilder = GraphBuilder(self.taskFactory, butler.registry, args.skip_existing)
