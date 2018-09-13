@@ -2,6 +2,7 @@
 """
 
 import lsst.log
+from lsst.afw.image import ExposureF
 from lsst.pipe.base import (Struct, PipelineTask, PipelineTaskConfig,
                             InputDatasetField, OutputDatasetField)
 
@@ -48,8 +49,8 @@ class RawToCalexpTask(PipelineTask):
 
         _LOG.info("executing %s: input=%s", self.getName(), input)
 
-        # result, scalar in this case
-        data = None
+        # result, scalar in this case, just create 100x100 image
+        data = ExposureF(100, 100)
 
         # attribute name of struct is the same as a config field name
         return Struct(output=data)

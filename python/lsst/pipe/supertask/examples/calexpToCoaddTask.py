@@ -2,6 +2,7 @@
 """
 
 import lsst.log
+from lsst.afw.image import ExposureF
 from lsst.pipe.base import (Struct, PipelineTask, PipelineTaskConfig,
                             InputDatasetField, OutputDatasetField)
 
@@ -44,7 +45,7 @@ class CalexpToCoaddTask(PipelineTask):
                   self.getName(), calexpDataIds, coaddDataIds)
 
         # output data, scalar in this case
-        data = None
+        data = ExposureF(100, 100)
 
         # attribute name of struct is the same as a config field name
         return Struct(coadd=data)

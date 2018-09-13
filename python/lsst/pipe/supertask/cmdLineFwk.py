@@ -212,15 +212,16 @@ class CmdLineFwk(object):
         # execute
         if args.subcommand == "run":
 
-            # If input/output collections are given then use them to override
+            # If output collections are given then use them to override
             # butler-configured ones.
-            collection = args.input.get("", [])
-            collection = collection[0] if collection else None
             run = args.output.get("", None)
 
             # make butler instance
-            butler = Butler(config=args.butler_config, collection=collection,
-                            run=run)
+            butler = Butler(config=args.butler_config, run=run)
+
+            # at this point we require that output collection was defined
+            if not butler.run:
+                raise ValueError("no output collection defined in data butler")
 
             return self.runPipeline(qgraph, butler, args)
 
@@ -327,7 +328,10 @@ class CmdLineFwk(object):
         # how many processes do we want
         numProc = args.processes
 
-        # pre-flight check
+        # associate all existing datasets with output collection.
+        self._updateOutputCollection(graph, butler)
+
+        # Save task initialization data.
         # TODO: see if Pipeline and software versions are already written
         # to butler and associated with Run, check for consistency if they
         # are, and if so skip writing TaskInitOutputs (because those should
@@ -367,10 +371,45 @@ class CmdLineFwk(object):
             with util.profile(profile_name, lsstLog):
                 mapFunc(self._executePipelineTask, target_list)
 
+    def _updateOutputCollection(self, graph, butler):
+        """Associate all existing datasets with output collection.
+
+        For every Quantum in a graph make sure that its existsing inputs are
+        added to the Butler's output collection.
+
+        For each quantum there are input and output DataRefs. With the
+        current implementation of preflight output refs should not exist but
+        input refs may belong to a different collection. We want all refs to
+        appear in output collection, so we have to "copy" those refs. Trouble
+        here is that there is no way to check now that ref is already in a
+        collection so we just assume that collection is initially empty.
+
+        Parameters
+        ----------
+        graph : `QuantumGraph`
+            Execution graph.
+        butler : `Butler`
+            data butler instance
+        """
+        # main issue here is that the same DataRef can appear as input for
+        # many quanta, to keep them unique we first collect tem into one
+        # dict indexed by dataset id.
+        collection = butler.run.collection
+        registry = butler.registry
+        id2ref = {}
+        for taskDef, quantum in graph.quanta():
+            for refs in quantum.predictedInputs.values():
+                for ref in refs:
+                    id2ref[ref.id] = ref
+        if id2ref:
+            # copy all collected refs to output collection
+            registry.associate(collection, id2ref.values())
+
     def _executePipelineTask(self, target):
         """Execute super-task on a single data item.
 
-        Parameters:
+        Parameters
+        ----------
         target: `tuple` of `(taskClass, config, quantum, butler)`
         """
         taskClass, config, quantum, butler = target

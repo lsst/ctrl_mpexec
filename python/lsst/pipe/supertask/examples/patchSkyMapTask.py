@@ -11,7 +11,7 @@ _LOG = lsst.log.Log.getLogger(__name__)
 class PatchSkyMapTaskConfig(PipelineTaskConfig):
     coadd = InputDatasetField(name="deepCoadd_calexp",
                               units=["SkyMap", "Tract", "Patch", "AbstractFilter"],
-                              storageClass="Exposure",
+                              storageClass="ExposureF",
                               scalar=True,
                               doc="DatasetType for the input image")
     inputCatalog = InputDatasetField(name="deepCoadd_mergeDet",
@@ -56,10 +56,10 @@ class PatchSkyMapTask(PipelineTask):
         """
 
         _LOG.info("executing %s: coadd=%s inputCatalog=%s",
-                  self.getName(), coadd, inputCatalog)
+                  self.getName(), coadd, type(inputCatalog))
 
-        # output data, scalar in this case
-        data = None
+        # output data, scalar in this case, just return input catalog without change
+        data = inputCatalog
 
         # attribute name of struct is the same as a config field name
         return Struct(outputCatalog=data)
