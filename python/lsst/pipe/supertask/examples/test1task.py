@@ -2,16 +2,20 @@
 """
 
 import lsst.log
+from lsst.daf.butler import StorageClass, StorageClassFactory
 from lsst.pipe.base import (Struct, PipelineTask, PipelineTaskConfig,
                             InputDatasetField, OutputDatasetField)
 
 _LOG = lsst.log.Log.getLogger(__name__)
 
 
+StorageClassFactory().registerStorageClass(StorageClass("example"))
+
+
 class Test1Config(PipelineTaskConfig):
     input = InputDatasetField(name="input",
                               units=["Camera", "Visit"],
-                              storageClass = "example",
+                              storageClass="example",
                               scalar=True,
                               doc="Input dataset type for this task")
     output = OutputDatasetField(name="output",

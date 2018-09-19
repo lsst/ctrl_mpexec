@@ -23,9 +23,6 @@
 Module defining CmdLineFwk class and related methods.
 """
 
-from __future__ import print_function
-from builtins import object
-
 __all__ = ['CmdLineFwk']
 
 # -------------------------------
@@ -150,8 +147,8 @@ class CmdLineFwk(object):
             pipeBuilder = PipelineBuilder(self.taskFactory)
             pipeline = pipeBuilder.makePipeline(args)
         except Exception as exc:
-            print("Failed to build pipeline: {}".format(exc))
-            return 2
+            print("Failed to build pipeline: {}".format(exc), file=sys.stderr)
+            raise
 
         if args.save_pipeline:
             with open(args.save_pipeline, "wb") as pickleFile:
@@ -161,7 +158,8 @@ class CmdLineFwk(object):
             pipeline2dot(pipeline, args.pipeline_dot, self.taskFactory)
 
         if args.subcommand == "build":
-            # stop here
+            # stop here but process --show option first
+            self.showInfo(args.show, pipeline, None)
             return 0
 
         if args.qgraph:
@@ -432,7 +430,8 @@ class CmdLineFwk(object):
             elif showCommand == "tasks":
                 self._showTaskHierarchy(pipeline)
             elif showCommand == "graph":
-                self._showGraph(graph)
+                if graph:
+                    self._showGraph(graph)
             else:
                 print("Unknown value for show: %s (choose from '%s')" %
                       (what, "', '".join("pipeline config[=XXX] history=XXX tasks graph".split())),

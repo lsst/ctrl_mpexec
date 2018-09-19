@@ -2,10 +2,14 @@
 """
 
 import lsst.log
+from lsst.daf.butler import StorageClass, StorageClassFactory
 from lsst.pipe.base import (Struct, PipelineTask, PipelineTaskConfig,
                             InputDatasetField, OutputDatasetField)
 
 _LOG = lsst.log.Log.getLogger(__name__)
+
+
+StorageClassFactory().registerStorageClass(StorageClass("example"))
 
 
 class Test2Config(PipelineTaskConfig):
