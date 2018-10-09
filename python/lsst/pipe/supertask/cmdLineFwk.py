@@ -426,7 +426,14 @@ class CmdLineFwk(object):
 
         # Call task runQuantum() method. Any exception thrown here propagates
         # to multiprocessing module and to parent process.
-        return task.runQuantum(quantum, butler)
+        result = task.runQuantum(quantum, butler)
+
+        # save provenenace for current quantum
+        quantum._task = taskClass.__name__
+        quantum._run = butler.run
+        butler.registry.addQuantum(quantum)
+
+        return result
 
     def writeTaskInitOutputs(self, task, butler):
         """Write any datasets produced by initializing the given PipelineTask.
