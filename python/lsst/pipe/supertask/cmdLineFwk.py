@@ -391,6 +391,12 @@ class CmdLineFwk(object):
         butler : `Butler`
             data butler instance
         """
+        def _refComponents(refs):
+            """Return all dataset components recursively"""
+            for ref in refs:
+                yield ref
+                yield from _refComponents(ref.components.values())
+
         # main issue here is that the same DataRef can appear as input for
         # many quanta, to keep them unique we first collect tem into one
         # dict indexed by dataset id.
@@ -399,7 +405,7 @@ class CmdLineFwk(object):
         id2ref = {}
         for taskDef, quantum in graph.quanta():
             for refs in quantum.predictedInputs.values():
-                for ref in refs:
+                for ref in _refComponents(refs):
                     id2ref[ref.id] = ref
         if id2ref:
             # copy all collected refs to output collection
