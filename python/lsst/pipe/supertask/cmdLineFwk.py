@@ -374,15 +374,13 @@ class CmdLineFwk(object):
     def _updateOutputCollection(self, graph, butler):
         """Associate all existing datasets with output collection.
 
-        For every Quantum in a graph make sure that its existsing inputs are
+        For every Quantum in a graph make sure that its existing inputs are
         added to the Butler's output collection.
 
         For each quantum there are input and output DataRefs. With the
         current implementation of preflight output refs should not exist but
         input refs may belong to a different collection. We want all refs to
-        appear in output collection, so we have to "copy" those refs. Trouble
-        here is that there is no way to check now that ref is already in a
-        collection so we just assume that collection is initially empty.
+        appear in output collection, so we have to "copy" those refs.
 
         Parameters
         ----------
@@ -397,11 +395,9 @@ class CmdLineFwk(object):
                 yield ref
                 yield from _refComponents(ref.components.values())
 
-        # main issue here is that the same DataRef can appear as input for
-        # many quanta, to keep them unique we first collect tem into one
+        # Main issue here is that the same DataRef can appear as input for
+        # many quanta, to keep them unique we first collect them into one
         # dict indexed by dataset id.
-        collection = butler.run.collection
-        registry = butler.registry
         id2ref = {}
         for taskDef, quantum in graph.quanta():
             for refs in quantum.predictedInputs.values():
@@ -409,6 +405,8 @@ class CmdLineFwk(object):
                     id2ref[ref.id] = ref
         if id2ref:
             # copy all collected refs to output collection
+            collection = butler.run.collection
+            registry = butler.registry
             registry.associate(collection, id2ref.values())
 
     def _executePipelineTask(self, target):
