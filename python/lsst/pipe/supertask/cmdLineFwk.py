@@ -366,7 +366,7 @@ class CmdLineFwk(object):
         for taskNodes in graph:
             taskDef, quanta = taskNodes.taskDef, taskNodes.quanta
             # targets for map function
-            target_list = [(taskDef.taskClass, taskDef.config, quantum, butler)
+            target_list = [(taskDef.taskClass, taskDef.config, quantum, butler, self.taskFactory)
                            for quantum in quanta]
             # call task on each argument in a list
             profile_name = getattr(args, "profile", None)
@@ -411,14 +411,21 @@ class CmdLineFwk(object):
             registry = butler.registry
             registry.associate(collection, id2ref.values())
 
-    def _executePipelineTask(self, target):
+    @staticmethod
+    def _executePipelineTask(target):
         """Execute super-task on a single data item.
 
         Parameters
         ----------
-        target: `tuple` of `(taskClass, config, quantum, butler)`
+        target: `tuple`
+            Tuple contains these elements:
+            - ``taskClass``: `PipelineTask` sub-class
+            - ``config``: `PipelineTaskConfig` instance
+            - ``quantum``: `Quantum` instance for this execution
+            - ``butler``: data butler instance
+            - ``taskFactory``: `TaskFactory` instance
         """
-        taskClass, config, quantum, butler = target
+        taskClass, config, quantum, butler, taskFactory = target
 
         # setup logging, include dataId into MDC
 #         if dataRef is not None:
@@ -428,7 +435,7 @@ class CmdLineFwk(object):
 #                 lsst.log.MDC("LABEL", str([ref.dataId for ref in dataRef if hasattr(ref, "dataId")]))
 
         # make task instance
-        task = self.taskFactory.makeTask(taskClass, config, None, butler)
+        task = taskFactory.makeTask(taskClass, config, None, butler)
 
         # Call task runQuantum() method. Any exception thrown here propagates
         # to multiprocessing module and to parent process.
