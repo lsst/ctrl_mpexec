@@ -1,16 +1,13 @@
 """Module which defines TaskFactory class and related methods.
 """
 
-from __future__ import absolute_import, division, print_function
-
 __all__ = ["TaskFactory"]
 
-from builtins import object
+import logging
 
 from .taskLoader import KIND_PIPELINETASK
-import lsst.log
 
-_LOG = lsst.log.Log.getLogger(__name__)
+_LOG = logging.getLogger(__name__.partition(".")[2])
 
 
 class TaskFactory(object):

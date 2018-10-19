@@ -32,18 +32,20 @@ __all__ = ['TaskLoader']
 # -------------------------------
 import importlib
 import inspect
+import logging
 import pkgutil
 
 # -----------------------------
 #  Imports for other modules --
 # -----------------------------
 from lsst.pipe.base import CmdLineTask, Task
-import lsst.log as lsstLog
 from lsst.pipe.base import PipelineTask
 
 # ----------------------------------
 #  Local non-exported definitions --
 # ----------------------------------
+
+_LOG = logging.getLogger(__name__.partition(".")[2])
 
 
 def _task_kind(task_class):
@@ -98,7 +100,6 @@ class TaskLoader(object):
         if not packages:
             packages = TaskLoader.DEFAULT_PACKAGES
         self._packages = packages
-        self._log = lsstLog.Log.getLogger(self.__class__.__name__)
 
     @property
     def packages(self):
@@ -122,10 +123,10 @@ class TaskLoader(object):
         """
         modules = []
         for pkg_name in self._packages:
-            self._log.debug("get modules from package %r", pkg_name)
+            _LOG.debug("get modules from package %r", pkg_name)
             pkg = importlib.import_module(pkg_name)
             for _, module_name, ispkg in pkgutil.iter_modules(pkg.__path__, pkg.__name__ + '.'):
-                self._log.debug("found module %r ispkg=%s", module_name, ispkg)
+                _LOG.debug("found module %r ispkg=%s", module_name, ispkg)
                 modules.append((module_name, ispkg))
         return modules
 
@@ -145,17 +146,17 @@ class TaskLoader(object):
         """
         tasks = []
         for pkg_name in self._packages:
-            self._log.debug("importing package %r", pkg_name)
+            _LOG.debug("importing package %r", pkg_name)
             pkg = importlib.import_module(pkg_name)
             for _, module_name, ispkg in pkgutil.iter_modules(pkg.__path__, pkg.__name__ + '.'):
-                self._log.debug("found module %r ispkg=%s", module_name, ispkg)
+                _LOG.debug("found module %r ispkg=%s", module_name, ispkg)
                 # classes should not live in packages
                 if not ispkg:
                     try:
-                        self._log.debug("importing module %r", module_name)
+                        _LOG.debug("importing module %r", module_name)
                         mod = importlib.import_module(module_name)
                     except ImportError as exc:
-                        self._log.debug("import failed: %s", exc)
+                        _LOG.debug("import failed: %s", exc)
                     else:
                         for name, obj in vars(mod).items():
                             if inspect.isclass(obj) and inspect.getmodule(obj) is mod:
@@ -195,7 +196,7 @@ class TaskLoader(object):
         ------
         `ImportError` is raised when task class cannot be imported.
         """
-        self._log.debug("load_task_class: will look for %r", task_class_name)
+        _LOG.debug("load_task_class: will look for %r", task_class_name)
         dot = task_class_name.rfind('.')
         if dot > 0:
 
@@ -211,9 +212,9 @@ class TaskLoader(object):
                     full_module_name = package + '.' + full_module_name
 
                 try:
-                    self._log.debug("load_task_class: try module %r", full_module_name)
+                    _LOG.debug("load_task_class: try module %r", full_module_name)
                     module = importlib.import_module(full_module_name)
-                    self._log.debug("load_task_class: imported %r", full_module_name)
+                    _LOG.debug("load_task_class: imported %r", full_module_name)
                 except ImportError:
                     pass
                 else:
@@ -221,36 +222,36 @@ class TaskLoader(object):
                     klass = getattr(module, class_name, None)
                     if klass is not None:
                         kind = _task_kind(klass)
-                        self._log.debug("load_task_class: found %r in %r, kind: %s",
-                                        class_name, full_module_name, kind)
+                        _LOG.debug("load_task_class: found %r in %r, kind: %s",
+                                   class_name, full_module_name, kind)
                         if kind is not None:
                             return (klass, full_module_name + '.' + class_name, kind)
                     else:
-                        self._log.debug("load_task_class: no class %r in module %r",
-                                        class_name, full_module_name)
+                        _LOG.debug("load_task_class: no class %r in module %r",
+                                   class_name, full_module_name)
 
         else:
 
             # simple name, search for it in all modules in every package, not
             # very efficient
             for pkg_name in self._packages:
-                self._log.debug("load_task_class: importing package %r", pkg_name)
+                _LOG.debug("load_task_class: importing package %r", pkg_name)
                 pkg = importlib.import_module(pkg_name)
                 for _, module_name, ispkg in pkgutil.iter_modules(pkg.__path__, pkg.__name__ + '.'):
-                    self._log.debug("load_task_class: found module %r ispkg=%s", module_name, ispkg)
+                    _LOG.debug("load_task_class: found module %r ispkg=%s", module_name, ispkg)
                     # classes should not live in packages
                     if not ispkg:
                         try:
-                            self._log.debug("load_task_class: importing module %r", module_name)
+                            _LOG.debug("load_task_class: importing module %r", module_name)
                             mod = importlib.import_module(module_name)
                         except ImportError as exc:
-                            self._log.debug("load_task_class: import failed: %s", exc)
+                            _LOG.debug("load_task_class: import failed: %s", exc)
                         else:
                             obj = getattr(mod, task_class_name, None)
                             if inspect.isclass(obj) and inspect.getmodule(obj) is mod:
                                 kind = _task_kind(obj)
-                                self._log.debug("load_task_class: found class %r kind: %s",
-                                                task_class_name, kind)
+                                _LOG.debug("load_task_class: found class %r kind: %s",
+                                           task_class_name, kind)
                                 if kind is not None:
                                     return (obj, module_name + '.' + task_class_name, kind)
 

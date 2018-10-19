@@ -1,11 +1,12 @@
 """Simple example PipelineTask for testing purposes.
 """
 
-import lsst.log
+import logging
+
 from lsst.pipe.base import (Struct, PipelineTask, PipelineTaskConfig,
                             InputDatasetField, OutputDatasetField)
 
-_LOG = lsst.log.Log.getLogger(__name__)
+_LOG = logging.getLogger(__name__.partition(".")[2])
 
 
 class PatchSkyMapTaskConfig(PipelineTaskConfig):
