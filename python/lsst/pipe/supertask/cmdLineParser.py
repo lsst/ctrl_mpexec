@@ -90,7 +90,7 @@ class _PipelineActionType(object):
 
 _ACTION_ADD_TASK = _PipelineActionType("new_task", "(?P<value>[^:]+)(:(?P<label>.+))?")
 _ACTION_DELETE_TASK = _PipelineActionType("delete_task", "(?P<value>)(?P<label>.+)")
-_ACTION_MOVE_TASK = _PipelineActionType("move_task", "(?P<label>.+):(?P<value>-?\d+)")
+_ACTION_MOVE_TASK = _PipelineActionType("move_task", r"(?P<label>.+):(?P<value>-?\d+)")
 _ACTION_LABEL_TASK = _PipelineActionType("relabel", "(?P<label>.+):(?P<value>.+)")
 _ACTION_CONFIG = _PipelineActionType("config", "(?P<label>[^.]+)[.](?P<value>.+=.+)")
 _ACTION_CONFIG_FILE = _PipelineActionType("configfile", "(?P<label>.+):(?P<value>.+)")
