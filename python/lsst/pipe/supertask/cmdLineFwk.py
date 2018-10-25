@@ -461,7 +461,7 @@ class CmdLineFwk(object):
         initOutputs = task.getInitOutputDatasets()
         initOutputDatasetTypes = task.getInitOutputDatasetTypes(task.config)
         for key, obj in initOutputs.items():
-            butler.put(obj, initOutputDatasetTypes[key], {})
+            butler.put(obj, initOutputDatasetTypes[key].datasetType, {})
 
     def showInfo(self, showOpts, pipeline, graph):
         """Display useful info about pipeline and environment.

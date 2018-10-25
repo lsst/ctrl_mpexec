@@ -239,7 +239,8 @@ def pipeline2dot(pipeline, file, taskFactory=None):
 
         # task inputs
         dsMap = taskClass.getInputDatasetTypes(taskDef.config)
-        for dsType in dsMap.values():
+        for dsTypeDescr in dsMap.values():
+            dsType = dsTypeDescr.datasetType
             if dsType.name not in allDatasets:
                 _renderDSTypeNode(dsType, file)
                 allDatasets.add(dsType.name)
@@ -247,7 +248,8 @@ def pipeline2dot(pipeline, file, taskFactory=None):
 
         # task outputs
         dsMap = taskClass.getOutputDatasetTypes(taskDef.config)
-        for dsType in dsMap.values():
+        for dsTypeDescr in dsMap.values():
+            dsType = dsTypeDescr.datasetType
             if dsType.name not in allDatasets:
                 _renderDSTypeNode(dsType, file)
                 allDatasets.add(dsType.name)
