@@ -151,7 +151,7 @@ def main():
 
 def _makeDSRefVisit(dstype, visitId):
         return DatasetRef(datasetType=dstype,
-                          dataId=dict(Camera="X",
+                          dataId=dict(Instrument="X",
                                       Visit=visitId,
                                       physical_filter='f',
                                       abstract_filter='f'))

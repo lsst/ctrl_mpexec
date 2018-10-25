@@ -11,7 +11,7 @@ _LOG = lsst.log.Log.getLogger(__name__)
 
 class CalexpToCoaddTaskConfig(PipelineTaskConfig):
     calexp = InputDatasetField(name="calexp",
-                               units=["Camera", "Visit", "Sensor"],
+                               units=["Instrument", "Visit", "Detector"],
                                storageClass="ExposureF",
                                doc="DatasetType for the input image")
     coadd = OutputDatasetField(name="deepCoadd_calexp",

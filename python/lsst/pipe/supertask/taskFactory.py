@@ -69,7 +69,7 @@ class TaskFactory(object):
             configuration class to create new instance.
         overrides : `ConfigOverrides` or None
             Configuration overrides, this should contain all overrides to be
-            applied to a default task config, including camera-specific,
+            applied to a default task config, including instrument-specific,
             obs-package specific, and possibly command-line overrides.
         butler : `lsst.daf.butler.Butler` or None
             Butler instance used to obtain initialization inputs for

@@ -14,7 +14,7 @@ StorageClassFactory().registerStorageClass(StorageClass("example"))
 
 class Test2Config(PipelineTaskConfig):
     input = InputDatasetField(name="input",
-                              units=["Camera", "Visit"],
+                              units=["Instrument", "Visit"],
                               storageClass="example",
                               doc="Input dataset type for this task")
     output = OutputDatasetField(name="output",
@@ -27,7 +27,7 @@ class Test2Config(PipelineTaskConfig):
         # this task combines all selected visits into a tract/patch, on
         # input it expects per-visit data, on output it produces per-patch.
         # Combining visits "destroys" Visit unit in a quantum.
-        self.quantum.units = ["Camera", "Tract", "Patch"]
+        self.quantum.units = ["Instrument", "Tract", "Patch"]
 
 
 class Test2Task(PipelineTask):

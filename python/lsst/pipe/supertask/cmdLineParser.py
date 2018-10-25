@@ -355,9 +355,9 @@ def makeParser(fromfile_prefix_chars='@', parser_class=ArgumentParser, **kwargs)
         subparser.add_argument("-p", "--pipeline", dest="pipeline",
                                help="Location of a serialized pipeline definition (pickle file).",
                                metavar="PATH")
-        subparser.add_argument("--camera-overrides", dest="camera_overrides",
+        subparser.add_argument("--instrument-overrides", dest="instrument_overrides",
                                default=False, action="store_true",
-                               help="Apply standard camera and package overrides "
+                               help="Apply standard instrument and package overrides "
                                "to configuration of new tasks.")
         subparser.add_argument("-t", "--task", metavar="TASK[:LABEL]",
                                dest="pipeline_actions", action='append', type=_ACTION_ADD_TASK,

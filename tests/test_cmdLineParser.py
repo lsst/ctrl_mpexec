@@ -169,7 +169,7 @@ class CmdLineParserTestCase(unittest.TestCase):
             """.split())
         show_options = ['pipeline_actions', 'show', 'subparser', 'pipeline',
                         'order_pipeline', 'save_pipeline', 'pipeline_dot',
-                        'camera_overrides']
+                        'instrument_overrides']
         self.assertEqual(set(vars(args).keys()), set(global_options + show_options))
         self.assertEqual(args.subcommand, 'build')
 
@@ -179,7 +179,7 @@ class CmdLineParserTestCase(unittest.TestCase):
             """.split())
         qgraph_options = ['pipeline_actions', 'show', 'subparser', 'pipeline',
                           'order_pipeline', 'save_pipeline', 'pipeline_dot',
-                          'qgraph_dot', 'qgraph', 'save_qgraph', 'camera_overrides',
+                          'qgraph_dot', 'qgraph', 'save_qgraph', 'instrument_overrides',
                           'skip_existing']
         self.assertEqual(set(vars(args).keys()), set(global_options + qgraph_options))
         self.assertEqual(args.subcommand, 'qgraph')
@@ -190,7 +190,7 @@ class CmdLineParserTestCase(unittest.TestCase):
             """.split())
         run_options = ['pipeline_actions', 'show', 'subparser', 'pipeline',
                        'order_pipeline', 'save_pipeline', 'pipeline_dot',
-                       'qgraph_dot', 'qgraph', 'save_qgraph', 'camera_overrides',
+                       'qgraph_dot', 'qgraph', 'save_qgraph', 'instrument_overrides',
                        'skip_existing']
         self.assertEqual(set(vars(args).keys()), set(global_options + run_options))
         self.assertEqual(args.subcommand, 'run')
@@ -300,7 +300,7 @@ class CmdLineParserTestCase(unittest.TestCase):
                                                  PipelineAction("configfile", "label", "filename3")])
         self.assertIsNone(args.pipeline)
         self.assertIsNone(args.qgraph)
-        self.assertFalse(args.camera_overrides)
+        self.assertFalse(args.instrument_overrides)
         self.assertFalse(args.order_pipeline)
         self.assertIsNone(args.save_pipeline)
         self.assertIsNone(args.save_qgraph)
@@ -314,7 +314,7 @@ class CmdLineParserTestCase(unittest.TestCase):
             run
             -p pipeline.pickle
             -g qgraph.pickle
-            --camera-overrides
+            --instrument-overrides
             -t task1
             -t task2:label2
             -t task3
@@ -347,7 +347,7 @@ class CmdLineParserTestCase(unittest.TestCase):
                                                  PipelineAction("config", "task4", "x=y")])
         self.assertEqual(args.pipeline, "pipeline.pickle")
         self.assertEqual(args.qgraph, "qgraph.pickle")
-        self.assertTrue(args.camera_overrides)
+        self.assertTrue(args.instrument_overrides)
         self.assertTrue(args.order_pipeline)
         self.assertEqual(args.save_pipeline, "newpipe.pickle")
         self.assertEqual(args.save_qgraph, "newqgraph.pickle")

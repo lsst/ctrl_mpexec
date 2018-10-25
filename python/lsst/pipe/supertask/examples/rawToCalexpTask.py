@@ -11,18 +11,18 @@ _LOG = lsst.log.Log.getLogger(__name__)
 
 class RawToCalexpTaskConfig(PipelineTaskConfig):
     input = InputDatasetField(name="raw",
-                              units=["Camera", "Exposure", "Sensor"],
+                              units=["Instrument", "Exposure", "Detector"],
                               storageClass="DecoratedImageU",
                               doc="Input dataset type for this task")
     output = OutputDatasetField(name="calexp",
-                                units=["Camera", "Visit", "Sensor"],
+                                units=["Instrument", "Visit", "Detector"],
                                 storageClass="ExposureF",
                                 scalar=True,
                                 doc="Output dataset type for this task")
 
     def setDefaults(self):
-        # set units of a quantum, this task uses per-visit-sensor quanta
-        self.quantum.units = ["Camera", "Visit", "Sensor"]
+        # set units of a quantum, this task uses per-visit-detector quanta
+        self.quantum.units = ["Instrument", "Visit", "Detector"]
 
 
 class RawToCalexpTask(PipelineTask):

@@ -14,12 +14,12 @@ StorageClassFactory().registerStorageClass(StorageClass("example"))
 
 class Test1Config(PipelineTaskConfig):
     input = InputDatasetField(name="input",
-                              units=["Camera", "Visit"],
+                              units=["Instrument", "Visit"],
                               storageClass="example",
                               scalar=True,
                               doc="Input dataset type for this task")
     output = OutputDatasetField(name="output",
-                                units=["Camera", "Visit"],
+                                units=["Instrument", "Visit"],
                                 storageClass="example",
                                 scalar=True,
                                 doc="Output dataset type for this task")
@@ -27,7 +27,7 @@ class Test1Config(PipelineTaskConfig):
     def setDefaults(self):
         # set units of a quantum, this task uses per-visit quanta and it
         # expects datset units to be the same
-        self.quantum.units = ["Camera", "Visit"]
+        self.quantum.units = ["Instrument", "Visit"]
 
 
 class Test1Task(PipelineTask):
