@@ -16,9 +16,8 @@ import sys
 # -----------------------------
 #  Imports for other modules --
 # -----------------------------
-from lsst.daf.butler import (DatasetRef, Quantum, Run, StorageClass,
-                             StorageClassFactory)
-from lsst.pipe.base import PipelineTask
+from lsst.daf.butler import DatasetRef, Quantum, Run
+from lsst.pipe.base import DatasetTypeDescriptor
 from lsst.pipe.supertask import (Pipeline, QuantumGraph, QuantumGraphNodes,
                                  TaskDef)
 from lsst.pipe.supertask.dotTools import graph2dot, pipeline2dot
@@ -75,9 +74,6 @@ def main():
             args.pipeline_dot is None and args.qgraph_dot is None):
         parser.error("Need one of -p or -g options")
 
-    # make a storage class with example name
-    StorageClassFactory().registerStorageClass(StorageClass("example"))
-
     if args.pipeline or args.pipeline_dot:
 
         pipeline = Pipeline([_makeStep1TaskDef(), _makeStep2TaskDef(), _makeStep3TaskDef()])
@@ -101,10 +97,10 @@ def main():
         step2 = _makeStep2TaskDef()
         step3 = _makeStep3TaskDef()
 
-        dstype0 = PipelineTask.makeDatasetType(step1.config.input)
-        dstype1 = PipelineTask.makeDatasetType(step1.config.output)
-        dstype2 = PipelineTask.makeDatasetType(step2.config.output)
-        dstype3 = PipelineTask.makeDatasetType(step3.config.output)
+        dstype0 = DatasetTypeDescriptor.fromConfig(step1.config.input).datasetType
+        dstype1 = DatasetTypeDescriptor.fromConfig(step1.config.output).datasetType
+        dstype2 = DatasetTypeDescriptor.fromConfig(step2.config.output).datasetType
+        dstype3 = DatasetTypeDescriptor.fromConfig(step3.config.output).datasetType
 
         # quanta for first step which is 1-to-1 tasks
         quanta = []

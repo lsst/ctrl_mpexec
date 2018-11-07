@@ -1,16 +1,15 @@
 """Simple example PipelineTask for testing purposes.
+
+There is no reasonable way to execute this task but it can be used for
+building Pipeline or QuantumGraph.
 """
 
 import logging
 
-from lsst.daf.butler import StorageClass, StorageClassFactory
 from lsst.pipe.base import (Struct, PipelineTask, PipelineTaskConfig,
                             InputDatasetField, OutputDatasetField)
 
 _LOG = logging.getLogger(__name__.partition(".")[2])
-
-
-StorageClassFactory().registerStorageClass(StorageClass("example"))
 
 
 class Test1Config(PipelineTaskConfig):
