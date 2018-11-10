@@ -409,7 +409,7 @@ class CmdLineFwk(object):
             # copy all collected refs to output collection
             collection = butler.run.collection
             registry = butler.registry
-            registry.associate(collection, id2ref.values())
+            registry.associate(collection, list(id2ref.values()))
 
     @staticmethod
     def _executePipelineTask(target):
