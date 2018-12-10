@@ -12,18 +12,18 @@ _LOG = logging.getLogger(__name__.partition(".")[2])
 
 class CalexpToCoaddTaskConfig(PipelineTaskConfig):
     calexp = InputDatasetField(name="calexp",
-                               units=["Instrument", "Visit", "Detector"],
+                               dimensions=["Instrument", "Visit", "Detector"],
                                storageClass="ExposureF",
                                doc="DatasetType for the input image")
     coadd = OutputDatasetField(name="deepCoadd_calexp",
-                               units=["SkyMap", "Tract", "Patch", "AbstractFilter"],
+                               dimensions=["SkyMap", "Tract", "Patch", "AbstractFilter"],
                                storageClass="ExposureF",
                                scalar=True,
                                doc="DatasetType for the output image")
 
     def setDefaults(self):
-        # set units of a quantum, this task uses per-tract-patch-filter quanta
-        self.quantum.units = ["SkyMap", "Tract", "Patch", "AbstractFilter"]
+        # set dimensions of a quantum, this task uses per-tract-patch-filter quanta
+        self.quantum.dimensions = ["SkyMap", "Tract", "Patch", "AbstractFilter"]
 
 
 class CalexpToCoaddTask(PipelineTask):

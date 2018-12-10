@@ -11,25 +11,25 @@ _LOG = logging.getLogger(__name__.partition(".")[2])
 
 class PatchSkyMapTaskConfig(PipelineTaskConfig):
     coadd = InputDatasetField(name="deepCoadd_calexp",
-                              units=["SkyMap", "Tract", "Patch", "AbstractFilter"],
+                              dimensions=["SkyMap", "Tract", "Patch", "AbstractFilter"],
                               storageClass="ExposureF",
                               scalar=True,
                               doc="DatasetType for the input image")
     inputCatalog = InputDatasetField(name="deepCoadd_mergeDet",
-                                     units=["SkyMap", "Tract", "Patch"],
+                                     dimensions=["SkyMap", "Tract", "Patch"],
                                      storageClass="SourceCatalog",
                                      scalar=True,
                                      doc="DatasetType for the input catalog (merged detections).")
     outputCatalog = OutputDatasetField(name="deepCoadd_meas",
-                                       units=["SkyMap", "Tract", "Patch", "AbstractFilter"],
+                                       dimensions=["SkyMap", "Tract", "Patch", "AbstractFilter"],
                                        storageClass="SourceCatalog",
                                        scalar=True,
                                        doc=("DatasetType for the output catalog "
                                             "(deblended per-band measurements)"))
 
     def setDefaults(self):
-        # set units of a quantum, this task uses per-tract-patch-filter quanta
-        self.quantum.units = ["SkyMap", "Tract", "Patch", "AbstractFilter"]
+        # set dimensions of a quantum, this task uses per-tract-patch-filter quanta
+        self.quantum.dimensions = ["SkyMap", "Tract", "Patch", "AbstractFilter"]
 
 
 class PatchSkyMapTask(PipelineTask):

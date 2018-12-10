@@ -82,8 +82,8 @@ def _renderTaskNode(nodeName, taskDef, file, idx=None):
 def _renderDSTypeNode(dsType, file):
     """Render GV node for a dataset type"""
     label = [dsType.name]
-    if dsType.dataUnits:
-        label += ["Units: " + ", ".join(dsType.dataUnits)]
+    if dsType.dimensions:
+        label += ["Dimensions: " + ", ".join(dsType.dimensions)]
     label = r'\n'.join(label)
     attrib = dict(shape="box",
                   style="rounded,filled",

@@ -14,20 +14,20 @@ _LOG = logging.getLogger(__name__.partition(".")[2])
 
 class Test1Config(PipelineTaskConfig):
     input = InputDatasetField(name="input",
-                              units=["Instrument", "Visit"],
+                              dimensions=["Instrument", "Visit"],
                               storageClass="example",
                               scalar=True,
                               doc="Input dataset type for this task")
     output = OutputDatasetField(name="output",
-                                units=["Instrument", "Visit"],
+                                dimensions=["Instrument", "Visit"],
                                 storageClass="example",
                                 scalar=True,
                                 doc="Output dataset type for this task")
 
     def setDefaults(self):
-        # set units of a quantum, this task uses per-visit quanta and it
-        # expects datset units to be the same
-        self.quantum.units = ["Instrument", "Visit"]
+        # set dimensions of a quantum, this task uses per-visit quanta and it
+        # expects datset dimensions to be the same
+        self.quantum.dimensions = ["Instrument", "Visit"]
 
 
 class Test1Task(PipelineTask):
