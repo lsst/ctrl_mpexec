@@ -405,6 +405,8 @@ class CmdLineFwk(object):
             for refs in quantum.predictedInputs.values():
                 for ref in _refComponents(refs):
                     id2ref[ref.id] = ref
+        for initInput in graph.initInputs:
+            id2ref[initInput.id] = initInput
         if id2ref:
             # copy all collected refs to output collection
             collection = butler.run.collection
