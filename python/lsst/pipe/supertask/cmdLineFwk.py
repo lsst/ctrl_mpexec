@@ -416,7 +416,9 @@ class CmdLineFwk(object):
         for taskDef, quantum in graph.quanta():
             for refs in quantum.predictedInputs.values():
                 for ref in _refComponents(refs):
-                    id2ref[ref.id] = ref
+                    # skip intermediate datasets produced by other tasks
+                    if ref.id is not None:
+                        id2ref[ref.id] = ref
         for initInput in graph.initInputs:
             id2ref[initInput.id] = initInput
         if id2ref:
@@ -450,6 +452,16 @@ class CmdLineFwk(object):
 
         # make task instance
         task = taskFactory.makeTask(taskClass, config, None, butler)
+
+        # addQuantum() and possibly other code requires input DataRefs to
+        # have non-None dataset_id, but in case of intermediate dataset it
+        # may not be filled, so try to retrieve it from registry.
+        for refs in quantum.predictedInputs.values():
+            for ref in refs:
+                if ref.id is None:
+                    storedRef = butler.registry.find(butler.collection, ref.datasetType, ref.dataId)
+                    ref._id = storedRef.id
+                    _LOG.debug("Updated dataset ID for %s", ref)
 
         # Call task runQuantum() method. Any exception thrown here propagates
         # to multiprocessing module and to parent process.
