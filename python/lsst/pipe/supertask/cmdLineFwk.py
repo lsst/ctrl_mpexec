@@ -330,6 +330,18 @@ class CmdLineFwk(object):
         # how many processes do we want
         numProc = args.processes
 
+        # register dataset types or check consistency
+        for datasetType in graph.getDatasetTypes():
+            if args.register_dataset_types:
+                # this is a no-op if it already exists and is consistent,
+                # and it raises if it is inconsistent.
+                butler.registry.registerDatasetType(datasetType)
+            else:
+                expected = butler.registry.getDatasetType(datasetType.name)
+                if expected != datasetType:
+                    raise ValueError(f"DatasetType configuration does not match Registry: "
+                                     f"{datasetType} != {expected}")
+
         # associate all existing datasets with output collection.
         self._updateOutputCollection(graph, butler)
 

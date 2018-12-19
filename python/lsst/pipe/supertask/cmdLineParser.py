@@ -352,6 +352,11 @@ def makeParser(fromfile_prefix_chars='@', parser_class=ArgumentParser, **kwargs)
                                    "(pickle file). If this option is given then all input data "
                                    "options and pipeline-building options cannot be used.",
                                    metavar="PATH")
+        if subcommand == "run":
+
+            subparser.add_argument("--register-dataset-types", dest="register_dataset_types", default=False,
+                                   action="store_true",
+                                   help="Register DatasetTypes that do not already exist in the Registry.")
         subparser.add_argument("-p", "--pipeline", dest="pipeline",
                                help="Location of a serialized pipeline definition (pickle file).",
                                metavar="PATH")
