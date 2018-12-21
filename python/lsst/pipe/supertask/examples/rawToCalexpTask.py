@@ -13,7 +13,7 @@ _LOG = logging.getLogger(__name__.partition(".")[2])
 class RawToCalexpTaskConfig(PipelineTaskConfig):
     input = InputDatasetField(name="raw",
                               dimensions=["Instrument", "Exposure", "Detector"],
-                              storageClass="DecoratedImageU",
+                              storageClass="ExposureU",
                               doc="Input dataset type for this task")
     output = OutputDatasetField(name="calexp",
                                 dimensions=["Instrument", "Visit", "Detector"],
