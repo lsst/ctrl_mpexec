@@ -38,8 +38,7 @@ import pkgutil
 # -----------------------------
 #  Imports for other modules --
 # -----------------------------
-from lsst.pipe.base import CmdLineTask, Task
-from lsst.pipe.base import PipelineTask
+from lsst.pipe.base import CmdLineTask, Task, PipelineTask
 
 # ----------------------------------
 #  Local non-exported definitions --

@@ -6,11 +6,12 @@ __all__ = ["TaskFactory"]
 import logging
 
 from .taskLoader import KIND_PIPELINETASK
+from lsst.pipe.base import TaskFactory as BaseTaskFactory
 
 _LOG = logging.getLogger(__name__.partition(".")[2])
 
 
-class TaskFactory(object):
+class TaskFactory(BaseTaskFactory):
     """Class instantiating super-tasks.
 
     Parameters

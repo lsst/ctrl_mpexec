@@ -42,9 +42,8 @@ from lsst.base import disableImplicitThreading
 from lsst.daf.butler import Butler, DatasetOriginInfoDef
 import lsst.log
 import lsst.pex.config as pexConfig
-from .graphBuilder import GraphBuilder
+from lsst.pipe.base import GraphBuilder, PipelineBuilder
 from .cmdLineParser import makeParser
-from .pipelineBuilder import PipelineBuilder
 from .dotTools import graph2dot, pipeline2dot
 from .taskFactory import TaskFactory
 from .taskLoader import (TaskLoader, KIND_PIPELINETASK)
