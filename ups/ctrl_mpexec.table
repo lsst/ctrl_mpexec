@@ -1,0 +1,7 @@
+setupRequired(daf_butler)
+setupRequired(log)
+setupRequired(pex_config)
+setupRequired(pipe_base)
+
+envPrepend(PYTHONPATH, ${PRODUCT_DIR}/python)
+envPrepend(PATH, ${PRODUCT_DIR}/bin)
