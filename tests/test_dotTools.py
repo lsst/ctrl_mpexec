@@ -29,7 +29,7 @@ import unittest
 
 from lsst.pipe.base import (PipelineTask, PipelineTaskConfig,
                             InputDatasetField, OutputDatasetField,
-                            DatasetTypeDescriptor, Pipeline, TaskDef, pipeTools)
+                            DatasetTypeDescriptor, Pipeline, TaskDef)
 from lsst.ctrl.mpexec.dotTools import pipeline2dot
 import lsst.utils.tests
 
@@ -137,155 +137,12 @@ def _makePipeline(tasks):
     return pipe
 
 
-class PipelineToolsTestCase(unittest.TestCase):
-    """A test case for pipelineTools
+class DotToolsTestCase(unittest.TestCase):
+    """A test case for dotTools
     """
 
-    def setUp(self):
-        pass
-
-    def tearDown(self):
-        pass
-
-    def testIsOrdered(self):
-        """Tests for pipeTools.isPipelineOrdered method
-        """
-        pipeline = _makePipeline([("A", "B", "task1"),
-                                  ("B", "C", "task2")])
-        self.assertTrue(pipeTools.isPipelineOrdered(pipeline))
-
-        pipeline = _makePipeline([("B", "C", "task2"),
-                                  ("A", "B", "task1")])
-        self.assertFalse(pipeTools.isPipelineOrdered(pipeline))
-
-        pipeline = _makePipeline([("A", ("B", "C"), "task1"),
-                                  ("B", "D", "task2"),
-                                  ("C", "E", "task3"),
-                                  (("D", "E"), "F", "task4")])
-        self.assertTrue(pipeTools.isPipelineOrdered(pipeline))
-
-        pipeline = _makePipeline([("A", ("B", "C"), "task1"),
-                                  ("C", "E", "task2"),
-                                  ("B", "D", "task3"),
-                                  (("D", "E"), "F", "task4")])
-        self.assertTrue(pipeTools.isPipelineOrdered(pipeline))
-
-        pipeline = _makePipeline([(("D", "E"), "F", "task4"),
-                                  ("B", "D", "task2"),
-                                  ("C", "E", "task3"),
-                                  ("A", ("B", "C"), "task1")])
-        self.assertFalse(pipeTools.isPipelineOrdered(pipeline))
-
-    def testIsOrderedExceptions(self):
-        """Tests for pipeTools.isPipelineOrdered method exceptions
-        """
-        # two producers should throw ValueError
-        pipeline = _makePipeline([("A", "B", "task1"),
-                                  ("B", "C", "task2"),
-                                  ("A", "C", "task3"),
-                                  ])
-        with self.assertRaises(pipeTools.DuplicateOutputError):
-            pipeTools.isPipelineOrdered(pipeline)
-
-        # missing factory should throw ValueError
-        pipeline = _makePipeline([("A", "B", "task1", None),
-                                  ("B", "C", "task2", None)])
-        with self.assertRaises(pipeTools.MissingTaskFactoryError):
-            pipeTools.isPipelineOrdered(pipeline)
-
-    def testOrderPipeline(self):
-        """Tests for pipeTools.orderPipeline method
-        """
-        pipeline = _makePipeline([("A", "B", "task1"),
-                                  ("B", "C", "task2")])
-        pipeline = pipeTools.orderPipeline(pipeline)
-        self.assertEqual(len(pipeline), 2)
-        self.assertEqual(pipeline[0].label, "task1")
-        self.assertEqual(pipeline[1].label, "task2")
-
-        pipeline = _makePipeline([("B", "C", "task2"),
-                                  ("A", "B", "task1")])
-        pipeline = pipeTools.orderPipeline(pipeline)
-        self.assertEqual(len(pipeline), 2)
-        self.assertEqual(pipeline[0].label, "task1")
-        self.assertEqual(pipeline[1].label, "task2")
-
-        pipeline = _makePipeline([("A", ("B", "C"), "task1"),
-                                  ("B", "D", "task2"),
-                                  ("C", "E", "task3"),
-                                  (("D", "E"), "F", "task4")])
-        pipeline = pipeTools.orderPipeline(pipeline)
-        self.assertEqual(len(pipeline), 4)
-        self.assertEqual(pipeline[0].label, "task1")
-        self.assertEqual(pipeline[1].label, "task2")
-        self.assertEqual(pipeline[2].label, "task3")
-        self.assertEqual(pipeline[3].label, "task4")
-
-        pipeline = _makePipeline([("A", ("B", "C"), "task1"),
-                                  ("C", "E", "task3"),
-                                  ("B", "D", "task2"),
-                                  (("D", "E"), "F", "task4")])
-        pipeline = pipeTools.orderPipeline(pipeline)
-        self.assertEqual(len(pipeline), 4)
-        self.assertEqual(pipeline[0].label, "task1")
-        self.assertEqual(pipeline[1].label, "task3")
-        self.assertEqual(pipeline[2].label, "task2")
-        self.assertEqual(pipeline[3].label, "task4")
-
-        pipeline = _makePipeline([(("D", "E"), "F", "task4"),
-                                  ("B", "D", "task2"),
-                                  ("C", "E", "task3"),
-                                  ("A", ("B", "C"), "task1")])
-        pipeline = pipeTools.orderPipeline(pipeline)
-        self.assertEqual(len(pipeline), 4)
-        self.assertEqual(pipeline[0].label, "task1")
-        self.assertEqual(pipeline[1].label, "task2")
-        self.assertEqual(pipeline[2].label, "task3")
-        self.assertEqual(pipeline[3].label, "task4")
-
-        pipeline = _makePipeline([(("D", "E"), "F", "task4"),
-                                  ("C", "E", "task3"),
-                                  ("B", "D", "task2"),
-                                  ("A", ("B", "C"), "task1")])
-        pipeline = pipeTools.orderPipeline(pipeline)
-        self.assertEqual(len(pipeline), 4)
-        self.assertEqual(pipeline[0].label, "task1")
-        self.assertEqual(pipeline[1].label, "task3")
-        self.assertEqual(pipeline[2].label, "task2")
-        self.assertEqual(pipeline[3].label, "task4")
-
-    def testOrderPipelineExceptions(self):
-        """Tests for pipeTools.orderPipeline method exceptions
-        """
-        # two producers should throw ValueError
-        pipeline = _makePipeline([("A", "B", "task1"),
-                                  ("B", "C", "task2"),
-                                  ("A", "C", "task3"),
-                                  ])
-        with self.assertRaises(pipeTools.DuplicateOutputError):
-            pipeline = pipeTools.orderPipeline(pipeline)
-
-        # missing factory should throw ValueError
-        pipeline = _makePipeline([("A", "B", "task1", None),
-                                  ("B", "C", "task2", None)])
-        with self.assertRaises(pipeTools.MissingTaskFactoryError):
-            pipeline = pipeTools.orderPipeline(pipeline)
-
-        # cycle in a graph should throw ValueError
-        pipeline = _makePipeline([("A", ("A", "B"), "task1")])
-        with self.assertRaises(pipeTools.PipelineDataCycleError):
-            pipeline = pipeTools.orderPipeline(pipeline)
-
-        # another kind of cycle in a graph
-        pipeline = _makePipeline([("A", "B", "task1"),
-                                  ("B", "C", "task2"),
-                                  ("C", "D", "task3"),
-                                  ("D", "A", "task4")])
-        with self.assertRaises(pipeTools.PipelineDataCycleError):
-            pipeline = pipeTools.orderPipeline(pipeline)
-
     def testPipeline2dot(self):
-        """Tests for pipeTools.pipeline2dot method
+        """Tests for dotTools.pipeline2dot method
         """
         pipeline = _makePipeline([("A", ("B", "C"), "task1"),
                                   ("C", "E", "task2"),
