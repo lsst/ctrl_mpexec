@@ -70,7 +70,7 @@ class CmdLineParserTestCase(unittest.TestCase):
 
         args = parser.parse_args("-t task:label -m label:1".split())
         self.assertEqual(args.pipeline_actions, [PipelineAction("new_task", "label", "task"),
-                                                 PipelineAction("move_task", "label", "1")])
+                                                 PipelineAction("move_task", "label", 1)])
 
         with self.assertRaises(_Error):
             parser.parse_args("-m label".split())

@@ -145,8 +145,7 @@ class CmdLineFwk(object):
 
         # make pipeline out of command line arguments
         try:
-            pipeBuilder = PipelineBuilder(self.taskFactory)
-            pipeline = pipeBuilder.makePipeline(args)
+            pipeline = self.makePipeline(self.taskFactory, args)
         except Exception as exc:
             print("Failed to build pipeline: {}".format(exc), file=sys.stderr)
             raise
@@ -313,6 +312,50 @@ class CmdLineFwk(object):
                 print()
                 headers = ("Task class name", "Kind     ")
             util.printTable(tasks, headers)
+
+    def makePipeline(self, taskFactory, args):
+        """Build a pipeline from command line arguments
+
+        Parameters
+        ----------
+        args : `argparse.Namespace`
+            Parsed command line
+
+        Returns
+        -------
+        pipeline : `~lsst.pipe.base.Pipeline`
+        """
+
+        pipeBuilder = PipelineBuilder(self.taskFactory)
+
+        # loop over all pipeline actions and apply them in order
+        for action in args.pipeline_actions:
+
+            if action.action == "new_task":
+
+                pipeBuilder.addTask(action.value, action.label, args.instrument_overrides)
+
+            elif action.action == "delete_task":
+
+                pipeBuilder.deleteTask(action.label)
+
+            elif action.action == "move_task":
+
+                pipeBuilder.moveTask(action.label, action.value)
+
+            elif action.action == "relabel":
+
+                pipeBuilder.labelTask(action.label, action.value)
+
+            elif action.action == "config":
+
+                pipeBuilder.configOverride(action.label, action.value)
+
+            elif action.action == "configfile":
+
+                pipeBuilder.configOverrideFile(action.label, action.value)
+
+        return pipeBuilder.pipeline(args.order_pipeline)
 
     def runPipeline(self, graph, butler, args):
         """

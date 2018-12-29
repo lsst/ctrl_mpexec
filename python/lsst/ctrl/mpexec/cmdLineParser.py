@@ -67,9 +67,10 @@ class _PipelineActionType(object):
         returned instance.
     """
 
-    def __init__(self, action, regex='.*'):
+    def __init__(self, action, regex='.*', valueType=str):
         self.action = action
         self.regex = re.compile(regex)
+        self.valueType = valueType
 
     def __call__(self, value):
         match = self.regex.match(value)
@@ -85,12 +86,13 @@ class _PipelineActionType(object):
             value = match.group("value")
         except IndexError:
             pass
+        value = self.valueType(value)
         return _PipelineAction(self.action, label, value)
 
 
 _ACTION_ADD_TASK = _PipelineActionType("new_task", "(?P<value>[^:]+)(:(?P<label>.+))?")
 _ACTION_DELETE_TASK = _PipelineActionType("delete_task", "(?P<value>)(?P<label>.+)")
-_ACTION_MOVE_TASK = _PipelineActionType("move_task", r"(?P<label>.+):(?P<value>-?\d+)")
+_ACTION_MOVE_TASK = _PipelineActionType("move_task", r"(?P<label>.+):(?P<value>-?\d+)", int)
 _ACTION_LABEL_TASK = _PipelineActionType("relabel", "(?P<label>.+):(?P<value>.+)")
 _ACTION_CONFIG = _PipelineActionType("config", "(?P<label>[^.]+)[.](?P<value>.+=.+)")
 _ACTION_CONFIG_FILE = _PipelineActionType("configfile", "(?P<label>.+):(?P<value>.+)")
