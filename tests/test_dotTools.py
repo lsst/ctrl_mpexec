@@ -29,9 +29,8 @@ import unittest
 
 from lsst.pipe.base import (PipelineTask, PipelineTaskConfig,
                             InputDatasetField, OutputDatasetField,
-                            DatasetTypeDescriptor)
-from lsst.pipe.supertask import Pipeline, TaskDef, pipeTools
-from lsst.pipe.supertask.dotTools import pipeline2dot
+                            DatasetTypeDescriptor, Pipeline, TaskDef, pipeTools)
+from lsst.ctrl.mpexec.dotTools import pipeline2dot
 import lsst.utils.tests
 
 # mock for actual dataset type

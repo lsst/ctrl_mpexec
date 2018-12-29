@@ -18,11 +18,10 @@ import sys
 # -----------------------------
 from lsst.daf.butler import DatasetRef, Quantum, Run
 from lsst.pipe.base import DatasetTypeDescriptor
-from lsst.pipe.supertask import (Pipeline, QuantumGraph, QuantumGraphNodes,
-                                 TaskDef)
-from lsst.pipe.supertask.dotTools import graph2dot, pipeline2dot
-from lsst.pipe.supertask.pipeTools import orderPipeline
-from lsst.pipe.supertask.examples import test1task, test2task
+from lsst.pipe.base import Pipeline, QuantumGraph, QuantumGraphNodes, TaskDef
+from lsst.pipe.base.pipeTools import orderPipeline
+from lsst.ctrl.mpexec.dotTools import graph2dot, pipeline2dot
+from lsst.ctrl.mpexec.examples import test1task, test2task
 
 # ---------------------
 #  Local definitions --
@@ -166,7 +165,7 @@ def _makeStep1TaskDef():
     config.input.name = "input"
     config.output.name = "step1output"
 
-    taskDef = TaskDef(taskName="lsst.pipe.supertask.examples.test1task.Test1Task",
+    taskDef = TaskDef(taskName="lsst.ctrl.mpexec.examples.test1task.Test1Task",
                       config=config,
                       taskClass=test1task.Test1Task,
                       label="step1")
@@ -179,7 +178,7 @@ def _makeStep2TaskDef():
     config.input.name = "step1output"
     config.output.name = "step2output"
 
-    taskDef = TaskDef(taskName="lsst.pipe.supertask.examples.test1task.Test1Task",
+    taskDef = TaskDef(taskName="lsst.ctrl.mpexec.examples.test1task.Test1Task",
                       config=config,
                       taskClass=test1task.Test1Task,
                       label="step2")
@@ -193,7 +192,7 @@ def _makeStep3TaskDef():
     config.input.name = "step2output"
     config.output.name = "output"
 
-    taskDef = TaskDef(taskName="lsst.pipe.supertask.examples.test2task.Test2Task",
+    taskDef = TaskDef(taskName="lsst.ctrl.mpexec.examples.test2task.Test2Task",
                       config=config,
                       taskClass=test2task.Test2Task,
                       label="step3")

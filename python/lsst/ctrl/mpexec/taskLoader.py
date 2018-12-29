@@ -94,7 +94,7 @@ class TaskLoader(object):
 
     # default locations for packages
     # TODO: examples should be removed later.
-    DEFAULT_PACKAGES = ['lsst.pipe.supertask.examples', 'lsst.pipe.tasks']
+    DEFAULT_PACKAGES = ['lsst.ctrl.mpexec.examples', 'lsst.pipe.tasks']
 
     def __init__(self, packages=None):
         if not packages:

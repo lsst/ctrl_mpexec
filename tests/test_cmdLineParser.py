@@ -26,7 +26,7 @@ from argparse import ArgumentParser
 import unittest
 
 import lsst.utils.tests
-import lsst.pipe.supertask.cmdLineParser as parser_mod
+import lsst.ctrl.mpexec.cmdLineParser as parser_mod
 
 
 class _Error(Exception):

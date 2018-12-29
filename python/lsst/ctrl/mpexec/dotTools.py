@@ -147,7 +147,7 @@ def graph2dot(qgraph, file):
 
     Parameters
     ----------
-    qgraph: `pipe.supertask.QuantumGraph`
+    qgraph: `pipe.base.QuantumGraph`
         QuantumGraph instance.
     file : str or file object
         File where GraphViz graph (DOT language) is written, can be a file name
@@ -202,12 +202,12 @@ def pipeline2dot(pipeline, file, taskFactory=None):
 
     Parameters
     ----------
-    pipeline : `pipe.supertask.Pipeline`
+    pipeline : `pipe.base.Pipeline`
         Pipeline description.
     file : str or file object
         File where GraphViz graph (DOT language) is written, can be a file name
         or file object.
-    taskFactory: `pipe.supertask.TaskFactory`, optional
+    taskFactory: `pipe.base.TaskFactory`, optional
         Instance of an object which knows how to import task classes. It is only
         used if pipeline task definitions do not define task classes.
 
