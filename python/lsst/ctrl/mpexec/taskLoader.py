@@ -21,9 +21,7 @@
 
 """Module defining TaskLoader class and related methods.
 """
-from builtins import object
 
-# "exported" names
 __all__ = ['TaskLoader']
 
 # -------------------------------
@@ -80,7 +78,7 @@ KIND_CMDLINETASK = 'CmdLineTask'
 KIND_PIPELINETASK = 'PipelineTask'
 
 
-class TaskLoader(object):
+class TaskLoader:
     """Task responsible for finding and loading tasks.
 
     Parameters

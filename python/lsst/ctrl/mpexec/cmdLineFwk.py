@@ -64,7 +64,7 @@ log4j.appender.A1.layout.ConversionPattern={}
 _LOG = logging.getLogger(__name__.partition(".")[2])
 
 
-class _MPMap(object):
+class _MPMap:
     """Class implementing "map" function using multiprocessing pool.
 
     Parameters
@@ -100,7 +100,7 @@ class _MPMap(object):
 # ------------------------
 
 
-class CmdLineFwk(object):
+class CmdLineFwk:
     """PipelineTask framework which executes tasks from command line.
 
     In addition to executing tasks this activator provides additional methods
@@ -578,7 +578,7 @@ class CmdLineFwk(object):
         taskName = matConfig.group(1)
         pattern = matConfig.group(2)
         if pattern:
-            class FilteredStream(object):
+            class FilteredStream:
                 """A file object that only prints lines that match the glob "pattern"
 
                 N.b. Newlines are silently discarded and reinserted;  crude but effective.

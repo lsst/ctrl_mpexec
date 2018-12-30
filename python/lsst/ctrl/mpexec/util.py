@@ -22,8 +22,6 @@
 """Few utility methods used by the rest of a package.
 """
 
-from __future__ import print_function
-
 __all__ = ["profile", "printTable", "fixPath", "filterTasks", "subTaskIter"]
 
 # -------------------------------

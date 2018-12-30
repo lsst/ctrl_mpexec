@@ -22,16 +22,12 @@
 """Module defining CmdLineParser class and related methods.
 """
 
-from __future__ import absolute_import, division, print_function
-
-# "exported" names
 __all__ = ["makeParser"]
 
 # -------------------------------
 #  Imports of standard modules --
 # -------------------------------
 from argparse import Action, ArgumentParser, RawDescriptionHelpFormatter
-from builtins import object
 import collections
 import re
 import textwrap
@@ -52,7 +48,7 @@ import textwrap
 _PipelineAction = collections.namedtuple("_PipelineAction", "action,label,value")
 
 
-class _PipelineActionType(object):
+class _PipelineActionType:
     """Class defining a callable type which converts strings into
     _PipelineAction instances.
 
