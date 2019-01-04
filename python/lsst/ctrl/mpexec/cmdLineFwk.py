@@ -332,7 +332,7 @@ class CmdLineFwk:
 
             if action.action == "new_task":
 
-                pipeBuilder.addTask(action.value, action.label, args.instrument_overrides)
+                pipeBuilder.addTask(action.value, action.label)
 
             elif action.action == "delete_task":
 
@@ -353,6 +353,10 @@ class CmdLineFwk:
             elif action.action == "configfile":
 
                 pipeBuilder.configOverrideFile(action.label, action.value)
+
+            else:
+
+                raise ValueError(f"Unexpected pipeline action: {action.action}")
 
         return pipeBuilder.pipeline(args.order_pipeline)
 
