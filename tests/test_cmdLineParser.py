@@ -270,9 +270,9 @@ class CmdLineParserTestCase(unittest.TestCase):
             run -t taskname:label
             --show config
             --show config=Task.*
-            -c label.a=b
+            -c label:a=b
             -C label:filename1
-            -c label.c=d -c label.e=f
+            -c label:c=d -c label:e=f
             -C label:filename2 -C label:filename3
             """.split())
         self.assertTrue(args.clobberConfig)
@@ -316,12 +316,12 @@ class CmdLineParserTestCase(unittest.TestCase):
             -t task3
             -t task4
             --show config
-            -c task1.a=b
+            -c task1:a=b
             -C task1:filename1
-            -c label2.c=d -c label2.e=f
+            -c label2:c=d -c label2:e=f
             -C task3:filename2 -C task3:filename3
             --show config=Task.*
-            -C task4:filename4 -c task4.x=y
+            -C task4:filename4 -c task4:x=y
             --order-pipeline
             --save-pipeline=newpipe.pickle
             --save-qgraph=newqgraph.pickle

@@ -84,12 +84,20 @@ class _PipelineActionType:
         value = self.valueType(value)
         return _PipelineAction(self.action, label, value)
 
+    def __repr__(self):
+        """String representation of this class.
+
+        argparse can use this for some error messages, default implementation
+        makes those messages incomprehensible.
+        """
+        return f"_PipelineActionType(action={self.action})"
+
 
 _ACTION_ADD_TASK = _PipelineActionType("new_task", "(?P<value>[^:]+)(:(?P<label>.+))?")
 _ACTION_DELETE_TASK = _PipelineActionType("delete_task", "(?P<value>)(?P<label>.+)")
 _ACTION_MOVE_TASK = _PipelineActionType("move_task", r"(?P<label>.+):(?P<value>-?\d+)", int)
 _ACTION_LABEL_TASK = _PipelineActionType("relabel", "(?P<label>.+):(?P<value>.+)")
-_ACTION_CONFIG = _PipelineActionType("config", "(?P<label>[^.]+)[.](?P<value>.+=.+)")
+_ACTION_CONFIG = _PipelineActionType("config", "(?P<label>.+):(?P<value>.+=.+)")
 _ACTION_CONFIG_FILE = _PipelineActionType("configfile", "(?P<label>.+):(?P<value>.+)")
 
 
@@ -374,10 +382,10 @@ def makeParser(fromfile_prefix_chars='@', parser_class=ArgumentParser, **kwargs)
         subparser.add_argument("-l", "--label", metavar="LABEL:NEW_LABEL",
                                dest="pipeline_actions", action='append', type=_ACTION_LABEL_TASK,
                                help="Change label of a given task.")
-        subparser.add_argument("-c", "--config", metavar="LABEL.NAME=VALUE",
+        subparser.add_argument("-c", "--config", metavar="LABEL:NAME=VALUE",
                                dest="pipeline_actions", action='append', type=_ACTION_CONFIG,
                                help="Configuration override(s) for a task with specified label, "
-                               "e.g. -c task.foo=newfoo -c task.bar.baz=3.")
+                               "e.g. -c task:foo=newfoo -c task:bar.baz=3.")
         subparser.add_argument("-C", "--configfile", metavar="LABEL:PATH",
                                dest="pipeline_actions", action='append', type=_ACTION_CONFIG_FILE,
                                help="Configuration override file(s), applies to a task with a given label.")
