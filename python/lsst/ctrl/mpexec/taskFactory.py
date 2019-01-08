@@ -52,8 +52,8 @@ class TaskFactory(BaseTaskFactory):
         Parameters
         ----------
         taskName : `str`
-            Name of the PipelineTask class, interpretation depends entirely on
-            activator, e.g. it may or may not include dots.
+            Name of the PipelineTask class, this class requires it to include
+            module and optionally package names (dot-separated).
 
         Returns
         -------
@@ -65,9 +65,15 @@ class TaskFactory(BaseTaskFactory):
 
         Raises
         ------
-        `ImportError` is raised if task classes cannot be imported.
-        `TypeError` is raised if imported task is not a PipelineTask.
+        ImportError
+            Raised if task classes cannot be imported.
+        TypeError
+            Raised if imported task is not a PipelineTask.
+        ValueError
+            Raised if ``taskName`` does not include module name.
         """
+        if "." not in taskName:
+            raise ValueError("Module name must be included in task name")
 
         # load the class, this will raise ImportError on failure
         taskClass, fullTaskName, taskKind = self.taskLoader.loadTaskClass(taskName)
