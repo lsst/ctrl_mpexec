@@ -63,6 +63,8 @@ class CmdLineParserTestCase(unittest.TestCase):
                             type=parser_mod._ACTION_ADD_TASK)
         parser.add_argument("-m", dest="pipeline_actions", action='append',
                             type=parser_mod._ACTION_MOVE_TASK)
+        parser.add_argument("-s", dest="pipeline_actions", action='append',
+                            type=parser_mod._ACTION_NAME_TEMPLATES)
 
         PipelineAction = parser_mod._PipelineAction
         args = parser.parse_args("-t task".split())
@@ -72,11 +74,28 @@ class CmdLineParserTestCase(unittest.TestCase):
         self.assertEqual(args.pipeline_actions, [PipelineAction("new_task", "label", "task"),
                                                  PipelineAction("move_task", "label", 1)])
 
+        args = parser.parse_args("-t task -s task:{'key':'value'}".split())
+        nameTemplateVal = {"key": "value"}
+        self.assertEqual(args.pipeline_actions, [PipelineAction("new_task", None, "task"),
+                                                 PipelineAction("name_templates", "task", nameTemplateVal)])
+
         with self.assertRaises(_Error):
             parser.parse_args("-m label".split())
 
         with self.assertRaises(_Error):
             parser.parse_args("-m label:notANumber".split())
+
+        # something that is not syntaxically correct (not a literal)
+        with self.assertRaises(_Error):
+            parser.parse_args("-t task -s task:CannotEval".split())
+
+        # Literal but of the wrong type
+        with self.assertRaises(_Error):
+            parser.parse_args("-t task -s task:[1,2]".split())
+
+        # dictionary but not all strings
+        with self.assertRaises(_Error):
+            parser.parse_args("-t task -s task:{'x':1}".split())
 
     def testInputCollectionType(self):
         """Test for a _inputCollectionType
@@ -331,7 +350,7 @@ class CmdLineParserTestCase(unittest.TestCase):
             --qgraph-dot qgraph.dot
             """.split())
         self.assertEqual(args.show, ['config', 'config=Task.*'])
-        nameTemplateVal = '{"key":"value"}'
+        nameTemplateVal = {"key": "value"}
         self.assertEqual(args.pipeline_actions, [PipelineAction("new_task", None, "task1"),
                                                  PipelineAction("new_task", "label2", "task2"),
                                                  PipelineAction("new_task", None, "task3"),
