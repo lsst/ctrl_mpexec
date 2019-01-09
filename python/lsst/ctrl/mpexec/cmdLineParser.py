@@ -99,7 +99,7 @@ _ACTION_MOVE_TASK = _PipelineActionType("move_task", r"(?P<label>.+):(?P<value>-
 _ACTION_LABEL_TASK = _PipelineActionType("relabel", "(?P<label>.+):(?P<value>.+)")
 _ACTION_CONFIG = _PipelineActionType("config", "(?P<label>.+):(?P<value>.+=.+)")
 _ACTION_CONFIG_FILE = _PipelineActionType("configfile", "(?P<label>.+):(?P<value>.+)")
-_ACTION_NAME_TEMPLATES = _PipelineActionType("name_templates", "(?P<label>[^.]+):(?P<value>.+)")
+_ACTION_NAME_TEMPLATES = _PipelineActionType("name_templates", "(?P<label>[^:]+):(?P<value>.+)")
 
 
 class _LogLevelAction(Action):
