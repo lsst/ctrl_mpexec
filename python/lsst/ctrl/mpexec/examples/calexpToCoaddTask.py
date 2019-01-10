@@ -32,7 +32,7 @@ class CalexpToCoaddTask(PipelineTask):
     ConfigClass = CalexpToCoaddTaskConfig
     _DefaultName = 'calexpToCoaddTask'
 
-    def adaptArgsAndRun(self, inputData, inputDataIds, outputDataIds):
+    def adaptArgsAndRun(self, inputData, inputDataIds, outputDataIds, butler):
         """Operate on in-memory data.
 
         Returns
