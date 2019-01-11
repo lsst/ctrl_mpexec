@@ -44,6 +44,7 @@ import lsst.pex.config as pexConfig
 from lsst.pipe.base import GraphBuilder, PipelineBuilder
 from .cmdLineParser import makeParser
 from .dotTools import graph2dot, pipeline2dot
+from .singleQuantumExecutor import SingleQuantumExecutor
 from .taskFactory import TaskFactory
 from .taskLoader import (TaskLoader, KIND_PIPELINETASK)
 from . import util
@@ -495,37 +496,8 @@ class CmdLineFwk:
             - ``taskFactory``: `TaskFactory` instance
         """
         taskClass, config, quantum, butler, taskFactory = target
-
-        # setup logging, include dataId into MDC
-#         if dataRef is not None:
-#             if hasattr(dataRef, "dataId"):
-#                 lsst.log.MDC("LABEL", str(dataRef.dataId))
-#             elif isinstance(dataRef, (list, tuple)):
-#                 lsst.log.MDC("LABEL", str([ref.dataId for ref in dataRef if hasattr(ref, "dataId")]))
-
-        # make task instance
-        task = taskFactory.makeTask(taskClass, config, None, butler)
-
-        # addQuantum() and possibly other code requires input DataRefs to
-        # have non-None dataset_id, but in case of intermediate dataset it
-        # may not be filled, so try to retrieve it from registry.
-        for refs in quantum.predictedInputs.values():
-            for ref in refs:
-                if ref.id is None:
-                    storedRef = butler.registry.find(butler.collection, ref.datasetType, ref.dataId)
-                    ref._id = storedRef.id
-                    _LOG.debug("Updated dataset ID for %s", ref)
-
-        # Call task runQuantum() method. Any exception thrown here propagates
-        # to multiprocessing module and to parent process.
-        result = task.runQuantum(quantum, butler)
-
-        # save provenenace for current quantum
-        quantum._task = taskClass.__name__
-        quantum._run = butler.run
-        butler.registry.addQuantum(quantum)
-
-        return result
+        executor = SingleQuantumExecutor(butler, taskFactory)
+        return executor.execute(taskClass, config, quantum)
 
     def writeTaskInitOutputs(self, task, butler):
         """Write any datasets produced by initializing the given PipelineTask.
