@@ -410,6 +410,9 @@ class CmdLineFwk:
                           taskDef.taskName)
                 numProc = 1
 
+        if args.init_only:
+            return
+
         # chose map function being simple sequential map or multi-process map
         if numProc > 1:
             timeout = getattr(args, 'timeout', None)
