@@ -189,7 +189,7 @@ class CmdLineParserTestCase(unittest.TestCase):
         run_options = ['pipeline_actions', 'show', 'subparser', 'pipeline',
                        'order_pipeline', 'save_pipeline', 'pipeline_dot',
                        'qgraph_dot', 'qgraph', 'save_qgraph', 'skip_existing',
-                       'register_dataset_types']
+                       'register_dataset_types', 'skip_init_writes', 'init_only']
         self.assertEqual(set(vars(args).keys()), set(global_options + run_options))
         self.assertEqual(args.subcommand, 'run')
 

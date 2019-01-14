@@ -402,12 +402,16 @@ class CmdLineFwk:
         for taskNodes in graph:
             taskDef, quanta = taskNodes.taskDef, taskNodes.quanta
             task = self.taskFactory.makeTask(taskDef.taskClass, taskDef.config, None, butler)
-            self.writeTaskInitOutputs(task, butler)
+            if not args.skip_init_writes:
+                self.writeTaskInitOutputs(task, butler)
 
             if numProc > 1 and not taskDef.taskClass.canMultiprocess:
                 _LOG.warn("Task %s does not support multiprocessing; using one process",
                           taskDef.taskName)
                 numProc = 1
+
+        if args.init_only:
+            return
 
         # chose map function being simple sequential map or multi-process map
         if numProc > 1:

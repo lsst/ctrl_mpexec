@@ -359,7 +359,13 @@ def makeParser(fromfile_prefix_chars='@', parser_class=ArgumentParser, **kwargs)
                                    "options and pipeline-building options cannot be used.",
                                    metavar="PATH")
         if subcommand == "run":
-
+            subparser.add_argument("--skip-init-writes", dest="skip_init_writes", default=False,
+                                   action="store_true",
+                                   help="Do not write collection-wide 'init output' datasets (e.g. schemas).")
+            subparser.add_argument("--init-only", dest="init_only", default=False,
+                                   action="store_true",
+                                   help=("Do not actually run; just register dataset types and/or save "
+                                         "init outputs."))
             subparser.add_argument("--register-dataset-types", dest="register_dataset_types", default=False,
                                    action="store_true",
                                    help="Register DatasetTypes that do not already exist in the Registry.")
