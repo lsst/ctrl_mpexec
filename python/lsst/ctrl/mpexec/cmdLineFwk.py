@@ -29,7 +29,6 @@ __all__ = ['CmdLineFwk']
 # -------------------------------
 import fnmatch
 import logging
-import multiprocessing
 import pickle
 import re
 import sys
@@ -37,14 +36,13 @@ import sys
 # -----------------------------
 #  Imports for other modules --
 # -----------------------------
-from lsst.base import disableImplicitThreading
 from lsst.daf.butler import Butler, DatasetOriginInfoDef
 import lsst.log
 import lsst.pex.config as pexConfig
 from lsst.pipe.base import GraphBuilder, PipelineBuilder
 from .cmdLineParser import makeParser
 from .dotTools import graph2dot, pipeline2dot
-from .singleQuantumExecutor import SingleQuantumExecutor
+from .mpGraphExecutor import MPGraphExecutor
 from .taskFactory import TaskFactory
 from .taskLoader import (TaskLoader, KIND_PIPELINETASK)
 from . import util
@@ -63,38 +61,6 @@ log4j.appender.A1.layout.ConversionPattern={}
 """
 
 _LOG = logging.getLogger(__name__.partition(".")[2])
-
-
-class _MPMap:
-    """Class implementing "map" function using multiprocessing pool.
-
-    Parameters
-    ----------
-    numProc : `int`
-        Number of process to use for executing tasks.
-    timeout : `float`
-        Time in seconds to wait for tasks to finish.
-    """
-
-    def __init__(self, numProc, timeout):
-        self.numProc = numProc
-        self.timeout = timeout
-
-    def __call__(self, function, iterable):
-        """Apply function to every item of iterable.
-
-        Wrapper around pool.map_async, to handle timeout. This is required
-        so as to trigger an immediate interrupt on the KeyboardInterrupt
-        (Ctrl-C); see
-        http://stackoverflow.com/questions/1408356/keyboard-interrupts-with-pythons-multiprocessing-pool
-
-        Further wraps the function in _poolFunctionWrapper to catch exceptions
-        that don't inherit from Exception.
-        """
-        disableImplicitThreading()  # To prevent thread contention
-        pool = multiprocessing.Pool(processes=self.numProc, maxtasksperchild=1)
-        result = pool.map_async(function, iterable)
-        return result.get(self.timeout)
 
 # ------------------------
 #  Exported definitions --
@@ -366,7 +332,8 @@ class CmdLineFwk:
         return pipeBuilder.pipeline(args.order_pipeline)
 
     def runPipeline(self, graph, butler, args):
-        """
+        """Execute complete QuantumGraph.
+
         Parameters
         ----------
         graph : `QuantumGraph`
@@ -376,143 +343,12 @@ class CmdLineFwk:
         args : `argparse.Namespace`
             Parsed command line
         """
-
-        # how many processes do we want
-        numProc = args.processes
-
-        # register dataset types or check consistency
-        for datasetType in graph.getDatasetTypes():
-            if args.register_dataset_types:
-                # this is a no-op if it already exists and is consistent,
-                # and it raises if it is inconsistent.
-                butler.registry.registerDatasetType(datasetType)
-            else:
-                expected = butler.registry.getDatasetType(datasetType.name)
-                if expected != datasetType:
-                    raise ValueError(f"DatasetType configuration does not match Registry: "
-                                     f"{datasetType} != {expected}")
-
-        # associate all existing datasets with output collection.
-        self._updateOutputCollection(graph, butler)
-
-        # Save task initialization data.
-        # TODO: see if Pipeline and software versions are already written
-        # to butler and associated with Run, check for consistency if they
-        # are, and if so skip writing TaskInitOutputs (because those should
-        # also only be done once).  If not, write them.
-        for taskNodes in graph:
-            taskDef, quanta = taskNodes.taskDef, taskNodes.quanta
-            task = self.taskFactory.makeTask(taskDef.taskClass, taskDef.config, None, butler)
-            if not args.skip_init_writes:
-                self.writeTaskInitOutputs(task, butler)
-
-            if numProc > 1 and not taskDef.taskClass.canMultiprocess:
-                _LOG.warn("Task %s does not support multiprocessing; using one process",
-                          taskDef.taskName)
-                numProc = 1
-
-        if args.init_only:
-            return
-
-        # chose map function being simple sequential map or multi-process map
-        if numProc > 1:
-            timeout = getattr(args, 'timeout', None)
-            if timeout is None or timeout <= 0:
-                timeout = self.MP_TIMEOUT
-            mapFunc = _MPMap(numProc, timeout)
-        else:
-
-            def _mapFunc(func, iterable):
-                """Call function for all items sequentially"""
-                return [func(item) for item in iterable]
-
-            mapFunc = _mapFunc
-
-        # tasks are executed sequentially but quanta can run in parallel
-        for taskNodes in graph:
-            taskDef, quanta = taskNodes.taskDef, taskNodes.quanta
-            # targets for map function
-            target_list = [(taskDef.taskClass, taskDef.config, quantum, butler, self.taskFactory)
-                           for quantum in quanta]
-            # call task on each argument in a list
-            profile_name = getattr(args, "profile", None)
-            with util.profile(profile_name, _LOG):
-                mapFunc(self._executePipelineTask, target_list)
-
-    def _updateOutputCollection(self, graph, butler):
-        """Associate all existing datasets with output collection.
-
-        For every Quantum in a graph make sure that its existing inputs are
-        added to the Butler's output collection.
-
-        For each quantum there are input and output DataRefs. With the
-        current implementation of preflight output refs should not exist but
-        input refs may belong to a different collection. We want all refs to
-        appear in output collection, so we have to "copy" those refs.
-
-        Parameters
-        ----------
-        graph : `QuantumGraph`
-            Execution graph.
-        butler : `Butler`
-            data butler instance
-        """
-        def _refComponents(refs):
-            """Return all dataset components recursively"""
-            for ref in refs:
-                yield ref
-                yield from _refComponents(ref.components.values())
-
-        # Main issue here is that the same DataRef can appear as input for
-        # many quanta, to keep them unique we first collect them into one
-        # dict indexed by dataset id.
-        id2ref = {}
-        for taskDef, quantum in graph.quanta():
-            for refs in quantum.predictedInputs.values():
-                for ref in _refComponents(refs):
-                    # skip intermediate datasets produced by other tasks
-                    if ref.id is not None:
-                        id2ref[ref.id] = ref
-        for initInput in graph.initInputs:
-            id2ref[initInput.id] = initInput
-        if id2ref:
-            # copy all collected refs to output collection
-            collection = butler.run.collection
-            registry = butler.registry
-            registry.associate(collection, list(id2ref.values()))
-
-    @staticmethod
-    def _executePipelineTask(target):
-        """Execute super-task on a single data item.
-
-        Parameters
-        ----------
-        target: `tuple`
-            Tuple contains these elements:
-            - ``taskClass``: `PipelineTask` sub-class
-            - ``config``: `PipelineTaskConfig` instance
-            - ``quantum``: `Quantum` instance for this execution
-            - ``butler``: data butler instance
-            - ``taskFactory``: `TaskFactory` instance
-        """
-        taskClass, config, quantum, butler, taskFactory = target
-        executor = SingleQuantumExecutor(butler, taskFactory)
-        return executor.execute(taskClass, config, quantum)
-
-    def writeTaskInitOutputs(self, task, butler):
-        """Write any datasets produced by initializing the given PipelineTask.
-
-        Parameters
-        ----------
-        task : `PipelineTask`
-            instance of PipelineTask
-        butler : `lsst.daf.butler.Butler`
-            data butler instance
-        """
-        initOutputs = task.getInitOutputDatasets()
-        initOutputDatasetTypes = task.getInitOutputDatasetTypes(task.config)
-        for key, obj in initOutputs.items():
-            butler.put(obj, initOutputDatasetTypes[key].datasetType, {})
+        executor = MPGraphExecutor(numProc=args.processes, timeout=self.MP_TIMEOUT)
+        executor.execute(graph, butler, self.taskFactory,
+                         registerDatasetTypes=args.register_dataset_types,
+                         saveInitOutputs=not args.skip_init_writes,
+                         updateOutputCollection=True,
+                         initOnly=args.init_only)
 
     def showInfo(self, showOpts, pipeline, graph):
         """Display useful info about pipeline and environment.
