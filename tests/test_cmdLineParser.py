@@ -63,6 +63,8 @@ class CmdLineParserTestCase(unittest.TestCase):
                             type=parser_mod._ACTION_ADD_TASK)
         parser.add_argument("-m", dest="pipeline_actions", action='append',
                             type=parser_mod._ACTION_MOVE_TASK)
+        parser.add_argument("-s", dest="pipeline_actions", action='append',
+                            type=parser_mod._ACTION_NAME_TEMPLATES)
 
         PipelineAction = parser_mod._PipelineAction
         args = parser.parse_args("-t task".split())
@@ -72,11 +74,28 @@ class CmdLineParserTestCase(unittest.TestCase):
         self.assertEqual(args.pipeline_actions, [PipelineAction("new_task", "label", "task"),
                                                  PipelineAction("move_task", "label", 1)])
 
+        args = parser.parse_args("-t task -s task:{'key':'value'}".split())
+        nameTemplateVal = {"key": "value"}
+        self.assertEqual(args.pipeline_actions, [PipelineAction("new_task", None, "task"),
+                                                 PipelineAction("name_templates", "task", nameTemplateVal)])
+
         with self.assertRaises(_Error):
             parser.parse_args("-m label".split())
 
         with self.assertRaises(_Error):
             parser.parse_args("-m label:notANumber".split())
+
+        # something that is not syntaxically correct (not a literal)
+        with self.assertRaises(_Error):
+            parser.parse_args("-t task -s task:CannotEval".split())
+
+        # Literal but of the wrong type
+        with self.assertRaises(_Error):
+            parser.parse_args("-t task -s task:[1,2]".split())
+
+        # dictionary but not all strings
+        with self.assertRaises(_Error):
+            parser.parse_args("-t task -s task:{'x':1}".split())
 
     def testInputCollectionType(self):
         """Test for a _inputCollectionType
@@ -316,12 +335,14 @@ class CmdLineParserTestCase(unittest.TestCase):
             -t task3
             -t task4
             --show config
+            -m task1:2
             -c task1:a=b
             -C task1:filename1
             -c label2:c=d -c label2:e=f
             -C task3:filename2 -C task3:filename3
             --show config=Task.*
             -C task4:filename4 -c task4:x=y
+            --dataset-name-substitution task4:{"key":"value"}
             --order-pipeline
             --save-pipeline=newpipe.pickle
             --save-qgraph=newqgraph.pickle
@@ -329,10 +350,12 @@ class CmdLineParserTestCase(unittest.TestCase):
             --qgraph-dot qgraph.dot
             """.split())
         self.assertEqual(args.show, ['config', 'config=Task.*'])
+        nameTemplateVal = {"key": "value"}
         self.assertEqual(args.pipeline_actions, [PipelineAction("new_task", None, "task1"),
                                                  PipelineAction("new_task", "label2", "task2"),
                                                  PipelineAction("new_task", None, "task3"),
                                                  PipelineAction("new_task", None, "task4"),
+                                                 PipelineAction("move_task", "task1", 2),
                                                  PipelineAction("config", "task1", "a=b"),
                                                  PipelineAction("configfile", "task1", "filename1"),
                                                  PipelineAction("config", "label2", "c=d"),
@@ -340,7 +363,8 @@ class CmdLineParserTestCase(unittest.TestCase):
                                                  PipelineAction("configfile", "task3", "filename2"),
                                                  PipelineAction("configfile", "task3", "filename3"),
                                                  PipelineAction("configfile", "task4", "filename4"),
-                                                 PipelineAction("config", "task4", "x=y")])
+                                                 PipelineAction("config", "task4", "x=y"),
+                                                 PipelineAction("name_templates", "task4", nameTemplateVal)])
         self.assertEqual(args.pipeline, "pipeline.pickle")
         self.assertEqual(args.qgraph, "qgraph.pickle")
         self.assertTrue(args.order_pipeline)
