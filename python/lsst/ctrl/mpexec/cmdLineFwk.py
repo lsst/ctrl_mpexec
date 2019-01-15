@@ -408,6 +408,11 @@ class CmdLineFwk:
         for what in showOpts:
             showCommand, _, showArgs = what.partition("=")
 
+            if showCommand in ["pipeline", "config", "history", "tasks"]:
+                if not pipeline:
+                    _LOG.warn("Pipeline is required for --show=%s", showCommand)
+                    continue
+
             if showCommand == "pipeline":
                 for taskDef in pipeline:
                     print(taskDef)
@@ -490,11 +495,15 @@ class CmdLineFwk:
             Defines what to show
         """
 
-        matHistory = re.search(r"^(?:(\w+)::)(?:config.)?(.+)?", showArgs)
-        taskName = matHistory.group(1)
-        pattern = matHistory.group(2)
+        taskName = None
+        pattern = None
+        matHistory = re.search(r"^(?:(\w+)::)(?:config[.])?(.+)", showArgs)
+        if matHistory:
+            taskName = matHistory.group(1)
+            pattern = matHistory.group(2)
+        print(showArgs, taskName, pattern)
         if not pattern:
-            print("Please provide a value with --show history (e.g. history=XXX)", file=sys.stderr)
+            print("Please provide a value with --show history (e.g. history=Task::param)", file=sys.stderr)
             sys.exit(1)
 
         tasks = util.filterTasks(pipeline, taskName)
