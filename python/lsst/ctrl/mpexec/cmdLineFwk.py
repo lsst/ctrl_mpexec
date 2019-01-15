@@ -102,71 +102,31 @@ class CmdLineFwk:
         # First thing to do is to setup logging.
         self.configLog(args.longlog, args.loglevel)
 
-        self.taskLoader = TaskLoader(args.packages)
-        self.taskFactory = TaskFactory(self.taskLoader)
+        taskLoader = TaskLoader(args.packages)
+        taskFactory = TaskFactory(taskLoader)
 
         if args.subcommand == "list":
             # just dump some info about where things may be found
-            return self.doList(args.show, args.show_headers)
+            return self.doList(taskLoader, args.show, args.show_headers)
 
-        # make pipeline out of command line arguments
+        # make pipeline out of command line arguments (can return empty pipeline)
         try:
-            pipeline = self.makePipeline(self.taskFactory, args)
+            pipeline = self.makePipeline(taskFactory, args)
         except Exception as exc:
             print("Failed to build pipeline: {}".format(exc), file=sys.stderr)
             raise
-
-        if args.save_pipeline:
-            with open(args.save_pipeline, "wb") as pickleFile:
-                pickle.dump(pipeline, pickleFile)
-
-        if args.pipeline_dot:
-            pipeline2dot(pipeline, args.pipeline_dot, self.taskFactory)
 
         if args.subcommand == "build":
             # stop here but process --show option first
             self.showInfo(args.show, pipeline, None)
             return 0
 
-        if args.qgraph:
-            with open(args.qgraph, 'rb') as pickleFile:
-                qgraph = pickle.load(pickleFile)
-            # TODO: pipeline is ignored in this case, make sure that user
-            # does not specify any pipeline-related options
-        else:
-
-            # build collection names
-            inputs = args.input.copy()
-            defaultInputs = inputs.pop("", None)
-            outputs = args.output.copy()
-            defaultOutputs = outputs.pop("", None)
-
-            # Make butler instance. From this Butler we only need Registry
-            # instance. Input/output collections are handled by pre-flight
-            # and we don't want to be constrained here by Butler's restrictions
-            # on collection names.
-            collection = defaultInputs[0] if defaultInputs else None
-            butler = Butler(config=args.butler_config, collection=collection)
-
-            # if default input collections are not given on command line then
-            # use one from Butler (has to be configured in butler config)
-            if not defaultInputs:
-                defaultInputs = [butler.collection]
-            coll = DatasetOriginInfoDef(defaultInputs=defaultInputs,
-                                        defaultOutput=defaultOutputs,
-                                        inputOverrides=inputs,
-                                        outputOverrides=outputs)
-
-            # make execution plan (a.k.a. DAG) for pipeline
-            graphBuilder = GraphBuilder(self.taskFactory, butler.registry, args.skip_existing)
-            qgraph = graphBuilder.makeGraph(pipeline, coll, args.data_query)
-
-        if args.save_qgraph:
-            with open(args.save_qgraph, "wb") as pickleFile:
-                pickle.dump(qgraph, pickleFile)
-
-        if args.qgraph_dot:
-            graph2dot(qgraph, args.qgraph_dot)
+        # make quantum graph
+        try:
+            qgraph = self.makeGraph(pipeline, taskFactory, args)
+        except Exception as exc:
+            print("Failed to build graph: {}".format(exc), file=sys.stderr)
+            raise
 
         # optionally dump some info
         self.showInfo(args.show, pipeline, qgraph)
@@ -177,19 +137,7 @@ class CmdLineFwk:
 
         # execute
         if args.subcommand == "run":
-
-            # If output collections are given then use them to override
-            # butler-configured ones.
-            run = args.output.get("", None)
-
-            # make butler instance
-            butler = Butler(config=args.butler_config, run=run)
-
-            # at this point we require that output collection was defined
-            if not butler.run:
-                raise ValueError("no output collection defined in data butler")
-
-            return self.runPipeline(qgraph, butler, args)
+            return self.runPipeline(qgraph, taskFactory, args)
 
     @staticmethod
     def configLog(longlog, logLevels):
@@ -224,11 +172,12 @@ class CmdLineFwk:
         lgr.setLevel(logging.DEBUG)
         lgr.addHandler(lsst.log.LogHandler())
 
-    def doList(self, show, show_headers):
+    def doList(self, taskLoader, show, show_headers):
         """Implementation of the "list" command.
 
         Parameters
         ----------
+        taskLoader : `TaskLoader`
         show : `list` of `str`
             List of items to show.
         show_headers : `bool`
@@ -243,12 +192,12 @@ class CmdLineFwk:
                 print()
                 print("Modules search path")
                 print("-------------------")
-            for pkg in sorted(self.taskLoader.packages):
+            for pkg in sorted(taskLoader.packages):
                 print(pkg)
 
         if "modules" in show:
             try:
-                modules = self.taskLoader.modules()
+                modules = taskLoader.modules()
             except ImportError as exc:
                 print("Failed to import package, check --package option or $PYTHONPATH:", exc,
                       file=sys.stderr)
@@ -262,7 +211,7 @@ class CmdLineFwk:
 
         if "tasks" in show or "super-tasks" in show:
             try:
-                tasks = self.taskLoader.tasks()
+                tasks = taskLoader.tasks()
             except ImportError as exc:
                 print("Failed to import package, check --packages option or PYTHONPATH:", exc,
                       file=sys.stderr)
@@ -280,10 +229,12 @@ class CmdLineFwk:
             util.printTable(tasks, headers)
 
     def makePipeline(self, taskFactory, args):
-        """Build a pipeline from command line arguments
+        """Build a pipeline from command line arguments.
 
         Parameters
         ----------
+        taskFactory : `~lsst.pipe.base.TaskFactory`
+            Task factory.
         args : `argparse.Namespace`
             Parsed command line
 
@@ -291,8 +242,13 @@ class CmdLineFwk:
         -------
         pipeline : `~lsst.pipe.base.Pipeline`
         """
+        # read existing pipeline from pickle file
+        pipeline = None
+        if args.pipeline:
+            with open(args.pipeline, 'rb') as pickleFile:
+                pipeline = pickle.load(pickleFile)
 
-        pipeBuilder = PipelineBuilder(self.taskFactory)
+        pipeBuilder = PipelineBuilder(taskFactory, pipeline)
 
         # loop over all pipeline actions and apply them in order
         for action in args.pipeline_actions:
@@ -329,22 +285,108 @@ class CmdLineFwk:
 
                 raise ValueError(f"Unexpected pipeline action: {action.action}")
 
-        return pipeBuilder.pipeline(args.order_pipeline)
+        pipeline = pipeBuilder.pipeline(args.order_pipeline)
 
-    def runPipeline(self, graph, butler, args):
+        if args.save_pipeline:
+            with open(args.save_pipeline, "wb") as pickleFile:
+                pickle.dump(pipeline, pickleFile)
+
+        if args.pipeline_dot:
+            pipeline2dot(pipeline, args.pipeline_dot, taskFactory)
+
+        return pipeline
+
+    def makeGraph(self, pipeline, taskFactory, args):
+        """Build a graph from command line arguments.
+
+        Parameters
+        ----------
+        pipeline : `~lsst.pipe.base.Pipeline`
+            Pipeline, can be empty or ``None`` if graph is read from pickle
+            file.
+        taskFactory : `~lsst.pipe.base.TaskFactory`
+            Task factory.
+        args : `argparse.Namespace`
+            Parsed command line
+
+        Returns
+        -------
+        graph : `~lsst.pipe.base.QuantumGraph`
+        """
+        if args.qgraph:
+
+            with open(args.qgraph, 'rb') as pickleFile:
+                qgraph = pickle.load(pickleFile)
+
+            # pipeline cann not be provided in this case
+            if pipeline:
+                raise ValueError("Pipeline must not be given when quantum graph is read from file.")
+
+        else:
+
+            if not pipeline:
+                raise ValueError("Pipeline must be given for quantum graph construction.")
+
+            # build collection names
+            inputs = args.input.copy()
+            defaultInputs = inputs.pop("", None)
+            outputs = args.output.copy()
+            defaultOutputs = outputs.pop("", None)
+
+            # Make butler instance. From this Butler we only need Registry
+            # instance. Input/output collections are handled by pre-flight
+            # and we don't want to be constrained here by Butler's restrictions
+            # on collection names.
+            collection = defaultInputs[0] if defaultInputs else None
+            butler = Butler(config=args.butler_config, collection=collection)
+
+            # if default input collections are not given on command line then
+            # use one from Butler (has to be configured in butler config)
+            if not defaultInputs:
+                defaultInputs = [butler.collection]
+            coll = DatasetOriginInfoDef(defaultInputs=defaultInputs,
+                                        defaultOutput=defaultOutputs,
+                                        inputOverrides=inputs,
+                                        outputOverrides=outputs)
+
+            # make execution plan (a.k.a. DAG) for pipeline
+            graphBuilder = GraphBuilder(taskFactory, butler.registry, args.skip_existing)
+            qgraph = graphBuilder.makeGraph(pipeline, coll, args.data_query)
+
+        if args.save_qgraph:
+            with open(args.save_qgraph, "wb") as pickleFile:
+                pickle.dump(qgraph, pickleFile)
+
+        if args.qgraph_dot:
+            graph2dot(qgraph, args.qgraph_dot)
+
+        return qgraph
+
+    def runPipeline(self, graph, taskFactory, args):
         """Execute complete QuantumGraph.
 
         Parameters
         ----------
         graph : `QuantumGraph`
             Execution graph.
-        butler : `Butler`
-            data butler instance
+        taskFactory : `~lsst.pipe.base.TaskFactory`
+            Task factory.
         args : `argparse.Namespace`
             Parsed command line
         """
+        # If default output collection is given then use it to override
+        # butler-configured one.
+        run = args.output.get("", None)
+
+        # make butler instance
+        butler = Butler(config=args.butler_config, run=run)
+
+        # at this point we require that output collection was defined
+        if not butler.run:
+            raise ValueError("no output collection defined in data butler")
+
         executor = MPGraphExecutor(numProc=args.processes, timeout=self.MP_TIMEOUT)
-        executor.execute(graph, butler, self.taskFactory,
+        executor.execute(graph, butler, taskFactory,
                          registerDatasetTypes=args.register_dataset_types,
                          saveInitOutputs=not args.skip_init_writes,
                          updateOutputCollection=True,
