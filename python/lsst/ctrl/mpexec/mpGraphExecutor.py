@@ -58,12 +58,12 @@ class MPGraphExecutor(QuantumGraphExecutor):
         self.numProc = numProc
         self.timeout = timeout
 
-    def executeQuanta(self, iterable, butler, taskFactory):
-        # Docstring inherited from QuantumGraphExecutor.executeQuanta
+    def execute(self, graph, butler, taskFactory):
+        # Docstring inherited from QuantumGraphExecutor.execute
         if self.numProc > 1:
-            self._executeQuantaMP(iterable, butler, taskFactory)
+            self._executeQuantaMP(graph.traverse(), butler, taskFactory)
         else:
-            self._executeQuantaInProcess(iterable, butler, taskFactory)
+            self._executeQuantaInProcess(graph.traverse(), butler, taskFactory)
 
     def _executeQuantaInProcess(self, iterable, butler, taskFactory):
         """Execute all Quanta in current process.

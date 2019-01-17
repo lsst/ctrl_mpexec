@@ -23,6 +23,7 @@ from .cmdLineFwk import *
 from .cmdLineParser import *
 from .dotTools import *
 from .mpGraphExecutor import *
+from .preExecInit import *
 from .quantumGraphExecutor import *
 from .singleQuantumExecutor import *
 from .taskFactory import *

@@ -43,6 +43,7 @@ from lsst.pipe.base import GraphBuilder, PipelineBuilder
 from .cmdLineParser import makeParser
 from .dotTools import graph2dot, pipeline2dot
 from .mpGraphExecutor import MPGraphExecutor
+from .preExecInit import PreExecInit
 from .taskFactory import TaskFactory
 from .taskLoader import (TaskLoader, KIND_PIPELINETASK)
 from . import util
@@ -385,12 +386,14 @@ class CmdLineFwk:
         if not butler.run:
             raise ValueError("no output collection defined in data butler")
 
+        preExecInit = PreExecInit(butler)
+        preExecInit.initialize(graph, taskFactory,
+                               registerDatasetTypes=args.register_dataset_types,
+                               saveInitOutputs=not args.skip_init_writes,
+                               updateOutputCollection=True)
+
         executor = MPGraphExecutor(numProc=args.processes, timeout=self.MP_TIMEOUT)
-        executor.execute(graph, butler, taskFactory,
-                         registerDatasetTypes=args.register_dataset_types,
-                         saveInitOutputs=not args.skip_init_writes,
-                         updateOutputCollection=True,
-                         initOnly=args.init_only)
+        executor.execute(graph, butler, taskFactory)
 
     def showInfo(self, showOpts, pipeline, graph):
         """Display useful info about pipeline and environment.
