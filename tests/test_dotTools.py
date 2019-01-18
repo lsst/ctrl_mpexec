@@ -26,6 +26,7 @@ from collections import namedtuple
 import io
 import unittest
 
+from lsst.daf.butler import DimensionNameSet
 from lsst.pipe.base import (PipelineTask, PipelineTaskConfig,
                             InputDatasetField, OutputDatasetField,
                             DatasetTypeDescriptor, Pipeline, TaskDef)
@@ -40,7 +41,7 @@ DS = namedtuple("DS", "name dimensions")
 # should come from some other module but we have not defined that yet, so I
 # stick a trivial (mock) implementation here.
 def makeDatasetTypeDescr(dsConfig):
-    datasetType = DS(name=dsConfig.name, dimensions=dsConfig.dimensions)
+    datasetType = DS(name=dsConfig.name, dimensions=DimensionNameSet(dsConfig.dimensions))
     return DatasetTypeDescriptor(datasetType, scalar=False)
 
 
