@@ -42,7 +42,7 @@ DS = namedtuple("DS", "name dimensions")
 # stick a trivial (mock) implementation here.
 def makeDatasetTypeDescr(dsConfig):
     datasetType = DS(name=dsConfig.name, dimensions=DimensionNameSet(dsConfig.dimensions))
-    return DatasetTypeDescriptor(datasetType, scalar=False)
+    return DatasetTypeDescriptor(datasetType, scalar=False, manualLoad=False)
 
 
 class ExamplePipelineTaskConfig(PipelineTaskConfig):
