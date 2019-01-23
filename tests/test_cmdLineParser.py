@@ -229,17 +229,17 @@ class CmdLineParserTestCase(unittest.TestCase):
         args = parser.parse_args("list -t".split())
         self.assertEqual(args.show, ["tasks"])
 
-        args = parser.parse_args("list -s".split())
-        self.assertEqual(args.show, ["super-tasks"])
+        args = parser.parse_args("list -l".split())
+        self.assertEqual(args.show, ["pipeline-tasks"])
 
-        args = parser.parse_args("list -s --super-tasks".split())
-        self.assertEqual(args.show, ["super-tasks", "super-tasks"])
+        args = parser.parse_args("list -l --pipeline-tasks".split())
+        self.assertEqual(args.show, ["pipeline-tasks", "pipeline-tasks"])
 
         args = parser.parse_args("list --packages --modules".split())
         self.assertEqual(args.show, ["packages", "modules"])
 
-        args = parser.parse_args("list --super-tasks --tasks".split())
-        self.assertEqual(args.show, ["super-tasks", "tasks"])
+        args = parser.parse_args("list --pipeline-tasks --tasks".split())
+        self.assertEqual(args.show, ["pipeline-tasks", "tasks"])
 
     def testCmdLineTasks(self):
 

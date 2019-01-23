@@ -336,7 +336,7 @@ def makeParser(fromfile_prefix_chars='@', parser_class=ArgumentParser, **kwargs)
     subparser = subparsers.add_parser("list",
                                       usage="%(prog)s [options]",
                                       description="Display information about tasks and where they are "
-                                      "found. If none of the options are specified then --super-tasks "
+                                      "found. If none of the options are specified then --pipeline-tasks "
                                       "is used by default")
     subparser.set_defaults(subparser=subparser)
     subparser.add_argument("-p", "--packages", dest="show", action="append_const", const="packages",
@@ -346,8 +346,10 @@ def makeParser(fromfile_prefix_chars='@', parser_class=ArgumentParser, **kwargs)
     subparser.add_argument("-t", "--tasks", dest="show", action="append_const", const="tasks",
                            help="Shows list of all tasks (any sub-class of Task) existing"
                            " in current list of packages")
-    subparser.add_argument("-s", "--super-tasks", dest="show", action="append_const", const="super-tasks",
-                           help="(default) Shows list of all super-tasks existing in current set of packages")
+    subparser.add_argument("-l", "--pipeline-tasks", dest="show", action="append_const",
+                           const="pipeline-tasks",
+                           help=("(default) Shows list of all PipelineTasks existing in current set"
+                                 " of packages"))
     subparser.add_argument("--no-headers", dest="show_headers", action="store_false", default=True,
                            help="Do not display any headers on output")
 
