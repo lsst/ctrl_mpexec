@@ -139,7 +139,7 @@ class MPGraphExecutor(QuantumGraphExecutor):
 
     @staticmethod
     def _executePipelineTask(taskClass, config, quantum, butler, taskFactory):
-        """Execute super-task on a single data item.
+        """Execute PipelineTask on a single data item.
 
         Parameters
         ----------

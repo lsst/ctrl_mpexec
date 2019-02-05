@@ -151,8 +151,8 @@ class TaskLoader:
                     try:
                         _LOG.debug("importing module %r", module_name)
                         mod = importlib.import_module(module_name)
-                    except ImportError as exc:
-                        _LOG.debug("import failed: %s", exc)
+                    except Exception as exc:
+                        _LOG.warn("import of module %s failed: %s", module_name, exc)
                     else:
                         for name, obj in vars(mod).items():
                             if inspect.isclass(obj) and inspect.getmodule(obj) is mod:
@@ -193,14 +193,10 @@ class TaskLoader:
         `ImportError` is raised when task class cannot be imported.
         """
         _LOG.debug("load_task_class: will look for %r", task_class_name)
-        dot = task_class_name.rfind('.')
-        if dot > 0:
-
+        module_name, dot, class_name = task_class_name.rpartition('.')
+        if dot:
             # name is package.module.Class or module.Class, either absolute
             # or relative to package list
-            module_name = task_class_name[:dot]
-            class_name = task_class_name[dot + 1:]
-
             for package in [None] + self._packages:
 
                 full_module_name = module_name
@@ -209,10 +205,17 @@ class TaskLoader:
 
                 try:
                     _LOG.debug("load_task_class: try module %r", full_module_name)
-                    module = importlib.import_module(full_module_name)
-                    _LOG.debug("load_task_class: imported %r", full_module_name)
-                except ImportError:
-                    pass
+                    spec = importlib.util.find_spec(full_module_name)
+                    if not spec:
+                        # does not exist
+                        _LOG.debug("load_task_class: module %r does not exist", full_module_name)
+                        continue
+                    else:
+                        module = importlib.util.module_from_spec(spec)
+                        spec.loader.exec_module(module)
+                        _LOG.debug("load_task_class: imported %r", full_module_name)
+                except Exception as exc:
+                    raise ImportError(f"Import of module {module_name} failed") from exc
                 else:
                     # get Class from module, if not there try other options
                     klass = getattr(module, class_name, None)
@@ -222,9 +225,15 @@ class TaskLoader:
                                    class_name, full_module_name, kind)
                         if kind is not None:
                             return (klass, full_module_name + '.' + class_name, kind)
+                        else:
+                            raise ImportError(f"Class {full_module_name}.{class_name} is not Task subclass")
                     else:
                         _LOG.debug("load_task_class: no class %r in module %r",
                                    class_name, full_module_name)
+                        raise ImportError(f"Class {class_name} is not found in module {full_module_name}")
+
+            # if we are here then module is not found
+            raise ImportError(f"Module {module_name} is not found in known packages {self._packages}")
 
         else:
 
@@ -238,10 +247,12 @@ class TaskLoader:
                     # classes should not live in packages
                     if not ispkg:
                         try:
+                            # no need to check that module exists, just import it and handle any errors
                             _LOG.debug("load_task_class: importing module %r", module_name)
                             mod = importlib.import_module(module_name)
-                        except ImportError as exc:
-                            _LOG.debug("load_task_class: import failed: %s", exc)
+                        except Exception as exc:
+                            # give a warning in case module has errors
+                            _LOG.warn("import of module %s failed: %s", module_name, exc)
                         else:
                             obj = getattr(mod, task_class_name, None)
                             if inspect.isclass(obj) and inspect.getmodule(obj) is mod:
@@ -250,5 +261,9 @@ class TaskLoader:
                                            task_class_name, kind)
                                 if kind is not None:
                                     return (obj, module_name + '.' + task_class_name, kind)
+                                else:
+                                    # class is found but it's not a Task
+                                    raise ImportError(f"Class {module_name}.{class_name} "
+                                                      "is not Task subclass")
 
-        raise ImportError('Cannot find class named "' + task_class_name + '" in known packages')
+            raise ImportError(f"Class {task_class_name} is not found in known packages {self._packages}")

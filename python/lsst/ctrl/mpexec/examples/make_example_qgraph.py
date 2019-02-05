@@ -18,7 +18,7 @@ import sys
 # -----------------------------
 from lsst.daf.butler import DatasetRef, Quantum, Run
 from lsst.pipe.base import DatasetTypeDescriptor
-from lsst.pipe.base import Pipeline, QuantumGraph, QuantumGraphNodes, TaskDef
+from lsst.pipe.base import Pipeline, QuantumGraph, QuantumGraphTaskNodes, TaskDef
 from lsst.pipe.base.pipeTools import orderPipeline
 from lsst.ctrl.mpexec.dotTools import graph2dot, pipeline2dot
 from lsst.ctrl.mpexec.examples import test1task, test2task
@@ -108,7 +108,7 @@ def main():
             quantum.addPredictedInput(_makeDSRefVisit(dstype0, visit))
             quantum.addOutput(_makeDSRefVisit(dstype1, visit))
             quanta.append(quantum)
-        step1nodes = QuantumGraphNodes(step1, quanta)
+        step1nodes = QuantumGraphTaskNodes(step1, quanta)
 
         # quanta for second step which is 1-to-1 tasks
         quanta = []
@@ -117,7 +117,7 @@ def main():
             quantum.addPredictedInput(_makeDSRefVisit(dstype1, visit))
             quantum.addOutput(_makeDSRefVisit(dstype2, visit))
             quanta.append(quantum)
-        step2nodes = QuantumGraphNodes(step2, quanta)
+        step2nodes = QuantumGraphTaskNodes(step2, quanta)
 
         # quanta for third step which is M-to-N
         patch2visits = (
@@ -133,7 +133,7 @@ def main():
                 quantum.addPredictedInput(_makeDSRefVisit(dstype2, visit))
             quantum.addOutput(_makeDSRefPatch(dstype3, tract, patch))
             quanta.append(quantum)
-        step3nodes = QuantumGraphNodes(step3, quanta)
+        step3nodes = QuantumGraphTaskNodes(step3, quanta)
 
         qgraph = QuantumGraph([step1nodes, step2nodes, step3nodes])
 

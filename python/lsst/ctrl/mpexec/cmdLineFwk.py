@@ -186,7 +186,7 @@ class CmdLineFwk:
         """
 
         if not show:
-            show = ["super-tasks"]
+            show = ["pipeline-tasks"]
 
         if "packages" in show:
             if show_headers:
@@ -210,7 +210,7 @@ class CmdLineFwk:
                 headers = ("Module or package name", "Type    ")
             util.printTable(modules, headers)
 
-        if "tasks" in show or "super-tasks" in show:
+        if "tasks" in show or "pipeline-tasks" in show:
             try:
                 tasks = taskLoader.tasks()
             except ImportError as exc:
@@ -219,7 +219,7 @@ class CmdLineFwk:
                 return 2
 
             if "tasks" not in show:
-                # only show super-tasks
+                # only show pipeline-tasks
                 tasks = [(name, kind) for name, kind in tasks if kind == KIND_PIPELINETASK]
             tasks.sort()
 

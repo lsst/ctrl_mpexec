@@ -33,7 +33,7 @@ _LOG = logging.getLogger(__name__.partition(".")[2])
 
 
 class TaskFactory(BaseTaskFactory):
-    """Class instantiating super-tasks.
+    """Class instantiating PipelineTasks.
 
     Parameters
     ----------
