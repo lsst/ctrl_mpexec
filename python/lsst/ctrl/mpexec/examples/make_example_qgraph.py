@@ -145,18 +145,18 @@ def main():
 
 
 def _makeDSRefVisit(dstype, visitId):
-        return DatasetRef(datasetType=dstype,
-                          dataId=dict(Instrument="X",
-                                      Visit=visitId,
-                                      physical_filter='f',
-                                      abstract_filter='f'))
+    return DatasetRef(datasetType=dstype,
+                      dataId=dict(Instrument="X",
+                                  Visit=visitId,
+                                  physical_filter='f',
+                                  abstract_filter='f'))
 
 
 def _makeDSRefPatch(dstype, tractId, patchId):
-        return DatasetRef(datasetType=dstype,
-                          dataId=dict(skymap=1,
-                                      tract=tractId,
-                                      patch=patchId))
+    return DatasetRef(datasetType=dstype,
+                      dataId=dict(skymap=1,
+                                  tract=tractId,
+                                  patch=patchId))
 
 
 def _makeStep1TaskDef():
