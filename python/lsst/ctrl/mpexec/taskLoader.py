@@ -211,8 +211,9 @@ class TaskLoader:
                         _LOG.debug("load_task_class: module %r does not exist", full_module_name)
                         continue
                     else:
-                        module = importlib.util.module_from_spec(spec)
-                        spec.loader.exec_module(module)
+                        # NOTE: importlib.util.module_from_spec has some issues with pickle,
+                        # do not use it.
+                        module = importlib.import_module(full_module_name)
                         _LOG.debug("load_task_class: imported %r", full_module_name)
                 except Exception as exc:
                     raise ImportError(f"Import of module {module_name} failed") from exc
