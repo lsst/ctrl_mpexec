@@ -161,6 +161,11 @@ class CmdLineFwk:
         # global logging config
         lsst.log.configure_prop(_LOG_PROP.format(message_fmt))
 
+        # Forward all Python logging to lsst.log
+        lgr = logging.getLogger()
+        lgr.setLevel(logging.INFO)  # same as in log4cxx config above
+        lgr.addHandler(lsst.log.LogHandler())
+
         # configure individual loggers
         for component, level in logLevels:
             level = getattr(lsst.log.Log, level.upper(), None)
@@ -168,10 +173,10 @@ class CmdLineFwk:
                 logger = lsst.log.Log.getLogger(component or "")
                 logger.setLevel(level)
 
-        # Forward all Python logging to lsst.log
-        lgr = logging.getLogger()
-        lgr.setLevel(logging.DEBUG)
-        lgr.addHandler(lsst.log.LogHandler())
+                # Python logging levels are same as lsst.log divided by 1000,
+                # logging does not have TRACE level by default but it is OK to use
+                # that numeric level and we may even add TRACE later.
+                logging.getLogger(component).setLevel(level//1000)
 
     def doList(self, taskLoader, show, show_headers):
         """Implementation of the "list" command.
