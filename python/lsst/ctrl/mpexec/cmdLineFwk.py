@@ -170,13 +170,12 @@ class CmdLineFwk:
         for component, level in logLevels:
             level = getattr(lsst.log.Log, level.upper(), None)
             if level is not None:
+                # set logging level for lsst.log
                 logger = lsst.log.Log.getLogger(component or "")
                 logger.setLevel(level)
-
-                # Python logging levels are same as lsst.log divided by 1000,
-                # logging does not have TRACE level by default but it is OK to use
-                # that numeric level and we may even add TRACE later.
-                logging.getLogger(component).setLevel(level//1000)
+                # set logging level for Python logging
+                pyLevel = lsst.log.LevelTranslator.lsstLog2logging(level)
+                logging.getLogger(component).setLevel(pyLevel)
 
     def doList(self, taskLoader, show, show_headers):
         """Implementation of the "list" command.
