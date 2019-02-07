@@ -161,17 +161,21 @@ class CmdLineFwk:
         # global logging config
         lsst.log.configure_prop(_LOG_PROP.format(message_fmt))
 
+        # Forward all Python logging to lsst.log
+        lgr = logging.getLogger()
+        lgr.setLevel(logging.INFO)  # same as in log4cxx config above
+        lgr.addHandler(lsst.log.LogHandler())
+
         # configure individual loggers
         for component, level in logLevels:
             level = getattr(lsst.log.Log, level.upper(), None)
             if level is not None:
+                # set logging level for lsst.log
                 logger = lsst.log.Log.getLogger(component or "")
                 logger.setLevel(level)
-
-        # Forward all Python logging to lsst.log
-        lgr = logging.getLogger()
-        lgr.setLevel(logging.DEBUG)
-        lgr.addHandler(lsst.log.LogHandler())
+                # set logging level for Python logging
+                pyLevel = lsst.log.LevelTranslator.lsstLog2logging(level)
+                logging.getLogger(component).setLevel(pyLevel)
 
     def doList(self, taskLoader, show, show_headers):
         """Implementation of the "list" command.
