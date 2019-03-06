@@ -115,13 +115,13 @@ class MPGraphExecutor(QuantumGraphExecutor):
                 raise MPGraphExecutorError(f"Task {taskDef.taskName} does not support multiprocessing;"
                                            " use single process")
 
-            # Wait for all pre-reqs
-            for preReq in qdata.prerequisites:
+            # Wait for all dependencies
+            for dep in qdata.dependencies:
                 # Wait for max. timeout for this result to be ready.
                 # This can raise on timeout or if remote call raises.
-                _LOG.debug("Check pre-req %s for %s", preReq, qdata)
-                results[preReq].get(self.timeout)
-                _LOG.debug("Result %s is ready", preReq)
+                _LOG.debug("Check dependency %s for %s", dep, qdata)
+                results[dep].get(self.timeout)
+                _LOG.debug("Result %s is ready", dep)
 
             # Add it to the pool and remember its result
             _LOG.debug("Sumbitting %s", qdata)
