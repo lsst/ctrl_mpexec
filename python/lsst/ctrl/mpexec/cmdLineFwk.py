@@ -40,7 +40,7 @@ import sys
 from lsst.daf.butler import Butler, DatasetOriginInfoDef
 import lsst.log
 import lsst.pex.config as pexConfig
-from lsst.pipe.base import GraphBuilder, PipelineBuilder
+from lsst.pipe.base import GraphBuilder, PipelineBuilder, Pipeline, QuantumGraph
 from .cmdLineParser import makeParser
 from .dotTools import graph2dot, pipeline2dot
 from .mpGraphExecutor import MPGraphExecutor
@@ -253,6 +253,9 @@ class CmdLineFwk:
         if args.pipeline:
             with open(args.pipeline, 'rb') as pickleFile:
                 pipeline = pickle.load(pickleFile)
+                if not isinstance(pipeline, Pipeline):
+                    raise TypeError("Pipeline pickle file has incorrect object type: {}".format(
+                        type(pipeline)))
 
         pipeBuilder = PipelineBuilder(taskFactory, pipeline)
 
@@ -323,8 +326,11 @@ class CmdLineFwk:
 
             with open(args.qgraph, 'rb') as pickleFile:
                 qgraph = pickle.load(pickleFile)
+                if not isinstance(qgraph, QuantumGraph):
+                    raise TypeError("QuantumGraph pickle file has incorrect object type: {}".format(
+                        type(qgraph)))
 
-            # pipeline cann not be provided in this case
+            # pipeline can not be provided in this case
             if pipeline:
                 raise ValueError("Pipeline must not be given when quantum graph is read from file.")
 
