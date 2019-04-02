@@ -27,7 +27,6 @@ __all__ = ['CmdLineFwk']
 # -------------------------------
 #  Imports of standard modules --
 # -------------------------------
-import contextlib
 import fnmatch
 import logging
 import pickle
@@ -391,20 +390,21 @@ class CmdLineFwk:
         run = args.output.get("", None)
 
         # make butler instance
-        with contextlib.closing(Butler(config=args.butler_config, run=run)) as butler:
-            # at this point we require that output collection was defined
-            if not butler.run:
-                raise ValueError("no output collection defined in data butler")
+        butler = Butler(config=args.butler_config, run=run)
 
-            preExecInit = PreExecInit(butler)
-            preExecInit.initialize(graph, taskFactory,
-                                   registerDatasetTypes=args.register_dataset_types,
-                                   saveInitOutputs=not args.skip_init_writes,
-                                   updateOutputCollection=True)
+        # at this point we require that output collection was defined
+        if not butler.run:
+            raise ValueError("no output collection defined in data butler")
 
-            if not args.init_only:
-                executor = MPGraphExecutor(numProc=args.processes, timeout=self.MP_TIMEOUT)
-                executor.execute(graph, butler, taskFactory)
+        preExecInit = PreExecInit(butler)
+        preExecInit.initialize(graph, taskFactory,
+                               registerDatasetTypes=args.register_dataset_types,
+                               saveInitOutputs=not args.skip_init_writes,
+                               updateOutputCollection=True)
+
+        if not args.init_only:
+            executor = MPGraphExecutor(numProc=args.processes, timeout=self.MP_TIMEOUT)
+            executor.execute(graph, butler, taskFactory)
 
     def showInfo(self, showOpts, pipeline, graph):
         """Display useful info about pipeline and environment.
