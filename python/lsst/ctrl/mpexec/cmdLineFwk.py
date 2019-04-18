@@ -32,6 +32,7 @@ import logging
 import pickle
 import re
 import sys
+import warnings
 
 # -----------------------------
 #  Imports for other modules --
@@ -364,6 +365,14 @@ class CmdLineFwk:
             graphBuilder = GraphBuilder(taskFactory, butler.registry, args.skip_existing)
             qgraph = graphBuilder.makeGraph(pipeline, coll, args.data_query)
 
+        # count quanta in graph and give a warning if it's empty
+        nQuanta = sum(1 for q in qgraph.quanta())
+        if nQuanta == 0:
+            warnings.warn("QuantumGraph is empty", stacklevel=2)
+        else:
+            _LOG.info("QuantumGraph contains %d quanta for %d tasks",
+                      nQuanta, len(qgraph))
+
         if args.save_qgraph:
             with open(args.save_qgraph, "wb") as pickleFile:
                 pickle.dump(qgraph, pickleFile)
@@ -424,7 +433,7 @@ class CmdLineFwk:
 
             if showCommand in ["pipeline", "config", "history", "tasks"]:
                 if not pipeline:
-                    _LOG.warn("Pipeline is required for --show=%s", showCommand)
+                    _LOG.warning("Pipeline is required for --show=%s", showCommand)
                     continue
 
             if showCommand == "pipeline":
