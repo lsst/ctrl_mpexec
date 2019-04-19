@@ -167,6 +167,9 @@ class CmdLineFwk:
         lgr.setLevel(logging.INFO)  # same as in log4cxx config above
         lgr.addHandler(lsst.log.LogHandler())
 
+        # also capture warnings and send them to logging
+        logging.captureWarnings(True)
+
         # configure individual loggers
         for component, level in logLevels:
             level = getattr(lsst.log.Log, level.upper(), None)
