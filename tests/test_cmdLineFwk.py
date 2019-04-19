@@ -191,7 +191,9 @@ class CmdLineFwkTestCase(unittest.TestCase):
             with open(tmpname, "wb") as pickleFile:
                 pickle.dump(qgraph, pickleFile)
             args = _makeArgs(qgraph=tmpname)
-            qgraph = fwk.makeGraph(None, taskFactory, args)
+            with self.assertWarnsRegex(UserWarning, "QuantumGraph is empty"):
+                # this also tests that warning is generated for empty graph
+                qgraph = fwk.makeGraph(None, taskFactory, args)
             self.assertIsInstance(qgraph, QuantumGraph)
             self.assertEqual(len(qgraph), 0)
 
