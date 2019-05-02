@@ -27,7 +27,7 @@ import io
 import unittest
 
 from lsst.daf.butler import DimensionNameSet
-from lsst.pipe.base import (PipelineTask, PipelineTaskConfig,
+from lsst.pipe.base import (PipelineTask, PipelineTaskConfig, multiplicity,
                             InputDatasetField, OutputDatasetField,
                             DatasetTypeDescriptor, Pipeline, TaskDef)
 from lsst.ctrl.mpexec.dotTools import pipeline2dot
@@ -42,7 +42,7 @@ DS = namedtuple("DS", "name dimensions")
 # stick a trivial (mock) implementation here.
 def makeDatasetTypeDescr(dsConfig):
     datasetType = DS(name=dsConfig.name, dimensions=DimensionNameSet(dsConfig.dimensions))
-    return DatasetTypeDescriptor(datasetType, scalar=False, manualLoad=False)
+    return DatasetTypeDescriptor(datasetType, manualLoad=False)
 
 
 class ExamplePipelineTaskConfig(PipelineTaskConfig):
@@ -108,6 +108,15 @@ class ExamplePipelineTask(PipelineTask):
         if config.output2.name:
             types["output2"] = makeDatasetTypeDescr(config.output2)
         return types
+
+    @classmethod
+    def getDatasetTypeMultiplicities(cls, config):
+        result = dict(input1=multiplicity.Multiple(),
+                      output2=multiplicity.Mulitple())
+        if config.input2.name:
+            result.update(input2=multiplicity.Multiple())
+        if config.output2.name:
+            result.update(output2=multiplicity.Multiple())
 
 
 def _makePipeline(tasks):
