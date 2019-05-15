@@ -155,7 +155,7 @@ class CmdLineFwk:
             logger, `level` is a logging level name ('DEBUG', 'INFO', etc.)
         """
         if longlog:
-            message_fmt = "%-5p %d{yyyy-MM-ddThh:mm:ss.sss} %c (%X{LABEL})(%F:%L)- %m%n"
+            message_fmt = "%-5p %d{yyyy-MM-ddTHH:mm:ss.SSSZ} %c (%X{LABEL})(%F:%L)- %m%n"
         else:
             message_fmt = "%c %p: %m%n"
 
