@@ -180,4 +180,4 @@ class PreExecInit:
             initOutputDatasetTypes = task.getInitOutputDatasetTypes(task.config)
             for key, obj in initOutputs.items():
                 _LOG.debug("Saving InitOutputs for task=%s key=%s", task, key)
-                self.butler.put(obj, initOutputDatasetTypes[key].datasetType, {})
+                self.butler.put(obj, initOutputDatasetTypes[key].name, {})

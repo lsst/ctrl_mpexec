@@ -32,6 +32,7 @@ __all__ = ["graph2dot", "pipeline2dot"]
 # -----------------------------
 #  Imports for other modules --
 # -----------------------------
+from lsst.daf.butler import DimensionUniverse
 
 # ----------------------------------
 #  Local non-exported definitions --
@@ -215,6 +216,7 @@ def pipeline2dot(pipeline, file, taskFactory=None):
     `MissingTaskFactoryError` is raised when TaskFactory is needed but not
     provided.
     """
+    universe = DimensionUniverse.fromConfig()
 
     # open a file if needed
     close = False
@@ -237,7 +239,7 @@ def pipeline2dot(pipeline, file, taskFactory=None):
         # task inputs
         dsMap = taskClass.getInputDatasetTypes(taskDef.config)
         for dsTypeDescr in dsMap.values():
-            dsType = dsTypeDescr.datasetType
+            dsType = dsTypeDescr.makeDatasetType(universe)
             if dsType.name not in allDatasets:
                 _renderDSTypeNode(dsType, file)
                 allDatasets.add(dsType.name)
@@ -246,7 +248,7 @@ def pipeline2dot(pipeline, file, taskFactory=None):
         # task outputs
         dsMap = taskClass.getOutputDatasetTypes(taskDef.config)
         for dsTypeDescr in dsMap.values():
-            dsType = dsTypeDescr.datasetType
+            dsType = dsTypeDescr.makeDatasetType(universe)
             if dsType.name not in allDatasets:
                 _renderDSTypeNode(dsType, file)
                 allDatasets.add(dsType.name)

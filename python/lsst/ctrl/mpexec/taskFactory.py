@@ -125,7 +125,8 @@ class TaskFactory(BaseTaskFactory):
             initInputs = None
         else:
             descriptorMap = taskClass.getInitInputDatasetTypes(config)
-            initInputs = {k: butler.get(v.datasetType) for k, v in descriptorMap.items()}
+            initInputs = {k: butler.get(v.makeDatasetType(butler.registry.dimensions))
+                          for k, v in descriptorMap.items()}
 
         # make task instance
         task = taskClass(config=config, initInputs=initInputs)
