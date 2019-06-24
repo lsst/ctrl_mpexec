@@ -69,7 +69,6 @@ class SingleQuantumExecutor:
         self.updateQuantumInputs(quantum)
         task = self.makeTask(taskClass, config)
         self.runQuantum(task, quantum)
-        self.saveQuantum(quantum, taskClass)
 
     def setupLogging(self, taskClass, config, quantum):
         """Configure logging system for execution of this task.
@@ -147,18 +146,3 @@ class SingleQuantumExecutor:
         # Call task runQuantum() method. Any exception thrown by the task
         # propagates to caller.
         task.runQuantum(quantum, self.butler)
-
-    def saveQuantum(self, quantum, taskClass):
-        """Save Quantum to Registry
-
-        Parameters
-        ----------
-        quantum : `~lsst.daf.butler.Quantum`
-            Single Quantum instance.
-        taskClass : `type`
-            Sub-class of `~lsst.pipe.base.PipelineTask`.
-        """
-        # save provenenace for current quantum
-        quantum._task = taskClass.__name__
-        quantum._run = self.butler.run
-        self.butler.registry.addQuantum(quantum)
