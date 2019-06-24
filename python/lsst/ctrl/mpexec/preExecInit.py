@@ -85,10 +85,10 @@ class PreExecInit:
             self.saveInitOutputs(graph, taskFactory)
 
     def initializeDatasetTypes(self, graph, registerDatasetTypes=False):
-        """Save or check DatasetTypes used by the tasks in a graph.
+        """Save or check DatasetTypes output by the tasks in a graph.
 
         Iterates over all DatasetTypes for all tasks in a graph and either
-        tries to add them to resgistry or compares them to exising ones.
+        tries to add them to registry or compares them to exising ones.
 
         Parameters
         ----------
@@ -126,7 +126,7 @@ class PreExecInit:
         For every Quantum in a graph make sure that its existing inputs are
         added to the Butler's output collection.
 
-        For each quantum there are input and output DataRefs. With the
+        For each quantum there are input and output DatasetRefs. With the
         current implementation of preflight output refs should not exist but
         input refs may belong to a different collection. We want all refs to
         appear in output collection, so we have to "copy" those refs.
