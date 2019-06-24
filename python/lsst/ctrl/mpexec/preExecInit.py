@@ -25,10 +25,12 @@ __all__ = ['PreExecInit']
 #  Imports of standard modules --
 # -------------------------------
 import logging
+import itertools
 
 # -----------------------------
 #  Imports for other modules --
 # -----------------------------
+from lsst.pipe.base import Pipeline, PipelineDatasetTypes
 
 _LOG = logging.getLogger(__name__.partition(".")[2])
 
@@ -107,7 +109,10 @@ class PreExecInit:
             Raised if ``registerDatasetTypes`` is ``False`` and DatasetType
             does not exist in registry.
         """
-        for datasetType in graph.getDatasetTypes():
+        pipeline = Pipeline(nodes.taskDef for nodes in graph)
+        datasetTypes = PipelineDatasetTypes.fromPipeline(pipeline, universe=self.butler.registry.dimensions)
+        for datasetType in itertools.chain(datasetTypes.initIntermediates, datasetTypes.initOutputs,
+                                           datasetTypes.intermediates, datasetTypes.outputs):
             if registerDatasetTypes:
                 _LOG.debug("Registering DatasetType %s with registry", datasetType)
                 # this is a no-op if it already exists and is consistent,
@@ -152,7 +157,7 @@ class PreExecInit:
                     # skip intermediate datasets produced by other tasks
                     if ref.id is not None:
                         id2ref[ref.id] = ref
-        for initInput in graph.initInputs:
+        for initInput in graph.initInputs.values():
             id2ref[initInput.id] = initInput
         _LOG.debug("Associating %d datasets with output collection %s",
                    len(id2ref), self.butler.run.collection)
