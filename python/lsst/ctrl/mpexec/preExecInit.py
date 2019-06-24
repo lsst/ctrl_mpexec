@@ -70,7 +70,7 @@ class PreExecInit:
             If ``True`` (default) then copy all inputs to output collection.
         """
         # register dataset types or check consistency
-        self.inititalizeDatasetTypes(graph, registerDatasetTypes)
+        self.initializeDatasetTypes(graph, registerDatasetTypes)
 
         # associate all existing datasets with output collection.
         if updateOutputCollection:
@@ -84,7 +84,7 @@ class PreExecInit:
         if saveInitOutputs:
             self.saveInitOutputs(graph, taskFactory)
 
-    def inititalizeDatasetTypes(self, graph, registerDatasetTypes=False):
+    def initializeDatasetTypes(self, graph, registerDatasetTypes=False):
         """Save or check DatasetTypes used by the tasks in a graph.
 
         Iterates over all DatasetTypes for all tasks in a graph and either
