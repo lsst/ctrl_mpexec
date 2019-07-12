@@ -126,7 +126,7 @@ class MPGraphExecutor(QuantumGraphExecutor):
             # Add it to the pool and remember its result
             _LOG.debug("Sumbitting %s", qdata)
             args = (taskDef.taskClass, taskDef.config, qdata.quantum, butler, taskFactory)
-            results[qdata.quantumId] = pool.apply_async(self._executePipelineTask, args)
+            results[qdata.index] = pool.apply_async(self._executePipelineTask, args)
 
         # Everything is submitted, wait until it's complete
         _LOG.debug("Wait for all tasks")

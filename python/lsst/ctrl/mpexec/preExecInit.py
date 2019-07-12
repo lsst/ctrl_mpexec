@@ -25,10 +25,12 @@ __all__ = ['PreExecInit']
 #  Imports of standard modules --
 # -------------------------------
 import logging
+import itertools
 
 # -----------------------------
 #  Imports for other modules --
 # -----------------------------
+from lsst.pipe.base import Pipeline, PipelineDatasetTypes
 
 _LOG = logging.getLogger(__name__.partition(".")[2])
 
@@ -70,7 +72,7 @@ class PreExecInit:
             If ``True`` (default) then copy all inputs to output collection.
         """
         # register dataset types or check consistency
-        self.inititalizeDatasetTypes(graph, registerDatasetTypes)
+        self.initializeDatasetTypes(graph, registerDatasetTypes)
 
         # associate all existing datasets with output collection.
         if updateOutputCollection:
@@ -84,11 +86,11 @@ class PreExecInit:
         if saveInitOutputs:
             self.saveInitOutputs(graph, taskFactory)
 
-    def inititalizeDatasetTypes(self, graph, registerDatasetTypes=False):
-        """Save or check DatasetTypes used by the tasks in a graph.
+    def initializeDatasetTypes(self, graph, registerDatasetTypes=False):
+        """Save or check DatasetTypes output by the tasks in a graph.
 
         Iterates over all DatasetTypes for all tasks in a graph and either
-        tries to add them to resgistry or compares them to exising ones.
+        tries to add them to registry or compares them to exising ones.
 
         Parameters
         ----------
@@ -107,7 +109,10 @@ class PreExecInit:
             Raised if ``registerDatasetTypes`` is ``False`` and DatasetType
             does not exist in registry.
         """
-        for datasetType in graph.getDatasetTypes():
+        pipeline = Pipeline(nodes.taskDef for nodes in graph)
+        datasetTypes = PipelineDatasetTypes.fromPipeline(pipeline, universe=self.butler.registry.dimensions)
+        for datasetType in itertools.chain(datasetTypes.initIntermediates, datasetTypes.initOutputs,
+                                           datasetTypes.intermediates, datasetTypes.outputs):
             if registerDatasetTypes:
                 _LOG.debug("Registering DatasetType %s with registry", datasetType)
                 # this is a no-op if it already exists and is consistent,
@@ -126,7 +131,7 @@ class PreExecInit:
         For every Quantum in a graph make sure that its existing inputs are
         added to the Butler's output collection.
 
-        For each quantum there are input and output DataRefs. With the
+        For each quantum there are input and output DatasetRefs. With the
         current implementation of preflight output refs should not exist but
         input refs may belong to a different collection. We want all refs to
         appear in output collection, so we have to "copy" those refs.
@@ -152,7 +157,7 @@ class PreExecInit:
                     # skip intermediate datasets produced by other tasks
                     if ref.id is not None:
                         id2ref[ref.id] = ref
-        for initInput in graph.initInputs:
+        for initInput in graph.initInputs.values():
             id2ref[initInput.id] = initInput
         _LOG.debug("Associating %d datasets with output collection %s",
                    len(id2ref), self.butler.run.collection)
