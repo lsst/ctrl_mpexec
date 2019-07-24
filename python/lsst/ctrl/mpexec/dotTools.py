@@ -33,6 +33,7 @@ __all__ = ["graph2dot", "pipeline2dot"]
 #  Imports for other modules --
 # -----------------------------
 from lsst.daf.butler import DimensionUniverse
+from lsst.pipe.base import iterConnections
 
 # ----------------------------------
 #  Local non-exported definitions --
@@ -233,22 +234,16 @@ def pipeline2dot(pipeline, file, taskFactory=None):
         taskNodeName = "task{}".format(idx)
         _renderTaskNode(taskNodeName, taskDef, file, idx)
 
-        # we will need task class for next operations, make sure it is loaded
-        taskClass = _loadTaskClass(taskDef, taskFactory)
-
-        # task inputs
-        dsMap = taskClass.getInputDatasetTypes(taskDef.config)
-        for dsTypeDescr in dsMap.values():
-            dsType = dsTypeDescr.makeDatasetType(universe)
+        for attr in iterConnections(taskDef.connections, 'inputs'):
+            dsType = attr.makeDatasetType(universe)
             if dsType.name not in allDatasets:
                 _renderDSTypeNode(dsType, file)
                 allDatasets.add(dsType.name)
             print("{} -> {};".format(dsType.name, taskNodeName), file=file)
 
-        # task outputs
-        dsMap = taskClass.getOutputDatasetTypes(taskDef.config)
-        for dsTypeDescr in dsMap.values():
-            dsType = dsTypeDescr.makeDatasetType(universe)
+        for name in taskDef.connections.outputs:
+            attr = getattr(taskDef.connections, name)
+            dsType = attr.makeDatasetType(universe)
             if dsType.name not in allDatasets:
                 _renderDSTypeNode(dsType, file)
                 allDatasets.add(dsType.name)

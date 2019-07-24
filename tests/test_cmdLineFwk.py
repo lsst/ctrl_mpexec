@@ -33,7 +33,8 @@ from lsst.ctrl.mpexec.cmdLineFwk import CmdLineFwk
 from lsst.ctrl.mpexec.cmdLineParser import _PipelineAction
 import lsst.pex.config as pexConfig
 from lsst.pipe.base import (Pipeline, PipelineTask, PipelineTaskConfig,
-                            QuantumGraph, TaskFactory, InitInputDatasetField)
+                            QuantumGraph, TaskFactory, PipelineTaskConnections)
+import lsst.pipe.base.connectionTypes as cT
 import lsst.utils.tests
 
 
@@ -50,15 +51,18 @@ def makeTmpFile():
         os.remove(tmpname)
 
 
-class SimpleConfig(PipelineTaskConfig):
+class SimpleConnections(PipelineTaskConnections, dimensions=(),
+                        defaultTemplates={"template": "simple"}):
+    schema = cT.InitInput(doc="Schema",
+                          name="{template}schema",
+                          storageClass="SourceCatalog")
+
+
+class SimpleConfig(PipelineTaskConfig, pipelineConnections=SimpleConnections):
     field = pexConfig.Field(dtype=str, doc="arbitrary string")
-    schema = InitInputDatasetField(doc="Schema", name="",
-                                   nameTemplate="{template}schema",
-                                   storageClass="SourceCatalog")
 
     def setDefaults(self):
         PipelineTaskConfig.setDefaults(self)
-        self.formatTemplateNames({"template": ""})
 
 
 class TaskOne(PipelineTask):

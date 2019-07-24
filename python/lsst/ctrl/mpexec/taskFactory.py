@@ -28,6 +28,7 @@ import logging
 
 from .taskLoader import KIND_PIPELINETASK
 from lsst.pipe.base import TaskFactory as BaseTaskFactory
+from lsst.daf.butler import DatasetType
 
 _LOG = logging.getLogger(__name__.partition(".")[2])
 
@@ -124,9 +125,14 @@ class TaskFactory(BaseTaskFactory):
         if butler is None:
             initInputs = None
         else:
-            descriptorMap = taskClass.getInitInputDatasetTypes(config)
-            initInputs = {k: butler.get(v.makeDatasetType(butler.registry.dimensions))
-                          for k, v in descriptorMap.items()}
+            connections = config.connections.connectionsClass(config=config)
+            descriptorMap = {}
+            for name in connections.initInputs:
+                attribute = getattr(connections, name)
+                dsType = DatasetType(attribute.name, butler.registry.dimensions.extract(set()),
+                                     attribute.storageClass)
+                descriptorMap[name] = dsType
+            initInputs = {k: butler.get(v) for k, v in descriptorMap.items()}
 
         # make task instance
         task = taskClass(config=config, initInputs=initInputs)

@@ -181,8 +181,8 @@ class PreExecInit:
         for taskNodes in graph:
             taskDef = taskNodes.taskDef
             task = taskFactory.makeTask(taskDef.taskClass, taskDef.config, None, self.butler)
-            initOutputs = task.getInitOutputDatasets()
-            initOutputDatasetTypes = task.getInitOutputDatasetTypes(task.config)
-            for key, obj in initOutputs.items():
-                _LOG.debug("Saving InitOutputs for task=%s key=%s", task, key)
-                self.butler.put(obj, initOutputDatasetTypes[key].name, {})
+            for name in taskDef.connections.initOutputs:
+                attribute = getattr(taskDef.connections, name)
+                initOutputVar = getattr(task, name)
+                _LOG.debug("Saving InitOutputs for task=%s key=%s", task, name)
+                self.butler.put(initOutputVar, attribute.name, {})

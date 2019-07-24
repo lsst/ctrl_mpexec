@@ -28,7 +28,6 @@ __all__ = ["makeParser"]
 #  Imports of standard modules --
 # -------------------------------
 from argparse import Action, ArgumentParser, RawDescriptionHelpFormatter
-import ast
 import collections
 import re
 import textwrap
@@ -94,32 +93,12 @@ class _PipelineActionType:
         return f"_PipelineActionType(action={self.action})"
 
 
-def _nameTemplatesType(value):
-    """Convert name_templates option value to a dictionary.
-    """
-    # try to parse value as python literal expression
-    parsedNamesDict = ast.literal_eval(value)
-    # expecting dict
-    if not isinstance(parsedNamesDict, dict):
-        raise TypeError(f"Unable parse --dataset-name-substitution {value} "
-                        "into a valid dict")
-    # check that all keys and values are strings
-    for key, val in parsedNamesDict.items():
-        for x in [key, val]:
-            if not isinstance(x, str):
-                raise TypeError(f"--dataset-name-substitution option {value} "
-                                "contains non-string key or value")
-    return parsedNamesDict
-
-
 _ACTION_ADD_TASK = _PipelineActionType("new_task", "(?P<value>[^:]+)(:(?P<label>.+))?")
 _ACTION_DELETE_TASK = _PipelineActionType("delete_task", "(?P<value>)(?P<label>.+)")
 _ACTION_MOVE_TASK = _PipelineActionType("move_task", r"(?P<label>.+):(?P<value>-?\d+)", int)
 _ACTION_LABEL_TASK = _PipelineActionType("relabel", "(?P<label>.+):(?P<value>.+)")
 _ACTION_CONFIG = _PipelineActionType("config", "(?P<label>.+):(?P<value>.+=.+)")
 _ACTION_CONFIG_FILE = _PipelineActionType("configfile", "(?P<label>.+):(?P<value>.+)")
-_ACTION_NAME_TEMPLATES = _PipelineActionType("name_templates", "(?P<label>[^:]+):(?P<value>.+)",
-                                             _nameTemplatesType)
 
 
 class _LogLevelAction(Action):
@@ -418,10 +397,6 @@ def makeParser(fromfile_prefix_chars='@', parser_class=ArgumentParser, **kwargs)
         subparser.add_argument("-C", "--configfile", metavar="LABEL:PATH",
                                dest="pipeline_actions", action='append', type=_ACTION_CONFIG_FILE,
                                help="Configuration override file(s), applies to a task with a given label.")
-        subparser.add_argument("--dataset-name-substitution", metavar="LABEL:VALUE",
-                               dest='pipeline_actions', action='append', type=_ACTION_NAME_TEMPLATES,
-                               help='Configuration name template values, applies to a task with a given '
-                                    'label.')
         subparser.add_argument("-o", "--order-pipeline", dest="order_pipeline",
                                default=False, action="store_true",
                                help="Order tasks in pipeline based on their data dependencies, "
