@@ -130,6 +130,11 @@ class SingleQuantumExecutor:
             for ref in refs:
                 if ref.id is None:
                     storedRef = butler.registry.find(butler.collection, ref.datasetType, ref.dataId)
+                    if storedRef is None:
+                        raise ValueError(
+                            f"Cannot find {ref.datasetType.name} with id {ref.dataId} "
+                            f"in collection {butler.collection}."
+                        )
                     ref._id = storedRef.id
                     _LOG.debug("Updated dataset ID for %s", ref)
 
