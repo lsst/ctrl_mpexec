@@ -419,7 +419,8 @@ class CmdLineFwk:
 
         if not args.init_only:
             executor = MPGraphExecutor(numProc=args.processes, timeout=self.MP_TIMEOUT)
-            executor.execute(graph, butler, taskFactory)
+            with util.profile(args.profile, _LOG):
+                executor.execute(graph, butler, taskFactory)
 
     def showInfo(self, showOpts, pipeline, graph=None):
         """Display useful info about pipeline and environment.
