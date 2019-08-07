@@ -22,13 +22,12 @@
 """Few utility methods used by the rest of a package.
 """
 
-__all__ = ["profile", "printTable", "fixPath", "filterTasks", "subTaskIter"]
+__all__ = ["profile", "printTable", "filterTasks", "subTaskIter"]
 
 # -------------------------------
 #  Imports of standard modules --
 # -------------------------------
 import contextlib
-import os
 
 # -----------------------------
 #  Imports for other modules --
@@ -99,24 +98,6 @@ def printTable(rows, header):
         print("".ljust(width, "-"), "".ljust(len(header[1]), "-"))
     for col1, col2 in rows:
         print(col1.ljust(width), col2)
-
-
-def fixPath(defName, path):
-    """!Apply environment variable as default root, if present, and abspath
-
-    @param[in] defName  name of environment variable containing default root path;
-        if the environment variable does not exist then the path is relative
-        to the current working directory
-    @param[in] path     path relative to default root path
-    @return abspath: path that has been expanded, or None if the environment variable does not exist
-        and path is None
-    """
-    defRoot = os.environ.get(defName)
-    if defRoot is None:
-        if path is None:
-            return None
-        return os.path.abspath(path)
-    return os.path.abspath(os.path.join(defRoot, path or ""))
 
 
 def filterTasks(pipeline, name):
