@@ -388,7 +388,7 @@ class CmdLineFwk:
 
         return qgraph
 
-    def runPipeline(self, graph, taskFactory, args):
+    def runPipeline(self, graph, taskFactory, args, butler=None):
         """Execute complete QuantumGraph.
 
         Parameters
@@ -399,13 +399,17 @@ class CmdLineFwk:
             Task factory.
         args : `argparse.Namespace`
             Parsed command line
+        butler : `~lsst.daf.butler.Butler`, optional
+            Data Butler instance, if not defined then new instance is made
+            using command line options.
         """
         # If default output collection is given then use it to override
         # butler-configured one.
         run = args.output.get("", None)
 
         # make butler instance
-        butler = Butler(config=args.butler_config, run=run)
+        if butler is None:
+            butler = Butler(config=args.butler_config, run=run)
 
         # at this point we require that output collection was defined
         if not butler.run:

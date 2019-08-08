@@ -24,8 +24,9 @@
 
 import argparse
 import contextlib
-import pickle
+import logging
 import os
+import pickle
 import tempfile
 import unittest
 
@@ -34,10 +35,14 @@ from lsst.ctrl.mpexec.cmdLineParser import _PipelineAction
 from lsst.daf.butler import Quantum
 import lsst.pex.config as pexConfig
 from lsst.pipe.base import (Pipeline, PipelineTask, PipelineTaskConfig,
-                            QuantumGraph, QuantumGraphTaskNodes, TaskDef,
-                            TaskFactory, PipelineTaskConnections)
+                            QuantumGraph, QuantumGraphTaskNodes,
+                            TaskDef, TaskFactory, PipelineTaskConnections)
 import lsst.pipe.base.connectionTypes as cT
 import lsst.utils.tests
+from testUtil import (AddTask, AddTaskFactoryMock, makeSimpleQGraph)
+
+
+logging.basicConfig(level=logging.INFO)
 
 
 @contextlib.contextmanager
@@ -122,6 +127,12 @@ def _makeArgs(pipeline=None, qgraph=None, pipeline_actions=(), order_pipeline=Fa
     args.save_qgraph = save_qgraph
     args.pipeline_dot = pipeline_dot
     args.qgraph_dot = qgraph_dot
+    args.output = {}
+    args.register_dataset_types = False
+    args.skip_init_writes = False
+    args.init_only = False
+    args.processes = 1
+    args.profile = None
     return args
 
 
@@ -234,6 +245,24 @@ class CmdLineFwkTestCase(unittest.TestCase):
                 # this also tests that warning is generated for empty graph
                 qgraph = fwk.makeGraph(None, taskFactory, args)
             self.assertIs(qgraph, None)
+
+    def testSimpleQGraph(self):
+
+        nQuanta = 5
+        butler, qgraph = makeSimpleQGraph(nQuanta)
+
+        # should have one task and number of quanta
+        self.assertEqual(len(qgraph), 1)
+        self.assertEqual(len(list(qgraph.quanta())), nQuanta)
+
+        args = _makeArgs()
+        fwk = CmdLineFwk()
+        taskFactory = AddTaskFactoryMock()
+
+        # run whole thing
+        AddTask.countExec = 0
+        fwk.runPipeline(qgraph, taskFactory, args, butler=butler)
+        self.assertEqual(AddTask.countExec, nQuanta)
 
 
 class MyMemoryTestCase(lsst.utils.tests.MemoryTestCase):
