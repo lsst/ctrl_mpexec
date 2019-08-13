@@ -415,14 +415,14 @@ class CmdLineFwk:
         if not butler.run:
             raise ValueError("no output collection defined in data butler")
 
-        preExecInit = PreExecInit(butler)
-        preExecInit.initialize(graph, taskFactory,
-                               registerDatasetTypes=args.register_dataset_types,
+        preExecInit = PreExecInit(butler, taskFactory, args.skip_existing)
+        preExecInit.initialize(graph,
                                saveInitOutputs=not args.skip_init_writes,
-                               updateOutputCollection=True)
+                               registerDatasetTypes=args.register_dataset_types)
 
         if not args.init_only:
-            executor = MPGraphExecutor(numProc=args.processes, timeout=self.MP_TIMEOUT)
+            executor = MPGraphExecutor(numProc=args.processes, timeout=self.MP_TIMEOUT,
+                                       skipExisting=args.skip_existing)
             with util.profile(args.profile, _LOG):
                 executor.execute(graph, butler, taskFactory)
 

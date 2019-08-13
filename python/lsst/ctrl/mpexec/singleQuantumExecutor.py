@@ -49,10 +49,13 @@ class SingleQuantumExecutor:
         Data butler.
     taskFactory : `~lsst.pipe.base.TaskFactory`
         Instance of a task factory.
+    skipExisting : `bool`, optional
+        If True then quanta with all existing outputs are not executed.
     """
-    def __init__(self, butler, taskFactory):
+    def __init__(self, butler, taskFactory, skipExisting=False):
         self.butler = butler
         self.taskFactory = taskFactory
+        self.skipExisting = skipExisting
 
     def execute(self, taskClass, config, quantum):
         """Execute PipelineTask on a single Quantum.
@@ -67,6 +70,10 @@ class SingleQuantumExecutor:
             Single Quantum instance.
         """
         self.setupLogging(taskClass, config, quantum)
+        if self.skipExisting and self.quantumOutputsExist(quantum):
+            _LOG.info("Quantum execution skipped due to existing outputs, "
+                      f"task={taskClass.__name__} dataId={quantum.dataId}.")
+            return
         self.updateQuantumInputs(quantum)
         task = self.makeTask(taskClass, config)
         self.runQuantum(task, quantum)
@@ -94,6 +101,45 @@ class SingleQuantumExecutor:
                 Log.MDC("LABEL", str(dataIds.pop()))
             else:
                 Log.MDC("LABEL", '[' + ', '.join([str(dataId) for dataId in dataIds]) + ']')
+
+    def quantumOutputsExist(self, quantum):
+        """Decide whether this quantum needs to be executed.
+
+        Parameters
+        ----------
+        quantum : `~lsst.daf.butler.Quantum`
+            Quantum to check for existing outputs
+
+        Returns
+        -------
+        exist : `bool`
+            True if all quantum's outputs exist in a collection, False
+            otherwise.
+
+        Raises
+        ------
+        RuntimeError
+            Raised if some outputs exist and some not.
+        """
+        collection = self.butler.run.collection
+        registry = self.butler.registry
+
+        existingRefs = []
+        missingRefs = []
+        for datasetRefs in quantum.outputs.values():
+            for datasetRef in datasetRefs:
+                ref = registry.find(collection, datasetRef.datasetType, datasetRef.dataId)
+                if ref is None:
+                    missingRefs.append(datasetRefs)
+                else:
+                    existingRefs.append(datasetRefs)
+        if existingRefs and missingRefs:
+            # some outputs exist and same not, can't do a thing with that
+            raise RuntimeError(f"Registry inconsistency while checking for existing outputs:"
+                               f" collection={collection} existingRefs={existingRefs}"
+                               f" missingRefs={missingRefs}")
+        else:
+            return bool(existingRefs)
 
     def makeTask(self, taskClass, config):
         """Make new task instance.

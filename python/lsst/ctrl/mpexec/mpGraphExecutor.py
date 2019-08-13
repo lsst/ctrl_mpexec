@@ -53,10 +53,13 @@ class MPGraphExecutor(QuantumGraphExecutor):
         Number of processes to use for executing tasks.
     timeout : `float`
         Time in seconds to wait for tasks to finish.
+    skipExisting : `bool`, optional
+        If True then quanta with all existing outputs are not executed.
     """
-    def __init__(self, numProc, timeout):
+    def __init__(self, numProc, timeout, skipExisting=False):
         self.numProc = numProc
         self.timeout = timeout
+        self.skipExisting = skipExisting
 
     def execute(self, graph, butler, taskFactory):
         # Docstring inherited from QuantumGraphExecutor.execute
@@ -81,7 +84,8 @@ class MPGraphExecutor(QuantumGraphExecutor):
         for qdata in iterable:
             _LOG.debug("Executing %s", qdata)
             taskDef = qdata.taskDef
-            self._executePipelineTask(taskDef.taskClass, taskDef.config, qdata.quantum, butler, taskFactory)
+            self._executePipelineTask(taskDef.taskClass, taskDef.config, qdata.quantum,
+                                      butler, taskFactory, self.skipExisting)
 
     def _executeQuantaMP(self, iterable, butler, taskFactory):
         """Execute all Quanta in separate process pool.
@@ -125,7 +129,7 @@ class MPGraphExecutor(QuantumGraphExecutor):
 
             # Add it to the pool and remember its result
             _LOG.debug("Sumbitting %s", qdata)
-            args = (taskDef.taskClass, taskDef.config, qdata.quantum, butler, taskFactory)
+            args = (taskDef.taskClass, taskDef.config, qdata.quantum, butler, taskFactory, self.skipExisting)
             results[qdata.index] = pool.apply_async(self._executePipelineTask, args)
 
         # Everything is submitted, wait until it's complete
@@ -138,7 +142,7 @@ class MPGraphExecutor(QuantumGraphExecutor):
                 res.get(self.timeout)
 
     @staticmethod
-    def _executePipelineTask(taskClass, config, quantum, butler, taskFactory):
+    def _executePipelineTask(taskClass, config, quantum, butler, taskFactory, skipExisting):
         """Execute PipelineTask on a single data item.
 
         Parameters
@@ -153,6 +157,8 @@ class MPGraphExecutor(QuantumGraphExecutor):
             Data butler instance.
         taskFactory : `~lsst.pipe.base.TaskFactory`
             Task factory.
+        skipExisting : `bool`
+            If True then quanta with all existing outputs are not executed.
         """
-        executor = SingleQuantumExecutor(butler, taskFactory)
+        executor = SingleQuantumExecutor(butler, taskFactory, skipExisting)
         return executor.execute(taskClass, config, quantum)

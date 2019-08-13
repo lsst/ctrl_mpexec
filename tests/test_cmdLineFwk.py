@@ -130,6 +130,7 @@ def _makeArgs(pipeline=None, qgraph=None, pipeline_actions=(), order_pipeline=Fa
     args.output = {}
     args.register_dataset_types = False
     args.skip_init_writes = False
+    args.skip_existing = False
     args.init_only = False
     args.processes = 1
     args.profile = None
@@ -247,6 +248,8 @@ class CmdLineFwkTestCase(unittest.TestCase):
             self.assertIs(qgraph, None)
 
     def testSimpleQGraph(self):
+        """Test successfull execution of trivial quantum graph.
+        """
 
         nQuanta = 5
         butler, qgraph = makeSimpleQGraph(nQuanta)
@@ -261,6 +264,33 @@ class CmdLineFwkTestCase(unittest.TestCase):
 
         # run whole thing
         AddTask.countExec = 0
+        fwk.runPipeline(qgraph, taskFactory, args, butler=butler)
+        self.assertEqual(AddTask.countExec, nQuanta)
+
+    def testSimpleQGraphSkipExisting(self):
+        """Test continuing execution of trivial quantum graph with --skip-existing.
+        """
+
+        nQuanta = 5
+        butler, qgraph = makeSimpleQGraph(nQuanta)
+
+        # should have one task and number of quanta
+        self.assertEqual(len(qgraph), 1)
+        self.assertEqual(len(list(qgraph.quanta())), nQuanta)
+
+        args = _makeArgs()
+        fwk = CmdLineFwk()
+        taskFactory = AddTaskFactoryMock()
+
+        # run whole thing
+        AddTask.countExec = 0
+        AddTask.stopAt = 3
+        with self.assertRaises(RuntimeError):
+            fwk.runPipeline(qgraph, taskFactory, args, butler=butler)
+        self.assertEqual(AddTask.countExec, 3)
+
+        AddTask.stopAt = -1
+        args.skip_existing = True
         fwk.runPipeline(qgraph, taskFactory, args, butler=butler)
         self.assertEqual(AddTask.countExec, nQuanta)
 

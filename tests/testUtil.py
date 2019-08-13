@@ -70,7 +70,12 @@ class AddTask(pipeBase.PipelineTask):
     countExec = 0
     """Number of times run() method was called for this class"""
 
+    stopAt = -1
+    """Raises exception at this call to run()"""
+
     def run(self, input):
+        if AddTask.stopAt == AddTask.countExec:
+            raise RuntimeError("pretend something bad happened")
         AddTask.countExec += 1
         self.metadata.add("add", self.config.addend)
         output = [val + self.config.addend for val in input]

@@ -289,6 +289,7 @@ class CmdLineParserTestCase(unittest.TestCase):
             -C label:filename1
             -c label:c=d -c label:e=f
             -C label:filename2 -C label:filename3
+            --skip-existing
             """.split())
         self.assertTrue(args.clobberConfig)
         self.assertTrue(args.clobberVersions)
@@ -318,8 +319,9 @@ class CmdLineParserTestCase(unittest.TestCase):
         self.assertIsNone(args.save_qgraph)
         self.assertIsNone(args.pipeline_dot)
         self.assertIsNone(args.qgraph_dot)
+        self.assertTrue(args.skip_existing)
 
-        # multiple tasks pluse more options (-q should be exclusive with
+        # multiple tasks plus more options (-q should be exclusive with
         # some other options but we do not check it during parsing (yet))
         args = parser.parse_args(
             """

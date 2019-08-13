@@ -406,7 +406,7 @@ def makeParser(fromfile_prefix_chars='@', parser_class=ArgumentParser, **kwargs)
             subparser.add_argument("--skip-existing", dest="skip_existing",
                                    default=False, action="store_true",
                                    help="If all Quantum outputs already exist in output collection "
-                                   "then Qauntum will be excluded from QuantumGraph.")
+                                   "then Quantum will be excluded from QuantumGraph.")
         subparser.add_argument("-s", "--save-pipeline", dest="save_pipeline",
                                help="Location for storing a serialized pipeline definition (pickle file).",
                                metavar="PATH")
