@@ -37,7 +37,7 @@ import warnings
 # -----------------------------
 #  Imports for other modules --
 # -----------------------------
-from lsst.daf.butler import Butler, DatasetOriginInfoDef
+from lsst.daf.butler import Butler, DatasetOriginInfoDef, DatasetRef, Run
 import lsst.log
 import lsst.pex.config as pexConfig
 from lsst.pipe.base import GraphBuilder, PipelineBuilder, Pipeline, QuantumGraph
@@ -120,7 +120,7 @@ class CmdLineFwk:
 
         if args.subcommand == "build":
             # stop here but process --show option first
-            self.showInfo(args.show, pipeline)
+            self.showInfo(args, pipeline)
             return 0
 
         # make quantum graph
@@ -131,7 +131,7 @@ class CmdLineFwk:
             raise
 
         # optionally dump some info
-        self.showInfo(args.show, pipeline, qgraph)
+        self.showInfo(args, pipeline, qgraph)
 
         if qgraph is None:
             # No need to raise an exception here, code that makes graph
@@ -429,25 +429,30 @@ class CmdLineFwk:
             with util.profile(args.profile, _LOG):
                 executor.execute(graph, butler, taskFactory)
 
-    def showInfo(self, showOpts, pipeline, graph=None):
+    def showInfo(self, args, pipeline, graph=None):
         """Display useful info about pipeline and environment.
 
         Parameters
         ----------
-        showOpts : `list` of `str`
-            Defines what to show
+        args : `argparse.Namespace`
+            Parsed command line
         pipeline : `Pipeline`
             Pipeline definition
         graph : `QuantumGraph`, optional
             Execution graph
         """
-
+        showOpts = args.show
         for what in showOpts:
             showCommand, _, showArgs = what.partition("=")
 
             if showCommand in ["pipeline", "config", "history", "tasks"]:
                 if not pipeline:
                     _LOG.warning("Pipeline is required for --show=%s", showCommand)
+                    continue
+
+            if showCommand in ["graph", "workflow"]:
+                if not graph:
+                    _LOG.warning("QuantumGraph is required for --show=%s", showCommand)
                     continue
 
             if showCommand == "pipeline":
@@ -462,6 +467,9 @@ class CmdLineFwk:
             elif showCommand == "graph":
                 if graph:
                     self._showGraph(graph)
+            elif showCommand == "workflow":
+                if graph:
+                    self._showWorkflow(graph, args)
             else:
                 print("Unknown value for show: %s (choose from '%s')" %
                       (what, "', '".join("pipeline config[=XXX] history=XXX tasks graph".split())),
@@ -581,7 +589,7 @@ class CmdLineFwk:
                 print("{}: {}".format(configName, taskName))
 
     def _showGraph(self, graph):
-        """Print task hierarchy to stdout
+        """Print quanta information to stdout
 
         Parameters
         ----------
@@ -601,3 +609,58 @@ class CmdLineFwk:
                 for key, refs in quantum.outputs.items():
                     dataIds = ["DataId({})".format(ref.dataId) for ref in refs]
                     print("      {}: [{}]".format(key, ", ".join(dataIds)))
+
+    def _showWorkflow(self, graph, args):
+        """Print quanta information and dependency to stdout
+
+        The input and pridicted output URIs based on the Butler repo are printed.
+
+        Parameters
+        ----------
+        graph : `QuantumGraph`
+            Execution graph.
+        args : `argparse.Namespace`
+            Parsed command line
+        """
+        run = args.output.get("", None)
+        butler = Butler(config=args.butler_config, run=run)
+
+        iq = 0
+        hash2ParentTask = {}
+        for taskNodes in graph:
+            for quantum in taskNodes.quanta:
+                iq += 1
+                shortname = taskNodes.taskDef.taskName.split('.')[-1]
+                print("Quantum {}: {}".format(iq, shortname))
+                print("  inputs:")
+                for key, refs in quantum.predictedInputs.items():
+                    for ref in refs:
+                        if butler.datastore.exists(ref):
+                            print("    {}".format(butler.datastore.getUri(ref)))
+                        else:
+                            fakeRef = DatasetRef(ref.datasetType, ref.dataId, run=Run(run))
+                            print("    {}".format(butler.datastore.getUri(fakeRef, predict=True)))
+                print("  outputs:")
+                for key, refs in quantum.outputs.items():
+                    for ref in refs:
+                        if butler.datastore.exists(ref):
+                            print("    {}".format(butler.datastore.getUri(ref)))
+                        else:
+                            fakeRef = DatasetRef(ref.datasetType, ref.dataId, run=Run(run))
+                            print("    {}".format(butler.datastore.getUri(fakeRef, predict=True)))
+                        # Store hash to figure out dependency
+                        dhash = hash((key, ref.dataId))
+                        hash2ParentTask[dhash] = iq
+
+        iq = 0
+        uses = []
+        for taskNodes in graph:
+            for quantum in taskNodes.quanta:
+                iq += 1
+                for key, refs in quantum.predictedInputs.items():
+                    for ref in refs:
+                        dhash = hash((key, ref.dataId))
+                        if dhash in hash2ParentTask and (iq, hash2ParentTask[dhash]) not in uses:
+                            parentIq = hash2ParentTask[dhash]
+                            uses.append((iq, parentIq))  # iq uses parentIq
+                            print("Parent Quantum {} - Child Quantum {}".format(parentIq, iq))

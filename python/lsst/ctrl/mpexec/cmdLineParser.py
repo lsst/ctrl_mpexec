@@ -439,6 +439,7 @@ def makeParser(fromfile_prefix_chars='@', parser_class=ArgumentParser, **kwargs)
                                "configuration history for a field,  field name is specified as "
                                "[Task::][SubTask.]Field;  `pipeline' to show pipeline composition; "
                                "`graph' to show information about quanta; "
+                               "`workflow' to show information about quanta and their dependency; "
                                "`tasks' to show task composition.")
 
     return parser
