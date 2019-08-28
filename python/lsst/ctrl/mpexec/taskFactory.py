@@ -125,7 +125,7 @@ class TaskFactory(BaseTaskFactory):
         if butler is None:
             initInputs = None
         else:
-            connections = config.connections.connectionsClass(config=config)
+            connections = config.connections.ConnectionsClass(config=config)
             descriptorMap = {}
             for name in connections.initInputs:
                 attribute = getattr(connections, name)
