@@ -31,6 +31,7 @@ from itertools import chain
 #  Imports for other modules --
 # -----------------------------
 from lsst.log import Log
+from lsst.pipe.base import ButlerQuantumContext
 
 # ----------------------------------
 #  Local non-exported definitions --
@@ -148,6 +149,12 @@ class SingleQuantumExecutor:
         quantum : `~lsst.daf.butler.Quantum`
             Single Quantum instance.
         """
+        # Create a butler that operates in the context of a quantum
+        butlerQC = ButlerQuantumContext(self.butler, quantum)
+
+        # Get the input and output references for the task
+        connectionInstance = task.config.connections.ConnectionsClass(config=task.config)
+        inputRefs, outputRefs = connectionInstance.buildDatasetRefs(quantum)
         # Call task runQuantum() method. Any exception thrown by the task
         # propagates to caller.
-        task.runQuantum(quantum, self.butler)
+        task.runQuantum(butlerQC, inputRefs, outputRefs)

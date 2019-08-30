@@ -289,10 +289,6 @@ class CmdLineFwk:
 
                 pipeBuilder.configOverrideFile(action.label, action.value)
 
-            elif action.action == 'name_templates':
-
-                pipeBuilder.substituteDatatypeNames(action.label, action.value)
-
             else:
 
                 raise ValueError(f"Unexpected pipeline action: {action.action}")
