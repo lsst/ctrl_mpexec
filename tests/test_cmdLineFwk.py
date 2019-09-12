@@ -31,9 +31,11 @@ import unittest
 
 from lsst.ctrl.mpexec.cmdLineFwk import CmdLineFwk
 from lsst.ctrl.mpexec.cmdLineParser import _PipelineAction
+from lsst.daf.butler import Quantum
 import lsst.pex.config as pexConfig
 from lsst.pipe.base import (Pipeline, PipelineTask, PipelineTaskConfig,
-                            QuantumGraph, TaskFactory, PipelineTaskConnections)
+                            QuantumGraph, QuantumGraphTaskNodes, TaskDef,
+                            TaskFactory, PipelineTaskConnections)
 import lsst.pipe.base.connectionTypes as cT
 import lsst.utils.tests
 
@@ -123,6 +125,23 @@ def _makeArgs(pipeline=None, qgraph=None, pipeline_actions=(), order_pipeline=Fa
     return args
 
 
+def _makeQGraph():
+    """Make a trivial QuantumGraph with one quantum.
+
+    The only thing that we need to do with this quantum graph is to pickle
+    it, the quanta in this graph are not usable for anything else.
+
+    Returns
+    -------
+    qgraph : `~lsst.pipe.base.QuantumGraph`
+    """
+    taskDef = TaskDef(taskName="taskOne", config=SimpleConfig())
+    quanta = [Quantum()]
+    taskNodes = QuantumGraphTaskNodes(taskDef=taskDef, quanta=quanta, initInputs={}, initOutputs={})
+    qgraph = QuantumGraph([taskNodes])
+    return qgraph
+
+
 class CmdLineFwkTestCase(unittest.TestCase):
     """A test case for CmdLineFwk
     """
@@ -190,16 +209,14 @@ class CmdLineFwkTestCase(unittest.TestCase):
 
         with makeTmpFile() as tmpname:
 
-            # make empty graph and store it in a file
-            qgraph = QuantumGraph()
+            # make non-empty graph and store it in a file
+            qgraph = _makeQGraph()
             with open(tmpname, "wb") as pickleFile:
                 pickle.dump(qgraph, pickleFile)
             args = _makeArgs(qgraph=tmpname)
-            with self.assertWarnsRegex(UserWarning, "QuantumGraph is empty"):
-                # this also tests that warning is generated for empty graph
-                qgraph = fwk.makeGraph(None, taskFactory, args)
+            qgraph = fwk.makeGraph(None, taskFactory, args)
             self.assertIsInstance(qgraph, QuantumGraph)
-            self.assertEqual(len(qgraph), 0)
+            self.assertEqual(len(qgraph), 1)
 
             # pickle with wrong object type
             with open(tmpname, "wb") as pickleFile:
@@ -207,6 +224,16 @@ class CmdLineFwkTestCase(unittest.TestCase):
             args = _makeArgs(qgraph=tmpname)
             with self.assertRaises(TypeError):
                 fwk.makeGraph(None, taskFactory, args)
+
+            # reading empty graph from pickle should return None
+            qgraph = QuantumGraph()
+            with open(tmpname, "wb") as pickleFile:
+                pickle.dump(qgraph, pickleFile)
+            args = _makeArgs(qgraph=tmpname)
+            with self.assertWarnsRegex(UserWarning, "QuantumGraph is empty"):
+                # this also tests that warning is generated for empty graph
+                qgraph = fwk.makeGraph(None, taskFactory, args)
+            self.assertIs(qgraph, None)
 
 
 class MyMemoryTestCase(lsst.utils.tests.MemoryTestCase):

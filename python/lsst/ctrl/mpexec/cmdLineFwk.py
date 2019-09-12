@@ -120,7 +120,7 @@ class CmdLineFwk:
 
         if args.subcommand == "build":
             # stop here but process --show option first
-            self.showInfo(args.show, pipeline, None)
+            self.showInfo(args.show, pipeline)
             return 0
 
         # make quantum graph
@@ -132,6 +132,11 @@ class CmdLineFwk:
 
         # optionally dump some info
         self.showInfo(args.show, pipeline, qgraph)
+
+        if qgraph is None:
+            # No need to raise an exception here, code that makes graph
+            # should have printed warning message already.
+            return 2
 
         if args.subcommand == "qgraph":
             # stop here
@@ -319,7 +324,8 @@ class CmdLineFwk:
 
         Returns
         -------
-        graph : `~lsst.pipe.base.QuantumGraph`
+        graph : `~lsst.pipe.base.QuantumGraph` or `None`
+            If resulting graph is empty then `None` is returned.
         """
         if args.qgraph:
 
@@ -364,10 +370,11 @@ class CmdLineFwk:
             graphBuilder = GraphBuilder(taskFactory, butler.registry, args.skip_existing)
             qgraph = graphBuilder.makeGraph(pipeline, coll, args.data_query)
 
-        # count quanta in graph and give a warning if it's empty
-        nQuanta = sum(1 for q in qgraph.quanta())
+        # count quanta in graph and give a warning if it's empty and return None
+        nQuanta = qgraph.countQuanta()
         if nQuanta == 0:
             warnings.warn("QuantumGraph is empty", stacklevel=2)
+            return None
         else:
             _LOG.info("QuantumGraph contains %d quanta for %d tasks",
                       nQuanta, len(qgraph))
@@ -414,7 +421,7 @@ class CmdLineFwk:
             executor = MPGraphExecutor(numProc=args.processes, timeout=self.MP_TIMEOUT)
             executor.execute(graph, butler, taskFactory)
 
-    def showInfo(self, showOpts, pipeline, graph):
+    def showInfo(self, showOpts, pipeline, graph=None):
         """Display useful info about pipeline and environment.
 
         Parameters
@@ -423,8 +430,8 @@ class CmdLineFwk:
             Defines what to show
         pipeline : `Pipeline`
             Pipeline definition
-        graph : `QuantumGraph`
-            Execution graph.
+        graph : `QuantumGraph`, optional
+            Execution graph
         """
 
         for what in showOpts:
