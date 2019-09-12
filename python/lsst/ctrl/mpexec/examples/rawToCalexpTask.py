@@ -12,18 +12,18 @@ _LOG = logging.getLogger(__name__.partition(".")[2])
 
 class RawToCalexpTaskConfig(PipelineTaskConfig):
     input = InputDatasetField(name="raw",
-                              dimensions=["Instrument", "Exposure", "Detector"],
+                              dimensions=["instrument", "exposure", "detector"],
                               storageClass="ExposureU",
                               doc="Input dataset type for this task")
     output = OutputDatasetField(name="calexp",
-                                dimensions=["Instrument", "Visit", "Detector"],
+                                dimensions=["instrument", "visit", "detector"],
                                 storageClass="ExposureF",
                                 scalar=True,
                                 doc="Output dataset type for this task")
 
     def setDefaults(self):
         # set dimensions of a quantum, this task uses per-visit-detector quanta
-        self.quantum.dimensions = ["Instrument", "Visit", "Detector"]
+        self.quantum.dimensions = ["instrument", "visit", "detector"]
 
 
 class RawToCalexpTask(PipelineTask):
