@@ -7,27 +7,27 @@ building Pipeline or QuantumGraph.
 import logging
 
 from lsst.pipe.base import (Struct, PipelineTask, PipelineTaskConfig,
-                            InputDatasetField, OutputDatasetField)
+                            PipelineTaskConnections)
+from lsst.pipe.base import connectionTypes as cT
 
 _LOG = logging.getLogger(__name__.partition(".")[2])
 
 
-class Test2Config(PipelineTaskConfig):
-    input = InputDatasetField(name="input",
-                              dimensions=["Instrument", "Visit"],
-                              storageClass="example",
-                              doc="Input dataset type for this task")
-    output = OutputDatasetField(name="output",
-                                dimensions=["Tract", "Patch"],
-                                storageClass="example",
-                                scalar=True,
-                                doc="Output dataset type for this task")
+class Test2Connections(PipelineTaskConnections,
+                       dimensions=("instrument", "tract", "patch")):
+    input = cT.Input(name="input",
+                     dimensions=["instrument", "visit"],
+                     multiple=True,
+                     storageClass="example",
+                     doc="Input dataset type for this task")
+    output = cT.Output(name="output",
+                       dimensions=["tract", "patch"],
+                       storageClass="example",
+                       doc="Output dataset type for this task")
 
-    def setDefaults(self):
-        # this task combines all selected visits into a tract/patch, on
-        # input it expects per-visit data, on output it produces per-patch.
-        # Combining visits "destroys" Visit dimension in a quantum.
-        self.quantum.dimensions = ["Instrument", "Tract", "Patch"]
+
+class Test2Config(PipelineTaskConfig, pipelineConnections=Test2Connections):
+    pass
 
 
 class Test2Task(PipelineTask):
