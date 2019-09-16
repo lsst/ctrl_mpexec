@@ -193,7 +193,8 @@ class CmdLineParserTestCase(unittest.TestCase):
             """.split())
         qgraph_options = ['pipeline_actions', 'show', 'subparser', 'pipeline',
                           'order_pipeline', 'save_pipeline', 'pipeline_dot',
-                          'qgraph_dot', 'qgraph', 'save_qgraph', 'skip_existing']
+                          'qgraph_dot', 'qgraph', 'save_qgraph', 'skip_existing',
+                          'clobber_output']
         self.assertEqual(set(vars(args).keys()), set(global_options + qgraph_options))
         self.assertEqual(args.subcommand, 'qgraph')
 
@@ -204,7 +205,8 @@ class CmdLineParserTestCase(unittest.TestCase):
         run_options = ['pipeline_actions', 'show', 'subparser', 'pipeline',
                        'order_pipeline', 'save_pipeline', 'pipeline_dot',
                        'qgraph_dot', 'qgraph', 'save_qgraph', 'skip_existing',
-                       'register_dataset_types', 'skip_init_writes', 'init_only']
+                       'clobber_output', 'register_dataset_types', 'skip_init_writes',
+                       'init_only']
         self.assertEqual(set(vars(args).keys()), set(global_options + run_options))
         self.assertEqual(args.subcommand, 'run')
 
@@ -367,6 +369,10 @@ class CmdLineParserTestCase(unittest.TestCase):
         self.assertEqual(args.save_qgraph, "newqgraph.pickle")
         self.assertEqual(args.pipeline_dot, "pipe.dot")
         self.assertEqual(args.qgraph_dot, "qgraph.dot")
+
+        # check that exclusive options generate error
+        with self.assertRaises(_Error):
+            parser.parse_args("qgraph -p pipeline.pickle --skip-existing --clobber-output".split())
 
     def testCmdLinePipeline(self):
 

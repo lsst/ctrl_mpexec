@@ -367,7 +367,9 @@ class CmdLineFwk:
                                         outputOverrides=outputs)
 
             # make execution plan (a.k.a. DAG) for pipeline
-            graphBuilder = GraphBuilder(taskFactory, butler.registry, args.skip_existing)
+            graphBuilder = GraphBuilder(taskFactory, butler.registry,
+                                        skipExisting=args.skip_existing,
+                                        clobberExisting=args.clobber_output)
             qgraph = graphBuilder.makeGraph(pipeline, coll, args.data_query)
 
         # count quanta in graph and give a warning if it's empty and return None
@@ -415,14 +417,15 @@ class CmdLineFwk:
         if not butler.run:
             raise ValueError("no output collection defined in data butler")
 
-        preExecInit = PreExecInit(butler, taskFactory, args.skip_existing)
+        preExecInit = PreExecInit(butler, taskFactory, args.skip_existing, args.clobber_output)
         preExecInit.initialize(graph,
                                saveInitOutputs=not args.skip_init_writes,
                                registerDatasetTypes=args.register_dataset_types)
 
         if not args.init_only:
             executor = MPGraphExecutor(numProc=args.processes, timeout=self.MP_TIMEOUT,
-                                       skipExisting=args.skip_existing)
+                                       skipExisting=args.skip_existing,
+                                       clobberOutput=args.clobber_output)
             with util.profile(args.profile, _LOG):
                 executor.execute(graph, butler, taskFactory)
 

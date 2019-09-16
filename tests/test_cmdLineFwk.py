@@ -131,6 +131,7 @@ def _makeArgs(pipeline=None, qgraph=None, pipeline_actions=(), order_pipeline=Fa
     args.register_dataset_types = False
     args.skip_init_writes = False
     args.skip_existing = False
+    args.clobber_output = False
     args.init_only = False
     args.processes = 1
     args.profile = None
@@ -293,6 +294,37 @@ class CmdLineFwkTestCase(unittest.TestCase):
         args.skip_existing = True
         fwk.runPipeline(qgraph, taskFactory, args, butler=butler)
         self.assertEqual(AddTask.countExec, nQuanta)
+
+    def testSimpleQGraphClobberOutput(self):
+        """Test re-execution of trivial quantum graph with --clobber-output.
+        """
+
+        nQuanta = 5
+        butler, qgraph = makeSimpleQGraph(nQuanta)
+
+        # should have one task and number of quanta
+        self.assertEqual(len(qgraph), 1)
+        self.assertEqual(qgraph.countQuanta(), nQuanta)
+
+        args = _makeArgs()
+        fwk = CmdLineFwk()
+        taskFactory = AddTaskFactoryMock()
+
+        # run whole thing
+        AddTask.stopAt = -1
+        AddTask.countExec = 0
+        fwk.runPipeline(qgraph, taskFactory, args, butler=butler)
+        self.assertEqual(AddTask.countExec, nQuanta)
+
+        # and repeat
+        args.clobber_output = True
+        fwk.runPipeline(qgraph, taskFactory, args, butler=butler)
+        self.assertEqual(AddTask.countExec, 2*nQuanta)
+
+        # rebuild graph with clobber option, should make same graph
+        butler, qgraph = makeSimpleQGraph(nQuanta, butler=butler, clobberExisting=True)
+        self.assertEqual(len(qgraph), 1)
+        self.assertEqual(qgraph.countQuanta(), nQuanta)
 
 
 class MyMemoryTestCase(lsst.utils.tests.MemoryTestCase):

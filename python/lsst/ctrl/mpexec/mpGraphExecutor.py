@@ -55,11 +55,15 @@ class MPGraphExecutor(QuantumGraphExecutor):
         Time in seconds to wait for tasks to finish.
     skipExisting : `bool`, optional
         If True then quanta with all existing outputs are not executed.
+    clobberOutput : `bool`, optional
+        It `True` then override all existing output datasets in an output
+        collection.
     """
-    def __init__(self, numProc, timeout, skipExisting=False):
+    def __init__(self, numProc, timeout, skipExisting=False, clobberOutput=False):
         self.numProc = numProc
         self.timeout = timeout
         self.skipExisting = skipExisting
+        self.clobberOutput = clobberOutput
 
     def execute(self, graph, butler, taskFactory):
         # Docstring inherited from QuantumGraphExecutor.execute
@@ -85,7 +89,7 @@ class MPGraphExecutor(QuantumGraphExecutor):
             _LOG.debug("Executing %s", qdata)
             taskDef = qdata.taskDef
             self._executePipelineTask(taskDef.taskClass, taskDef.config, qdata.quantum,
-                                      butler, taskFactory, self.skipExisting)
+                                      butler, taskFactory, self.skipExisting, self.clobberOutput)
 
     def _executeQuantaMP(self, iterable, butler, taskFactory):
         """Execute all Quanta in separate process pool.
@@ -129,7 +133,8 @@ class MPGraphExecutor(QuantumGraphExecutor):
 
             # Add it to the pool and remember its result
             _LOG.debug("Sumbitting %s", qdata)
-            args = (taskDef.taskClass, taskDef.config, qdata.quantum, butler, taskFactory, self.skipExisting)
+            args = (taskDef.taskClass, taskDef.config, qdata.quantum, butler, taskFactory,
+                    self.skipExisting, self.clobberOutput)
             results[qdata.index] = pool.apply_async(self._executePipelineTask, args)
 
         # Everything is submitted, wait until it's complete
@@ -142,7 +147,7 @@ class MPGraphExecutor(QuantumGraphExecutor):
                 res.get(self.timeout)
 
     @staticmethod
-    def _executePipelineTask(taskClass, config, quantum, butler, taskFactory, skipExisting):
+    def _executePipelineTask(taskClass, config, quantum, butler, taskFactory, skipExisting, clobberOutput):
         """Execute PipelineTask on a single data item.
 
         Parameters
@@ -159,6 +164,9 @@ class MPGraphExecutor(QuantumGraphExecutor):
             Task factory.
         skipExisting : `bool`
             If True then quanta with all existing outputs are not executed.
+        clobberOutput : `bool`, optional
+            It `True` then override all existing output datasets in an output
+            collection.
         """
-        executor = SingleQuantumExecutor(butler, taskFactory, skipExisting)
+        executor = SingleQuantumExecutor(butler, taskFactory, skipExisting, clobberOutput)
         return executor.execute(taskClass, config, quantum)

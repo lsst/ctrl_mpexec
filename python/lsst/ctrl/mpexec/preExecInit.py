@@ -51,11 +51,15 @@ class PreExecInit:
         If `True` then do not try to overwrite any datasets that might exist
         in the butler. If `False` then any existing conflicting dataset will
         cause butler exception.
+    clobberOutput : `bool`, optional
+        It `True` then override all existing output datasets in an output
+        collection.
     """
-    def __init__(self, butler, taskFactory, skipExisting=False):
+    def __init__(self, butler, taskFactory, skipExisting=False, clobberOutput=False):
         self.butler = butler
         self.taskFactory = taskFactory
         self.skipExisting = skipExisting
+        self.clobberOutput = clobberOutput
 
     def initialize(self, graph, saveInitOutputs=True, registerDatasetTypes=False):
         """Perform all initialization steps.
@@ -164,18 +168,25 @@ class PreExecInit:
 
         _LOG.debug("Associating %d datasets with output collection %s", len(id2ref), collection)
 
-        refs = []
-        if not self.skipExisting:
+        refsToAdd = []
+        refsToRemove = []
+        if not self.skipExisting and not self.clobberOutput:
             # optimization - save all at once, butler will raise an exception
             # if any dataset is already there
-            refs = list(id2ref.values())
+            refsToAdd = list(id2ref.values())
         else:
-            # skip existing ones
+            # skip or override existing ones
             for ref in id2ref.values():
                 if registry.find(collection, ref.datasetType, ref.dataId) is None:
-                    refs.append(ref)
-        if refs:
-            registry.associate(collection, refs)
+                    refsToAdd.append(ref)
+                elif self.clobberOutput:
+                    # replace this dataset
+                    refsToRemove.append(ref)
+                    refsToAdd.append(ref)
+        if refsToRemove:
+            registry.disassociate(collection, refsToRemove)
+        if refsToAdd:
+            registry.associate(collection, refsToAdd)
 
     def saveInitOutputs(self, graph):
         """Write any datasets produced by initializing tasks in a graph.
@@ -212,13 +223,23 @@ class PreExecInit:
                 attribute = getattr(taskDef.connections, name)
                 initOutputVar = getattr(task, name)
                 objFromStore = None
-                if self.skipExisting:
+                if self.clobberOutput:
+                    # Remove if it already exists.
+                    collection = self.butler.run.collection
+                    registry = self.butler.registry
+                    ref = registry.find(collection, attribute.name, {})
+                    if ref is not None:
+                        # It is not enough to remove dataset from collection,
+                        # it has to be removed from butler too.
+                        self.butler.remove(ref)
+                elif self.skipExisting:
                     # check if it is there already
                     _LOG.debug("Retrieving InitOutputs for task=%s key=%s dsTypeName=%s",
                                task, name, attribute.name)
                     objFromStore = self.butler.get(attribute.name, {})
                     if objFromStore is not None:
-                        # types are supposed to be identical
+                        # Types are supposed to be identical.
+                        # TODO: Check that object contents is identical too.
                         if type(objFromStore) is not type(initOutputVar):
                             raise TypeError(f"Stored initOutput object type {type(objFromStore)} "
                                             f"is different  from task-generated type "

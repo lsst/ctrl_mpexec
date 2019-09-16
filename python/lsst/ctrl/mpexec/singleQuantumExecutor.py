@@ -51,11 +51,15 @@ class SingleQuantumExecutor:
         Instance of a task factory.
     skipExisting : `bool`, optional
         If True then quanta with all existing outputs are not executed.
+    clobberOutput : `bool`, optional
+        It `True` then override all existing output datasets in an output
+        collection.
     """
-    def __init__(self, butler, taskFactory, skipExisting=False):
+    def __init__(self, butler, taskFactory, skipExisting=False, clobberOutput=False):
         self.butler = butler
         self.taskFactory = taskFactory
         self.skipExisting = skipExisting
+        self.clobberOutput = clobberOutput
 
     def execute(self, taskClass, config, quantum):
         """Execute PipelineTask on a single Quantum.
@@ -70,6 +74,8 @@ class SingleQuantumExecutor:
             Single Quantum instance.
         """
         self.setupLogging(taskClass, config, quantum)
+        if self.clobberOutput:
+            self.doClobberOutputs(quantum)
         if self.skipExisting and self.quantumOutputsExist(quantum):
             _LOG.info("Quantum execution skipped due to existing outputs, "
                       f"task={taskClass.__name__} dataId={quantum.dataId}.")
@@ -101,6 +107,27 @@ class SingleQuantumExecutor:
                 Log.MDC("LABEL", str(dataIds.pop()))
             else:
                 Log.MDC("LABEL", '[' + ', '.join([str(dataId) for dataId in dataIds]) + ']')
+
+    def doClobberOutputs(self, quantum):
+        """Delete any outputs that already exist for a Quantum.
+
+        Parameters
+        ----------
+        quantum : `~lsst.daf.butler.Quantum`
+            Quantum to check for existing outputs.
+        """
+        collection = self.butler.run.collection
+        registry = self.butler.registry
+
+        existingRefs = []
+        for datasetRefs in quantum.outputs.values():
+            for datasetRef in datasetRefs:
+                ref = registry.find(collection, datasetRef.datasetType, datasetRef.dataId)
+                if ref is not None:
+                    existingRefs.append(ref)
+        for ref in existingRefs:
+            _LOG.debug("Removing existing dataset: %s", ref)
+            self.butler.remove(ref)
 
     def quantumOutputsExist(self, quantum):
         """Decide whether this quantum needs to be executed.

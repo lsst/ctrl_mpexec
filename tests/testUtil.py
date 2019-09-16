@@ -168,6 +168,19 @@ class ButlerMock:
             ref = DatasetRef(datasetType, dataId, id=refId)
         return ref
 
+    def remove(self, datasetRefOrType, dataId=None, *, delete=True, remember=True, **kwds):
+        datasetType, dataId = self._standardizeArgs(datasetRefOrType, dataId, **kwds)
+        _LOG.info("butler.remove: datasetType=%s dataId=%s", datasetType.name, dataId)
+        dsTypeName = datasetType.name
+        key = self.key(dataId)
+        dsdata = self.datasets.get(dsTypeName)
+        del dsdata[key]
+        ref = self.registry.find(self.run.collection, datasetType, dataId, **kwds)
+        if remember:
+            self.registry.disassociate(self.run.collection, [ref])
+        else:
+            self.registry.removeDataset(ref)
+
 
 def registerDatasetTypes(registry, pipeline):
     """Register all dataset types used by tasks in a registry.
@@ -193,7 +206,7 @@ def registerDatasetTypes(registry, pipeline):
             registry.registerDatasetType(datasetType)
 
 
-def makeSimpleQGraph(nQuanta=5, pipeline=None):
+def makeSimpleQGraph(nQuanta=5, pipeline=None, butler=None, skipExisting=False, clobberExisting=False):
     """Make simple QuantumGraph for tests.
 
     Makes simple one-task pipeline with AddTask, sets up in-memory
@@ -207,6 +220,15 @@ def makeSimpleQGraph(nQuanta=5, pipeline=None):
     pipeline : `~lsst.pipe.base.Pipeline`
         If `None` then one-task pipeline is made with `AddTask` and
         default `AddTaskConfig`.
+    butler : `~lsst.daf.butler.Butler`, optional
+        Data butler instance, this should be an instance returned from a
+        previous call to this method.
+    skipExisting : `bool`, optional
+        If `True` (default), a Quantum is not created if all its outputs
+        already exist.
+    clobberExisting : `bool`, optional
+        If `True`, overwrite any outputs that already exist.  Cannot be
+        `True` if ``skipExisting`` is.
 
     Returns
     -------
@@ -216,30 +238,32 @@ def makeSimpleQGraph(nQuanta=5, pipeline=None):
         Quantum graph instance
     """
 
-    butler = ButlerMock(fullRegistry=True)
-
     if pipeline is None:
         taskDef = pipeBase.TaskDef("AddTask", AddTaskConfig(), taskClass=AddTask, label="task1")
         pipeline = pipeBase.Pipeline([taskDef])
 
-    # Add dataset types to registry
-    registerDatasetTypes(butler.registry, pipeline)
+    if butler is None:
 
-    # Small set of DataIds included in QGraph
-    dataIds = [dict(instrument="INSTR", detector=detector) for detector in range(nQuanta)]
+        butler = ButlerMock(fullRegistry=True)
 
-    # Add all needed dimensions to registry
-    butler.registry.addDimensionEntry("instrument", dict(instrument="INSTR"))
-    butler.registry.addDimensionEntryList("detector", dataIds)
+        # Add dataset types to registry
+        registerDatasetTypes(butler.registry, pipeline)
 
-    # Add inputs to butler, inputs a simply integers, remeber their refs
-    inputRefs = []
-    for i, dataId in enumerate(dataIds):
-        data = numpy.array([i, 10*i])
-        inputRefs.append(butler.put(data, "add_input", dataId))
+        # Small set of DataIds included in QGraph
+        dataIds = [dict(instrument="INSTR", detector=detector) for detector in range(nQuanta)]
+
+        # Add all needed dimensions to registry
+        butler.registry.addDimensionEntry("instrument", dict(instrument="INSTR"))
+        butler.registry.addDimensionEntryList("detector", dataIds)
+
+        # Add inputs to butler
+        for i, dataId in enumerate(dataIds):
+            data = numpy.array([i, 10*i])
+            butler.put(data, "add_input", dataId)
 
     # Make the graph, task factory is not needed here
-    builder = pipeBase.GraphBuilder(taskFactory=None, registry=butler.registry)
+    builder = pipeBase.GraphBuilder(taskFactory=None, registry=butler.registry,
+                                    skipExisting=skipExisting, clobberExisting=clobberExisting)
     originInfo = DatasetOriginInfoDef([butler.run.collection], butler.run.collection)
     qgraph = builder.makeGraph(pipeline, originInfo, "")
 

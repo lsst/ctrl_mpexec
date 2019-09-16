@@ -403,10 +403,18 @@ def makeParser(fromfile_prefix_chars='@', parser_class=ArgumentParser, **kwargs)
                                "ordering is performed as last step before saving or executing "
                                "pipeline.")
         if subcommand in ("qgraph", "run"):
-            subparser.add_argument("--skip-existing", dest="skip_existing",
-                                   default=False, action="store_true",
-                                   help="If all Quantum outputs already exist in output collection "
-                                   "then Quantum will be excluded from QuantumGraph.")
+            group = subparser.add_mutually_exclusive_group()
+            group.add_argument("--skip-existing", dest="skip_existing",
+                               default=False, action="store_true",
+                               help="If all Quantum outputs already exist in output collection "
+                               "then Quantum will be excluded from QuantumGraph.")
+            group.add_argument("--clobber-output", dest="clobber_output",
+                               default=False, action="store_true",
+                               help="Ignore or replace existing output datasets in output collecton. "
+                               "With this option existing output datasets are ignored when generating "
+                               "QuantumGraph, and they are removed from a collection prior to "
+                               "executing individual Quanta. This option is exclusive with "
+                               "--skip-existing option.")
         subparser.add_argument("-s", "--save-pipeline", dest="save_pipeline",
                                help="Location for storing a serialized pipeline definition (pickle file).",
                                metavar="PATH")
