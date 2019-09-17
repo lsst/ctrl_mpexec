@@ -27,11 +27,13 @@ __all__ = ["AddTaskConfig", "AddTask", "AddTaskFactoryMock", "ButlerMock"]
 import itertools
 import logging
 import numpy
+import functools
 import os
+from collections import defaultdict
 from types import SimpleNamespace
 
 from lsst.daf.butler import (ButlerConfig, DatasetRef, DimensionUniverse,
-                             DatasetType, Registry, Run, DatasetOriginInfoDef)
+                             DatasetType, Registry, Run)
 import lsst.pex.config as pexConfig
 import lsst.pipe.base as pipeBase
 from lsst.pipe.base import connectionTypes as cT
@@ -196,7 +198,7 @@ def registerDatasetTypes(registry, pipeline):
     """
     for taskDef in pipeline:
         datasetTypes = pipeBase.TaskDatasetTypes.fromConnections(taskDef.connections,
-                                                                 universe=registry.dimensions)
+                                                                 registry=registry)
         for datasetType in itertools.chain(datasetTypes.initInputs, datasetTypes.initOutputs,
                                            datasetTypes.inputs, datasetTypes.outputs,
                                            datasetTypes.prerequisites):
@@ -250,11 +252,12 @@ def makeSimpleQGraph(nQuanta=5, pipeline=None, butler=None, skipExisting=False, 
         registerDatasetTypes(butler.registry, pipeline)
 
         # Small set of DataIds included in QGraph
+        records = [dict(instrument="INSTR", id=i, full_name=str(i)) for i in range(nQuanta)]
         dataIds = [dict(instrument="INSTR", detector=detector) for detector in range(nQuanta)]
 
         # Add all needed dimensions to registry
-        butler.registry.addDimensionEntry("instrument", dict(instrument="INSTR"))
-        butler.registry.addDimensionEntryList("detector", dataIds)
+        butler.registry.insertDimensionData("instrument", dict(name="INSTR"))
+        butler.registry.insertDimensionData("detector", *records)
 
         # Add inputs to butler
         for i, dataId in enumerate(dataIds):
@@ -264,7 +267,11 @@ def makeSimpleQGraph(nQuanta=5, pipeline=None, butler=None, skipExisting=False, 
     # Make the graph, task factory is not needed here
     builder = pipeBase.GraphBuilder(taskFactory=None, registry=butler.registry,
                                     skipExisting=skipExisting, clobberExisting=clobberExisting)
-    originInfo = DatasetOriginInfoDef([butler.run.collection], butler.run.collection)
-    qgraph = builder.makeGraph(pipeline, originInfo, "")
+    qgraph = builder.makeGraph(
+        pipeline,
+        inputCollections=defaultdict(functools.partial(list, [butler.run.collection])),
+        outputCollection=butler.run.collection,
+        userQuery=""
+    )
 
     return butler, qgraph

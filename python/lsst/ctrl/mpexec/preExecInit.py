@@ -113,7 +113,7 @@ class PreExecInit:
             does not exist in registry.
         """
         pipeline = Pipeline(nodes.taskDef for nodes in graph)
-        datasetTypes = PipelineDatasetTypes.fromPipeline(pipeline, universe=self.butler.registry.dimensions)
+        datasetTypes = PipelineDatasetTypes.fromPipeline(pipeline, registry=self.butler.registry)
         for datasetType in itertools.chain(datasetTypes.initIntermediates, datasetTypes.initOutputs,
                                            datasetTypes.intermediates, datasetTypes.outputs):
             if registerDatasetTypes:

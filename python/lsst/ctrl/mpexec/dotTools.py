@@ -217,7 +217,7 @@ def pipeline2dot(pipeline, file, taskFactory=None):
     `MissingTaskFactoryError` is raised when TaskFactory is needed but not
     provided.
     """
-    universe = DimensionUniverse.fromConfig()
+    universe = DimensionUniverse()
 
     # open a file if needed
     close = False
