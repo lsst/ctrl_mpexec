@@ -88,8 +88,10 @@ class MPGraphExecutor(QuantumGraphExecutor):
         for qdata in iterable:
             _LOG.debug("Executing %s", qdata)
             taskDef = qdata.taskDef
-            self._executePipelineTask(taskDef.taskClass, taskDef.config, qdata.quantum,
-                                      butler, taskFactory, self.skipExisting, self.clobberOutput)
+            self._executePipelineTask(taskClass=taskDef.taskClass, config=taskDef.config,
+                                      quantum=qdata.quantum, butler=butler,
+                                      taskFactory=taskFactory, skipExisting=self.skipExisting,
+                                      clobberOutput=self.clobberOutput)
 
     def _executeQuantaMP(self, iterable, butler, taskFactory):
         """Execute all Quanta in separate process pool.
@@ -133,9 +135,10 @@ class MPGraphExecutor(QuantumGraphExecutor):
 
             # Add it to the pool and remember its result
             _LOG.debug("Sumbitting %s", qdata)
-            args = (taskDef.taskClass, taskDef.config, qdata.quantum, butler, taskFactory,
-                    self.skipExisting, self.clobberOutput)
-            results[qdata.index] = pool.apply_async(self._executePipelineTask, args)
+            kwargs = dict(taskClass=taskDef.taskClass, config=taskDef.config,
+                          quantum=qdata.quantum, butler=butler, taskFactory=taskFactory,
+                          skipExisting=self.skipExisting, clobberOutput=self.clobberOutput)
+            results[qdata.index] = pool.apply_async(self._executePipelineTask, (), kwargs)
 
         # Everything is submitted, wait until it's complete
         _LOG.debug("Wait for all tasks")
@@ -147,7 +150,7 @@ class MPGraphExecutor(QuantumGraphExecutor):
                 res.get(self.timeout)
 
     @staticmethod
-    def _executePipelineTask(taskClass, config, quantum, butler, taskFactory, skipExisting, clobberOutput):
+    def _executePipelineTask(*, taskClass, config, quantum, butler, taskFactory, skipExisting, clobberOutput):
         """Execute PipelineTask on a single data item.
 
         Parameters
