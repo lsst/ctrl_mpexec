@@ -45,12 +45,23 @@ class PreExecInit:
     ----------
     butler : `~lsst.daf.butler.Butler`
         Data butler instance.
+    taskFactory : `~lsst.pipe.base.TaskFactory`
+        Task factory.
+    skipExisting : `bool`, optional
+        If `True` then do not try to overwrite any datasets that might exist
+        in the butler. If `False` then any existing conflicting dataset will
+        cause butler exception.
+    clobberOutput : `bool`, optional
+        It `True` then override all existing output datasets in an output
+        collection.
     """
-    def __init__(self, butler):
+    def __init__(self, butler, taskFactory, skipExisting=False, clobberOutput=False):
         self.butler = butler
+        self.taskFactory = taskFactory
+        self.skipExisting = skipExisting
+        self.clobberOutput = clobberOutput
 
-    def initialize(self, graph, taskFactory, registerDatasetTypes=False,
-                   saveInitOutputs=True, updateOutputCollection=True):
+    def initialize(self, graph, saveInitOutputs=True, registerDatasetTypes=False):
         """Perform all initialization steps.
 
         Convenience method to execute all initialization steps. Instead of
@@ -61,30 +72,22 @@ class PreExecInit:
         ----------
         graph : `~lsst.pipe.base.QuantumGraph`
             Execution graph.
-        taskFactory : `~lsst.pipe.base.TaskFactory`
-            Task factory.
+        saveInitOutputs : `bool`, optional
+            If ``True`` (default) then save task "init outputs" to butler.
         registerDatasetTypes : `bool`, optional
             If ``True`` then register dataset types in registry, otherwise
             they must be already registered.
-        saveInitOutputs : `bool`, optional
-            If ``True`` (default) then save task "init outputs" to butler.
-        updateOutputCollection : `bool`, optional
-            If ``True`` (default) then copy all inputs to output collection.
         """
         # register dataset types or check consistency
         self.initializeDatasetTypes(graph, registerDatasetTypes)
 
         # associate all existing datasets with output collection.
-        if updateOutputCollection:
-            self.updateOutputCollection(graph)
+        self.updateOutputCollection(graph)
 
-        # Save task initialization data.
-        # TODO: see if Pipeline and software versions are already written
-        # to butler and associated with Run, check for consistency if they
-        # are, and if so skip writing TaskInitOutputs (because those should
-        # also only be done once).  If not, write them.
+        # Save task initialization data or check that saved data
+        # is consistent with what tasks would save
         if saveInitOutputs:
-            self.saveInitOutputs(graph, taskFactory)
+            self.saveInitOutputs(graph)
 
     def initializeDatasetTypes(self, graph, registerDatasetTypes=False):
         """Save or check DatasetTypes output by the tasks in a graph.
@@ -147,6 +150,9 @@ class PreExecInit:
                 yield ref
                 yield from _refComponents(ref.components.values())
 
+        collection = self.butler.run.collection
+        registry = self.butler.registry
+
         # Main issue here is that the same DataRef can appear as input for
         # many quanta, to keep them unique we first collect them into one
         # dict indexed by dataset id.
@@ -159,30 +165,86 @@ class PreExecInit:
                         id2ref[ref.id] = ref
         for initInput in graph.initInputs.values():
             id2ref[initInput.id] = initInput
-        _LOG.debug("Associating %d datasets with output collection %s",
-                   len(id2ref), self.butler.run.collection)
-        if id2ref:
-            # copy all collected refs to output collection
-            collection = self.butler.run.collection
-            registry = self.butler.registry
-            registry.associate(collection, list(id2ref.values()))
 
-    def saveInitOutputs(self, graph, taskFactory):
+        _LOG.debug("Associating %d datasets with output collection %s", len(id2ref), collection)
+
+        refsToAdd = []
+        refsToRemove = []
+        if not self.skipExisting and not self.clobberOutput:
+            # optimization - save all at once, butler will raise an exception
+            # if any dataset is already there
+            refsToAdd = list(id2ref.values())
+        else:
+            # skip or override existing ones
+            for ref in id2ref.values():
+                if registry.find(collection, ref.datasetType, ref.dataId) is None:
+                    refsToAdd.append(ref)
+                elif self.clobberOutput:
+                    # replace this dataset
+                    refsToRemove.append(ref)
+                    refsToAdd.append(ref)
+        if refsToRemove:
+            registry.disassociate(collection, refsToRemove)
+        if refsToAdd:
+            registry.associate(collection, refsToAdd)
+
+    def saveInitOutputs(self, graph):
         """Write any datasets produced by initializing tasks in a graph.
 
         Parameters
         ----------
         graph : `~lsst.pipe.base.QuantumGraph`
             Execution graph.
-        taskFactory : `~lsst.pipe.base.TaskFactory`
-            Task factory.
+
+        Raises
+        ------
+        Exception
+            Raised if ``skipExisting`` is `False` and datasets already
+            exists. Content of a butler collection may be changed if
+            exception is raised.
+
+        Note
+        ----
+        If ``skipExisting`` is `True` then existing datasets are not
+        overwritten, instead we should check that their stored object is
+        exactly the same as what we would save at this time. Comparing
+        arbitrary types of object is, of course, non-trivial. Current
+        implementation only checks the existence of the datasets and their
+        types against the types of objects produced by tasks. Ideally we
+        would like to check that object data is identical too but presently
+        there is no generic way to compare objects. In the future we can
+        potentially introduce some extensible mechanism for that.
         """
         _LOG.debug("Will save InitOutputs for all tasks")
         for taskNodes in graph:
             taskDef = taskNodes.taskDef
-            task = taskFactory.makeTask(taskDef.taskClass, taskDef.config, None, self.butler)
+            task = self.taskFactory.makeTask(taskDef.taskClass, taskDef.config, None, self.butler)
             for name in taskDef.connections.initOutputs:
                 attribute = getattr(taskDef.connections, name)
                 initOutputVar = getattr(task, name)
-                _LOG.debug("Saving InitOutputs for task=%s key=%s", task, name)
-                self.butler.put(initOutputVar, attribute.name, {})
+                objFromStore = None
+                if self.clobberOutput:
+                    # Remove if it already exists.
+                    collection = self.butler.run.collection
+                    registry = self.butler.registry
+                    ref = registry.find(collection, attribute.name, {})
+                    if ref is not None:
+                        # It is not enough to remove dataset from collection,
+                        # it has to be removed from butler too.
+                        self.butler.remove(ref)
+                elif self.skipExisting:
+                    # check if it is there already
+                    _LOG.debug("Retrieving InitOutputs for task=%s key=%s dsTypeName=%s",
+                               task, name, attribute.name)
+                    objFromStore = self.butler.get(attribute.name, {})
+                    if objFromStore is not None:
+                        # Types are supposed to be identical.
+                        # TODO: Check that object contents is identical too.
+                        if type(objFromStore) is not type(initOutputVar):
+                            raise TypeError(f"Stored initOutput object type {type(objFromStore)} "
+                                            f"is different  from task-generated type "
+                                            f"{type(initOutputVar)} for task {taskDef}")
+                if objFromStore is None:
+                    # butler will raise exception if dataset is already there
+                    _LOG.debug("Saving InitOutputs for task=%s key=%s", task, name)
+                    self.butler.put(initOutputVar, attribute.name, {})

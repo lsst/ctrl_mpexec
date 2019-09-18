@@ -4,32 +4,32 @@
 import logging
 
 from lsst.pipe.base import (Struct, PipelineTask, PipelineTaskConfig,
-                            InputDatasetField, OutputDatasetField)
+                            PipelineTaskConnections)
+from lsst.pipe.base import connectionTypes as cT
 
 _LOG = logging.getLogger(__name__.partition(".")[2])
 
 
-class PatchSkyMapTaskConfig(PipelineTaskConfig):
-    coadd = InputDatasetField(name="deepCoadd_calexp",
-                              dimensions=["SkyMap", "Tract", "Patch", "AbstractFilter"],
-                              storageClass="ExposureF",
-                              scalar=True,
-                              doc="DatasetType for the input image")
-    inputCatalog = InputDatasetField(name="deepCoadd_mergeDet",
-                                     dimensions=["SkyMap", "Tract", "Patch"],
-                                     storageClass="SourceCatalog",
-                                     scalar=True,
-                                     doc="DatasetType for the input catalog (merged detections).")
-    outputCatalog = OutputDatasetField(name="deepCoadd_meas",
-                                       dimensions=["SkyMap", "Tract", "Patch", "AbstractFilter"],
-                                       storageClass="SourceCatalog",
-                                       scalar=True,
-                                       doc=("DatasetType for the output catalog "
-                                            "(deblended per-band measurements)"))
+class PatchSkyMapTaskConnections(PipelineTaskConnections,
+                                 dimensions=("skymap", "tract", "patch", "abstract_filter")):
+    coadd = cT.Input(name="deepCoadd_calexp",
+                     dimensions=["skymap", "tract", "patch", "abstract_filter"],
+                     storageClass="ExposureF",
+                     doc="DatasetType for the input image")
+    inputCatalog = cT.Input(name="deepCoadd_mergeDet",
+                            dimensions=["skymap", "tract", "patch"],
+                            storageClass="SourceCatalog",
+                            doc="DatasetType for the input catalog (merged detections).")
+    outputCatalog = cT.Output(name="deepCoadd_meas",
+                              dimensions=["skymap", "tract", "patch", "abstract_filter"],
+                              storageClass="SourceCatalog",
+                              doc=("DatasetType for the output catalog "
+                                   "(deblended per-band measurements)"))
 
-    def setDefaults(self):
-        # set dimensions of a quantum, this task uses per-tract-patch-filter quanta
-        self.quantum.dimensions = ["SkyMap", "Tract", "Patch", "AbstractFilter"]
+
+class PatchSkyMapTaskConfig(PipelineTaskConfig,
+                            pipelineConnections=PatchSkyMapTaskConnections):
+    pass
 
 
 class PatchSkyMapTask(PipelineTask):

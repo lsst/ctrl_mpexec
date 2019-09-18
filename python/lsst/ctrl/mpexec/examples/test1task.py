@@ -7,27 +7,26 @@ building Pipeline or QuantumGraph.
 import logging
 
 from lsst.pipe.base import (Struct, PipelineTask, PipelineTaskConfig,
-                            InputDatasetField, OutputDatasetField)
+                            PipelineTaskConnections)
+from lsst.pipe.base import connectionTypes as cT
 
 _LOG = logging.getLogger(__name__.partition(".")[2])
 
 
-class Test1Config(PipelineTaskConfig):
-    input = InputDatasetField(name="input",
-                              dimensions=["Instrument", "Visit"],
-                              storageClass="example",
-                              scalar=True,
-                              doc="Input dataset type for this task")
-    output = OutputDatasetField(name="output",
-                                dimensions=["Instrument", "Visit"],
-                                storageClass="example",
-                                scalar=True,
-                                doc="Output dataset type for this task")
+class Test1Connections(PipelineTaskConnections,
+                       dimensions=("instrument", "visit")):
+    input = cT.Input(name="input",
+                     dimensions=["instrument", "visit"],
+                     storageClass="example",
+                     doc="Input dataset type for this task")
+    output = cT.Output(name="output",
+                       dimensions=["instrument", "visit"],
+                       storageClass="example",
+                       doc="Output dataset type for this task")
 
-    def setDefaults(self):
-        # set dimensions of a quantum, this task uses per-visit quanta and it
-        # expects datset dimensions to be the same
-        self.quantum.dimensions = ["Instrument", "Visit"]
+
+class Test1Config(PipelineTaskConfig, pipelineConnections=Test1Connections):
+    pass
 
 
 class Test1Task(PipelineTask):

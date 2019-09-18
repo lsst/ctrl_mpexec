@@ -17,8 +17,7 @@ import sys
 #  Imports for other modules --
 # -----------------------------
 from lsst.daf.butler import DatasetRef, Quantum, Run
-from lsst.pipe.base import DatasetTypeDescriptor
-from lsst.pipe.base import Pipeline, QuantumGraph, QuantumGraphTaskNodes, TaskDef
+from lsst.pipe.base import Pipeline, QuantumGraph, QuantumGraphTaskNodes, TaskDatasetTypes, TaskDef
 from lsst.pipe.base.pipeTools import orderPipeline
 from lsst.ctrl.mpexec.dotTools import graph2dot, pipeline2dot
 from lsst.ctrl.mpexec.examples import test1task, test2task
@@ -96,17 +95,16 @@ def main():
         step2 = _makeStep2TaskDef()
         step3 = _makeStep3TaskDef()
 
-        dstype0 = DatasetTypeDescriptor.fromConfig(step1.config.input).datasetType
-        dstype1 = DatasetTypeDescriptor.fromConfig(step1.config.output).datasetType
-        dstype2 = DatasetTypeDescriptor.fromConfig(step2.config.output).datasetType
-        dstype3 = DatasetTypeDescriptor.fromConfig(step3.config.output).datasetType
+        dstypes1 = TaskDatasetTypes.fromConnections(step1.connections)
+        dstypes2 = TaskDatasetTypes.fromConnections(step2.connections)
+        dstypes3 = TaskDatasetTypes.fromConnections(step3.connections)
 
         # quanta for first step which is 1-to-1 tasks
         quanta = []
         for visit in range(10):
             quantum = Quantum(run=run, task=None)
-            quantum.addPredictedInput(_makeDSRefVisit(dstype0, visit))
-            quantum.addOutput(_makeDSRefVisit(dstype1, visit))
+            quantum.addPredictedInput(_makeDSRefVisit(dstypes1.inputs[0], visit))
+            quantum.addOutput(_makeDSRefVisit(dstypes1.outputs[0], visit))
             quanta.append(quantum)
         step1nodes = QuantumGraphTaskNodes(step1, quanta)
 
@@ -114,8 +112,8 @@ def main():
         quanta = []
         for visit in range(10):
             quantum = Quantum(run=run, task=None)
-            quantum.addPredictedInput(_makeDSRefVisit(dstype1, visit))
-            quantum.addOutput(_makeDSRefVisit(dstype2, visit))
+            quantum.addPredictedInput(_makeDSRefVisit(dstypes2.inputs[0], visit))
+            quantum.addOutput(_makeDSRefVisit(dstypes2.outputs[0], visit))
             quanta.append(quantum)
         step2nodes = QuantumGraphTaskNodes(step2, quanta)
 
@@ -130,8 +128,8 @@ def main():
         for tract, patch, visits in patch2visits:
             quantum = Quantum(run=run, task=None)
             for visit in visits:
-                quantum.addPredictedInput(_makeDSRefVisit(dstype2, visit))
-            quantum.addOutput(_makeDSRefPatch(dstype3, tract, patch))
+                quantum.addPredictedInput(_makeDSRefVisit(dstypes3.inputs[0], visit))
+            quantum.addOutput(_makeDSRefPatch(dstypes3.outputs[0], tract, patch))
             quanta.append(quantum)
         step3nodes = QuantumGraphTaskNodes(step3, quanta)
 

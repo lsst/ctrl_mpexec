@@ -5,25 +5,28 @@ import logging
 
 from lsst.afw.image import ExposureF
 from lsst.pipe.base import (Struct, PipelineTask, PipelineTaskConfig,
-                            InputDatasetField, OutputDatasetField)
+                            PipelineTaskConnections)
+from lsst.pipe.base import connectionTypes as cT
 
 _LOG = logging.getLogger(__name__.partition(".")[2])
 
 
-class RawToCalexpTaskConfig(PipelineTaskConfig):
-    input = InputDatasetField(name="raw",
-                              dimensions=["instrument", "exposure", "detector"],
-                              storageClass="ExposureU",
-                              doc="Input dataset type for this task")
-    output = OutputDatasetField(name="calexp",
-                                dimensions=["instrument", "visit", "detector"],
-                                storageClass="ExposureF",
-                                scalar=True,
-                                doc="Output dataset type for this task")
+class RawToCalexpTaskConnections(PipelineTaskConnections,
+                                 dimensions=("instrument", "visit", "detector")):
+    input = cT.Input(name="raw",
+                     dimensions=["instrument", "exposure", "detector"],
+                     multiple=True,
+                     storageClass="Exposure",
+                     doc="Input dataset type for this task")
+    output = cT.Output(name="calexp",
+                       dimensions=["instrument", "visit", "detector"],
+                       storageClass="ExposureF",
+                       doc="Output dataset type for this task")
 
-    def setDefaults(self):
-        # set dimensions of a quantum, this task uses per-visit-detector quanta
-        self.quantum.dimensions = ["instrument", "visit", "detector"]
+
+class RawToCalexpTaskConfig(PipelineTaskConfig,
+                            pipelineConnections=RawToCalexpTaskConnections):
+    pass
 
 
 class RawToCalexpTask(PipelineTask):

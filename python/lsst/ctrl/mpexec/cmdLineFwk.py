@@ -367,7 +367,9 @@ class CmdLineFwk:
                                         outputOverrides=outputs)
 
             # make execution plan (a.k.a. DAG) for pipeline
-            graphBuilder = GraphBuilder(taskFactory, butler.registry, args.skip_existing)
+            graphBuilder = GraphBuilder(taskFactory, butler.registry,
+                                        skipExisting=args.skip_existing,
+                                        clobberExisting=args.clobber_output)
             qgraph = graphBuilder.makeGraph(pipeline, coll, args.data_query)
 
         # count quanta in graph and give a warning if it's empty and return None
@@ -388,7 +390,7 @@ class CmdLineFwk:
 
         return qgraph
 
-    def runPipeline(self, graph, taskFactory, args):
+    def runPipeline(self, graph, taskFactory, args, butler=None):
         """Execute complete QuantumGraph.
 
         Parameters
@@ -399,27 +401,33 @@ class CmdLineFwk:
             Task factory.
         args : `argparse.Namespace`
             Parsed command line
+        butler : `~lsst.daf.butler.Butler`, optional
+            Data Butler instance, if not defined then new instance is made
+            using command line options.
         """
         # If default output collection is given then use it to override
         # butler-configured one.
         run = args.output.get("", None)
 
         # make butler instance
-        butler = Butler(config=args.butler_config, run=run)
+        if butler is None:
+            butler = Butler(config=args.butler_config, run=run)
 
         # at this point we require that output collection was defined
         if not butler.run:
             raise ValueError("no output collection defined in data butler")
 
-        preExecInit = PreExecInit(butler)
-        preExecInit.initialize(graph, taskFactory,
-                               registerDatasetTypes=args.register_dataset_types,
+        preExecInit = PreExecInit(butler, taskFactory, args.skip_existing, args.clobber_output)
+        preExecInit.initialize(graph,
                                saveInitOutputs=not args.skip_init_writes,
-                               updateOutputCollection=True)
+                               registerDatasetTypes=args.register_dataset_types)
 
         if not args.init_only:
-            executor = MPGraphExecutor(numProc=args.processes, timeout=self.MP_TIMEOUT)
-            executor.execute(graph, butler, taskFactory)
+            executor = MPGraphExecutor(numProc=args.processes, timeout=self.MP_TIMEOUT,
+                                       skipExisting=args.skip_existing,
+                                       clobberOutput=args.clobber_output)
+            with util.profile(args.profile, _LOG):
+                executor.execute(graph, butler, taskFactory)
 
     def showInfo(self, showOpts, pipeline, graph=None):
         """Display useful info about pipeline and environment.
