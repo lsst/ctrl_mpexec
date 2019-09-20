@@ -40,7 +40,7 @@ import warnings
 from lsst.daf.butler import Butler, DatasetOriginInfoDef, DatasetRef, Run
 import lsst.log
 import lsst.pex.config as pexConfig
-from lsst.pipe.base import GraphBuilder, PipelineBuilder, Pipeline, QuantumGraph
+from lsst.pipe.base import GraphBuilder, PipelineBuilder, Pipeline, QuantumGraph, QuantumGraphTaskNodes
 from .cmdLineParser import makeParser
 from .dotTools import graph2dot, pipeline2dot
 from .mpGraphExecutor import MPGraphExecutor
@@ -614,6 +614,7 @@ class CmdLineFwk:
         """Print quanta information and dependency to stdout
 
         The input and pridicted output URIs based on the Butler repo are printed.
+        Optionally store the individual quanta to files.
 
         Parameters
         ----------
@@ -632,6 +633,14 @@ class CmdLineFwk:
                 iq += 1
                 shortname = taskNodes.taskDef.taskName.split('.')[-1]
                 print("Quantum {}: {}".format(iq, shortname))
+                if args.save_qgraph:
+                    node = QuantumGraphTaskNodes(taskNodes.taskDef, [quantum],
+                                                 quantum.initInputs, quantum.outputs)
+                    qgraph = QuantumGraph()
+                    qgraph.append(node)
+                    filename = f"{args.save_qgraph}-{iq:06d}.pickle"
+                    with open(filename, "wb") as pickleFile:
+                        pickle.dump(qgraph, pickleFile)
                 print("  inputs:")
                 for key, refs in quantum.predictedInputs.items():
                     for ref in refs:
