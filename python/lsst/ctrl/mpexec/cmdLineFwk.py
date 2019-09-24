@@ -33,11 +33,13 @@ import pickle
 import re
 import sys
 import warnings
+import functools
+from collections import defaultdict
 
 # -----------------------------
 #  Imports for other modules --
 # -----------------------------
-from lsst.daf.butler import Butler, DatasetOriginInfoDef
+from lsst.daf.butler import Butler
 import lsst.log
 import lsst.pex.config as pexConfig
 from lsst.pipe.base import GraphBuilder, PipelineBuilder, Pipeline, QuantumGraph
@@ -361,16 +363,20 @@ class CmdLineFwk:
             # use one from Butler (has to be configured in butler config)
             if not defaultInputs:
                 defaultInputs = [butler.collection]
-            coll = DatasetOriginInfoDef(defaultInputs=defaultInputs,
-                                        defaultOutput=defaultOutputs,
-                                        inputOverrides=inputs,
-                                        outputOverrides=outputs)
+            inputCollections = defaultdict(functools.partial(list, defaultInputs))
+            inputCollections.update(inputs)
+            outputCollection = defaultOutputs
+            if outputs:
+                # TODO: this may never be supported; maybe we should just
+                # remove the command-line option?
+                raise NotImplementedError("Different output collections for different dataset "
+                                          "types is not currently supported.")
 
             # make execution plan (a.k.a. DAG) for pipeline
             graphBuilder = GraphBuilder(taskFactory, butler.registry,
                                         skipExisting=args.skip_existing,
                                         clobberExisting=args.clobber_output)
-            qgraph = graphBuilder.makeGraph(pipeline, coll, args.data_query)
+            qgraph = graphBuilder.makeGraph(pipeline, inputCollections, outputCollection, args.data_query)
 
         # count quanta in graph and give a warning if it's empty and return None
         nQuanta = qgraph.countQuanta()
