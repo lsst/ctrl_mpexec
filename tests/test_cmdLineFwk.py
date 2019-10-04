@@ -98,7 +98,7 @@ class TaskFactoryMock(TaskFactory):
 
 
 def _makeArgs(pipeline=None, qgraph=None, pipeline_actions=(), order_pipeline=False,
-              save_pipeline="", save_qgraph="", pipeline_dot="", qgraph_dot=""):
+              save_pipeline="", save_qgraph="", save_single_quanta="", pipeline_dot="", qgraph_dot=""):
     """Return parsed command line arguments.
 
     Parameters
@@ -113,6 +113,8 @@ def _makeArgs(pipeline=None, qgraph=None, pipeline_actions=(), order_pipeline=Fa
         Name of the pickle file to store pipeline.
     save_qgraph : `str`
         Name of the pickle file to store QGraph.
+    save_single_quanta : `str`
+        Name of the pickle file pattern to store individual QGraph.
     pipeline_dot : `str`
         Name of the DOT file to write pipeline graph.
     qgraph_dot : `str`
@@ -125,6 +127,7 @@ def _makeArgs(pipeline=None, qgraph=None, pipeline_actions=(), order_pipeline=Fa
     args.order_pipeline = order_pipeline
     args.save_pipeline = save_pipeline
     args.save_qgraph = save_qgraph
+    args.save_single_quanta = save_single_quanta
     args.pipeline_dot = pipeline_dot
     args.qgraph_dot = qgraph_dot
     args.output = {}
