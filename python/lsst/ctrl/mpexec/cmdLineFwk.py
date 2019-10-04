@@ -398,6 +398,12 @@ class CmdLineFwk:
             with open(args.save_qgraph, "wb") as pickleFile:
                 pickle.dump(qgraph, pickleFile)
 
+        if args.save_single_quanta:
+            for iq, sqgraph in enumerate(qgraph.quantaAsQgraph()):
+                filename = args.save_single_quanta.format(iq)
+                with open(filename, "wb") as pickleFile:
+                    pickle.dump(sqgraph, pickleFile)
+
         if args.qgraph_dot:
             graph2dot(qgraph, args.qgraph_dot)
 

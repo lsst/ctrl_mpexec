@@ -423,6 +423,11 @@ def makeParser(fromfile_prefix_chars='@', parser_class=ArgumentParser, **kwargs)
                                    help="Location for storing a serialized quantum graph definition "
                                    "(pickle file).",
                                    metavar="PATH")
+        subparser.add_argument("--save-single-quanta", dest="save_single_quanta",
+                               help="Format string of locations for storing individual quantum graph "
+                               "definition (pickle files). The curly brace {} in the input string "
+                               "will be replaced by a quantum number.",
+                               metavar="PATH")
         subparser.add_argument("--pipeline-dot", dest="pipeline_dot",
                                help="Location for storing GraphViz DOT representation of a pipeline.",
                                metavar="PATH")
