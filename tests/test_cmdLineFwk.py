@@ -119,6 +119,7 @@ def _makeArgs(pipeline=None, qgraph=None, pipeline_actions=(), order_pipeline=Fa
         Name of the DOT file to write QGrpah representation.
     """
     args = argparse.Namespace()
+    args.butler_config = None
     args.pipeline = pipeline
     args.qgraph = qgraph
     args.pipeline_actions = pipeline_actions
