@@ -331,6 +331,13 @@ class CmdLineFwk:
         """
         if args.qgraph:
 
+            # Un-pickling QGraph needs a dimensions universe defined in
+            # registry. Easiest way to do it now is to initialize whole data
+            # butler. Butler requires run or collection provided in
+            # constructor but in this case we do not care about (or do not
+            # know) what collection to use so give it an empty name.
+            butler = Butler(config=args.butler_config, collection="")
+
             with open(args.qgraph, 'rb') as pickleFile:
                 qgraph = pickle.load(pickleFile)
                 if not isinstance(qgraph, QuantumGraph):
