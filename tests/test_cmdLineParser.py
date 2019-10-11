@@ -183,7 +183,8 @@ class CmdLineParserTestCase(unittest.TestCase):
             build -t cmd
             """.split())
         show_options = ['pipeline_actions', 'show', 'subparser', 'pipeline',
-                        'order_pipeline', 'save_pipeline', 'pipeline_dot']
+                        'order_pipeline', 'save_pipeline', 'pipeline_dot',
+                        'save_single_quanta']
         self.assertEqual(set(vars(args).keys()), set(global_options + show_options))
         self.assertEqual(args.subcommand, 'build')
 
@@ -194,7 +195,7 @@ class CmdLineParserTestCase(unittest.TestCase):
         qgraph_options = ['pipeline_actions', 'show', 'subparser', 'pipeline',
                           'order_pipeline', 'save_pipeline', 'pipeline_dot',
                           'qgraph_dot', 'qgraph', 'save_qgraph', 'skip_existing',
-                          'clobber_output']
+                          'clobber_output', 'save_single_quanta']
         self.assertEqual(set(vars(args).keys()), set(global_options + qgraph_options))
         self.assertEqual(args.subcommand, 'qgraph')
 
@@ -206,7 +207,7 @@ class CmdLineParserTestCase(unittest.TestCase):
                        'order_pipeline', 'save_pipeline', 'pipeline_dot',
                        'qgraph_dot', 'qgraph', 'save_qgraph', 'skip_existing',
                        'clobber_output', 'register_dataset_types', 'skip_init_writes',
-                       'init_only']
+                       'init_only', 'save_single_quanta']
         self.assertEqual(set(vars(args).keys()), set(global_options + run_options))
         self.assertEqual(args.subcommand, 'run')
 
