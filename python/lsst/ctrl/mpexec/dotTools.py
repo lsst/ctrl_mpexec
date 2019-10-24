@@ -96,7 +96,7 @@ def _renderDSNode(nodeName, dsRef, file):
     """Render GV node for a dataset"""
     label = [dsRef.datasetType.name]
     for key in sorted(dsRef.dataId.keys()):
-        label += [key + "=" + str(dsRef.dataId[key])]
+        label += [str(key) + "=" + str(dsRef.dataId[key])]
     label = r'\n'.join(label)
     attrib = dict(shape="box",
                   style="rounded,filled",
@@ -108,9 +108,9 @@ def _renderDSNode(nodeName, dsRef, file):
 
 def _datasetRefId(dsRef):
     """Make an idetifying string for given ref"""
-    idStr = dsRef.datasetType.name
+    idStr = str(dsRef.datasetType.name)
     for key in sorted(dsRef.dataId.keys()):
-        idStr += ":" + key + "=" + str(dsRef.dataId[key])
+        idStr += ":" + str(key) + "=" + str(dsRef.dataId[key])
     return idStr
 
 
