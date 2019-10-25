@@ -26,7 +26,7 @@ import io
 import unittest
 
 from lsst.pipe.base import (PipelineTask, PipelineTaskConfig,
-                            Pipeline, TaskDef, PipelineTaskConnections)
+                            Pipeline, PipelineTaskConnections)
 import lsst.pipe.base.connectionTypes as cT
 from lsst.ctrl.mpexec.dotTools import pipeline2dot
 import lsst.utils.tests
@@ -62,26 +62,23 @@ class ExamplePipelineTaskConfig(PipelineTaskConfig, pipelineConnections=ExampleP
     pass
 
 
-def _makeConfig(inputName, outputName):
+def _makeConfig(inputName, outputName, pipeline, label):
     """Factory method for config instances
 
     inputName and outputName can be either string or tuple of strings
     with two items max.
     """
-    config = ExamplePipelineTaskConfig()
     if isinstance(inputName, tuple):
-        config.connections.input1 = inputName[0]
-        config.connections.input2 = inputName[1] if len(inputName) > 1 else ""
+        pipeline.addConfigOverride(label, "connections.input1", inputName[0])
+        pipeline.addConfigOverride(label, "connections.input2", inputName[1] if len(inputName) > 1 else "")
     else:
-        config.connections.input1 = inputName
+        pipeline.addConfigOverride(label, "connections.input1", inputName)
 
     if isinstance(outputName, tuple):
-        config.connections.output1 = outputName[0]
-        config.connections.output2 = outputName[1] if len(outputName) > 1 else ""
+        pipeline.addConfigOverride(label, "connections.output1", outputName[0])
+        pipeline.addConfigOverride(label, "connections.output2", outputName[1] if len(outputName) > 1 else "")
     else:
-        config.connections.output1 = outputName
-
-    return config
+        pipeline.addConfigOverride(label, "connections.output1", outputName)
 
 
 class ExamplePipelineTask(PipelineTask):
@@ -104,15 +101,15 @@ def _makePipeline(tasks):
     -------
     Pipeline instance
     """
-    pipe = Pipeline()
+    pipe = Pipeline("test pipeline")
     for task in tasks:
         inputs = task[0]
         outputs = task[1]
         label = task[2]
         klass = task[3] if len(task) > 3 else ExamplePipelineTask
-        config = _makeConfig(inputs, outputs)
-        pipe.append(TaskDef("ExamplePipelineTask", config, klass, label))
-    return pipe
+        pipe.addTask(klass, label)
+        _makeConfig(inputs, outputs, pipe, label)
+    return list(pipe.toExpandedPipeline())
 
 
 class DotToolsTestCase(unittest.TestCase):

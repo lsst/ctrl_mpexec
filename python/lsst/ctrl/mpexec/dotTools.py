@@ -33,33 +33,11 @@ __all__ = ["graph2dot", "pipeline2dot"]
 #  Imports for other modules --
 # -----------------------------
 from lsst.daf.butler import DimensionUniverse
-from lsst.pipe.base import iterConnections
+from lsst.pipe.base import iterConnections, Pipeline
 
 # ----------------------------------
 #  Local non-exported definitions --
 # ----------------------------------
-
-
-def _loadTaskClass(taskDef, taskFactory):
-    """Import task class if necessary.
-
-    Parameters
-    ----------
-    taskDef : `TaskDef`
-    taskFactory : `TaskFactory`
-
-    Raises
-    ------
-    `ImportError` is raised when task class cannot be imported.
-    `MissingTaskFactoryError` is raised when TaskFactory is needed but not provided.
-    """
-    taskClass = taskDef.taskClass
-    if not taskClass:
-        if not taskFactory:
-            raise MissingTaskFactoryError("Task class is not defined but task "
-                                          "factory instance is not provided")
-        taskClass = taskFactory.loadTaskClass(taskDef.taskName)
-    return taskClass
 
 
 def _renderTaskNode(nodeName, taskDef, file, idx=None):
@@ -133,12 +111,6 @@ def _makeDSNode(dsRef, allDatasetRefs, file):
 # ------------------------
 
 
-class MissingTaskFactoryError(Exception):
-    """Exception raised when client fails to provide TaskFactory instance.
-    """
-    pass
-
-
 def graph2dot(qgraph, file):
     """Convert QuantumGraph into GraphViz digraph.
 
@@ -193,7 +165,7 @@ def graph2dot(qgraph, file):
         file.close()
 
 
-def pipeline2dot(pipeline, file, taskFactory=None):
+def pipeline2dot(pipeline, file):
     """Convert Pipeline into GraphViz digraph.
 
     This method is mostly for documentation/presentation purposes.
@@ -206,9 +178,6 @@ def pipeline2dot(pipeline, file, taskFactory=None):
     file : str or file object
         File where GraphViz graph (DOT language) is written, can be a file name
         or file object.
-    taskFactory: `pipe.base.TaskFactory`, optional
-        Instance of an object which knows how to import task classes. It is only
-        used if pipeline task definitions do not define task classes.
 
     Raises
     ------
@@ -228,6 +197,8 @@ def pipeline2dot(pipeline, file, taskFactory=None):
     print("digraph Pipeline {", file=file)
 
     allDatasets = set()
+    if isinstance(pipeline, Pipeline):
+        pipeline = pipeline.toExpandedPipeline()
     for idx, taskDef in enumerate(pipeline):
 
         # node for a task

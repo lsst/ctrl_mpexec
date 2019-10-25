@@ -61,16 +61,13 @@ class CmdLineParserTestCase(unittest.TestCase):
         parser = _NoExitParser()
         parser.add_argument("-t", dest="pipeline_actions", action='append',
                             type=parser_mod._ACTION_ADD_TASK)
-        parser.add_argument("-m", dest="pipeline_actions", action='append',
-                            type=parser_mod._ACTION_MOVE_TASK)
 
         PipelineAction = parser_mod._PipelineAction
         args = parser.parse_args("-t task".split())
         self.assertEqual(args.pipeline_actions, [PipelineAction("new_task", None, "task")])
 
-        args = parser.parse_args("-t task:label -m label:1".split())
-        self.assertEqual(args.pipeline_actions, [PipelineAction("new_task", "label", "task"),
-                                                 PipelineAction("move_task", "label", 1)])
+        args = parser.parse_args("-t task:label".split())
+        self.assertEqual(args.pipeline_actions, [PipelineAction("new_task", "label", "task")])
 
         args = parser.parse_args("-t task".split())
         self.assertEqual(args.pipeline_actions, [PipelineAction("new_task", None, "task")])
@@ -166,18 +163,10 @@ class CmdLineParserTestCase(unittest.TestCase):
         global_options = """
             data_query butler_config clobberConfig clobberVersions debug
             doraise input loglevel longlog noBackupConfig noVersions
-            output packages processes profile subcommand timeout
+            output processes profile subcommand timeout
             """.split()
 
         # test for the set of options defined in each command
-        args = parser.parse_args(
-            """
-            list
-            """.split())
-        list_options = ['show', 'show_headers', 'subparser']
-        self.assertEqual(set(vars(args).keys()), set(global_options + list_options))
-        self.assertEqual(args.subcommand, 'list')
-
         args = parser.parse_args(
             """
             build -t cmd
@@ -210,35 +199,6 @@ class CmdLineParserTestCase(unittest.TestCase):
                        'init_only', 'save_single_quanta']
         self.assertEqual(set(vars(args).keys()), set(global_options + run_options))
         self.assertEqual(args.subcommand, 'run')
-
-    def testCmdLineList(self):
-
-        parser = parser_mod.makeParser(parser_class=_NoExitParser)
-
-        # check list subcommand with options
-        args = parser.parse_args("list".split())
-        self.assertIsNone(args.show)
-
-        args = parser.parse_args("list -p".split())
-        self.assertEqual(args.show, ["packages"])
-
-        args = parser.parse_args("list -m".split())
-        self.assertEqual(args.show, ["modules"])
-
-        args = parser.parse_args("list -t".split())
-        self.assertEqual(args.show, ["tasks"])
-
-        args = parser.parse_args("list -l".split())
-        self.assertEqual(args.show, ["pipeline-tasks"])
-
-        args = parser.parse_args("list -l --pipeline-tasks".split())
-        self.assertEqual(args.show, ["pipeline-tasks", "pipeline-tasks"])
-
-        args = parser.parse_args("list --packages --modules".split())
-        self.assertEqual(args.show, ["packages", "modules"])
-
-        args = parser.parse_args("list --pipeline-tasks --tasks".split())
-        self.assertEqual(args.show, ["pipeline-tasks", "tasks"])
 
     def testCmdLineTasks(self):
 
@@ -336,7 +296,6 @@ class CmdLineParserTestCase(unittest.TestCase):
             -t task3
             -t task4
             --show config
-            -m task1:2
             -c task1:a=b
             -C task1:filename1
             -c label2:c=d -c label2:e=f
@@ -354,7 +313,6 @@ class CmdLineParserTestCase(unittest.TestCase):
                                                  PipelineAction("new_task", "label2", "task2"),
                                                  PipelineAction("new_task", None, "task3"),
                                                  PipelineAction("new_task", None, "task4"),
-                                                 PipelineAction("move_task", "task1", 2),
                                                  PipelineAction("config", "task1", "a=b"),
                                                  PipelineAction("configfile", "task1", "filename1"),
                                                  PipelineAction("config", "label2", "c=d"),
@@ -383,7 +341,6 @@ class CmdLineParserTestCase(unittest.TestCase):
 
         args = parser.parse_args(
             """
-            -p package
             run -p pipeline
             --show config
             --show config=Task.*

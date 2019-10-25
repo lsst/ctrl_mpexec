@@ -167,40 +167,32 @@ class CmdLineFwkTestCase(unittest.TestCase):
         """Tests for CmdLineFwk.makePipeline method
         """
         fwk = CmdLineFwk()
-        taskFactory = TaskFactoryMock()
 
         # make empty pipeline
         args = _makeArgs()
-        pipeline = fwk.makePipeline(taskFactory, args)
+        pipeline = fwk.makePipeline(args)
         self.assertIsInstance(pipeline, Pipeline)
         self.assertEqual(len(pipeline), 0)
 
-        # few tests with pickle
+        # few tests with serialization
         with makeTmpFile() as tmpname:
             # make empty pipeline and store it in a file
             args = _makeArgs(save_pipeline=tmpname)
-            pipeline = fwk.makePipeline(taskFactory, args)
+            pipeline = fwk.makePipeline(args)
             self.assertIsInstance(pipeline, Pipeline)
 
             # read pipeline from a file
             args = _makeArgs(pipeline=tmpname)
-            pipeline = fwk.makePipeline(taskFactory, args)
+            pipeline = fwk.makePipeline(args)
             self.assertIsInstance(pipeline, Pipeline)
             self.assertEqual(len(pipeline), 0)
-
-            # pickle with wrong object type
-            with open(tmpname, "wb") as pickleFile:
-                pickle.dump({}, pickleFile)
-            args = _makeArgs(pipeline=tmpname)
-            with self.assertRaises(TypeError):
-                fwk.makePipeline(taskFactory, args)
 
         # single task pipeline
         actions = [
             _PipelineAction(action="new_task", label="task1", value="TaskOne")
         ]
         args = _makeArgs(pipeline_actions=actions)
-        pipeline = fwk.makePipeline(taskFactory, args)
+        pipeline = fwk.makePipeline(args)
         self.assertIsInstance(pipeline, Pipeline)
         self.assertEqual(len(pipeline), 1)
 
@@ -211,7 +203,7 @@ class CmdLineFwkTestCase(unittest.TestCase):
             _PipelineAction(action="new_task", label="task1b", value="TaskOne")
         ]
         args = _makeArgs(pipeline_actions=actions)
-        pipeline = fwk.makePipeline(taskFactory, args)
+        pipeline = fwk.makePipeline(args)
         self.assertIsInstance(pipeline, Pipeline)
         self.assertEqual(len(pipeline), 3)
 
@@ -222,7 +214,6 @@ class CmdLineFwkTestCase(unittest.TestCase):
         building.
         """
         fwk = CmdLineFwk()
-        taskFactory = TaskFactoryMock()
 
         with makeTmpFile() as tmpname:
 
@@ -231,7 +222,7 @@ class CmdLineFwkTestCase(unittest.TestCase):
             with open(tmpname, "wb") as pickleFile:
                 pickle.dump(qgraph, pickleFile)
             args = _makeArgs(qgraph=tmpname)
-            qgraph = fwk.makeGraph(None, taskFactory, args)
+            qgraph = fwk.makeGraph(None, args)
             self.assertIsInstance(qgraph, QuantumGraph)
             self.assertEqual(len(qgraph), 1)
 
@@ -240,7 +231,7 @@ class CmdLineFwkTestCase(unittest.TestCase):
                 pickle.dump({}, pickleFile)
             args = _makeArgs(qgraph=tmpname)
             with self.assertRaises(TypeError):
-                fwk.makeGraph(None, taskFactory, args)
+                fwk.makeGraph(None, args)
 
             # reading empty graph from pickle should return None
             qgraph = QuantumGraph()
@@ -249,7 +240,7 @@ class CmdLineFwkTestCase(unittest.TestCase):
             args = _makeArgs(qgraph=tmpname)
             with self.assertWarnsRegex(UserWarning, "QuantumGraph is empty"):
                 # this also tests that warning is generated for empty graph
-                qgraph = fwk.makeGraph(None, taskFactory, args)
+                qgraph = fwk.makeGraph(None, args)
             self.assertIs(qgraph, None)
 
     def testSimpleQGraph(self):

@@ -26,7 +26,6 @@ __all__ = ["TaskFactory"]
 
 import logging
 
-from .taskLoader import KIND_PIPELINETASK
 from lsst.pipe.base import TaskFactory as BaseTaskFactory
 from lsst.daf.butler import DatasetType
 
@@ -35,54 +34,7 @@ _LOG = logging.getLogger(__name__.partition(".")[2])
 
 class TaskFactory(BaseTaskFactory):
     """Class instantiating PipelineTasks.
-
-    Parameters
-    ----------
-    taskLoder : TaskLoader
-        Instance of task loader responsible for imports of task classes.
     """
-    def __init__(self, taskLoader):
-        self.taskLoader = taskLoader
-
-    def loadTaskClass(self, taskName):
-        """Locate and import PipelineTask class.
-
-        Returns tuple of task class and its full name, `None` is returned
-        for both if loading fails.
-
-        Parameters
-        ----------
-        taskName : `str`
-            Name of the PipelineTask class, this class requires it to include
-            module and optionally package names (dot-separated).
-
-        Returns
-        -------
-        taskClass : `type`
-            PipelineTask class object, or None on failure.
-        taskName : `str`
-            Full task class name including package and module, or None on
-            failure.
-
-        Raises
-        ------
-        ImportError
-            Raised if task classes cannot be imported.
-        TypeError
-            Raised if imported task is not a PipelineTask.
-        ValueError
-            Raised if ``taskName`` does not include module name.
-        """
-        if "." not in taskName:
-            raise ValueError("Module name must be included in task name")
-
-        # load the class, this will raise ImportError on failure
-        taskClass, fullTaskName, taskKind = self.taskLoader.loadTaskClass(taskName)
-        if taskKind != KIND_PIPELINETASK:
-            raise TypeError("Task class {} is not a PipelineTask".format(fullTaskName))
-
-        return taskClass, fullTaskName
-
     def makeTask(self, taskClass, config, overrides, butler):
         """Create new PipelineTask instance from its class.
 
