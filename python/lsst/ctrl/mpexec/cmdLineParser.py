@@ -289,7 +289,7 @@ def makeParser(fromfile_prefix_chars='@', parser_class=ArgumentParser, **kwargs)
 
     # parallelism options
     group.add_argument("-j", "--processes", type=int, default=1, help="Number of processes to use")
-    group.add_argument("-t", "--timeout", type=float,
+    group.add_argument("--timeout", type=float,
                        help="Timeout for multiprocessing; maximum wall time (sec)")
 
     # define sub-commands
@@ -349,7 +349,7 @@ def makeParser(fromfile_prefix_chars='@', parser_class=ArgumentParser, **kwargs)
                                "Task name can be followed by colon and "
                                "label name, if label is not given than task base name (class name) "
                                "is used as label.")
-        subparser.add_argument("-d", "--delete", metavar="LABEL",
+        subparser.add_argument("--delete", metavar="LABEL",
                                dest="pipeline_actions", action='append', type=_ACTION_DELETE_TASK,
                                help="Delete task with given label from pipeline.")
         subparser.add_argument("-c", "--config", metavar="LABEL:NAME=VALUE",
@@ -359,7 +359,7 @@ def makeParser(fromfile_prefix_chars='@', parser_class=ArgumentParser, **kwargs)
         subparser.add_argument("-C", "--configfile", metavar="LABEL:PATH",
                                dest="pipeline_actions", action='append', type=_ACTION_CONFIG_FILE,
                                help="Configuration override file(s), applies to a task with a given label.")
-        subparser.add_argument("-o", "--order-pipeline", dest="order_pipeline",
+        subparser.add_argument("--order-pipeline", dest="order_pipeline",
                                default=False, action="store_true",
                                help="Order tasks in pipeline based on their data dependencies, "
                                "ordering is performed as last step before saving or executing "
