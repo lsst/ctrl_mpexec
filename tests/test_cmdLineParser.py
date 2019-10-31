@@ -153,45 +153,37 @@ class CmdLineParserTestCase(unittest.TestCase):
         # this should result in error
         self.assertRaises(_Error, parser.parse_args)
 
-        # know attributes to appear in parser output
-        global_options = """
-            data_query butler_config clobberConfig clobberVersions debug
-            doraise input loglevel longlog noBackupConfig noVersions
-            output processes profile subcommand timeout
-            """.split()
+        # know attributes to appear in parser output for all subcommands
+        common_options = "loglevel longlog debug subcommand subparser".split()
 
         # test for the set of options defined in each command
         args = parser.parse_args(
             """
             build -t cmd
             """.split())
-        show_options = ['pipeline_actions', 'show', 'subparser', 'pipeline',
-                        'order_pipeline', 'save_pipeline', 'pipeline_dot',
-                        'save_single_quanta']
-        self.assertEqual(set(vars(args).keys()), set(global_options + show_options))
+        build_options = """pipeline pipeline_actions order_pipeline
+                        save_pipeline pipeline_dot show""".split()
+        self.assertEqual(set(vars(args).keys()), set(common_options + build_options))
         self.assertEqual(args.subcommand, 'build')
 
         args = parser.parse_args(
             """
             qgraph -t cmd
             """.split())
-        qgraph_options = ['pipeline_actions', 'show', 'subparser', 'pipeline',
-                          'order_pipeline', 'save_pipeline', 'pipeline_dot',
-                          'qgraph_dot', 'qgraph', 'save_qgraph', 'skip_existing',
-                          'clobber_output', 'save_single_quanta']
-        self.assertEqual(set(vars(args).keys()), set(global_options + qgraph_options))
+        qgraph_options = build_options + """qgraph data_query butler_config
+                         input output skip_existing clobber_output
+                         save_qgraph qgraph_dot save_single_quanta""".split()
+        self.assertEqual(set(vars(args).keys()), set(common_options + qgraph_options))
         self.assertEqual(args.subcommand, 'qgraph')
 
         args = parser.parse_args(
             """
             run -t taskname
             """.split())
-        run_options = ['pipeline_actions', 'show', 'subparser', 'pipeline',
-                       'order_pipeline', 'save_pipeline', 'pipeline_dot',
-                       'qgraph_dot', 'qgraph', 'save_qgraph', 'skip_existing',
-                       'clobber_output', 'register_dataset_types', 'skip_init_writes',
-                       'init_only', 'save_single_quanta']
-        self.assertEqual(set(vars(args).keys()), set(global_options + run_options))
+        run_options = qgraph_options + """register_dataset_types skip_init_writes
+                      init_only clobberConfig clobberVersions noBackupConfig noVersions
+                      processes profile timeout doraise""".split()
+        self.assertEqual(set(vars(args).keys()), set(common_options + run_options))
         self.assertEqual(args.subcommand, 'run')
 
     def testCmdLineTasks(self):
@@ -226,6 +218,7 @@ class CmdLineParserTestCase(unittest.TestCase):
         # bunch of random options
         args = parser.parse_args(
             """
+            run
             --clobber-config
             --clobber-versions
             --debug
@@ -239,7 +232,7 @@ class CmdLineParserTestCase(unittest.TestCase):
             -j 66
             --profile profile.out
             --timeout 10.10
-            run -t taskname:label
+            -t taskname:label
             --show config
             --show config=Task.*
             -c label:a=b
