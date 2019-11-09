@@ -19,7 +19,7 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-"""Module defining CmdLineParser class and related methods.
+"""Module defining `makeParser` factory method.
 """
 
 __all__ = ["makeParser"]
@@ -208,6 +208,179 @@ Notes:
     * blank lines and lines starting with # are ignored
 """
 
+
+def _makeButlerOptions(parser):
+    """Add a set of options for data butler to a parser.
+
+    Parameters
+    ----------
+    parser : `argparse.ArgumentParser`
+    """
+    group = parser.add_argument_group("Data repository and selection options")
+    group.add_argument("-b", "--butler-config", dest="butler_config", default=None, metavar="PATH",
+                       help="Location of the gen3 butler/registry config file.")
+    group.add_argument("-i", "--input", dest="input", type=_inputCollectionType,
+                       metavar="COLL,DSTYPE:COLL", default={},
+                       help=("Comma-separated names of the data butler collection. "
+                             "If collection includes dataset type name separated by colon "
+                             "then collection is only used for that specific dataset type. "
+                             "Pre-flight uses these collections to search for input datasets. "
+                             "Task execution stage only uses first global collection name "
+                             "to override collection specified in Butler configuration file."))
+    group.add_argument("-o", "--output", dest="output", type=_outputCollectionType,
+                       metavar="COLL,DSTYPE:COLL", default={},
+                       help=("Comma-separated names of the data butler collection. "
+                             "See description of --input option.  This option only allows "
+                             "single collection (per-dataset type or global)."))
+    group.add_argument("-d", "--data-query", dest="data_query", default="", metavar="QUERY",
+                       help="User data selection expression.")
+
+
+def _makeMetaOutputOptions(parser):
+    """Add a set of options describing output metadata.
+
+    Parameters
+    ----------
+    parser : `argparse.ArgumentParser`
+    """
+    group = parser.add_argument_group("Meta-information output options")
+    group.add_argument("--skip-init-writes", dest="skip_init_writes", default=False,
+                       action="store_true",
+                       help="Do not write collection-wide 'init output' datasets (e.g. schemas).")
+    group.add_argument("--init-only", dest="init_only", default=False,
+                       action="store_true",
+                       help=("Do not actually run; just register dataset types and/or save init outputs."))
+    group.add_argument("--register-dataset-types", dest="register_dataset_types", default=False,
+                       action="store_true",
+                       help="Register DatasetTypes that do not already exist in the Registry.")
+    group.add_argument("--clobber-config", action="store_true", dest="clobberConfig", default=False,
+                       help=("backup and then overwrite existing config files instead of checking them "
+                             "(safe with -j, but not all other forms of parallel execution)"))
+    group.add_argument("--no-backup-config", action="store_true", dest="noBackupConfig", default=False,
+                       help="Don't copy config to file~N backup.")
+    group.add_argument("--clobber-versions", action="store_true", dest="clobberVersions", default=False,
+                       help=("backup and then overwrite existing package versions instead of checking"
+                             "them (safe with -j, but not all other forms of parallel execution)"))
+    group.add_argument("--no-versions", action="store_true", dest="noVersions", default=False,
+                       help="don't check package versions; useful for development")
+
+
+def _makeLoggingOptions(parser):
+    """Add a set of options for logging configuration.
+
+    Parameters
+    ----------
+    parser : `argparse.ArgumentParser`
+    """
+    group = parser.add_argument_group("Logging options")
+    group.add_argument("-L", "--loglevel", action=_LogLevelAction, default=[],
+                       help="logging level; supported levels are [trace|debug|info|warn|error|fatal]",
+                       metavar="LEVEL|COMPONENT=LEVEL")
+    group.add_argument("--longlog", action="store_true", help="use a more verbose format for the logging")
+    group.add_argument("--debug", action="store_true", help="(deprecated) enable debugging output")
+
+
+def _makePipelineOptions(parser):
+    """Add a set of options for building a pipeline.
+
+    Parameters
+    ----------
+    parser : `argparse.ArgumentParser`
+    """
+    group = parser.add_argument_group("Pipeline building options")
+    group.add_argument("-p", "--pipeline", dest="pipeline",
+                       help="Location of a serialized pipeline definition (pickle file).",
+                       metavar="PATH")
+    group.add_argument("-t", "--task", metavar="TASK[:LABEL]",
+                       dest="pipeline_actions", action='append', type=_ACTION_ADD_TASK,
+                       help="Task name to add to pipeline, must be a fully qualified task name. "
+                       "Task name can be followed by colon and "
+                       "label name, if label is not given than task base name (class name) "
+                       "is used as label.")
+    group.add_argument("--delete", metavar="LABEL",
+                       dest="pipeline_actions", action='append', type=_ACTION_DELETE_TASK,
+                       help="Delete task with given label from pipeline.")
+    group.add_argument("-c", "--config", metavar="LABEL:NAME=VALUE",
+                       dest="pipeline_actions", action='append', type=_ACTION_CONFIG,
+                       help="Configuration override(s) for a task with specified label, "
+                       "e.g. -c task:foo=newfoo -c task:bar.baz=3.")
+    group.add_argument("-C", "--configfile", metavar="LABEL:PATH",
+                       dest="pipeline_actions", action='append', type=_ACTION_CONFIG_FILE,
+                       help="Configuration override file(s), applies to a task with a given label.")
+    group.add_argument("--order-pipeline", dest="order_pipeline",
+                       default=False, action="store_true",
+                       help="Order tasks in pipeline based on their data dependencies, "
+                       "ordering is performed as last step before saving or executing "
+                       "pipeline.")
+    group.add_argument("-s", "--save-pipeline", dest="save_pipeline",
+                       help="Location for storing a serialized pipeline definition (pickle file).",
+                       metavar="PATH")
+    group.add_argument("--pipeline-dot", dest="pipeline_dot",
+                       help="Location for storing GraphViz DOT representation of a pipeline.",
+                       metavar="PATH")
+    group.add_argument("--instrument", metavar="instrument",
+                       dest="pipeline_actions", action="append", type=_ACTION_ADD_INSTRUMENT,
+                       help="Add an instrument which will be used to load config overrides when"
+                            " defining a pipeline. This must be the fully qualified class name")
+
+
+def _makeQuntumGraphOptions(parser):
+    """Add a set of options controlling quantum graph generation.
+
+    Parameters
+    ----------
+    parser : `argparse.ArgumentParser`
+    """
+    group = parser.add_argument_group("Quantum graph building options")
+    group.add_argument("-g", "--qgraph", dest="qgraph",
+                       help="Location for a serialized quantum graph definition "
+                       "(pickle file). If this option is given then all input data "
+                       "options and pipeline-building options cannot be used.",
+                       metavar="PATH")
+    groupex = group.add_mutually_exclusive_group()
+    groupex.add_argument("--skip-existing", dest="skip_existing",
+                         default=False, action="store_true",
+                         help="If all Quantum outputs already exist in output collection "
+                         "then Quantum will be excluded from QuantumGraph.")
+    groupex.add_argument("--clobber-output", dest="clobber_output",
+                         default=False, action="store_true",
+                         help="Ignore or replace existing output datasets in output collecton. "
+                         "With this option existing output datasets are ignored when generating "
+                         "QuantumGraph, and they are removed from a collection prior to "
+                         "executing individual Quanta. This option is exclusive with "
+                         "--skip-existing option.")
+    group.add_argument("-q", "--save-qgraph", dest="save_qgraph",
+                       help="Location for storing a serialized quantum graph definition "
+                       "(pickle file).",
+                       metavar="PATH")
+    group.add_argument("--save-single-quanta", dest="save_single_quanta",
+                       help="Format string of locations for storing individual quantum graph "
+                       "definition (pickle files). The curly brace {} in the input string "
+                       "will be replaced by a quantum number.",
+                       metavar="PATH")
+    group.add_argument("--qgraph-dot", dest="qgraph_dot",
+                       help="Location for storing GraphViz DOT representation of a "
+                       "quantum graph.",
+                       metavar="PATH")
+
+
+def _makeExecOptions(parser):
+    """Add options controlling how tasks are executed.
+
+    Parameters
+    ----------
+    parser : `argparse.ArgumentParser`
+    """
+    group = parser.add_argument_group("Execution options")
+    group.add_argument("--doraise", action="store_true",
+                       help="raise an exception on error (else log a message and continue)?")
+    group.add_argument("--profile", metavar="PATH", help="Dump cProfile statistics to filename")
+
+    # parallelism options
+    group.add_argument("-j", "--processes", type=int, default=1, help="Number of processes to use")
+    group.add_argument("--timeout", type=float,
+                       help="Timeout for multiprocessing; maximum wall time (sec)")
+
 # ------------------------
 #  Exported definitions --
 # ------------------------
@@ -235,62 +408,11 @@ def makeParser(fromfile_prefix_chars='@', parser_class=ArgumentParser, **kwargs)
     instance of `parser_class`
     """
 
-    parser = parser_class(usage="%(prog)s [global-options] subcommand [command-options]",
+    parser = parser_class(usage="%(prog)s subcommand [options]",
                           fromfile_prefix_chars=fromfile_prefix_chars,
                           epilog=_EPILOG,
                           formatter_class=RawDescriptionHelpFormatter,
                           **kwargs)
-
-    # global options which come before sub-command
-
-    # butler options
-    group = parser.add_argument_group("Data repository and selection options")
-    group.add_argument("-b", "--butler-config", dest="butler_config", default=None, metavar="PATH",
-                       help="Location of the gen3 butler/registry config file.")
-    group.add_argument("-i", "--input", dest="input", type=_inputCollectionType,
-                       metavar="COLL,DSTYPE:COLL", default={},
-                       help=("Comma-separated names of the data butler collection. "
-                             "If collection includes dataset type name separated by colon "
-                             "then collection is only used for that specific dataset type. "
-                             "Pre-flight uses these collections to search for input datasets. "
-                             "Task execution stage only uses first global collection name "
-                             "to override collection specified in Butler configuration file."))
-    group.add_argument("-o", "--output", dest="output", type=_outputCollectionType,
-                       metavar="COLL,DSTYPE:COLL", default={},
-                       help=("Comma-separated names of the data butler collection. "
-                             "See description of --input option.  This option only allows "
-                             "single collection (per-dataset type or global)."))
-    group.add_argument("-d", "--data-query", dest="data_query", default="", metavar="QUERY",
-                       help="User data selection expression.")
-
-    # output options
-    group = parser.add_argument_group("Meta-information output options")
-    group.add_argument("--clobber-config", action="store_true", dest="clobberConfig", default=False,
-                       help=("backup and then overwrite existing config files instead of checking them "
-                             "(safe with -j, but not all other forms of parallel execution)"))
-    group.add_argument("--no-backup-config", action="store_true", dest="noBackupConfig", default=False,
-                       help="Don't copy config to file~N backup.")
-    group.add_argument("--clobber-versions", action="store_true", dest="clobberVersions", default=False,
-                       help=("backup and then overwrite existing package versions instead of checking"
-                             "them (safe with -j, but not all other forms of parallel execution)"))
-    group.add_argument("--no-versions", action="store_true", dest="noVersions", default=False,
-                       help="don't check package versions; useful for development")
-
-    # logging/debug options
-    group = parser.add_argument_group("Execution and logging options")
-    group.add_argument("-L", "--loglevel", action=_LogLevelAction, default=[],
-                       help="logging level; supported levels are [trace|debug|info|warn|error|fatal]",
-                       metavar="LEVEL|COMPONENT=LEVEL")
-    group.add_argument("--longlog", action="store_true", help="use a more verbose format for the logging")
-    group.add_argument("--debug", action="store_true", help="enable debugging output?")
-    group.add_argument("--doraise", action="store_true",
-                       help="raise an exception on error (else log a message and continue)?")
-    group.add_argument("--profile", metavar="PATH", help="Dump cProfile statistics to filename")
-
-    # parallelism options
-    group.add_argument("-j", "--processes", type=int, default=1, help="Number of processes to use")
-    group.add_argument("-t", "--timeout", type=float,
-                       help="Timeout for multiprocessing; maximum wall time (sec)")
 
     # define sub-commands
     subparsers = parser.add_subparsers(dest="subcommand",
@@ -323,85 +445,17 @@ def makeParser(fromfile_prefix_chars='@', parser_class=ArgumentParser, **kwargs)
                                           formatter_class=RawDescriptionHelpFormatter)
         subparser.set_defaults(subparser=subparser,
                                pipeline_actions=[])
+        _makeLoggingOptions(subparser)
+        _makePipelineOptions(subparser)
+
         if subcommand in ("qgraph", "run"):
-            subparser.add_argument("-g", "--qgraph", dest="qgraph",
-                                   help="Location for a serialized quantum graph definition "
-                                   "(pickle file). If this option is given then all input data "
-                                   "options and pipeline-building options cannot be used.",
-                                   metavar="PATH")
+            _makeQuntumGraphOptions(subparser)
+            _makeButlerOptions(subparser)
+
         if subcommand == "run":
-            subparser.add_argument("--skip-init-writes", dest="skip_init_writes", default=False,
-                                   action="store_true",
-                                   help="Do not write collection-wide 'init output' datasets (e.g. schemas).")
-            subparser.add_argument("--init-only", dest="init_only", default=False,
-                                   action="store_true",
-                                   help=("Do not actually run; just register dataset types and/or save "
-                                         "init outputs."))
-            subparser.add_argument("--register-dataset-types", dest="register_dataset_types", default=False,
-                                   action="store_true",
-                                   help="Register DatasetTypes that do not already exist in the Registry.")
-        subparser.add_argument("-p", "--pipeline", dest="pipeline",
-                               help="Location of a serialized pipeline definition (pickle file).",
-                               metavar="PATH")
-        subparser.add_argument("-t", "--task", metavar="TASK[:LABEL]",
-                               dest="pipeline_actions", action='append', type=_ACTION_ADD_TASK,
-                               help="Task name to add to pipeline, must be a fully qualified task name. "
-                               "Task name can be followed by colon and "
-                               "label name, if label is not given than task base name (class name) "
-                               "is used as label.")
-        subparser.add_argument("-d", "--delete", metavar="LABEL",
-                               dest="pipeline_actions", action='append', type=_ACTION_DELETE_TASK,
-                               help="Delete task with given label from pipeline.")
-        subparser.add_argument("-c", "--config", metavar="LABEL:NAME=VALUE",
-                               dest="pipeline_actions", action='append', type=_ACTION_CONFIG,
-                               help="Configuration override(s) for a task with specified label, "
-                               "e.g. -c task:foo=newfoo -c task:bar.baz=3.")
-        subparser.add_argument("-C", "--configfile", metavar="LABEL:PATH",
-                               dest="pipeline_actions", action='append', type=_ACTION_CONFIG_FILE,
-                               help="Configuration override file(s), applies to a task with a given label.")
-        subparser.add_argument("-o", "--order-pipeline", dest="order_pipeline",
-                               default=False, action="store_true",
-                               help="Order tasks in pipeline based on their data dependencies, "
-                               "ordering is performed as last step before saving or executing "
-                               "pipeline.")
-        subparser.add_argument("--instrument", metavar="instrument",
-                               dest="pipeline_actions", action="append", type=_ACTION_ADD_INSTRUMENT,
-                               help="Add an instrument which will be used to load config overrides when"
-                                    "defining a pipeline. This must be the fully qualified class name")
-        if subcommand in ("qgraph", "run"):
-            group = subparser.add_mutually_exclusive_group()
-            group.add_argument("--skip-existing", dest="skip_existing",
-                               default=False, action="store_true",
-                               help="If all Quantum outputs already exist in output collection "
-                               "then Quantum will be excluded from QuantumGraph.")
-            group.add_argument("--clobber-output", dest="clobber_output",
-                               default=False, action="store_true",
-                               help="Ignore or replace existing output datasets in output collecton. "
-                               "With this option existing output datasets are ignored when generating "
-                               "QuantumGraph, and they are removed from a collection prior to "
-                               "executing individual Quanta. This option is exclusive with "
-                               "--skip-existing option.")
-        subparser.add_argument("-s", "--save-pipeline", dest="save_pipeline",
-                               help="Location for storing a serialized pipeline definition (pickle file).",
-                               metavar="PATH")
-        if subcommand in ("qgraph", "run"):
-            subparser.add_argument("-q", "--save-qgraph", dest="save_qgraph",
-                                   help="Location for storing a serialized quantum graph definition "
-                                   "(pickle file).",
-                                   metavar="PATH")
-        subparser.add_argument("--save-single-quanta", dest="save_single_quanta",
-                               help="Format string of locations for storing individual quantum graph "
-                               "definition (pickle files). The curly brace {} in the input string "
-                               "will be replaced by a quantum number.",
-                               metavar="PATH")
-        subparser.add_argument("--pipeline-dot", dest="pipeline_dot",
-                               help="Location for storing GraphViz DOT representation of a pipeline.",
-                               metavar="PATH")
-        if subcommand in ("qgraph", "run"):
-            subparser.add_argument("--qgraph-dot", dest="qgraph_dot",
-                                   help="Location for storing GraphViz DOT representation of a "
-                                   "quantum graph.",
-                                   metavar="PATH")
+            _makeExecOptions(subparser)
+            _makeMetaOutputOptions(subparser)
+
         subparser.add_argument("--show", metavar="ITEM|ITEM=VALUE", action="append", default=[],
                                help="Dump various info to standard output. Possible items are: "
                                "`config', `config=[Task/]<PATTERN>' or "
