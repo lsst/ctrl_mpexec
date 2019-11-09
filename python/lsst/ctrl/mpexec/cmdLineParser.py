@@ -95,10 +95,9 @@ class _PipelineActionType:
 
 _ACTION_ADD_TASK = _PipelineActionType("new_task", "(?P<value>[^:]+)(:(?P<label>.+))?")
 _ACTION_DELETE_TASK = _PipelineActionType("delete_task", "(?P<value>)(?P<label>.+)")
-_ACTION_MOVE_TASK = _PipelineActionType("move_task", r"(?P<label>.+):(?P<value>-?\d+)", int)
-_ACTION_LABEL_TASK = _PipelineActionType("relabel", "(?P<label>.+):(?P<value>.+)")
 _ACTION_CONFIG = _PipelineActionType("config", "(?P<label>.+):(?P<value>.+=.+)")
 _ACTION_CONFIG_FILE = _PipelineActionType("configfile", "(?P<label>.+):(?P<value>.+)")
+_ACTION_ADD_INSTRUMENT = _PipelineActionType("new_instrument", "(?P<value>[^:]+)")
 
 
 class _LogLevelAction(Action):
@@ -244,14 +243,6 @@ def makeParser(fromfile_prefix_chars='@', parser_class=ArgumentParser, **kwargs)
 
     # global options which come before sub-command
 
-    group = parser.add_argument_group("Task search options")
-    group.add_argument("-p", "--package", action="append", dest="packages", default=[],
-                       metavar="NAME1.NAME2.NAME3",
-                       help=("Package to search for task classes. Package name is specified as "
-                             "dot-separated names found in $PYTHON PATH (e.g. lsst.pipe.tasks). "
-                             "It should not include module name. This option overrides default "
-                             "built-in list of modules. It can be used multiple times."))
-
     # butler options
     group = parser.add_argument_group("Data repository and selection options")
     group.add_argument("-b", "--butler-config", dest="butler_config", default=None, metavar="PATH",
@@ -311,27 +302,6 @@ def makeParser(fromfile_prefix_chars='@', parser_class=ArgumentParser, **kwargs)
     # The issue was fixed in Python 3.6, workaround is not need starting with that version
     subparsers.required = True
 
-    # list sub-command
-    subparser = subparsers.add_parser("list",
-                                      usage="%(prog)s [options]",
-                                      description="Display information about tasks and where they are "
-                                      "found. If none of the options are specified then --pipeline-tasks "
-                                      "is used by default")
-    subparser.set_defaults(subparser=subparser)
-    subparser.add_argument("-p", "--packages", dest="show", action="append_const", const="packages",
-                           help="Shows list of the packages to search for tasks")
-    subparser.add_argument("-m", "--modules", dest="show", action="append_const", const='modules',
-                           help="Shows list of all modules existing in current list of packages")
-    subparser.add_argument("-t", "--tasks", dest="show", action="append_const", const="tasks",
-                           help="Shows list of all tasks (any sub-class of Task) existing"
-                           " in current list of packages")
-    subparser.add_argument("-l", "--pipeline-tasks", dest="show", action="append_const",
-                           const="pipeline-tasks",
-                           help=("(default) Shows list of all PipelineTasks existing in current set"
-                                 " of packages"))
-    subparser.add_argument("--no-headers", dest="show_headers", action="store_false", default=True,
-                           help="Do not display any headers on output")
-
     for subcommand in ("build", "qgraph", "run"):
         # show/run sub-commands, they are all identical except for the
         # command itself and description
@@ -375,21 +345,13 @@ def makeParser(fromfile_prefix_chars='@', parser_class=ArgumentParser, **kwargs)
                                metavar="PATH")
         subparser.add_argument("-t", "--task", metavar="TASK[:LABEL]",
                                dest="pipeline_actions", action='append', type=_ACTION_ADD_TASK,
-                               help="Task name to add to pipeline, can be either full name "
-                               "with dots including package and module name, or a simple name "
-                               "to find the class in one of the modules in pre-defined packages "
-                               "(see --packages option). Task name can be followed by colon and "
+                               help="Task name to add to pipeline, must be a fully qualified task name. "
+                               "Task name can be followed by colon and "
                                "label name, if label is not given than task base name (class name) "
                                "is used as label.")
         subparser.add_argument("-d", "--delete", metavar="LABEL",
                                dest="pipeline_actions", action='append', type=_ACTION_DELETE_TASK,
                                help="Delete task with given label from pipeline.")
-        subparser.add_argument("-m", "--move", metavar="LABEL:NUMBER",
-                               dest="pipeline_actions", action='append', type=_ACTION_MOVE_TASK,
-                               help="Move given task to a different position in a pipeline.")
-        subparser.add_argument("-l", "--label", metavar="LABEL:NEW_LABEL",
-                               dest="pipeline_actions", action='append', type=_ACTION_LABEL_TASK,
-                               help="Change label of a given task.")
         subparser.add_argument("-c", "--config", metavar="LABEL:NAME=VALUE",
                                dest="pipeline_actions", action='append', type=_ACTION_CONFIG,
                                help="Configuration override(s) for a task with specified label, "
@@ -402,6 +364,10 @@ def makeParser(fromfile_prefix_chars='@', parser_class=ArgumentParser, **kwargs)
                                help="Order tasks in pipeline based on their data dependencies, "
                                "ordering is performed as last step before saving or executing "
                                "pipeline.")
+        subparser.add_argument("--instrument", metavar="instrument",
+                               dest="pipeline_actions", action="append", type=_ACTION_ADD_INSTRUMENT,
+                               help="Add an instrument which will be used to load config overrides when"
+                                    "defining a pipeline. This must be the fully qualified class name")
         if subcommand in ("qgraph", "run"):
             group = subparser.add_mutually_exclusive_group()
             group.add_argument("--skip-existing", dest="skip_existing",

@@ -30,7 +30,7 @@ import itertools
 # -----------------------------
 #  Imports for other modules --
 # -----------------------------
-from lsst.pipe.base import Pipeline, PipelineDatasetTypes
+from lsst.pipe.base import PipelineDatasetTypes
 
 _LOG = logging.getLogger(__name__.partition(".")[2])
 
@@ -112,7 +112,7 @@ class PreExecInit:
             Raised if ``registerDatasetTypes`` is ``False`` and DatasetType
             does not exist in registry.
         """
-        pipeline = Pipeline(nodes.taskDef for nodes in graph)
+        pipeline = list(nodes.taskDef for nodes in graph)
         datasetTypes = PipelineDatasetTypes.fromPipeline(pipeline, registry=self.butler.registry)
         for datasetType in itertools.chain(datasetTypes.initIntermediates, datasetTypes.initOutputs,
                                            datasetTypes.intermediates, datasetTypes.outputs):

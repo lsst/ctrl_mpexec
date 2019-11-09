@@ -42,13 +42,12 @@ from collections import defaultdict
 from lsst.daf.butler import Butler, DatasetRef, Run
 import lsst.log
 import lsst.pex.config as pexConfig
-from lsst.pipe.base import GraphBuilder, PipelineBuilder, Pipeline, QuantumGraph
+from lsst.pipe.base import GraphBuilder, Pipeline, QuantumGraph
 from .cmdLineParser import makeParser
 from .dotTools import graph2dot, pipeline2dot
 from .mpGraphExecutor import MPGraphExecutor
 from .preExecInit import PreExecInit
 from .taskFactory import TaskFactory
-from .taskLoader import (TaskLoader, KIND_PIPELINETASK)
 from . import util
 
 # ----------------------------------
@@ -106,16 +105,11 @@ class CmdLineFwk:
         # First thing to do is to setup logging.
         self.configLog(args.longlog, args.loglevel)
 
-        taskLoader = TaskLoader(args.packages)
-        taskFactory = TaskFactory(taskLoader)
-
-        if args.subcommand == "list":
-            # just dump some info about where things may be found
-            return self.doList(taskLoader, args.show, args.show_headers)
+        taskFactory = TaskFactory()
 
         # make pipeline out of command line arguments (can return empty pipeline)
         try:
-            pipeline = self.makePipeline(taskFactory, args)
+            pipeline = self.makePipeline(args)
         except Exception as exc:
             print("Failed to build pipeline: {}".format(exc), file=sys.stderr)
             raise
@@ -127,7 +121,7 @@ class CmdLineFwk:
 
         # make quantum graph
         try:
-            qgraph = self.makeGraph(pipeline, taskFactory, args)
+            qgraph = self.makeGraph(pipeline, args)
         except Exception as exc:
             print("Failed to build graph: {}".format(exc), file=sys.stderr)
             raise
@@ -188,69 +182,11 @@ class CmdLineFwk:
                 pyLevel = lsst.log.LevelTranslator.lsstLog2logging(level)
                 logging.getLogger(component).setLevel(pyLevel)
 
-    def doList(self, taskLoader, show, show_headers):
-        """Implementation of the "list" command.
-
-        Parameters
-        ----------
-        taskLoader : `TaskLoader`
-        show : `list` of `str`
-            List of items to show.
-        show_headers : `bool`
-            True to display additional headers
-        """
-
-        if not show:
-            show = ["pipeline-tasks"]
-
-        if "packages" in show:
-            if show_headers:
-                print()
-                print("Modules search path")
-                print("-------------------")
-            for pkg in sorted(taskLoader.packages):
-                print(pkg)
-
-        if "modules" in show:
-            try:
-                modules = taskLoader.modules()
-            except ImportError as exc:
-                print("Failed to import package, check --package option or $PYTHONPATH:", exc,
-                      file=sys.stderr)
-                return 2
-            modules = [(name, "package" if flag else "module") for name, flag in sorted(modules)]
-            headers = None
-            if show_headers:
-                print()
-                headers = ("Module or package name", "Type    ")
-            util.printTable(modules, headers)
-
-        if "tasks" in show or "pipeline-tasks" in show:
-            try:
-                tasks = taskLoader.tasks()
-            except ImportError as exc:
-                print("Failed to import package, check --packages option or PYTHONPATH:", exc,
-                      file=sys.stderr)
-                return 2
-
-            if "tasks" not in show:
-                # only show pipeline-tasks
-                tasks = [(name, kind) for name, kind in tasks if kind == KIND_PIPELINETASK]
-            tasks.sort()
-
-            headers = None
-            if show_headers:
-                print()
-                headers = ("Task class name", "Kind     ")
-            util.printTable(tasks, headers)
-
-    def makePipeline(self, taskFactory, args):
+    def makePipeline(self, args):
         """Build a pipeline from command line arguments.
 
         Parameters
         ----------
-        taskFactory : `~lsst.pipe.base.TaskFactory`
-            Task factory.
         args : `argparse.Namespace`
             Parsed command line
 
@@ -258,60 +194,46 @@ class CmdLineFwk:
         -------
         pipeline : `~lsst.pipe.base.Pipeline`
         """
-        # read existing pipeline from pickle file
-        pipeline = None
         if args.pipeline:
-            with open(args.pipeline, 'rb') as pickleFile:
-                pipeline = pickle.load(pickleFile)
-                if not isinstance(pipeline, Pipeline):
-                    raise TypeError("Pipeline pickle file has incorrect object type: {}".format(
-                        type(pipeline)))
-
-        pipeBuilder = PipelineBuilder(taskFactory, pipeline)
+            pipeline = Pipeline.fromFile(args.pipeline)
+        else:
+            pipeline = Pipeline("anonymous")
 
         # loop over all pipeline actions and apply them in order
         for action in args.pipeline_actions:
+            if action.action == "add_instrument":
+
+                pipeline.addInstrument(action.value)
 
             if action.action == "new_task":
 
-                pipeBuilder.addTask(action.value, action.label)
+                pipeline.addTask(action.value, action.label)
 
             elif action.action == "delete_task":
 
-                pipeBuilder.deleteTask(action.label)
-
-            elif action.action == "move_task":
-
-                pipeBuilder.moveTask(action.label, action.value)
-
-            elif action.action == "relabel":
-
-                pipeBuilder.labelTask(action.label, action.value)
+                pipeline.removeTask(action.label)
 
             elif action.action == "config":
 
-                pipeBuilder.configOverride(action.label, action.value)
+                pipeline.addConfigOverride(action.label, action.value[0], action.value[1])
 
             elif action.action == "configfile":
 
-                pipeBuilder.configOverrideFile(action.label, action.value)
+                pipeline.addConfigOverrideFile(action.label, action.value)
 
             else:
 
                 raise ValueError(f"Unexpected pipeline action: {action.action}")
 
-        pipeline = pipeBuilder.pipeline(args.order_pipeline)
-
         if args.save_pipeline:
-            with open(args.save_pipeline, "wb") as pickleFile:
-                pickle.dump(pipeline, pickleFile)
+            pipeline.toFile(args.save_pipeline)
 
         if args.pipeline_dot:
-            pipeline2dot(pipeline, args.pipeline_dot, taskFactory)
+            pipeline2dot(pipeline, args.pipeline_dot)
 
         return pipeline
 
-    def makeGraph(self, pipeline, taskFactory, args):
+    def makeGraph(self, pipeline, args):
         """Build a graph from command line arguments.
 
         Parameters
@@ -319,8 +241,6 @@ class CmdLineFwk:
         pipeline : `~lsst.pipe.base.Pipeline`
             Pipeline, can be empty or ``None`` if graph is read from pickle
             file.
-        taskFactory : `~lsst.pipe.base.TaskFactory`
-            Task factory.
         args : `argparse.Namespace`
             Parsed command line
 
@@ -380,7 +300,7 @@ class CmdLineFwk:
                                           "types is not currently supported.")
 
             # make execution plan (a.k.a. DAG) for pipeline
-            graphBuilder = GraphBuilder(taskFactory, butler.registry,
+            graphBuilder = GraphBuilder(butler.registry,
                                         skipExisting=args.skip_existing,
                                         clobberExisting=args.clobber_output)
             qgraph = graphBuilder.makeGraph(pipeline, inputCollections, outputCollection, args.data_query)
@@ -417,7 +337,7 @@ class CmdLineFwk:
         graph : `QuantumGraph`
             Execution graph.
         taskFactory : `~lsst.pipe.base.TaskFactory`
-            Task factory.
+            Task factory
         args : `argparse.Namespace`
             Parsed command line
         butler : `~lsst.daf.butler.Butler`, optional

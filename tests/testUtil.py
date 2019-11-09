@@ -241,8 +241,9 @@ def makeSimpleQGraph(nQuanta=5, pipeline=None, butler=None, skipExisting=False, 
     """
 
     if pipeline is None:
-        taskDef = pipeBase.TaskDef("AddTask", AddTaskConfig(), taskClass=AddTask, label="task1")
-        pipeline = pipeBase.Pipeline([taskDef])
+        pipeline = pipeBase.Pipeline("test pipeline")
+        pipeline.addTask(AddTask, "task1")
+        pipeline = list(pipeline.toExpandedPipeline())
 
     if butler is None:
 
@@ -265,7 +266,7 @@ def makeSimpleQGraph(nQuanta=5, pipeline=None, butler=None, skipExisting=False, 
             butler.put(data, "add_input", dataId)
 
     # Make the graph, task factory is not needed here
-    builder = pipeBase.GraphBuilder(taskFactory=None, registry=butler.registry,
+    builder = pipeBase.GraphBuilder(registry=butler.registry,
                                     skipExisting=skipExisting, clobberExisting=clobberExisting)
     qgraph = builder.makeGraph(
         pipeline,
