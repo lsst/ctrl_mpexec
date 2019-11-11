@@ -46,12 +46,19 @@ logging.basicConfig(level=logging.INFO)
 
 
 @contextlib.contextmanager
-def makeTmpFile():
+def makeTmpFile(contents=None):
     """Context manager for generating temporary file name.
 
     Temporary file is deleted on exiting context.
+
+    Parameters
+    ----------
+    contents : `bytes`
+        Data to write into a file.
     """
     fd, tmpname = tempfile.mkstemp()
+    if contents:
+        os.write(fd, contents)
     os.close(fd)
     yield tmpname
     with contextlib.suppress(OSError):
@@ -104,13 +111,13 @@ def _makeArgs(pipeline=None, qgraph=None, pipeline_actions=(), order_pipeline=Fa
     Parameters
     ----------
     pipeline : `str`, optional
-        Name of the pickle file with pipeline.
+        Name of the YAML file with pipeline.
     qgraph : `str`, optional
         Name of the pickle file with QGraph.
     pipeline_actions : itrable of `cmdLinePArser._PipelineAction`, optional
     order_pipeline : `bool`
     save_pipeline : `str`
-        Name of the pickle file to store pipeline.
+        Name of the YAML file to store pipeline.
     save_qgraph : `str`
         Name of the pickle file to store QGraph.
     save_single_quanta : `str`
@@ -206,6 +213,30 @@ class CmdLineFwkTestCase(unittest.TestCase):
         pipeline = fwk.makePipeline(args)
         self.assertIsInstance(pipeline, Pipeline)
         self.assertEqual(len(pipeline), 3)
+
+        # single task pipeline with config overrides, cannot use TaskOne, need
+        # something that can be imported with `doImport()`
+        actions = [
+            _PipelineAction(action="new_task", label="task", value="testUtil.AddTask"),
+            _PipelineAction(action="config", label="task", value="addend=100")
+        ]
+        args = _makeArgs(pipeline_actions=actions)
+        pipeline = fwk.makePipeline(args)
+        taskDefs = list(pipeline.toExpandedPipeline())
+        self.assertEqual(len(taskDefs), 1)
+        self.assertEqual(taskDefs[0].config.addend, 100)
+
+        overrides = b"config.addend = 1000\n"
+        with makeTmpFile(overrides) as tmpname:
+            actions = [
+                _PipelineAction(action="new_task", label="task", value="testUtil.AddTask"),
+                _PipelineAction(action="configfile", label="task", value=tmpname)
+            ]
+            args = _makeArgs(pipeline_actions=actions)
+            pipeline = fwk.makePipeline(args)
+            taskDefs = list(pipeline.toExpandedPipeline())
+            self.assertEqual(len(taskDefs), 1)
+            self.assertEqual(taskDefs[0].config.addend, 1000)
 
     def testMakeGraphFromPickle(self):
         """Tests for CmdLineFwk.makeGraph method.
