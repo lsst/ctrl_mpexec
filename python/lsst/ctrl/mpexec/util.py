@@ -118,9 +118,9 @@ def filterTasks(pipeline, name):
     Lsit of `TaskDef` instances.
     """
     if not name:
-        return list(pipeline)
+        return list(pipeline.toExpandedPipeline())
     tasks = []
-    for taskDef in pipeline:
+    for taskDef in pipeline.toExpandedPipeline():
         if taskDef.label:
             if taskDef.label == name:
                 tasks.append(taskDef)

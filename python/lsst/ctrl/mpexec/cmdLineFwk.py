@@ -397,7 +397,7 @@ class CmdLineFwk:
                     continue
 
             if showCommand == "pipeline":
-                for taskDef in pipeline:
+                for taskDef in pipeline.toExpandedPipeline():
                     print(taskDef)
             elif showCommand == "config":
                 self._showConfig(pipeline, showArgs)
@@ -463,7 +463,7 @@ class CmdLineFwk:
 
         tasks = util.filterTasks(pipeline, taskName)
         if not tasks:
-            print("Pipeline has not tasks named {}".format(taskName), file=sys.stderr)
+            print("Pipeline has no tasks named {}".format(taskName), file=sys.stderr)
             sys.exit(1)
 
         for taskDef in tasks:
@@ -487,14 +487,13 @@ class CmdLineFwk:
         if matHistory:
             taskName = matHistory.group(1)
             pattern = matHistory.group(2)
-        print(showArgs, taskName, pattern)
         if not pattern:
             print("Please provide a value with --show history (e.g. history=Task::param)", file=sys.stderr)
             sys.exit(1)
 
         tasks = util.filterTasks(pipeline, taskName)
         if not tasks:
-            print("Pipeline has not tasks named {}".format(taskName), file=sys.stderr)
+            print("Pipeline has no tasks named {}".format(taskName), file=sys.stderr)
             sys.exit(1)
 
         pattern = pattern.split(".")
@@ -523,7 +522,7 @@ class CmdLineFwk:
         ----------
         pipeline: `Pipeline`
         """
-        for taskDef in pipeline:
+        for taskDef in pipeline.toExpandedPipeline():
             print("### Subtasks for task `{}'".format(taskDef.taskName))
 
             for configName, taskName in util.subTaskIter(taskDef.config):
