@@ -215,11 +215,13 @@ class CmdLineFwk:
 
             elif action.action == "config":
 
-                pipeline.addConfigOverride(action.label, action.value[0], action.value[1])
+                # action value string is "field=value", split it at '='
+                field, _, value = action.value.partition("=")
+                pipeline.addConfigOverride(action.label, field, value)
 
             elif action.action == "configfile":
 
-                pipeline.addConfigOverrideFile(action.label, action.value)
+                pipeline.addConfigFile(action.label, action.value)
 
             else:
 
