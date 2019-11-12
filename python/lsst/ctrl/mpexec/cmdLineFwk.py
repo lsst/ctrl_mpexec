@@ -205,7 +205,7 @@ class CmdLineFwk:
 
                 pipeline.addInstrument(action.value)
 
-            if action.action == "new_task":
+            elif action.action == "new_task":
 
                 pipeline.addTask(action.value, action.label)
 
