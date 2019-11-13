@@ -31,7 +31,8 @@ import tempfile
 import unittest
 
 from lsst.ctrl.mpexec.cmdLineFwk import CmdLineFwk
-from lsst.ctrl.mpexec.cmdLineParser import _PipelineAction
+from lsst.ctrl.mpexec.cmdLineParser import (_ACTION_ADD_TASK, _ACTION_CONFIG,
+                                            _ACTION_CONFIG_FILE, _ACTION_ADD_INSTRUMENT)
 from lsst.daf.butler import Quantum
 import lsst.pex.config as pexConfig
 from lsst.pipe.base import (Pipeline, PipelineTask, PipelineTaskConfig,
@@ -196,7 +197,7 @@ class CmdLineFwkTestCase(unittest.TestCase):
 
         # single task pipeline
         actions = [
-            _PipelineAction(action="new_task", label="task1", value="TaskOne")
+            _ACTION_ADD_TASK("TaskOne:task1")
         ]
         args = _makeArgs(pipeline_actions=actions)
         pipeline = fwk.makePipeline(args)
@@ -205,9 +206,9 @@ class CmdLineFwkTestCase(unittest.TestCase):
 
         # many task pipeline
         actions = [
-            _PipelineAction(action="new_task", label="task1a", value="TaskOne"),
-            _PipelineAction(action="new_task", label="task2", value="TaskTwo"),
-            _PipelineAction(action="new_task", label="task1b", value="TaskOne")
+            _ACTION_ADD_TASK("TaskOne:task1a"),
+            _ACTION_ADD_TASK("TaskTwo:task2"),
+            _ACTION_ADD_TASK("TaskOne:task1b")
         ]
         args = _makeArgs(pipeline_actions=actions)
         pipeline = fwk.makePipeline(args)
@@ -217,8 +218,8 @@ class CmdLineFwkTestCase(unittest.TestCase):
         # single task pipeline with config overrides, cannot use TaskOne, need
         # something that can be imported with `doImport()`
         actions = [
-            _PipelineAction(action="new_task", label="task", value="testUtil.AddTask"),
-            _PipelineAction(action="config", label="task", value="addend=100")
+            _ACTION_ADD_TASK("testUtil.AddTask:task"),
+            _ACTION_CONFIG("task:addend=100")
         ]
         args = _makeArgs(pipeline_actions=actions)
         pipeline = fwk.makePipeline(args)
@@ -229,14 +230,22 @@ class CmdLineFwkTestCase(unittest.TestCase):
         overrides = b"config.addend = 1000\n"
         with makeTmpFile(overrides) as tmpname:
             actions = [
-                _PipelineAction(action="new_task", label="task", value="testUtil.AddTask"),
-                _PipelineAction(action="configfile", label="task", value=tmpname)
+                _ACTION_ADD_TASK("testUtil.AddTask:task"),
+                _ACTION_CONFIG_FILE("task:" + tmpname)
             ]
             args = _makeArgs(pipeline_actions=actions)
             pipeline = fwk.makePipeline(args)
             taskDefs = list(pipeline.toExpandedPipeline())
             self.assertEqual(len(taskDefs), 1)
             self.assertEqual(taskDefs[0].config.addend, 1000)
+
+        # Check --instrument option, for now it only checks that it does not crash
+        actions = [
+            _ACTION_ADD_TASK("testUtil.AddTask:task"),
+            _ACTION_ADD_INSTRUMENT("Instrument")
+        ]
+        args = _makeArgs(pipeline_actions=actions)
+        pipeline = fwk.makePipeline(args)
 
     def testMakeGraphFromPickle(self):
         """Tests for CmdLineFwk.makeGraph method.
