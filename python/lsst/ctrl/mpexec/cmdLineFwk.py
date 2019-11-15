@@ -397,8 +397,7 @@ class CmdLineFwk:
                     continue
 
             if showCommand == "pipeline":
-                for taskDef in pipeline.toExpandedPipeline():
-                    print(taskDef)
+                print(pipeline)
             elif showCommand == "config":
                 self._showConfig(pipeline, showArgs)
             elif showCommand == "history":
