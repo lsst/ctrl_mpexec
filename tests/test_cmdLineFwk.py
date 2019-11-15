@@ -361,6 +361,42 @@ class CmdLineFwkTestCase(unittest.TestCase):
         self.assertEqual(len(qgraph), 1)
         self.assertEqual(qgraph.countQuanta(), nQuanta)
 
+    def testShowPipeline(self):
+        """Test for --show options for pipeline.
+        """
+        fwk = CmdLineFwk()
+
+        actions = [
+            _ACTION_ADD_TASK("testUtil.AddTask:task"),
+            _ACTION_CONFIG("task:addend=100")
+        ]
+        args = _makeArgs(pipeline_actions=actions)
+        pipeline = fwk.makePipeline(args)
+
+        args.show = ["pipeline"]
+        fwk.showInfo(args, pipeline)
+        args.show = ["config"]
+        fwk.showInfo(args, pipeline)
+        args.show = ["history=task::addend"]
+        fwk.showInfo(args, pipeline)
+        args.show = ["tasks"]
+        fwk.showInfo(args, pipeline)
+
+    def testShowGraph(self):
+        """Test for --show options for quantum graph.
+        """
+        fwk = CmdLineFwk()
+
+        nQuanta = 2
+        butler, qgraph = makeSimpleQGraph(nQuanta)
+
+        args = _makeArgs()
+        args.show = ["graph"]
+        fwk.showInfo(args, pipeline=None, graph=qgraph)
+        # TODO: cannot test "workflow" option presently, it instanciates
+        # butler from command line options and there is no way to pass butler
+        # mock to that code.
+
 
 class MyMemoryTestCase(lsst.utils.tests.MemoryTestCase):
     pass
