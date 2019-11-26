@@ -33,7 +33,7 @@ import unittest
 from lsst.ctrl.mpexec.cmdLineFwk import CmdLineFwk
 from lsst.ctrl.mpexec.cmdLineParser import (_ACTION_ADD_TASK, _ACTION_CONFIG,
                                             _ACTION_CONFIG_FILE, _ACTION_ADD_INSTRUMENT)
-from lsst.daf.butler import Quantum
+from lsst.daf.butler import Quantum, Config
 import lsst.pex.config as pexConfig
 from lsst.pipe.base import (Pipeline, PipelineTask, PipelineTaskConfig,
                             QuantumGraph, QuantumGraphTaskNodes,
@@ -129,7 +129,10 @@ def _makeArgs(pipeline=None, qgraph=None, pipeline_actions=(), order_pipeline=Fa
         Name of the DOT file to write QGraph representation.
     """
     args = argparse.Namespace()
-    args.butler_config = None
+    args.butler_config = Config()
+    # The default datastore has a relocatable root, so we need to specify
+    # some root here for it to use
+    args.butler_config.configFile = "."
     args.pipeline = pipeline
     args.qgraph = qgraph
     args.pipeline_actions = pipeline_actions
