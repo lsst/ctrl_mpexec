@@ -61,18 +61,17 @@ class SingleQuantumExecutor:
         self.skipExisting = skipExisting
         self.clobberOutput = clobberOutput
 
-    def execute(self, taskClass, config, quantum):
+    def execute(self, taskDef, quantum):
         """Execute PipelineTask on a single Quantum.
 
         Parameters
         ----------
-        taskClass : `type`
-            Sub-class of `~lsst.pipe.base.PipelineTask`.
-        config : `~lsst.pipe.base.PipelineTaskConfig`
-            Configuration object for this task
+        taskDef : `~lsst.pipe.base.TaskDef`
+            Task definition structure.
         quantum : `~lsst.daf.butler.Quantum`
             Single Quantum instance.
         """
+        taskClass, config = taskDef.taskClass, taskDef.config
         self.setupLogging(taskClass, config, quantum)
         if self.clobberOutput:
             self.doClobberOutputs(quantum)
@@ -82,7 +81,7 @@ class SingleQuantumExecutor:
             return
         self.updateQuantumInputs(quantum)
         task = self.makeTask(taskClass, config)
-        self.runQuantum(task, quantum)
+        self.runQuantum(task, quantum, taskDef)
 
     def setupLogging(self, taskClass, config, quantum):
         """Configure logging system for execution of this task.
@@ -212,7 +211,7 @@ class SingleQuantumExecutor:
                     ref._id = storedRef.id
                     _LOG.debug("Updated dataset ID for %s", ref)
 
-    def runQuantum(self, task, quantum):
+    def runQuantum(self, task, quantum, taskDef):
         """Execute task on a single quantum.
 
         Parameters
@@ -221,6 +220,8 @@ class SingleQuantumExecutor:
             Task object.
         quantum : `~lsst.daf.butler.Quantum`
             Single Quantum instance.
+        taskDef : `~lsst.pipe.base.TaskDef`
+            Task definition structure.
         """
         # Create a butler that operates in the context of a quantum
         butlerQC = ButlerQuantumContext(self.butler, quantum)
@@ -231,3 +232,14 @@ class SingleQuantumExecutor:
         # Call task runQuantum() method. Any exception thrown by the task
         # propagates to caller.
         task.runQuantum(butlerQC, inputRefs, outputRefs)
+
+        if taskDef.metadataDatasetName is not None:
+            # DatasetRef has to be in the Quantum outputs, can lookup by name
+            try:
+                ref = quantum.outputs[taskDef.metadataDatasetName]
+            except LookupError as exc:
+                raise LookupError(
+                    f"Quantum outputs is missing metadata dataset type {taskDef.metadataDatasetName},"
+                    f" it could happen due to inconsistent options between Quantum generation"
+                    f" and execution") from exc
+            butlerQC.put(task.metadata, ref[0])
