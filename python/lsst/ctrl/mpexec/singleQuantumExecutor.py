@@ -199,17 +199,21 @@ class SingleQuantumExecutor:
             Single Quantum instance.
         """
         butler = self.butler
-        for refs in quantum.predictedInputs.values():
-            for ref in refs:
+        for refsForDatasetType in quantum.predictedInputs.values():
+            newRefsForDatasetType = []
+            for ref in refsForDatasetType:
                 if ref.id is None:
-                    storedRef = butler.registry.find(butler.collection, ref.datasetType, ref.dataId)
-                    if storedRef is None:
+                    resolvedRef = butler.registry.find(butler.collection, ref.datasetType, ref.dataId)
+                    if resolvedRef is None:
                         raise ValueError(
                             f"Cannot find {ref.datasetType.name} with id {ref.dataId} "
                             f"in collection {butler.collection}."
                         )
-                    ref._id = storedRef.id
-                    _LOG.debug("Updated dataset ID for %s", ref)
+                    newRefsForDatasetType.append(resolvedRef)
+                    _LOG.debug("Updating dataset ID for %s", ref)
+                else:
+                    newRefsForDatasetType.append(ref)
+            refsForDatasetType[:] = newRefsForDatasetType
 
     def runQuantum(self, task, quantum, taskDef):
         """Execute task on a single quantum.
