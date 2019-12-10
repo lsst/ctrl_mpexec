@@ -145,24 +145,23 @@ class PreExecInit:
             Execution graph.
         """
         def _refComponents(refs):
-            """Return all dataset components recursively"""
+            """Return all resolved dataset components recursively."""
             for ref in refs:
-                yield ref
-                yield from _refComponents(ref.components.values())
+                if ref.id is not None:
+                    yield ref
+                    yield from _refComponents(ref.components.values())
 
         collection = self.butler.run.collection
         registry = self.butler.registry
 
-        # Main issue here is that the same DataRef can appear as input for
+        # Main issue here is that the same DatasetRef can appear as input for
         # many quanta, to keep them unique we first collect them into one
         # dict indexed by dataset id.
         id2ref = {}
         for taskDef, quantum in graph.quanta():
             for refs in quantum.predictedInputs.values():
                 for ref in _refComponents(refs):
-                    # skip intermediate datasets produced by other tasks
-                    if ref.id is not None:
-                        id2ref[ref.id] = ref
+                    id2ref[ref.id] = ref
         for initInput in graph.initInputs.values():
             id2ref[initInput.id] = initInput
 
