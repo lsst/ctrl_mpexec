@@ -197,8 +197,7 @@ def registerDatasetTypes(registry, pipeline):
         Iterable of TaskDef instances.
     """
     for taskDef in pipeline:
-        datasetTypes = pipeBase.TaskDatasetTypes.fromConnections(taskDef.connections,
-                                                                 registry=registry)
+        datasetTypes = pipeBase.TaskDatasetTypes.fromTaskDef(taskDef, registry=registry)
         for datasetType in itertools.chain(datasetTypes.initInputs, datasetTypes.initOutputs,
                                            datasetTypes.inputs, datasetTypes.outputs,
                                            datasetTypes.prerequisites):

@@ -88,8 +88,7 @@ class MPGraphExecutor(QuantumGraphExecutor):
         for qdata in iterable:
             _LOG.debug("Executing %s", qdata)
             taskDef = qdata.taskDef
-            self._executePipelineTask(taskClass=taskDef.taskClass, config=taskDef.config,
-                                      quantum=qdata.quantum, butler=butler,
+            self._executePipelineTask(taskDef=taskDef, quantum=qdata.quantum, butler=butler,
                                       taskFactory=taskFactory, skipExisting=self.skipExisting,
                                       clobberOutput=self.clobberOutput)
 
@@ -135,8 +134,7 @@ class MPGraphExecutor(QuantumGraphExecutor):
 
             # Add it to the pool and remember its result
             _LOG.debug("Sumbitting %s", qdata)
-            kwargs = dict(taskClass=taskDef.taskClass, config=taskDef.config,
-                          quantum=qdata.quantum, butler=butler, taskFactory=taskFactory,
+            kwargs = dict(taskDef=taskDef, quantum=qdata.quantum, butler=butler, taskFactory=taskFactory,
                           skipExisting=self.skipExisting, clobberOutput=self.clobberOutput)
             results[qdata.index] = pool.apply_async(self._executePipelineTask, (), kwargs)
 
@@ -150,15 +148,13 @@ class MPGraphExecutor(QuantumGraphExecutor):
                 res.get(self.timeout)
 
     @staticmethod
-    def _executePipelineTask(*, taskClass, config, quantum, butler, taskFactory, skipExisting, clobberOutput):
+    def _executePipelineTask(*, taskDef, quantum, butler, taskFactory, skipExisting, clobberOutput):
         """Execute PipelineTask on a single data item.
 
         Parameters
         ----------
-        taskClass : `type`
-            Sub-class of PipelineTask.
-        config : `~lsst.pipe.base.PipelineTaskConfig`
-            Task configuration.
+        taskDef : `~lsst.pipe.base.TaskDef`
+            Task definition structure.
         quantum : `~lsst.daf.butler.Quantum`
             Quantum for this execution.
         butler : `~lsst.daf.butler.Butler`
@@ -172,4 +168,4 @@ class MPGraphExecutor(QuantumGraphExecutor):
             collection.
         """
         executor = SingleQuantumExecutor(butler, taskFactory, skipExisting, clobberOutput)
-        return executor.execute(taskClass, config, quantum)
+        return executor.execute(taskDef, quantum)
