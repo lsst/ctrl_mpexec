@@ -151,7 +151,7 @@ class PreExecInit:
                     yield ref
                     yield from _refComponents(ref.components.values())
 
-        collection = self.butler.run.collection
+        collection = self.butler.run
         registry = self.butler.registry
 
         # Main issue here is that the same DatasetRef can appear as input for
@@ -224,7 +224,7 @@ class PreExecInit:
                 objFromStore = None
                 if self.clobberOutput:
                     # Remove if it already exists.
-                    collection = self.butler.run.collection
+                    collection = self.butler.run
                     registry = self.butler.registry
                     ref = registry.find(collection, attribute.name, {})
                     if ref is not None:

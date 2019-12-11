@@ -39,7 +39,7 @@ from collections import defaultdict
 # -----------------------------
 #  Imports for other modules --
 # -----------------------------
-from lsst.daf.butler import Butler, DatasetRef, Run
+from lsst.daf.butler import Butler, DatasetRef
 import lsst.log
 import lsst.pex.config as pexConfig
 from lsst.pipe.base import GraphBuilder, Pipeline, QuantumGraph
@@ -585,7 +585,7 @@ class CmdLineFwk:
                     if butler.datastore.exists(ref):
                         print("    {}".format(butler.datastore.getUri(ref)))
                     else:
-                        fakeRef = DatasetRef(ref.datasetType, ref.dataId, run=Run(run))
+                        fakeRef = DatasetRef(ref.datasetType, ref.dataId, run=run)
                         print("    {}".format(butler.datastore.getUri(fakeRef, predict=True)))
             print("  outputs:")
             for key, refs in quantum.outputs.items():
@@ -593,7 +593,7 @@ class CmdLineFwk:
                     if butler.datastore.exists(ref):
                         print("    {}".format(butler.datastore.getUri(ref)))
                     else:
-                        fakeRef = DatasetRef(ref.datasetType, ref.dataId, run=Run(run))
+                        fakeRef = DatasetRef(ref.datasetType, ref.dataId, run=run)
                         print("    {}".format(butler.datastore.getUri(fakeRef, predict=True)))
                     # Store hash to figure out dependency
                     dhash = hash((key, ref.dataId))

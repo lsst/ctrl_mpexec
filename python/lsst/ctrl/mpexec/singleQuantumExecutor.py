@@ -127,7 +127,7 @@ class SingleQuantumExecutor:
         quantum : `~lsst.daf.butler.Quantum`
             Quantum to check for existing outputs.
         """
-        collection = self.butler.run.collection
+        collection = self.butler.run
         registry = self.butler.registry
 
         existingRefs = []
@@ -159,7 +159,7 @@ class SingleQuantumExecutor:
         RuntimeError
             Raised if some outputs exist and some not.
         """
-        collection = self.butler.run.collection
+        collection = self.butler.run
         registry = self.butler.registry
 
         existingRefs = []
