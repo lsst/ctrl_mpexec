@@ -277,7 +277,8 @@ def _makeLoggingOptions(parser):
                        help="logging level; supported levels are [trace|debug|info|warn|error|fatal]",
                        metavar="LEVEL|COMPONENT=LEVEL")
     group.add_argument("--longlog", action="store_true", help="use a more verbose format for the logging")
-    group.add_argument("--debug", action="store_true", help="(deprecated) enable debugging output")
+    group.add_argument("--debug", action="store_true", dest="enableLsstDebug",
+                       help="enable debugging output using lsstDebug facility (imports debug.py)")
 
 
 def _makePipelineOptions(parser):

@@ -7,6 +7,7 @@ from lsst.afw.image import ExposureF
 from lsst.pipe.base import (Struct, PipelineTask, PipelineTaskConfig,
                             PipelineTaskConnections)
 from lsst.pipe.base import connectionTypes as cT
+import lsstDebug
 
 _LOG = logging.getLogger(__name__.partition(".")[2])
 
@@ -42,6 +43,15 @@ class CalexpToCoaddTask(PipelineTask):
         `Struct` instance with produced result.
         """
         _LOG.info("executing %s: calexp=%s", self.getName(), calexp)
+
+        # To test lsstDebug function make a debug.py file with this contents
+        # somewhere in PYTHONPATH and run `pipetask` with --debug option:
+        #
+        #    import lsstDebug
+        #    lsstDebug.Info('lsst.ctrl.mpexec.examples.calexpToCoaddTask').display = True
+        #
+        if lsstDebug.Info(__name__).display:
+            _LOG.info("%s: display enabled", __name__)
 
         # output data, scalar in this case
         data = ExposureF(100, 100)

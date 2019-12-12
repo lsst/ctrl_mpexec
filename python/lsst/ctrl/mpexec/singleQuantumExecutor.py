@@ -54,12 +54,15 @@ class SingleQuantumExecutor:
     clobberOutput : `bool`, optional
         It `True` then override all existing output datasets in an output
         collection.
+    enableLsstDebug : `bool`, optional
+        Enable debugging with ``lsstDebug`` facility for a task.
     """
-    def __init__(self, butler, taskFactory, skipExisting=False, clobberOutput=False):
+    def __init__(self, butler, taskFactory, skipExisting=False, clobberOutput=False, enableLsstDebug=False):
         self.butler = butler
         self.taskFactory = taskFactory
         self.skipExisting = skipExisting
         self.clobberOutput = clobberOutput
+        self.enableLsstDebug = enableLsstDebug
 
     def execute(self, taskDef, quantum):
         """Execute PipelineTask on a single Quantum.
@@ -80,6 +83,15 @@ class SingleQuantumExecutor:
                       f"task={taskClass.__name__} dataId={quantum.dataId}.")
             return
         self.updateQuantumInputs(quantum)
+
+        # enable lsstDebug debugging
+        if self.enableLsstDebug:
+            try:
+                _LOG.debug("Will try to import debug.py")
+                import debug  # noqa:F401
+            except ImportError:
+                _LOG.warn("No 'debug' module found.")
+
         task = self.makeTask(taskClass, config)
         self.runQuantum(task, quantum, taskDef)
 
