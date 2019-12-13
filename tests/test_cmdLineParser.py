@@ -154,7 +154,7 @@ class CmdLineParserTestCase(unittest.TestCase):
         self.assertRaises(_Error, parser.parse_args)
 
         # know attributes to appear in parser output for all subcommands
-        common_options = "loglevel longlog debug subcommand subparser".split()
+        common_options = "loglevel longlog enableLsstDebug subcommand subparser".split()
 
         # test for the set of options defined in each command
         args = parser.parse_args(
@@ -199,7 +199,7 @@ class CmdLineParserTestCase(unittest.TestCase):
             """.split())
         self.assertFalse(args.clobberConfig)
         self.assertFalse(args.clobberVersions)
-        self.assertFalse(args.debug)
+        self.assertFalse(args.enableLsstDebug)
         self.assertFalse(args.doraise)
         self.assertEqual(args.input, {})
         self.assertEqual(args.loglevel, [])
@@ -243,7 +243,7 @@ class CmdLineParserTestCase(unittest.TestCase):
             """.split())
         self.assertTrue(args.clobberConfig)
         self.assertTrue(args.clobberVersions)
-        self.assertTrue(args.debug)
+        self.assertTrue(args.enableLsstDebug)
         self.assertTrue(args.doraise)
         self.assertEqual(args.input, {"": ["inputColl"]})
         self.assertEqual(args.loglevel, [(None, 'DEBUG'), ('component', 'TRACE')])

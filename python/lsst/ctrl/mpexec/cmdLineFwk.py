@@ -358,6 +358,17 @@ class CmdLineFwk:
         if not butler.run:
             raise ValueError("no output collection defined in data butler")
 
+        # Enable lsstDebug debugging. Note that this is done once in the
+        # main process before PreExecInit and it is also repeated before
+        # running each task in SingleQuantumExecutor (which may not be
+        # needed if `multipocessing` always uses fork start method).
+        if args.enableLsstDebug:
+            try:
+                _LOG.debug("Will try to import debug.py")
+                import debug  # noqa:F401
+            except ImportError:
+                _LOG.warn("No 'debug' module found.")
+
         preExecInit = PreExecInit(butler, taskFactory, args.skip_existing, args.clobber_output)
         preExecInit.initialize(graph,
                                saveInitOutputs=not args.skip_init_writes,
@@ -366,7 +377,8 @@ class CmdLineFwk:
         if not args.init_only:
             executor = MPGraphExecutor(numProc=args.processes, timeout=self.MP_TIMEOUT,
                                        skipExisting=args.skip_existing,
-                                       clobberOutput=args.clobber_output)
+                                       clobberOutput=args.clobber_output,
+                                       enableLsstDebug=args.enableLsstDebug)
             with util.profile(args.profile, _LOG):
                 executor.execute(graph, butler, taskFactory)
 

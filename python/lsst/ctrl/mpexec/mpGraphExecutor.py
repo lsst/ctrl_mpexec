@@ -58,12 +58,15 @@ class MPGraphExecutor(QuantumGraphExecutor):
     clobberOutput : `bool`, optional
         It `True` then override all existing output datasets in an output
         collection.
+    enableLsstDebug : `bool`, optional
+        Enable debugging with ``lsstDebug`` facility for a task.
     """
-    def __init__(self, numProc, timeout, skipExisting=False, clobberOutput=False):
+    def __init__(self, numProc, timeout, skipExisting=False, clobberOutput=False, enableLsstDebug=False):
         self.numProc = numProc
         self.timeout = timeout
         self.skipExisting = skipExisting
         self.clobberOutput = clobberOutput
+        self.enableLsstDebug = enableLsstDebug
 
     def execute(self, graph, butler, taskFactory):
         # Docstring inherited from QuantumGraphExecutor.execute
@@ -90,7 +93,8 @@ class MPGraphExecutor(QuantumGraphExecutor):
             taskDef = qdata.taskDef
             self._executePipelineTask(taskDef=taskDef, quantum=qdata.quantum, butler=butler,
                                       taskFactory=taskFactory, skipExisting=self.skipExisting,
-                                      clobberOutput=self.clobberOutput)
+                                      clobberOutput=self.clobberOutput,
+                                      enableLsstDebug=self.enableLsstDebug)
 
     def _executeQuantaMP(self, iterable, butler, taskFactory):
         """Execute all Quanta in separate process pool.
@@ -135,7 +139,8 @@ class MPGraphExecutor(QuantumGraphExecutor):
             # Add it to the pool and remember its result
             _LOG.debug("Sumbitting %s", qdata)
             kwargs = dict(taskDef=taskDef, quantum=qdata.quantum, butler=butler, taskFactory=taskFactory,
-                          skipExisting=self.skipExisting, clobberOutput=self.clobberOutput)
+                          skipExisting=self.skipExisting, clobberOutput=self.clobberOutput,
+                          enableLsstDebug=self.enableLsstDebug)
             results[qdata.index] = pool.apply_async(self._executePipelineTask, (), kwargs)
 
         # Everything is submitted, wait until it's complete
@@ -148,7 +153,8 @@ class MPGraphExecutor(QuantumGraphExecutor):
                 res.get(self.timeout)
 
     @staticmethod
-    def _executePipelineTask(*, taskDef, quantum, butler, taskFactory, skipExisting, clobberOutput):
+    def _executePipelineTask(*, taskDef, quantum, butler, taskFactory, skipExisting,
+                             clobberOutput, enableLsstDebug):
         """Execute PipelineTask on a single data item.
 
         Parameters
@@ -166,6 +172,8 @@ class MPGraphExecutor(QuantumGraphExecutor):
         clobberOutput : `bool`, optional
             It `True` then override all existing output datasets in an output
             collection.
+        enableLsstDebug : `bool`, optional
+            Enable debugging with ``lsstDebug`` facility for a task.
         """
-        executor = SingleQuantumExecutor(butler, taskFactory, skipExisting, clobberOutput)
+        executor = SingleQuantumExecutor(butler, taskFactory, skipExisting, clobberOutput, enableLsstDebug)
         return executor.execute(taskDef, quantum)
