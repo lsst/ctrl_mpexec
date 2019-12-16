@@ -33,7 +33,7 @@ from collections import defaultdict
 from types import SimpleNamespace
 
 from lsst.daf.butler import (ButlerConfig, DatasetRef, DimensionUniverse,
-                             DatasetType, Registry, Run)
+                             DatasetType, Registry)
 import lsst.pex.config as pexConfig
 import lsst.pipe.base as pipeBase
 from lsst.pipe.base import connectionTypes as cT
@@ -116,10 +116,11 @@ class ButlerMock:
             configFile = os.path.join(testDir, "config/butler.yaml")
             butlerConfig = ButlerConfig(configFile)
             self.registry = Registry.fromConfig(butlerConfig, create=True)
-            self.run = self.registry.makeRun(collection)
+            self.registry.registerRun(collection)
+            self.run = collection
         else:
             self.registry = SimpleNamespace(dimensions=DimensionUniverse.fromConfig())
-            self.run = Run(collection=collection, environment=None, pipeline=None)
+            self.run = collection
 
     def _standardizeArgs(self, datasetRefOrType, dataId=None, **kwds):
         """Copied from real Butler
@@ -177,9 +178,9 @@ class ButlerMock:
         key = self.key(dataId)
         dsdata = self.datasets.get(dsTypeName)
         del dsdata[key]
-        ref = self.registry.find(self.run.collection, datasetType, dataId, **kwds)
+        ref = self.registry.find(self.run, datasetType, dataId, **kwds)
         if remember:
-            self.registry.disassociate(self.run.collection, [ref])
+            self.registry.disassociate(self.run, [ref])
         else:
             self.registry.removeDataset(ref)
 
@@ -269,8 +270,8 @@ def makeSimpleQGraph(nQuanta=5, pipeline=None, butler=None, skipExisting=False, 
                                     skipExisting=skipExisting, clobberExisting=clobberExisting)
     qgraph = builder.makeGraph(
         pipeline,
-        inputCollections=defaultdict(functools.partial(list, [butler.run.collection])),
-        outputCollection=butler.run.collection,
+        inputCollections=defaultdict(functools.partial(list, [butler.run])),
+        outputCollection=butler.run,
         userQuery=""
     )
 
