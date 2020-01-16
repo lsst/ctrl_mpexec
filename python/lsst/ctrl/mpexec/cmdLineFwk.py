@@ -462,11 +462,10 @@ class CmdLineFwk:
                         self._pattern = re.compile(fnmatch.translate(pattern), re.IGNORECASE)
 
                 def write(self, showStr):
-                    showStr = showStr.rstrip()
                     # Strip off doc string line(s) and cut off at "=" for string matching
-                    matchStr = showStr.split("\n")[-1].split("=")[0]
+                    matchStr = showStr.rstrip().split("\n")[-1].split("=")[0]
                     if self._pattern.search(matchStr):
-                        print(u"\n" + showStr)
+                        sys.stdout.write(showStr)
 
             fd = FilteredStream(pattern)
         else:
