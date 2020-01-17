@@ -459,11 +459,14 @@ def makeParser(fromfile_prefix_chars='@', parser_class=ArgumentParser, **kwargs)
 
         subparser.add_argument("--show", metavar="ITEM|ITEM=VALUE", action="append", default=[],
                                help="Dump various info to standard output. Possible items are: "
-                               "`config', `config=[Task/]<PATTERN>' or "
+                               "`config', `config=[Task::]<PATTERN>' or "
                                "`config=[Task::]<PATTERN>:NOIGNORECASE' to dump configuration "
-                               "possibly matching given pattern; `history=<FIELD>' to dump "
-                               "configuration history for a field,  field name is specified as "
-                               "[Task::][SubTask.]Field;  `pipeline' to show pipeline composition; "
+                               "fields possibly matching given pattern and/or task label; "
+                               "`history=<FIELD>' to dump configuration history for a field, "
+                               "field name is specified as [Task::][SubTask.]Field; "
+                               "`dump-config', `dump-config=Task' to dump complete configuration "
+                               "for a task given its label or all tasks; "
+                               "`pipeline' to show pipeline composition; "
                                "`graph' to show information about quanta; "
                                "`workflow' to show information about quanta and their dependency; "
                                "`tasks' to show task composition.")
