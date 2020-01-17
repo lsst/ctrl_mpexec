@@ -65,6 +65,38 @@ log4j.appender.A1.layout.ConversionPattern={}
 
 _LOG = logging.getLogger(__name__.partition(".")[2])
 
+
+class _FilteredStream:
+    """A file-like object that filters some config fields.
+
+    Note
+    ----
+    This class depends on implementation details of ``Config.saveToStream``
+    methods, in particular that that method uses single call to write()
+    method to save information about single config field, and that call
+    combines comments string(s) for a field and field path and value.
+    This class will not work reliably on the "import" strings, so imports
+    should be disabled by passing ``skipImports=True`` to ``saveToStream()``.
+    """
+    def __init__(self, pattern):
+        # obey case if pattern isn't lowercase or requests NOIGNORECASE
+        mat = re.search(r"(.*):NOIGNORECASE$", pattern)
+
+        if mat:
+            pattern = mat.group(1)
+            self._pattern = re.compile(fnmatch.translate(pattern))
+        else:
+            if pattern != pattern.lower():
+                print(f"Matching \"{pattern}\" without regard to case "
+                      "(append :NOIGNORECASE to prevent this)", file=sys.stdout)
+            self._pattern = re.compile(fnmatch.translate(pattern), re.IGNORECASE)
+
+    def write(self, showStr):
+        # Strip off doc string line(s) and cut off at "=" for string matching
+        matchStr = showStr.rstrip().split("\n")[-1].split("=")[0]
+        if self._pattern.search(matchStr):
+            sys.stdout.write(showStr)
+
 # ------------------------
 #  Exported definitions --
 # ------------------------
@@ -411,7 +443,9 @@ class CmdLineFwk:
             if showCommand == "pipeline":
                 print(pipeline)
             elif showCommand == "config":
-                self._showConfig(pipeline, showArgs)
+                self._showConfig(pipeline, showArgs, False)
+            elif showCommand == "dump-config":
+                self._showConfig(pipeline, showArgs, True)
             elif showCommand == "history":
                 self._showConfigHistory(pipeline, showArgs)
             elif showCommand == "tasks":
@@ -428,7 +462,7 @@ class CmdLineFwk:
                       file=sys.stderr)
                 sys.exit(1)
 
-    def _showConfig(self, pipeline, showArgs):
+    def _showConfig(self, pipeline, showArgs, dumpFullConfig):
         """Show task configuration
 
         Parameters
@@ -437,40 +471,20 @@ class CmdLineFwk:
             Pipeline definition
         showArgs : `str`
             Defines what to show
+        dumpFullConfig : `bool`
+            If true then dump complete task configuration with all imports.
         """
-        matConfig = re.search(r"^(?:(\w+)::)?(?:config.)?(.+)?", showArgs)
-        taskName = matConfig.group(1)
-        pattern = matConfig.group(2)
-        if pattern:
-            class FilteredStream:
-                """A file object that only prints lines that match the glob "pattern"
-
-                N.b. Newlines are silently discarded and reinserted;  crude but effective.
-                """
-
-                def __init__(self, pattern):
-                    # obey case if pattern isn't lowecase or requests NOIGNORECASE
-                    mat = re.search(r"(.*):NOIGNORECASE$", pattern)
-
-                    if mat:
-                        pattern = mat.group(1)
-                        self._pattern = re.compile(fnmatch.translate(pattern))
-                    else:
-                        if pattern != pattern.lower():
-                            print(u"Matching \"%s\" without regard to case "
-                                  "(append :NOIGNORECASE to prevent this)" % (pattern,), file=sys.stdout)
-                        self._pattern = re.compile(fnmatch.translate(pattern), re.IGNORECASE)
-
-                def write(self, showStr):
-                    showStr = showStr.rstrip()
-                    # Strip off doc string line(s) and cut off at "=" for string matching
-                    matchStr = showStr.split("\n")[-1].split("=")[0]
-                    if self._pattern.search(matchStr):
-                        print(u"\n" + showStr)
-
-            fd = FilteredStream(pattern)
+        stream = sys.stdout
+        if dumpFullConfig:
+            # Task label can be given with this option
+            taskName = showArgs
         else:
-            fd = sys.stdout
+            # The argument can have form [TaskLabel::][pattern:NOIGNORECASE]
+            matConfig = re.search(r"^(?:(\w+)::)?(?:config.)?(.+)?", showArgs)
+            taskName = matConfig.group(1)
+            pattern = matConfig.group(2)
+            if pattern:
+                stream = _FilteredStream(pattern)
 
         tasks = util.filterTasks(pipeline, taskName)
         if not tasks:
@@ -478,8 +492,8 @@ class CmdLineFwk:
             sys.exit(1)
 
         for taskDef in tasks:
-            print("### Configuration for task `{}'".format(taskDef.taskName))
-            taskDef.config.saveToStream(fd, "config")
+            print("### Configuration for task `{}'".format(taskDef.label))
+            taskDef.config.saveToStream(stream, root="config", skipImports=not dumpFullConfig)
 
     def _showConfigHistory(self, pipeline, showArgs):
         """Show history for task configuration
@@ -494,7 +508,7 @@ class CmdLineFwk:
 
         taskName = None
         pattern = None
-        matHistory = re.search(r"^(?:(\w+)::)(?:config[.])?(.+)", showArgs)
+        matHistory = re.search(r"^(?:(\w+)::)?(?:config[.])?(.+)", showArgs)
         if matHistory:
             taskName = matHistory.group(1)
             pattern = matHistory.group(2)
@@ -504,26 +518,33 @@ class CmdLineFwk:
 
         tasks = util.filterTasks(pipeline, taskName)
         if not tasks:
-            print("Pipeline has no tasks named {}".format(taskName), file=sys.stderr)
+            print(f"Pipeline has no tasks named {taskName}", file=sys.stderr)
             sys.exit(1)
 
-        pattern = pattern.split(".")
-        cpath, cname = pattern[:-1], pattern[-1]
+        cpath, _, cname = pattern.rpartition(".")
         found = False
         for taskDef in tasks:
-            hconfig = taskDef.config
-            for i, cpt in enumerate(cpath):
-                hconfig = getattr(hconfig, cpt, None)
-                if hconfig is None:
-                    break
+            try:
+                if not cpath:
+                    # looking for top-level field
+                    hconfig = taskDef.config
+                else:
+                    hconfig = eval("config." + cpath, {}, {"config": taskDef.config})
+            except AttributeError:
+                # Means this config object has no such field, but maybe some other task has it.
+                continue
+            except Exception:
+                # Any other exception probably means some error in the expression.
+                print(f"ERROR: Failed to evaluate field expression `{pattern}'", file=sys.stderr)
+                sys.exit(1)
 
-            if hconfig is not None and hasattr(hconfig, cname):
-                print("### Configuration field for task `{}'".format(taskDef.taskName))
+            if hasattr(hconfig, cname):
+                print(f"### Configuration field for task `{taskDef.label}'")
                 print(pexConfig.history.format(hconfig, cname))
                 found = True
 
         if not found:
-            print("None of the tasks has field named {}".format(showArgs), file=sys.stderr)
+            print(f"None of the tasks has field named {pattern}", file=sys.stderr)
             sys.exit(1)
 
     def _showTaskHierarchy(self, pipeline):
