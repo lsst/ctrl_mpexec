@@ -508,7 +508,7 @@ class CmdLineFwk:
 
         taskName = None
         pattern = None
-        matHistory = re.search(r"^(?:(\w+)::)(?:config[.])?(.+)", showArgs)
+        matHistory = re.search(r"^(?:(\w+)::)?(?:config[.])?(.+)", showArgs)
         if matHistory:
             taskName = matHistory.group(1)
             pattern = matHistory.group(2)
@@ -518,26 +518,33 @@ class CmdLineFwk:
 
         tasks = util.filterTasks(pipeline, taskName)
         if not tasks:
-            print("Pipeline has no tasks named {}".format(taskName), file=sys.stderr)
+            print(f"Pipeline has no tasks named {taskName}", file=sys.stderr)
             sys.exit(1)
 
-        pattern = pattern.split(".")
-        cpath, cname = pattern[:-1], pattern[-1]
+        cpath, _, cname = pattern.rpartition(".")
         found = False
         for taskDef in tasks:
-            hconfig = taskDef.config
-            for i, cpt in enumerate(cpath):
-                hconfig = getattr(hconfig, cpt, None)
-                if hconfig is None:
-                    break
+            try:
+                if not cpath:
+                    # looking for top-level field
+                    hconfig = taskDef.config
+                else:
+                    hconfig = eval("config." + cpath, {}, {"config": taskDef.config})
+            except AttributeError:
+                # Means this config object has no such field, but maybe some other task has it.
+                continue
+            except Exception:
+                # Any other exception probably means some error in the expression.
+                print(f"ERROR: Failed to evaluate field expression `{pattern}'", file=sys.stderr)
+                sys.exit(1)
 
-            if hconfig is not None and hasattr(hconfig, cname):
-                print("### Configuration field for task `{}'".format(taskDef.taskName))
+            if hasattr(hconfig, cname):
+                print(f"### Configuration field for task `{taskDef.label}'")
                 print(pexConfig.history.format(hconfig, cname))
                 found = True
 
         if not found:
-            print("None of the tasks has field named {}".format(showArgs), file=sys.stderr)
+            print(f"None of the tasks has field named {pattern}", file=sys.stderr)
             sys.exit(1)
 
     def _showTaskHierarchy(self, pipeline):
