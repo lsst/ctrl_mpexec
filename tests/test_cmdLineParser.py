@@ -84,12 +84,12 @@ class CmdLineParserTestCase(unittest.TestCase):
         with self.assertRaises(_Error):
             parser.parse_args("-t task -s task:{'x':1}".split())
 
-    def testInputCollectionType(self):
-        """Test for a _inputCollectionType
+    def testInputCollectionAction(self):
+        """Test for a _InputCollectionAction
         """
 
         parser = _NoExitParser()
-        parser.add_argument("-i", dest="input", type=parser_mod._inputCollectionType,
+        parser.add_argument("-i", dest="input", action=parser_mod._InputCollectionAction,
                             default={})
 
         args = parser.parse_args("".split())
@@ -98,7 +98,20 @@ class CmdLineParserTestCase(unittest.TestCase):
         args = parser.parse_args("-i coll".split())
         self.assertEqual(args.input, {"": ["coll"]})
 
+        # collection can appear twice
+        args = parser.parse_args("-i coll,coll".split())
+        self.assertEqual(args.input, {"": ["coll", "coll"]})
+
         args = parser.parse_args("-i coll1,coll2,coll3".split())
+        self.assertEqual(args.input, {"": ["coll1", "coll2", "coll3"]})
+
+        args = parser.parse_args("-i coll1 -i coll2 -i coll3".split())
+        self.assertEqual(args.input, {"": ["coll1", "coll2", "coll3"]})
+
+        args = parser.parse_args("-i coll1 -i coll2,coll3".split())
+        self.assertEqual(args.input, {"": ["coll1", "coll2", "coll3"]})
+
+        args = parser.parse_args("-i coll1 -i coll2 -i coll3".split())
         self.assertEqual(args.input, {"": ["coll1", "coll2", "coll3"]})
 
         args = parser.parse_args("-i ds:coll".split())
@@ -112,6 +125,25 @@ class CmdLineParserTestCase(unittest.TestCase):
         self.assertEqual(args.input, {"": ["coll1", "coll2", "coll3"],
                                       "ds1": ["coll1"],
                                       "ds2": ["coll2", "coll3"]})
+
+        args = parser.parse_args("-i coll1 -i ds1:coll1 -i coll2 -i ds2:coll2 -i ds2:coll3,coll3".split())
+        self.assertEqual(args.input, {"": ["coll1", "coll2", "coll3"],
+                                      "ds1": ["coll1"],
+                                      "ds2": ["coll2", "coll3"]})
+
+        # use non-empty default
+        parser = _NoExitParser()
+        parser.add_argument("-i", dest="input", action=parser_mod._InputCollectionAction,
+                            default={"": ["coll"]})
+
+        args = parser.parse_args("".split())
+        self.assertEqual(args.input, {"": ["coll"]})
+
+        args = parser.parse_args("-i coll".split())
+        self.assertEqual(args.input, {"": ["coll", "coll"]})
+
+        args = parser.parse_args("-i coll1 -i coll2 -i coll3".split())
+        self.assertEqual(args.input, {"": ["coll", "coll1", "coll2", "coll3"]})
 
     def testOutputCollectionType(self):
         """Test for a _outputCollectionType

@@ -29,6 +29,7 @@ __all__ = ["makeParser"]
 # -------------------------------
 from argparse import Action, ArgumentParser, RawDescriptionHelpFormatter
 import collections
+import copy
 import re
 import textwrap
 
@@ -132,34 +133,42 @@ class _LogLevelAction(Action):
         dest.append((component, logLevelUpr))
 
 
-def _inputCollectionType(value):
-    """Special argument type for input collections.
+class _InputCollectionAction(Action):
+    """Action class which collects input collection names.
 
-    Accepts string vlues in format:
+    This action type accepts string values in format:
 
         value :== collection[,collection[...]]
         collection :== [dataset_type:]collection_name
 
     and converts value into a dictionary whose keys a dataset type names
     (or empty string when dataset type name is missing) and values are
-    ordered lists of collection names.
-
-    Parameters
-    ----------
-    value : `str`
-        Value of the command line option
-
-    Returns
-    -------
-    `dict`
+    ordered lists of collection names. Values from multiple arguments are
+    all collected into the same dictionary. Resulting list of collections
+    could contain multiple instances of the same collection name if it
+    appears multiple time on command line.
     """
-    res = {}
-    for collstr in value.split(","):
-        dsType, sep, coll = collstr.partition(':')
-        if not sep:
-            dsType, coll = "", dsType
-        res.setdefault(dsType, []).append(coll)
-    return res
+
+    def __call__(self, parser, namespace, values, option_string=None):
+        """Re-implementation of the base class method.
+
+        See `argparse.Action` documentation for parameter description.
+        """
+        dest = getattr(namespace, self.dest, {})
+        # In case default is set to a dict (empty or not) we want to use
+        # new deep copy of that dictionary as initial value to avoid
+        # modifying default value.
+        if dest is self.default:
+            dest = copy.deepcopy(dest)
+
+        # split on commas, collection can be preceeded by dataset type
+        for collstr in values.split(","):
+            dsType, sep, coll = collstr.partition(':')
+            if not sep:
+                dsType, coll = "", dsType
+            dest.setdefault(dsType, []).append(coll)
+
+        setattr(namespace, self.dest, dest)
 
 
 def _outputCollectionType(value):
@@ -219,7 +228,7 @@ def _makeButlerOptions(parser):
     group = parser.add_argument_group("Data repository and selection options")
     group.add_argument("-b", "--butler-config", dest="butler_config", default=None, metavar="PATH",
                        help="Location of the gen3 butler/registry config file.")
-    group.add_argument("-i", "--input", dest="input", type=_inputCollectionType,
+    group.add_argument("-i", "--input", dest="input", action=_InputCollectionAction,
                        metavar="COLL,DSTYPE:COLL", default={},
                        help=("Comma-separated names of the data butler collection. "
                              "If collection includes dataset type name separated by colon "
