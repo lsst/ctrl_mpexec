@@ -283,14 +283,11 @@ class CmdLineFwk:
         graph : `~lsst.pipe.base.QuantumGraph` or `None`
             If resulting graph is empty then `None` is returned.
         """
+        # We need at least the DimensionUniverse, and possibly a read-only
+        # Registry (but never more).  Easiest, safest way to do any of that is
+        # just to make a full butler.
+        butler = Butler(config=args.butler_config, writeable=False)
         if args.qgraph:
-
-            # Un-pickling QGraph needs a dimensions universe defined in
-            # registry. Easiest way to do it now is to initialize whole data
-            # butler. Butler requires run or collection provided in
-            # constructor but in this case we do not care about (or do not
-            # know) what collection to use so give it an empty name.
-            butler = Butler(config=args.butler_config, collection="")
 
             with open(args.qgraph, 'rb') as pickleFile:
                 qgraph = pickle.load(pickleFile)
@@ -313,17 +310,8 @@ class CmdLineFwk:
             outputs = args.output.copy()
             defaultOutputs = outputs.pop("", None)
 
-            # Make butler instance. From this Butler we only need Registry
-            # instance. Input/output collections are handled by pre-flight
-            # and we don't want to be constrained here by Butler's restrictions
-            # on collection names.
-            collection = defaultInputs[0] if defaultInputs else None
-            butler = Butler(config=args.butler_config, collection=collection)
-
-            # if default input collections are not given on command line then
-            # use one from Butler (has to be configured in butler config)
-            if not defaultInputs:
-                defaultInputs = [butler.collection]
+            if defaultInputs is None:
+                defaultInputs = []
             inputCollections = defaultdict(functools.partial(list, defaultInputs))
             inputCollections.update(inputs)
             outputCollection = defaultOutputs
