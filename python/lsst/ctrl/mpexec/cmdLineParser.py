@@ -299,7 +299,7 @@ def _makePipelineOptions(parser):
     """
     group = parser.add_argument_group("Pipeline building options")
     group.add_argument("-p", "--pipeline", dest="pipeline",
-                       help="Location of a serialized pipeline definition (pickle file).",
+                       help="Location of a pipeline definition file in YAML format.",
                        metavar="PATH")
     group.add_argument("-t", "--task", metavar="TASK[:LABEL]",
                        dest="pipeline_actions", action='append', type=_ACTION_ADD_TASK,
@@ -323,7 +323,7 @@ def _makePipelineOptions(parser):
                        "ordering is performed as last step before saving or executing "
                        "pipeline.")
     group.add_argument("-s", "--save-pipeline", dest="save_pipeline",
-                       help="Location for storing a serialized pipeline definition (pickle file).",
+                       help="Location for storing resulting pipeline definition in YAML format.",
                        metavar="PATH")
     group.add_argument("--pipeline-dot", dest="pipeline_dot",
                        help="Location for storing GraphViz DOT representation of a pipeline.",
