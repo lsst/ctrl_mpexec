@@ -27,13 +27,11 @@ __all__ = ["AddTaskConfig", "AddTask", "AddTaskFactoryMock", "ButlerMock"]
 import itertools
 import logging
 import numpy
-import functools
 import os
-from collections import defaultdict
 from types import SimpleNamespace
 
 from lsst.daf.butler import (ButlerConfig, DatasetRef, DimensionUniverse,
-                             DatasetType, Registry)
+                             DatasetType, Registry, CollectionSearch)
 import lsst.pex.config as pexConfig
 import lsst.pipe.base as pipeBase
 from lsst.pipe.base import connectionTypes as cT
@@ -208,7 +206,7 @@ def registerDatasetTypes(registry, pipeline):
             registry.registerDatasetType(datasetType)
 
 
-def makeSimpleQGraph(nQuanta=5, pipeline=None, butler=None, skipExisting=False, clobberExisting=False):
+def makeSimpleQGraph(nQuanta=5, pipeline=None, butler=None, skipExisting=False):
     """Make simple QuantumGraph for tests.
 
     Makes simple one-task pipeline with AddTask, sets up in-memory
@@ -228,9 +226,6 @@ def makeSimpleQGraph(nQuanta=5, pipeline=None, butler=None, skipExisting=False, 
     skipExisting : `bool`, optional
         If `True` (default), a Quantum is not created if all its outputs
         already exist.
-    clobberExisting : `bool`, optional
-        If `True`, overwrite any outputs that already exist.  Cannot be
-        `True` if ``skipExisting`` is.
 
     Returns
     -------
@@ -266,12 +261,11 @@ def makeSimpleQGraph(nQuanta=5, pipeline=None, butler=None, skipExisting=False, 
             butler.put(data, "add_input", dataId)
 
     # Make the graph, task factory is not needed here
-    builder = pipeBase.GraphBuilder(registry=butler.registry,
-                                    skipExisting=skipExisting, clobberExisting=clobberExisting)
+    builder = pipeBase.GraphBuilder(registry=butler.registry, skipExisting=skipExisting)
     qgraph = builder.makeGraph(
         pipeline,
-        inputCollections=defaultdict(functools.partial(list, [butler.run])),
-        outputCollection=butler.run,
+        collections=CollectionSearch.fromExpression(butler.run),
+        run=butler.run,
         userQuery=""
     )
 

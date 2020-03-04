@@ -27,19 +27,29 @@ __all__ = ['CmdLineFwk']
 # -------------------------------
 #  Imports of standard modules --
 # -------------------------------
+import argparse
+from dataclasses import dataclass
+import datetime
 import fnmatch
 import logging
 import pickle
 import re
 import sys
+from typing import List, Tuple
 import warnings
-import functools
-from collections import defaultdict
 
 # -----------------------------
 #  Imports for other modules --
 # -----------------------------
-from lsst.daf.butler import Butler, DatasetRef
+from lsst.daf.butler import (
+    Butler,
+    CollectionSearch,
+    CollectionType,
+    DatasetRef,
+    DatasetTypeRestriction,
+    Registry,
+)
+from lsst.daf.butler.registry import MissingCollectionError
 import lsst.log
 import lsst.pex.config as pexConfig
 from lsst.pipe.base import GraphBuilder, Pipeline, QuantumGraph
@@ -64,6 +74,145 @@ log4j.appender.A1.layout.ConversionPattern={}
 """
 
 _LOG = logging.getLogger(__name__.partition(".")[2])
+
+
+@dataclass
+class _OutputChainedCollectionInfo:
+
+    def __init__(self, registry: Registry, name: str):
+        self.name = name
+        try:
+            self.chain = list(registry.getCollectionChain(name))
+            self.exists = True
+        except MissingCollectionError:
+            self.chain = []
+            self.exists = False
+
+    name: str
+    exists: bool
+    chain: List[Tuple[str, DatasetTypeRestriction]]
+
+
+@dataclass
+class _OutputRunCollectionInfo:
+
+    def __init__(self, registry: Registry, name: str):
+        self.name = name
+        try:
+            actualType = registry.getCollectionType(name)
+            if actualType is not CollectionType.RUN:
+                raise TypeError(f"Collection '{name}' exists but has type {actualType.name}, not RUN.")
+            self.exists = True
+        except MissingCollectionError:
+            self.exists = False
+
+    name: str
+    exists: bool
+
+
+@dataclass
+class _ButlerFactory:
+
+    def __init__(self, registry: Registry, args: argparse.Namespace, writeable: bool):
+        if args.output is not None:
+            self.output = _OutputChainedCollectionInfo(registry, args.output)
+        else:
+            self.output = None
+        if args.output_run is not None:
+            self.outputRun = _OutputRunCollectionInfo(registry, args.output_run)
+        elif self.output is not None:
+            if args.extend_run:
+                runName, _ = self.output.chain[0]
+            else:
+                runName = "{}/{:%Y%m%dT%Hh%Mm%Ss}".format(self.output, datetime.datetime.now())
+            self.outputRun = _OutputRunCollectionInfo(registry, runName)
+        elif not writeable:
+            # If we're not writing yet, ok to have no output run.
+            self.outputRun = None
+        else:
+            raise ValueError("Cannot write without at least one of (--output, --output-run).")
+        self.inputs = list(CollectionSearch.fromExpression(args.inputs))
+
+    def check(self, args: argparse.Namespace):
+        # Check options for consistency with each other and repo.
+        assert not (args.extend_run and args.replace_run), "In mutually-exclusive group in ArgumentParser."
+        if self.inputs and self.output is not None and self.output.exists:
+            raise ValueError("Cannot use --output with existing collection with --inputs.")
+        if args.extend_run and self.outputRun is None:
+            raise ValueError("Cannot --extend-run when no output collection is given.")
+        if args.extend_run and not self.outputRun.exists:
+            raise ValueError(f"Cannot --extend-run; output collection "
+                             f"'{self.outputRun.name}' does not exist.")
+        if not args.extend_run and self.outputRun.exists:
+            raise ValueError(f"Output run '{self.outputRun.name}' already exists, but "
+                             f"--extend-run was not given.")
+        if args.prune_replaced and not args.replace_run:
+            raise ValueError(f"--prune-replaced requires --replace-run.")
+        if args.repace_run and (self.output is None or not self.output.exists):
+            raise ValueError(f"--output must point to an existing CHAINED collection for --replace-run.")
+
+    @classmethod
+    def _makeReadParts(cls, args: argparse.Namespace):
+        butler = Butler(args.butler_config, writeable=False)
+        self = cls(butler.registry, args, writeable=False)
+        self.check(args)
+        if self.output and self.output.exists:
+            if args.replace_run:
+                replaced, _ = self.output.chain[0]
+                inputs = self.output.chain[1:]
+                _LOG.debug(f"Simulating collection search in '{self.output.name}' "
+                           f"after removing '{replaced}'.")
+            else:
+                inputs = [self.output.name]
+        else:
+            inputs = list(self.inputs)
+        if args.extend_run:
+            inputs.insert(0, self.outputRun.name)
+        inputs = CollectionSearch.fromExpression(inputs)
+        return butler, inputs, self
+
+    @classmethod
+    def makeReadButler(cls, args: argparse.Namespace):
+        butler, inputs, _ = cls._makeReadParts(args)
+        _LOG.debug(f"Preparing butler to read from {inputs}.")
+        return Butler(butler=butler, collections=inputs)
+
+    @classmethod
+    def makeRegistryAndCollections(cls, args: argparse.Namespace) -> CollectionSearch:
+        butler, inputs, self = cls._makeReadParts(args)
+        run = self.outputRun.name if args.extend_run else None
+        _LOG.debug(f"Preparing registry to read from {inputs} and expect future writes to '{run}'.")
+        return butler.registry, inputs, run
+
+    @classmethod
+    def makeWriteButler(cls, args: argparse.Namespace) -> Butler:
+        butler = Butler(args.butler_config, writeable=True)
+        self = cls(butler.registry, args, writeable=True)
+        self.check(args)
+        if self.output is not None:
+            chainDefinition = list(self.output.chain if self.output.exists else self.inputs)
+            if args.replace_run:
+                replaced, _ = chainDefinition.pop(0)
+                if args.prune_replaced:
+                    # TODO: DM-23671: need a butler API for pruning an
+                    # entire RUN collection, then apply it to 'replaced'
+                    # here.
+                    raise NotImplementedError("Support for --prune-replaced is not yet implemented.")
+            chainDefinition.insert(0, self.outputRun.name)
+            chainDefinition = CollectionSearch.fromExpression(chainDefinition)
+            _LOG.debug(f"Preparing butler to write to '{self.outputRun.name}' and read from "
+                       f"'{self.output.name}'={chainDefinition}")
+            return Butler(butler=butler, run=self.outputRun.name, collections=self.output.name,
+                          chains={self.output.name: chainDefinition})
+        else:
+            inputs = CollectionSearch.fromExpression([self.outputRun] + self.inputs)
+            _LOG.debug(f"Preparing butler to write to '{self.outputRun.name}' and read from "
+                       f"{inputs}.")
+            return Butler(butler=butler, run=self.outputRun.name, collections=inputs)
+
+    output: _OutputChainedCollectionInfo
+    outputRun: _OutputRunCollectionInfo
+    inputs: List[Tuple[str, DatasetTypeRestriction]]
 
 
 class _FilteredStream:
@@ -283,10 +432,7 @@ class CmdLineFwk:
         graph : `~lsst.pipe.base.QuantumGraph` or `None`
             If resulting graph is empty then `None` is returned.
         """
-        # We need at least the DimensionUniverse, and possibly a read-only
-        # Registry (but never more).  Easiest, safest way to do any of that is
-        # just to make a full butler.
-        butler = Butler(config=args.butler_config, writeable=False)
+
         if args.qgraph:
 
             with open(args.qgraph, 'rb') as pickleFile:
@@ -301,31 +447,13 @@ class CmdLineFwk:
 
         else:
 
-            if not pipeline:
-                raise ValueError("Pipeline must be given for quantum graph construction.")
-
-            # build collection names
-            inputs = args.input.copy()
-            defaultInputs = inputs.pop("", None)
-            outputs = args.output.copy()
-            defaultOutputs = outputs.pop("", None)
-
-            if defaultInputs is None:
-                defaultInputs = []
-            inputCollections = defaultdict(functools.partial(list, defaultInputs))
-            inputCollections.update(inputs)
-            outputCollection = defaultOutputs
-            if outputs:
-                # TODO: this may never be supported; maybe we should just
-                # remove the command-line option?
-                raise NotImplementedError("Different output collections for different dataset "
-                                          "types is not currently supported.")
+            registry, collections, run = _ButlerFactory.makeRegistryAndCollections(args)
 
             # make execution plan (a.k.a. DAG) for pipeline
-            graphBuilder = GraphBuilder(butler.registry,
+            graphBuilder = GraphBuilder(registry,
                                         skipExisting=args.skip_existing,
                                         clobberExisting=args.clobber_output)
-            qgraph = graphBuilder.makeGraph(pipeline, inputCollections, outputCollection, args.data_query)
+            qgraph = graphBuilder.makeGraph(pipeline, collections, run, args.data_query)
 
         # count quanta in graph and give a warning if it's empty and return None
         nQuanta = qgraph.countQuanta()
@@ -366,17 +494,9 @@ class CmdLineFwk:
             Data Butler instance, if not defined then new instance is made
             using command line options.
         """
-        # If default output collection is given then use it to override
-        # butler-configured one.
-        run = args.output.get("", None)
-
         # make butler instance
         if butler is None:
-            butler = Butler(config=args.butler_config, run=run)
-
-        # at this point we require that output collection was defined
-        if not butler.run:
-            raise ValueError("no output collection defined in data butler")
+            butler = _ButlerFactory.makeWriteButler(args)
 
         # Enable lsstDebug debugging. Note that this is done once in the
         # main process before PreExecInit and it is also repeated before
@@ -389,7 +509,7 @@ class CmdLineFwk:
             except ImportError:
                 _LOG.warn("No 'debug' module found.")
 
-        preExecInit = PreExecInit(butler, taskFactory, args.skip_existing, args.clobber_output)
+        preExecInit = PreExecInit(butler, taskFactory, args.skip_existing)
         preExecInit.initialize(graph,
                                saveInitOutputs=not args.skip_init_writes,
                                registerDatasetTypes=args.register_dataset_types)
@@ -397,7 +517,6 @@ class CmdLineFwk:
         if not args.init_only:
             executor = MPGraphExecutor(numProc=args.processes, timeout=self.MP_TIMEOUT,
                                        skipExisting=args.skip_existing,
-                                       clobberOutput=args.clobber_output,
                                        enableLsstDebug=args.enableLsstDebug)
             with util.profile(args.profile, _LOG):
                 executor.execute(graph, butler, taskFactory)
@@ -582,8 +701,7 @@ class CmdLineFwk:
         args : `argparse.Namespace`
             Parsed command line
         """
-        run = args.output.get("", None)
-        butler = Butler(config=args.butler_config, run=run)
+        butler = _ButlerFactory.makeReadButler(args)
         hashToParent = {}
         for iq, (taskDef, quantum) in enumerate(graph.quanta()):
             shortname = taskDef.taskName.split('.')[-1]
@@ -594,7 +712,7 @@ class CmdLineFwk:
                     if butler.datastore.exists(ref):
                         print("    {}".format(butler.datastore.getUri(ref)))
                     else:
-                        fakeRef = DatasetRef(ref.datasetType, ref.dataId, run=run)
+                        fakeRef = DatasetRef(ref.datasetType, ref.dataId)
                         print("    {}".format(butler.datastore.getUri(fakeRef, predict=True)))
             print("  outputs:")
             for key, refs in quantum.outputs.items():
@@ -602,7 +720,7 @@ class CmdLineFwk:
                     if butler.datastore.exists(ref):
                         print("    {}".format(butler.datastore.getUri(ref)))
                     else:
-                        fakeRef = DatasetRef(ref.datasetType, ref.dataId, run=run)
+                        fakeRef = DatasetRef(ref.datasetType, ref.dataId)
                         print("    {}".format(butler.datastore.getUri(fakeRef, predict=True)))
                     # Store hash to figure out dependency
                     dhash = hash((key, ref.dataId))

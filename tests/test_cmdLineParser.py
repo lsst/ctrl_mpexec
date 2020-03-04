@@ -26,6 +26,7 @@ from argparse import ArgumentParser
 import unittest
 
 import lsst.utils.tests
+from lsst.daf.butler import CollectionSearch
 import lsst.ctrl.mpexec.cmdLineParser as parser_mod
 
 
@@ -89,93 +90,66 @@ class CmdLineParserTestCase(unittest.TestCase):
         """
 
         parser = _NoExitParser()
-        parser.add_argument("-i", dest="input", action=parser_mod._InputCollectionAction,
-                            default={})
+        parser.add_argument("-i", dest="input", action=parser_mod._InputCollectionAction, default=[])
 
         args = parser.parse_args("".split())
-        self.assertEqual(args.input, {})
+
+        def assertExpressionsEquivalent(a, b):
+            """Test that input collection expressions are equivalent after
+            being standardized by CollectionSearch.fromExpression.
+            """
+            self.assertEqual(CollectionSearch.fromExpression(a), CollectionSearch.fromExpression(b))
+
+        assertExpressionsEquivalent(args.input, [])
 
         args = parser.parse_args("-i coll".split())
-        self.assertEqual(args.input, {"": ["coll"]})
+        assertExpressionsEquivalent(args.input, ["coll"])
 
         # collection can appear twice
         args = parser.parse_args("-i coll,coll".split())
-        self.assertEqual(args.input, {"": ["coll", "coll"]})
+        assertExpressionsEquivalent(args.input, ["coll"])
 
         args = parser.parse_args("-i coll1,coll2,coll3".split())
-        self.assertEqual(args.input, {"": ["coll1", "coll2", "coll3"]})
+        assertExpressionsEquivalent(args.input, ["coll1", "coll2", "coll3"])
 
         args = parser.parse_args("-i coll1 -i coll2 -i coll3".split())
-        self.assertEqual(args.input, {"": ["coll1", "coll2", "coll3"]})
+        assertExpressionsEquivalent(args.input, ["coll1", "coll2", "coll3"])
 
         args = parser.parse_args("-i coll1 -i coll2,coll3".split())
-        self.assertEqual(args.input, {"": ["coll1", "coll2", "coll3"]})
+        assertExpressionsEquivalent(args.input, ["coll1", "coll2", "coll3"])
 
         args = parser.parse_args("-i coll1 -i coll2 -i coll3".split())
-        self.assertEqual(args.input, {"": ["coll1", "coll2", "coll3"]})
+        assertExpressionsEquivalent(args.input, ["coll1", "coll2", "coll3"])
 
         args = parser.parse_args("-i ds:coll".split())
-        self.assertEqual(args.input, {"ds": ["coll"]})
+        assertExpressionsEquivalent(args.input, [("coll", "ds")])
 
         args = parser.parse_args("-i ds1:coll1,ds2:coll2,ds2:coll3".split())
-        self.assertEqual(args.input, {"ds1": ["coll1"],
-                                      "ds2": ["coll2", "coll3"]})
+        assertExpressionsEquivalent(args.input, [("coll1", "ds1"), ("coll2", "ds2"), ("coll3", "ds2")])
 
-        args = parser.parse_args("-i coll1,ds1:coll1,coll2,ds2:coll2,ds2:coll3,coll3".split())
-        self.assertEqual(args.input, {"": ["coll1", "coll2", "coll3"],
-                                      "ds1": ["coll1"],
-                                      "ds2": ["coll2", "coll3"]})
+        args = parser.parse_args("-i coll1,coll2,ds1:coll1,ds2:coll2,coll3".split())
+        assertExpressionsEquivalent(args.input, ["coll1", "coll2",
+                                                 ("coll1", "ds1"), ("coll2", "ds2"),
+                                                 "coll3"])
 
-        args = parser.parse_args("-i coll1 -i ds1:coll1 -i coll2 -i ds2:coll2 -i ds2:coll3,coll3".split())
-        self.assertEqual(args.input, {"": ["coll1", "coll2", "coll3"],
-                                      "ds1": ["coll1"],
-                                      "ds2": ["coll2", "coll3"]})
+        args = parser.parse_args("-i coll1 -i coll2 -i ds1:coll1 -i ds2:coll2 -i coll3".split())
+        assertExpressionsEquivalent(args.input, ["coll1", "coll2",
+                                                 ("coll1", "ds1"), ("coll2", "ds2"),
+                                                 "coll3"])
 
         # use non-empty default
         parser = _NoExitParser()
         parser.add_argument("-i", dest="input", action=parser_mod._InputCollectionAction,
-                            default={"": ["coll"]})
+                            default=[("coll", ...)])
 
         args = parser.parse_args("".split())
-        self.assertEqual(args.input, {"": ["coll"]})
+        assertExpressionsEquivalent(args.input, ["coll"])
 
         args = parser.parse_args("-i coll".split())
-        self.assertEqual(args.input, {"": ["coll", "coll"]})
+        assertExpressionsEquivalent(args.input, ["coll"])
 
         args = parser.parse_args("-i coll1 -i coll2 -i coll3".split())
-        self.assertEqual(args.input, {"": ["coll", "coll1", "coll2", "coll3"]})
-
-    def testOutputCollectionType(self):
-        """Test for a _outputCollectionType
-        """
-
-        parser = _NoExitParser()
-        parser.add_argument("-o", dest="output", type=parser_mod._outputCollectionType,
-                            default={})
-
-        args = parser.parse_args("".split())
-        self.assertEqual(args.output, {})
-
-        args = parser.parse_args("-o coll".split())
-        self.assertEqual(args.output, {"": "coll"})
-
-        with self.assertRaises(_Error):
-            args = parser.parse_args("-o coll1,coll2,coll3".split())
-
-        args = parser.parse_args("-o ds:coll".split())
-        self.assertEqual(args.output, {"ds": "coll"})
-
-        args = parser.parse_args("-o ds1:coll1,ds2:coll2,ds3:coll3".split())
-        self.assertEqual(args.output, {"ds1": "coll1",
-                                       "ds2": "coll2",
-                                       "ds3": "coll3"})
-
-        args = parser.parse_args("-o coll1,ds2:coll2".split())
-        self.assertEqual(args.output, {"": "coll1",
-                                       "ds2": "coll2"})
-
-        with self.assertRaises(_Error):
-            args = parser.parse_args("-o coll1,ds2:coll2,coll3".split())
+        assertExpressionsEquivalent(args.input, ["coll", "coll1", "coll2", "coll3"])
 
     def testCmdLineParser(self):
         """Test for parser_mod.CmdLineParser
@@ -203,7 +177,8 @@ class CmdLineParserTestCase(unittest.TestCase):
             qgraph -t cmd
             """.split())
         qgraph_options = build_options + """qgraph data_query butler_config
-                         input output skip_existing clobber_output
+                         input output skip_existing output_run extend_run
+                         replace_run prune_replaced
                          save_qgraph qgraph_dot save_single_quanta""".split()
         self.assertEqual(set(vars(args).keys()), set(common_options + qgraph_options))
         self.assertEqual(args.subcommand, 'qgraph')
@@ -213,8 +188,7 @@ class CmdLineParserTestCase(unittest.TestCase):
             run -t taskname
             """.split())
         run_options = qgraph_options + """register_dataset_types skip_init_writes
-                      init_only clobberConfig clobberVersions noBackupConfig noVersions
-                      processes profile timeout doraise""".split()
+                      init_only processes profile timeout doraise""".split()
         self.assertEqual(set(vars(args).keys()), set(common_options + run_options))
         self.assertEqual(args.subcommand, 'run')
 
@@ -229,16 +203,15 @@ class CmdLineParserTestCase(unittest.TestCase):
             """
             run -t taskname
             """.split())
-        self.assertFalse(args.clobberConfig)
-        self.assertFalse(args.clobberVersions)
         self.assertFalse(args.enableLsstDebug)
         self.assertFalse(args.doraise)
-        self.assertEqual(args.input, {})
+        self.assertEqual(args.input, [])
         self.assertEqual(args.loglevel, [])
         self.assertFalse(args.longlog)
-        self.assertFalse(args.noBackupConfig)
-        self.assertFalse(args.noVersions)
-        self.assertEqual(args.output, {})
+        self.assertEqual(args.output, None)
+        self.assertEqual(args.output_run, None)
+        self.assertEqual(args.extend_run, False)
+        self.assertEqual(args.replace_run, False)
         self.assertEqual(args.processes, 1)
         self.assertIsNone(args.profile)
         self.assertIsNone(args.timeout)
@@ -251,15 +224,11 @@ class CmdLineParserTestCase(unittest.TestCase):
         args = parser.parse_args(
             """
             run
-            --clobber-config
-            --clobber-versions
             --debug
             --doraise
             --input inputColl
             --loglevel DEBUG -L component=trace
             --longlog
-            --no-backup-config
-            --no-versions
             --output outputColl
             -j 66
             --profile profile.out
@@ -273,16 +242,12 @@ class CmdLineParserTestCase(unittest.TestCase):
             -C label:filename2 -C label:filename3
             --skip-existing
             """.split())
-        self.assertTrue(args.clobberConfig)
-        self.assertTrue(args.clobberVersions)
         self.assertTrue(args.enableLsstDebug)
         self.assertTrue(args.doraise)
-        self.assertEqual(args.input, {"": ["inputColl"]})
+        self.assertEqual(args.input, [("inputColl", ...)])
         self.assertEqual(args.loglevel, [(None, 'DEBUG'), ('component', 'TRACE')])
         self.assertTrue(args.longlog)
-        self.assertTrue(args.noBackupConfig)
-        self.assertTrue(args.noVersions)
-        self.assertEqual(args.output, {"": "outputColl"})
+        self.assertEqual(args.output, "outputColl")
         self.assertEqual(args.processes, 66)
         self.assertEqual(args.profile, 'profile.out')
         self.assertEqual(args.timeout, 10.10)

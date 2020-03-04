@@ -51,15 +51,11 @@ class PreExecInit:
         If `True` then do not try to overwrite any datasets that might exist
         in the butler. If `False` then any existing conflicting dataset will
         cause butler exception.
-    clobberOutput : `bool`, optional
-        It `True` then override all existing output datasets in an output
-        collection.
     """
-    def __init__(self, butler, taskFactory, skipExisting=False, clobberOutput=False):
+    def __init__(self, butler, taskFactory, skipExisting=False):
         self.butler = butler
         self.taskFactory = taskFactory
         self.skipExisting = skipExisting
-        self.clobberOutput = clobberOutput
 
     def initialize(self, graph, saveInitOutputs=True, registerDatasetTypes=False):
         """Perform all initialization steps.
@@ -80,9 +76,6 @@ class PreExecInit:
         """
         # register dataset types or check consistency
         self.initializeDatasetTypes(graph, registerDatasetTypes)
-
-        # associate all existing datasets with output collection.
-        self.updateOutputCollection(graph)
 
         # Save task initialization data or check that saved data
         # is consistent with what tasks would save
@@ -128,65 +121,6 @@ class PreExecInit:
                     raise ValueError(f"DatasetType configuration does not match Registry: "
                                      f"{datasetType} != {expected}")
 
-    def updateOutputCollection(self, graph):
-        """Associate all existing datasets with output collection.
-
-        For every Quantum in a graph make sure that its existing inputs are
-        added to the Butler's output collection.
-
-        For each quantum there are input and output DatasetRefs. With the
-        current implementation of preflight output refs should not exist but
-        input refs may belong to a different collection. We want all refs to
-        appear in output collection, so we have to "copy" those refs.
-
-        Parameters
-        ----------
-        graph : `~lsst.pipe.base.QuantumGraph`
-            Execution graph.
-        """
-        def _refComponents(refs):
-            """Return all resolved dataset components recursively."""
-            for ref in refs:
-                if ref.id is not None:
-                    yield ref
-                    yield from _refComponents(ref.components.values())
-
-        collection = self.butler.run
-        registry = self.butler.registry
-
-        # Main issue here is that the same DatasetRef can appear as input for
-        # many quanta, to keep them unique we first collect them into one
-        # dict indexed by dataset id.
-        id2ref = {}
-        for taskDef, quantum in graph.quanta():
-            for refs in quantum.predictedInputs.values():
-                for ref in _refComponents(refs):
-                    id2ref[ref.id] = ref
-        for initInput in graph.initInputs.values():
-            id2ref[initInput.id] = initInput
-
-        _LOG.debug("Associating %d datasets with output collection %s", len(id2ref), collection)
-
-        refsToAdd = []
-        refsToRemove = []
-        if not self.skipExisting and not self.clobberOutput:
-            # optimization - save all at once, butler will raise an exception
-            # if any dataset is already there
-            refsToAdd = list(id2ref.values())
-        else:
-            # skip or override existing ones
-            for ref in id2ref.values():
-                if registry.find(collection, ref.datasetType, ref.dataId) is None:
-                    refsToAdd.append(ref)
-                elif self.clobberOutput:
-                    # replace this dataset
-                    refsToRemove.append(ref)
-                    refsToAdd.append(ref)
-        if refsToRemove:
-            registry.disassociate(collection, refsToRemove)
-        if refsToAdd:
-            registry.associate(collection, refsToAdd)
-
     def saveInitOutputs(self, graph):
         """Write any datasets produced by initializing tasks in a graph.
 
@@ -222,16 +156,7 @@ class PreExecInit:
                 attribute = getattr(taskDef.connections, name)
                 initOutputVar = getattr(task, name)
                 objFromStore = None
-                if self.clobberOutput:
-                    # Remove if it already exists.
-                    collection = self.butler.run
-                    registry = self.butler.registry
-                    ref = registry.find(collection, attribute.name, {})
-                    if ref is not None:
-                        # It is not enough to remove dataset from collection,
-                        # it has to be removed from butler too.
-                        self.butler.remove(ref)
-                elif self.skipExisting:
+                if self.skipExisting:
                     # check if it is there already
                     _LOG.debug("Retrieving InitOutputs for task=%s key=%s dsTypeName=%s",
                                task, name, attribute.name)
