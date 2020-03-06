@@ -134,7 +134,7 @@ class _ButlerFactory:
             self.outputRun = None
         else:
             raise ValueError("Cannot write without at least one of (--output, --output-run).")
-        self.inputs = list(CollectionSearch.fromExpression(args.inputs))
+        self.inputs = list(CollectionSearch.fromExpression(args.input))
 
     def check(self, args: argparse.Namespace):
         # Check options for consistency with each other and repo.
@@ -151,7 +151,7 @@ class _ButlerFactory:
                              f"--extend-run was not given.")
         if args.prune_replaced and not args.replace_run:
             raise ValueError(f"--prune-replaced requires --replace-run.")
-        if args.repace_run and (self.output is None or not self.output.exists):
+        if args.replace_run and (self.output is None or not self.output.exists):
             raise ValueError(f"--output must point to an existing CHAINED collection for --replace-run.")
 
     @classmethod
@@ -454,8 +454,7 @@ class CmdLineFwk:
 
             # make execution plan (a.k.a. DAG) for pipeline
             graphBuilder = GraphBuilder(registry,
-                                        skipExisting=args.skip_existing,
-                                        clobberExisting=args.clobber_output)
+                                        skipExisting=args.skip_existing)
             qgraph = graphBuilder.makeGraph(pipeline, collections, run, args.data_query)
 
         # count quanta in graph and give a warning if it's empty and return None

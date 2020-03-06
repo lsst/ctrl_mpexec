@@ -313,10 +313,6 @@ class CmdLineParserTestCase(unittest.TestCase):
         self.assertEqual(args.pipeline_dot, "pipe.dot")
         self.assertEqual(args.qgraph_dot, "qgraph.dot")
 
-        # check that exclusive options generate error
-        with self.assertRaises(_Error):
-            parser.parse_args("qgraph -p pipeline.yaml --skip-existing --clobber-output".split())
-
     def testCmdLinePipeline(self):
 
         parser = parser_mod.makeParser(parser_class=_NoExitParser)

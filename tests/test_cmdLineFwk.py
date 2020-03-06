@@ -146,7 +146,6 @@ def _makeArgs(pipeline=None, qgraph=None, pipeline_actions=(), order_pipeline=Fa
     args.register_dataset_types = False
     args.skip_init_writes = False
     args.skip_existing = False
-    args.clobber_output = False
     args.init_only = False
     args.processes = 1
     args.profile = None
