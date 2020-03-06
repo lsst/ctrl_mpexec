@@ -88,6 +88,9 @@ class _OutputChainedCollectionInfo:
             self.chain = []
             self.exists = False
 
+    def __str__(self):
+        return self.name
+
     name: str
     exists: bool
     chain: List[Tuple[str, DatasetTypeRestriction]]
