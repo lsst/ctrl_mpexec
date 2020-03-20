@@ -56,18 +56,18 @@ def _renderTaskNode(nodeName, taskDef, file, idx=None):
     print("{} [{}];".format(nodeName, ", ".join(attrib)), file=file)
 
 
-def _renderDSTypeNode(dsType, file):
+def _renderDSTypeNode(name, dimensions, file):
     """Render GV node for a dataset type"""
-    label = [dsType.name]
-    if dsType.dimensions:
-        label += ["Dimensions: " + ", ".join(dsType.dimensions.names)]
+    label = [name]
+    if dimensions:
+        label += ["Dimensions: " + ", ".join(dimensions)]
     label = r'\n'.join(label)
     attrib = dict(shape="box",
                   style="rounded,filled",
                   fillcolor="gray90",
                   label=label)
     attrib = ['{}="{}"'.format(key, val) for key, val in attrib.items()]
-    print("{} [{}];".format(dsType.name, ", ".join(attrib)), file=file)
+    print("{} [{}];".format(name, ", ".join(attrib)), file=file)
 
 
 def _renderDSNode(nodeName, dsRef, file):
@@ -188,6 +188,25 @@ def pipeline2dot(pipeline, file):
     """
     universe = DimensionUniverse()
 
+    def expand_dimensions(dimensions):
+        """Returns expanded list of dimensions, with special skypix treatment.
+
+        Parameters
+        ----------
+        dimensions : `list` [`str`]
+
+        Returns
+        -------
+        dimensions : `list` [`str`]
+        """
+        dimensions = set(dimensions)
+        skypix_dim = []
+        if "skypix" in dimensions:
+            dimensions.remove("skypix")
+            skypix_dim = ["skypix"]
+        dimensions = universe.extract(dimensions)
+        return list(dimensions.names) + skypix_dim
+
     # open a file if needed
     close = False
     if not hasattr(file, "write"):
@@ -206,19 +225,26 @@ def pipeline2dot(pipeline, file):
         _renderTaskNode(taskNodeName, taskDef, file, idx)
 
         for attr in iterConnections(taskDef.connections, 'inputs'):
-            dsType = attr.makeDatasetType(universe)
-            if dsType.name not in allDatasets:
-                _renderDSTypeNode(dsType, file)
-                allDatasets.add(dsType.name)
-            print("{} -> {};".format(dsType.name, taskNodeName), file=file)
+            if attr.name not in allDatasets:
+                dimensions = expand_dimensions(attr.dimensions)
+                _renderDSTypeNode(attr.name, dimensions, file)
+                allDatasets.add(attr.name)
+            print("{} -> {};".format(attr.name, taskNodeName), file=file)
 
-        for name in taskDef.connections.outputs:
-            attr = getattr(taskDef.connections, name)
-            dsType = attr.makeDatasetType(universe)
-            if dsType.name not in allDatasets:
-                _renderDSTypeNode(dsType, file)
-                allDatasets.add(dsType.name)
-            print("{} -> {};".format(taskNodeName, dsType.name), file=file)
+        for attr in iterConnections(taskDef.connections, 'prerequisiteInputs'):
+            if attr.name not in allDatasets:
+                dimensions = expand_dimensions(attr.dimensions)
+                _renderDSTypeNode(attr.name, dimensions, file)
+                allDatasets.add(attr.name)
+            # use dashed line for prerequisite edges to distinguish them
+            print("{} -> {} [style = dashed];".format(attr.name, taskNodeName), file=file)
+
+        for attr in iterConnections(taskDef.connections, 'outputs'):
+            if attr.name not in allDatasets:
+                dimensions = expand_dimensions(attr.dimensions)
+                _renderDSTypeNode(attr.name, dimensions, file)
+                allDatasets.add(attr.name)
+            print("{} -> {};".format(taskNodeName, attr.name), file=file)
 
     print("}", file=file)
     if close:
