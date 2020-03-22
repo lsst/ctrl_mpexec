@@ -268,8 +268,8 @@ class _ButlerFactory:
             if args.replace_run:
                 replaced, _ = self.output.chain[0]
                 inputs = self.output.chain[1:]
-                _LOG.debug(f"Simulating collection search in '{self.output.name}' "
-                           f"after removing '{replaced}'.")
+                _LOG.debug("Simulating collection search in '%s' after removing '%s'.",
+                           self.output.name, replaced)
             else:
                 inputs = [self.output.name]
         else:
@@ -297,7 +297,7 @@ class _ButlerFactory:
             ``args``.
         """
         butler, inputs, _ = cls._makeReadParts(args)
-        _LOG.debug(f"Preparing butler to read from {inputs}.")
+        _LOG.debug("Preparing butler to read from %s.", inputs)
         return Butler(butler=butler, collections=inputs)
 
     @classmethod
@@ -324,7 +324,7 @@ class _ButlerFactory:
         """
         butler, inputs, self = cls._makeReadParts(args)
         run = self.outputRun.name if args.extend_run else None
-        _LOG.debug(f"Preparing registry to read from {inputs} and expect future writes to '{run}'.")
+        _LOG.debug("Preparing registry to read from %s and expect future writes to '%s'.", inputs, run)
         return butler.registry, inputs, run
 
     @classmethod
@@ -357,14 +357,13 @@ class _ButlerFactory:
                     raise NotImplementedError("Support for --prune-replaced is not yet implemented.")
             chainDefinition.insert(0, self.outputRun.name)
             chainDefinition = CollectionSearch.fromExpression(chainDefinition)
-            _LOG.debug(f"Preparing butler to write to '{self.outputRun.name}' and read from "
-                       f"'{self.output.name}'={chainDefinition}")
+            _LOG.debug("Preparing butler to write to '%s' and read from '%s'=%s",
+                       self.outputRun.name, self.output.name, chainDefinition)
             return Butler(butler=butler, run=self.outputRun.name, collections=self.output.name,
                           chains={self.output.name: chainDefinition})
         else:
             inputs = CollectionSearch.fromExpression([self.outputRun] + self.inputs)
-            _LOG.debug(f"Preparing butler to write to '{self.outputRun.name}' and read from "
-                       f"{inputs}.")
+            _LOG.debug("Preparing butler to write to '%s' and read from %s.", self.outputRun.name, inputs)
             return Butler(butler=butler, run=self.outputRun.name, collections=inputs)
 
     output: Optional[_OutputChainedCollectionInfo]
