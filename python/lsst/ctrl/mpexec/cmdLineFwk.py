@@ -28,14 +28,13 @@ __all__ = ['CmdLineFwk']
 #  Imports of standard modules --
 # -------------------------------
 import argparse
-from dataclasses import dataclass
 import datetime
 import fnmatch
 import logging
 import pickle
 import re
 import sys
-from typing import List, Tuple
+from typing import List, Optional, Tuple
 import warnings
 
 # -----------------------------
@@ -76,9 +75,17 @@ log4j.appender.A1.layout.ConversionPattern={}
 _LOG = logging.getLogger(__name__.partition(".")[2])
 
 
-@dataclass
 class _OutputChainedCollectionInfo:
+    """A helper class for handling command-line arguments related to an output
+    `~lsst.daf.butler.CollectionType.CHAINED` collection.
 
+    Parameters
+    ----------
+    registry : `lsst.daf.butler.Registry`
+        Butler registry that collections will be added to and/or queried from.
+    name : `str`
+        Name of the collection given on the command line.
+    """
     def __init__(self, registry: Registry, name: str):
         self.name = name
         try:
@@ -92,13 +99,31 @@ class _OutputChainedCollectionInfo:
         return self.name
 
     name: str
+    """Name of the collection provided on the command line (`str`).
+    """
+
     exists: bool
+    """Whether this collection already exists in the registry (`bool`).
+    """
+
     chain: List[Tuple[str, DatasetTypeRestriction]]
+    """The definition of the collection, if it already exists (`list`).
+
+    Empty if the collection does not alredy exist.
+    """
 
 
-@dataclass
 class _OutputRunCollectionInfo:
+    """A helper class for handling command-line arguments related to an output
+    `~lsst.daf.butler.CollectionType.RUN` collection.
 
+    Parameters
+    ----------
+    registry : `lsst.daf.butler.Registry`
+        Butler registry that collections will be added to and/or queried from.
+    name : `str`
+        Name of the collection given on the command line.
+    """
     def __init__(self, registry: Registry, name: str):
         self.name = name
         try:
@@ -110,12 +135,64 @@ class _OutputRunCollectionInfo:
             self.exists = False
 
     name: str
+    """Name of the collection provided on the command line (`str`).
+    """
+
     exists: bool
+    """Whether this collection already exists in the registry (`bool`).
+    """
 
 
-@dataclass
 class _ButlerFactory:
+    """A helper class for processing command-line arguments related to input
+    and output collections.
 
+    Parameters
+    ----------
+    registry : `lsst.daf.butler.Registry`
+        Butler registry that collections will be added to and/or queried from.
+
+    args : `argparse.Namespace`
+        Parsed command-line arguments.  The following attributes are used,
+        either at construction or in later methods.
+
+        ``output``
+            The name of a `~lsst.daf.butler.CollectionType.CHAINED`
+            input/output collection.
+
+        ``output_run``
+            The name of a `~lsst.daf.butler.CollectionType.RUN` input/output
+            collection.
+
+        ``extend_run``
+            A boolean indicating whether ``output_run`` should already exist
+            and be extended.
+
+        ``replace_run``
+            A boolean indicating that (if `True`) ``output_run`` should already
+            exist but will be removed from the output chained collection and
+            replaced with a new one.
+
+        ``prune_replaced``
+            A boolean indicating whether to prune the replaced run (requires
+            ``replace_run``).
+
+        ``inputs``
+            Input collections of any type; may be any type handled by
+            `lsst.daf.butler.registry.CollectionSearch.fromExpression`.
+
+        ``butler_config``
+            Path to a data repository root or configuration file.
+
+    writeable : `bool`
+        If `True`, a `Butler` is being initialized in a context where actual
+        writes should happens, and hence no output run is necessary.
+
+    Raises
+    ------
+    ValueError
+        Raised if ``writeable is True`` but there are no output collections.
+    """
     def __init__(self, registry: Registry, args: argparse.Namespace, writeable: bool):
         if args.output is not None:
             self.output = _OutputChainedCollectionInfo(registry, args.output)
@@ -137,7 +214,15 @@ class _ButlerFactory:
         self.inputs = list(CollectionSearch.fromExpression(args.input))
 
     def check(self, args: argparse.Namespace):
-        # Check options for consistency with each other and repo.
+        """Check command-line options for consistency with each other and the
+        data repository.
+
+        Parameters
+        ----------
+        args : `argparse.Namespace`
+            Parsed command-line arguments.  See class documentation for the
+            construction parameter of the same name.
+        """
         assert not (args.extend_run and args.replace_run), "In mutually-exclusive group in ArgumentParser."
         if self.inputs and self.output is not None and self.output.exists:
             raise ValueError("Cannot use --output with existing collection with --inputs.")
@@ -156,6 +241,26 @@ class _ButlerFactory:
 
     @classmethod
     def _makeReadParts(cls, args: argparse.Namespace):
+        """Common implementation for `makeReadButler` and
+        `makeRegistryAndCollections`.
+
+        Parameters
+        ----------
+        args : `argparse.Namespace`
+            Parsed command-line arguments.  See class documentation for the
+            construction parameter of the same name.
+
+        Returns
+        -------
+        butler : `lsst.daf.butler.Butler`
+            A read-only butler constructed from the repo at
+            ``args.butler_config``, but with no default collections.
+        inputs : `lsst.daf.butler.registry.CollectionSearch`
+            A collection search path constructed according to ``args``.
+        self : `_ButlerFactory`
+            A new `_ButlerFactory` instance representing the processed version
+            of ``args``.
+        """
         butler = Butler(args.butler_config, writeable=False)
         self = cls(butler.registry, args, writeable=False)
         self.check(args)
@@ -176,12 +281,47 @@ class _ButlerFactory:
 
     @classmethod
     def makeReadButler(cls, args: argparse.Namespace):
+        """Construct a read-only butler according to the given command-line
+        arguments.
+
+        Parameters
+        ----------
+        args : `argparse.Namespace`
+            Parsed command-line arguments.  See class documentation for the
+            construction parameter of the same name.
+
+        Returns
+        -------
+        butler : `lsst.daf.butler.Butler`
+            A read-only butler initialized with the collections specified by
+            ``args``.
+        """
         butler, inputs, _ = cls._makeReadParts(args)
         _LOG.debug(f"Preparing butler to read from {inputs}.")
         return Butler(butler=butler, collections=inputs)
 
     @classmethod
     def makeRegistryAndCollections(cls, args: argparse.Namespace) -> CollectionSearch:
+        """Return a read-only registry, a collection search path, and the name
+        of the run to be used for future writes.
+
+        Parameters
+        ----------
+        args : `argparse.Namespace`
+            Parsed command-line arguments.  See class documentation for the
+            construction parameter of the same name.
+
+        Returns
+        -------
+        registry : `lsst.daf.butler.Registry`
+            Butler registry that collections will be added to and/or queried
+            from.
+        inputs : `lsst.daf.butler.registry.CollectionSearch`
+            Collections to search for datasets.
+        run : `str` or `None`
+            Name of the output `~lsst.daf.butler.CollectionType.RUN` collection
+            if it already exists, or `None` if it does not.
+        """
         butler, inputs, self = cls._makeReadParts(args)
         run = self.outputRun.name if args.extend_run else None
         _LOG.debug(f"Preparing registry to read from {inputs} and expect future writes to '{run}'.")
@@ -189,6 +329,20 @@ class _ButlerFactory:
 
     @classmethod
     def makeWriteButler(cls, args: argparse.Namespace) -> Butler:
+        """Return a read-write butler initialized to write to and read from
+        the collections specified by the given command-line arguments.
+
+        Parameters
+        ----------
+        args : `argparse.Namespace`
+            Parsed command-line arguments.  See class documentation for the
+            construction parameter of the same name.
+
+        Returns
+        -------
+        butler : `lsst.daf.butler.Butler`
+            A read-write butler initialized according to the given arguments.
+        """
         butler = Butler(args.butler_config, writeable=True)
         self = cls(butler.registry, args, writeable=True)
         self.check(args)
@@ -213,9 +367,20 @@ class _ButlerFactory:
                        f"{inputs}.")
             return Butler(butler=butler, run=self.outputRun.name, collections=inputs)
 
-    output: _OutputChainedCollectionInfo
-    outputRun: _OutputRunCollectionInfo
+    output: Optional[_OutputChainedCollectionInfo]
+    """Information about the output chained collection, if there is or will be
+    one (`_OutputChainedCollectionInfo` or `None`).
+    """
+
+    outputRun: Optional[_OutputRunCollectionInfo]
+    """Information about the output run collection, if there is or will be
+    one (`_OutputRunCollectionInfo` or `None`).
+    """
+
     inputs: List[Tuple[str, DatasetTypeRestriction]]
+    """Input collections, including those also used for outputs and any
+    restrictions on dataset types (`list`).
+    """
 
 
 class _FilteredStream:
