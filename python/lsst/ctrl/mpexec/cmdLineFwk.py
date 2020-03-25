@@ -362,7 +362,7 @@ class _ButlerFactory:
             return Butler(butler=butler, run=self.outputRun.name, collections=self.output.name,
                           chains={self.output.name: chainDefinition})
         else:
-            inputs = CollectionSearch.fromExpression([self.outputRun] + self.inputs)
+            inputs = CollectionSearch.fromExpression([self.outputRun.name] + self.inputs)
             _LOG.debug("Preparing butler to write to '%s' and read from %s.", self.outputRun.name, inputs)
             return Butler(butler=butler, run=self.outputRun.name, collections=inputs)
 
