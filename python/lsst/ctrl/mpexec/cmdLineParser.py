@@ -154,57 +154,21 @@ class _InputCollectionAction(Action):
 
         See `argparse.Action` documentation for parameter description.
         """
-        dest = getattr(namespace, self.dest, {})
-        # In case default is set to a dict (empty or not) we want to use
-        # new deep copy of that dictionary as initial value to avoid
+        dest = getattr(namespace, self.dest, [])
+        # In case default is set to a list (empty or not) we want to use
+        # new copy of that list as initial value to avoid
         # modifying default value.
         if dest is self.default:
-            dest = copy.deepcopy(dest)
+            dest = copy.copy(dest)
 
         # split on commas, collection can be preceeded by dataset type
         for collstr in values.split(","):
-            dsType, sep, coll = collstr.partition(':')
+            dsType, sep, collection = collstr.partition(':')
             if not sep:
-                dsType, coll = "", dsType
-            dest.setdefault(dsType, []).append(coll)
+                dsType, collection = ..., dsType
+            dest.append((collection, dsType))
 
         setattr(namespace, self.dest, dest)
-
-
-def _outputCollectionType(value):
-    """Special argument type for input collections.
-
-    Accepts string vlues in format:
-
-        value :== collection[,collection[...]]
-        collection :== [dataset_type:]collection_name
-
-    and converts value into a dictionary whose keys a dataset type names
-    (or empty string when dataset type name is missing) and values are
-    collection names.
-
-    Parameters
-    ----------
-    value : `str`
-        Value of the command line option
-
-    Returns
-    -------
-    `dict`
-
-    Raises
-    ------
-    `ValueError` if there is more than one collection per dataset type.
-    """
-    res = {}
-    for collstr in value.split(","):
-        dsType, sep, coll = collstr.partition(':')
-        if not sep:
-            dsType, coll = "", dsType
-        if dsType in res:
-            raise ValueError("multiple collection names: " + value)
-        res[dsType] = coll
-    return res
 
 
 _EPILOG = """\
@@ -226,21 +190,71 @@ def _makeButlerOptions(parser):
     parser : `argparse.ArgumentParser`
     """
     group = parser.add_argument_group("Data repository and selection options")
-    group.add_argument("-b", "--butler-config", dest="butler_config", default=None, metavar="PATH",
-                       help="Location of the gen3 butler/registry config file.")
-    group.add_argument("-i", "--input", dest="input", action=_InputCollectionAction,
-                       metavar="COLL,DSTYPE:COLL", default={},
-                       help=("Comma-separated names of the data butler collection. "
-                             "If collection includes dataset type name separated by colon "
-                             "then collection is only used for that specific dataset type. "
-                             "Pre-flight uses these collections to search for input datasets. "
-                             "Task execution stage only uses first global collection name "
-                             "to override collection specified in Butler configuration file."))
-    group.add_argument("-o", "--output", dest="output", type=_outputCollectionType,
-                       metavar="COLL,DSTYPE:COLL", default={},
-                       help=("Comma-separated names of the data butler collection. "
-                             "See description of --input option.  This option only allows "
-                             "single collection (per-dataset type or global)."))
+    group.add_argument(
+        "-b", "--butler-config", dest="butler_config", default=None, metavar="PATH",
+        help="Location of the gen3 butler/registry config file."
+    )
+    group.add_argument(
+        "-i", "--input", dest="input", action=_InputCollectionAction,
+        metavar="COLL,DSTYPE:COLL", default=[],
+        help=(
+            "Comma-separated names of the input collection(s).  Any entry "
+            "includes a colon (:), the first string is a dataset type name "
+            "that restricts the search in that collection.  "
+            "May be passed multiple times (all arguments are concatenated)."
+        )
+    )
+    group.add_argument(
+        "-o", "--output", dest="output", default=None, metavar="COLL",
+        help=(
+            "Name of the output CHAINED collection.  This may either be an "
+            "existing CHAINED collection to use as both input and output "
+            "(incompatible with --input), or a new CHAINED collection created "
+            "to include all inputs (requires --input).  "
+            "In both cases, the collection's children will start with an "
+            "output RUN collection that directly holds all new datasets (see "
+            "--output-run)."
+        )
+    )
+    group.add_argument(
+        "--output-run", dest="output_run", default=None, metavar="COLL",
+        help=(
+            "Name of the new output RUN collection.  If not provided, "
+            "--output must be, a new RUN collection will be created by "
+            "appending a timestamp to the value passed with --output.  "
+            "If this collection already exists, --extend-run must be passed."
+        )
+    )
+    groupex = group.add_mutually_exclusive_group()
+    groupex.add_argument(
+        "--extend-run", dest="extend_run", default=False, action="store_true",
+        help=(
+            "Instead of creating a new RUN collection, insert datasets into "
+            "either the one given by --output-run (if provided) or the first "
+            "child collection of --output (which must be of type RUN)."
+        )
+    )
+    groupex.add_argument(
+        "--replace-run", dest="replace_run", default=False, action="store_true",
+        help=(
+            "Before creating a new RUN collection in an existing CHAINED "
+            "collection, remove the first child collection (which must be of "
+            "type RUN).  "
+            "This can be used to repeatedly write to the same (parent) "
+            "collection during development, but it does not delete the "
+            "datasets associated with the replaced run unless "
+            "--prune-replaced is also passed.  "
+            "Requires --output, and incompatible with --extend-run."
+        )
+    )
+    group.add_argument(
+        "--prune-replaced", dest="prune_replaced", choices=("unstore", "purge"), default=None,
+        help=(
+            "Delete the datasets in the collection replaced by --replace-run, "
+            "either just from the datastore ('unstore') or by removing them "
+            "and the RUN completely ('purge').  Requires --replace-run."
+        )
+    )
     group.add_argument("-d", "--data-query", dest="data_query", default="", metavar="QUERY",
                        help="User data selection expression.")
 
@@ -262,16 +276,6 @@ def _makeMetaOutputOptions(parser):
     group.add_argument("--register-dataset-types", dest="register_dataset_types", default=False,
                        action="store_true",
                        help="Register DatasetTypes that do not already exist in the Registry.")
-    group.add_argument("--clobber-config", action="store_true", dest="clobberConfig", default=False,
-                       help=("backup and then overwrite existing config files instead of checking them "
-                             "(safe with -j, but not all other forms of parallel execution)"))
-    group.add_argument("--no-backup-config", action="store_true", dest="noBackupConfig", default=False,
-                       help="Don't copy config to file~N backup.")
-    group.add_argument("--clobber-versions", action="store_true", dest="clobberVersions", default=False,
-                       help=("backup and then overwrite existing package versions instead of checking"
-                             "them (safe with -j, but not all other forms of parallel execution)"))
-    group.add_argument("--no-versions", action="store_true", dest="noVersions", default=False,
-                       help="don't check package versions; useful for development")
 
 
 def _makeLoggingOptions(parser):
@@ -334,7 +338,7 @@ def _makePipelineOptions(parser):
                             " defining a pipeline. This must be the fully qualified class name")
 
 
-def _makeQuntumGraphOptions(parser):
+def _makeQuantumGraphOptions(parser):
     """Add a set of options controlling quantum graph generation.
 
     Parameters
@@ -347,18 +351,16 @@ def _makeQuntumGraphOptions(parser):
                        "(pickle file). If this option is given then all input data "
                        "options and pipeline-building options cannot be used.",
                        metavar="PATH")
-    groupex = group.add_mutually_exclusive_group()
-    groupex.add_argument("--skip-existing", dest="skip_existing",
-                         default=False, action="store_true",
-                         help="If all Quantum outputs already exist in output collection "
-                         "then Quantum will be excluded from QuantumGraph.")
-    groupex.add_argument("--clobber-output", dest="clobber_output",
-                         default=False, action="store_true",
-                         help="Ignore or replace existing output datasets in output collecton. "
-                         "With this option existing output datasets are ignored when generating "
-                         "QuantumGraph, and they are removed from a collection prior to "
-                         "executing individual Quanta. This option is exclusive with "
-                         "--skip-existing option.")
+    # TODO: I've made --skip-existing apply to _just_ the output run (which
+    # means that it requires --extend-run), but a variant where we can also
+    # skip anything in the input chained collection may also be useful; need to
+    # think about whether that should be a separate argument or a conversion to
+    # make this one take a value.
+    group.add_argument("--skip-existing", dest="skip_existing",
+                       default=False, action="store_true",
+                       help=("If all Quantum outputs already exist in the output RUN collection "
+                             "then that Quantum will be excluded from the QuantumGraph.  "
+                             "Requires --extend-run."))
     group.add_argument("-q", "--save-qgraph", dest="save_qgraph",
                        help="Location for storing a serialized quantum graph definition "
                        "(pickle file).",
@@ -459,7 +461,7 @@ def makeParser(fromfile_prefix_chars='@', parser_class=ArgumentParser, **kwargs)
         _makePipelineOptions(subparser)
 
         if subcommand in ("qgraph", "run"):
-            _makeQuntumGraphOptions(subparser)
+            _makeQuantumGraphOptions(subparser)
             _makeButlerOptions(subparser)
 
         if subcommand == "run":
