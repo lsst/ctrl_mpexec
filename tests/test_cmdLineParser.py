@@ -188,7 +188,7 @@ class CmdLineParserTestCase(unittest.TestCase):
             run -t taskname
             """.split())
         run_options = qgraph_options + """register_dataset_types skip_init_writes
-                      init_only processes profile timeout doraise""".split()
+                      init_only processes profile timeout doraise graph_fixup""".split()
         self.assertEqual(set(vars(args).keys()), set(common_options + run_options))
         self.assertEqual(args.subcommand, 'run')
 
@@ -215,6 +215,7 @@ class CmdLineParserTestCase(unittest.TestCase):
         self.assertEqual(args.processes, 1)
         self.assertIsNone(args.profile)
         self.assertIsNone(args.timeout)
+        self.assertIsNone(args.graph_fixup)
         self.assertEqual(args.pipeline_actions, [PipelineAction("new_task", None, "taskname")])
         self.assertEqual(args.show, [])
         self.assertIsNotNone(args.subparser)
@@ -251,6 +252,7 @@ class CmdLineParserTestCase(unittest.TestCase):
         self.assertEqual(args.processes, 66)
         self.assertEqual(args.profile, 'profile.out')
         self.assertEqual(args.timeout, 10.10)
+        self.assertIsNone(args.graph_fixup)
         self.assertEqual(args.show, ['config', 'config=Task.*'])
         self.assertEqual(args.pipeline_actions, [PipelineAction("new_task", "label", "taskname"),
                                                  PipelineAction("config", "label", "a=b"),
@@ -291,6 +293,7 @@ class CmdLineParserTestCase(unittest.TestCase):
             --save-qgraph=newqgraph.pickle
             --pipeline-dot pipe.dot
             --qgraph-dot qgraph.dot
+            --graph-fixup lsst.ctrl.mpexec.Fixup
             """.split())
         self.assertEqual(args.show, ['config', 'config=Task.*'])
         self.assertEqual(args.pipeline_actions, [PipelineAction("new_task", None, "task1"),
@@ -312,6 +315,7 @@ class CmdLineParserTestCase(unittest.TestCase):
         self.assertEqual(args.save_qgraph, "newqgraph.pickle")
         self.assertEqual(args.pipeline_dot, "pipe.dot")
         self.assertEqual(args.qgraph_dot, "qgraph.dot")
+        self.assertEqual(args.graph_fixup, "lsst.ctrl.mpexec.Fixup")
 
     def testCmdLinePipeline(self):
 
