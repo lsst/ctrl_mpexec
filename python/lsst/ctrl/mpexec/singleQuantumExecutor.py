@@ -30,6 +30,7 @@ from itertools import chain
 # -----------------------------
 #  Imports for other modules --
 # -----------------------------
+from .quantumGraphExecutor import QuantumExecutor
 from lsst.log import Log
 from lsst.pipe.base import ButlerQuantumContext
 
@@ -40,7 +41,7 @@ from lsst.pipe.base import ButlerQuantumContext
 _LOG = logging.getLogger(__name__.partition(".")[2])
 
 
-class SingleQuantumExecutor:
+class SingleQuantumExecutor(QuantumExecutor):
     """Executor class which runs one Quantum at a time.
 
     Parameters
@@ -54,29 +55,20 @@ class SingleQuantumExecutor:
     enableLsstDebug : `bool`, optional
         Enable debugging with ``lsstDebug`` facility for a task.
     """
-    def __init__(self, butler, taskFactory, skipExisting=False, enableLsstDebug=False):
-        self.butler = butler
+    def __init__(self, taskFactory, skipExisting=False, enableLsstDebug=False):
         self.taskFactory = taskFactory
         self.skipExisting = skipExisting
         self.enableLsstDebug = enableLsstDebug
 
-    def execute(self, taskDef, quantum):
-        """Execute PipelineTask on a single Quantum.
-
-        Parameters
-        ----------
-        taskDef : `~lsst.pipe.base.TaskDef`
-            Task definition structure.
-        quantum : `~lsst.daf.butler.Quantum`
-            Single Quantum instance.
-        """
+    def execute(self, taskDef, quantum, butler):
+        # Docstring inherited from QuantumExecutor.execute
         taskClass, config = taskDef.taskClass, taskDef.config
         self.setupLogging(taskClass, config, quantum)
-        if self.skipExisting and self.quantumOutputsExist(quantum):
+        if self.skipExisting and self.quantumOutputsExist(quantum, butler):
             _LOG.info("Quantum execution skipped due to existing outputs, "
                       f"task={taskClass.__name__} dataId={quantum.dataId}.")
             return
-        self.updateQuantumInputs(quantum)
+        self.updateQuantumInputs(quantum, butler)
 
         # enable lsstDebug debugging
         if self.enableLsstDebug:
@@ -86,8 +78,8 @@ class SingleQuantumExecutor:
             except ImportError:
                 _LOG.warn("No 'debug' module found.")
 
-        task = self.makeTask(taskClass, config)
-        self.runQuantum(task, quantum, taskDef)
+        task = self.makeTask(taskClass, config, butler)
+        self.runQuantum(task, quantum, taskDef, butler)
 
     def setupLogging(self, taskClass, config, quantum):
         """Configure logging system for execution of this task.
@@ -113,13 +105,15 @@ class SingleQuantumExecutor:
             else:
                 Log.MDC("LABEL", '[' + ', '.join([str(dataId) for dataId in dataIds]) + ']')
 
-    def quantumOutputsExist(self, quantum):
+    def quantumOutputsExist(self, quantum, butler):
         """Decide whether this quantum needs to be executed.
 
         Parameters
         ----------
         quantum : `~lsst.daf.butler.Quantum`
             Quantum to check for existing outputs
+        butler : `~lsst.daf.butler.Butler`
+            Data butler.
 
         Returns
         -------
@@ -132,15 +126,15 @@ class SingleQuantumExecutor:
         RuntimeError
             Raised if some outputs exist and some not.
         """
-        collection = self.butler.run
-        registry = self.butler.registry
+        collection = butler.run
+        registry = butler.registry
 
         existingRefs = []
         missingRefs = []
         for datasetRefs in quantum.outputs.values():
             for datasetRef in datasetRefs:
                 ref = registry.findDataset(datasetRef.datasetType, datasetRef.dataId,
-                                           collections=self.butler.run)
+                                           collections=butler.run)
                 if ref is None:
                     missingRefs.append(datasetRefs)
                 else:
@@ -153,7 +147,7 @@ class SingleQuantumExecutor:
         else:
             return bool(existingRefs)
 
-    def makeTask(self, taskClass, config):
+    def makeTask(self, taskClass, config, butler):
         """Make new task instance.
 
         Parameters
@@ -167,11 +161,13 @@ class SingleQuantumExecutor:
         -------
         task : `~lsst.pipe.base.PipelineTask`
             Instance of ``taskClass`` type.
+        butler : `~lsst.daf.butler.Butler`
+            Data butler.
         """
         # call task factory for that
-        return self.taskFactory.makeTask(taskClass, config, None, self.butler)
+        return self.taskFactory.makeTask(taskClass, config, None, butler)
 
-    def updateQuantumInputs(self, quantum):
+    def updateQuantumInputs(self, quantum, butler):
         """Update quantum with extra information.
 
         Some methods may require input DatasetRefs to have non-None
@@ -183,8 +179,9 @@ class SingleQuantumExecutor:
         ----------
         quantum : `~lsst.daf.butler.Quantum`
             Single Quantum instance.
+        butler : `~lsst.daf.butler.Butler`
+            Data butler.
         """
-        butler = self.butler
         for refsForDatasetType in quantum.predictedInputs.values():
             newRefsForDatasetType = []
             for ref in refsForDatasetType:
@@ -202,7 +199,7 @@ class SingleQuantumExecutor:
                     newRefsForDatasetType.append(ref)
             refsForDatasetType[:] = newRefsForDatasetType
 
-    def runQuantum(self, task, quantum, taskDef):
+    def runQuantum(self, task, quantum, taskDef, butler):
         """Execute task on a single quantum.
 
         Parameters
@@ -213,9 +210,11 @@ class SingleQuantumExecutor:
             Single Quantum instance.
         taskDef : `~lsst.pipe.base.TaskDef`
             Task definition structure.
+        butler : `~lsst.daf.butler.Butler`
+            Data butler.
         """
         # Create a butler that operates in the context of a quantum
-        butlerQC = ButlerQuantumContext(self.butler, quantum)
+        butlerQC = ButlerQuantumContext(butler, quantum)
 
         # Get the input and output references for the task
         connectionInstance = task.config.connections.ConnectionsClass(config=task.config)

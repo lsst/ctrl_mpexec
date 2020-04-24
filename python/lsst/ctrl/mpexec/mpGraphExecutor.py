@@ -31,7 +31,6 @@ import multiprocessing
 #  Imports for other modules --
 # -----------------------------
 from .quantumGraphExecutor import QuantumGraphExecutor
-from .singleQuantumExecutor import SingleQuantumExecutor
 from lsst.base import disableImplicitThreading
 
 _LOG = logging.getLogger(__name__.partition(".")[2])
@@ -53,25 +52,76 @@ class MPGraphExecutor(QuantumGraphExecutor):
         Number of processes to use for executing tasks.
     timeout : `float`
         Time in seconds to wait for tasks to finish.
-    skipExisting : `bool`, optional
-        If True then quanta with all existing outputs are not executed.
-    enableLsstDebug : `bool`, optional
-        Enable debugging with ``lsstDebug`` facility for a task.
+    quantumExecutor : `QuantumExecutor`
+        Executor for single quantum. For multiprocess-style execution when
+        ``numProc`` is greater than one this instance must support pickle.
+    executionGraphFixup : `ExecutionGraphFixup`, optional
+        Instance used for modification of execution graph.
     """
-    def __init__(self, numProc, timeout, skipExisting=False, enableLsstDebug=False):
+    def __init__(self, numProc, timeout, quantumExecutor, *, executionGraphFixup=None):
         self.numProc = numProc
         self.timeout = timeout
-        self.skipExisting = skipExisting
-        self.enableLsstDebug = enableLsstDebug
+        self.quantumExecutor = quantumExecutor
+        self.executionGraphFixup = executionGraphFixup
 
-    def execute(self, graph, butler, taskFactory):
+    def execute(self, graph, butler):
         # Docstring inherited from QuantumGraphExecutor.execute
+        quantaIter = self._fixupQuanta(graph.traverse())
         if self.numProc > 1:
-            self._executeQuantaMP(graph.traverse(), butler, taskFactory)
+            self._executeQuantaMP(quantaIter, butler)
         else:
-            self._executeQuantaInProcess(graph.traverse(), butler, taskFactory)
+            self._executeQuantaInProcess(quantaIter, butler)
 
-    def _executeQuantaInProcess(self, iterable, butler, taskFactory):
+    def _fixupQuanta(self, quantaIter):
+        """Call fixup code to modify execution graph.
+
+        Parameters
+        ----------
+        quantaIter : iterable of `~lsst.pipe.base.QuantumIterData`
+            Quanta as originated from a quantum graph.
+
+        Returns
+        -------
+        quantaIter : iterable of `~lsst.pipe.base.QuantumIterData`
+            Possibly updated set of quanta, properly ordered for execution.
+
+        Raises
+        ------
+        MPGraphExecutorError
+            Raised if execution graph cannot be ordered after modification,
+            i.e. it has dependency cycles.
+        """
+        if not self.executionGraphFixup:
+            return quantaIter
+
+        _LOG.debug("Call execution graph fixup method")
+        quantaIter = self.executionGraphFixup.fixupQuanta(quantaIter)
+
+        # need it correctly ordered as dependencies may have changed
+        # after modification, so do topo-sort
+        updatedQuanta = list(quantaIter)
+        quanta = []
+        ids = set()
+        _LOG.debug("Re-ordering execution graph")
+        while updatedQuanta:
+            # find quantum that has all dependencies resolved already
+            for i, qdata in enumerate(updatedQuanta):
+                if ids.issuperset(qdata.dependencies):
+                    _LOG.debug("Found next quanta to execute: %s", qdata)
+                    del updatedQuanta[i]
+                    ids.add(qdata.index)
+                    # we could yield here but I want to detect cycles before
+                    # returning anything from this method
+                    quanta.append(qdata)
+                    break
+            else:
+                # means remaining quanta have dependency cycle
+                raise MPGraphExecutorError(
+                    "Updated execution graph has dependency clycle.")
+
+        return quanta
+
+    def _executeQuantaInProcess(self, iterable, butler):
         """Execute all Quanta in current process.
 
         Parameters
@@ -81,17 +131,13 @@ class MPGraphExecutor(QuantumGraphExecutor):
             for a given Quantum will always appear before that Quantum.
         butler : `lsst.daf.butler.Butler`
             Data butler instance
-        taskFactory : `~lsst.pipe.base.TaskFactory`
-            Task factory.
         """
         for qdata in iterable:
             _LOG.debug("Executing %s", qdata)
-            taskDef = qdata.taskDef
-            self._executePipelineTask(taskDef=taskDef, quantum=qdata.quantum, butler=butler,
-                                      taskFactory=taskFactory, skipExisting=self.skipExisting,
-                                      enableLsstDebug=self.enableLsstDebug)
+            self._executePipelineTask(taskDef=qdata.taskDef, quantum=qdata.quantum,
+                                      butler=butler, executor=self.quantumExecutor)
 
-    def _executeQuantaMP(self, iterable, butler, taskFactory):
+    def _executeQuantaMP(self, iterable, butler):
         """Execute all Quanta in separate process pool.
 
         Parameters
@@ -101,8 +147,6 @@ class MPGraphExecutor(QuantumGraphExecutor):
             for a given Quantum will always appear before that Quantum.
         butler : `lsst.daf.butler.Butler`
             Data butler instance
-        taskFactory : `~lsst.pipe.base.TaskFactory`
-            Task factory.
         """
 
         disableImplicitThreading()  # To prevent thread contention
@@ -133,8 +177,8 @@ class MPGraphExecutor(QuantumGraphExecutor):
 
             # Add it to the pool and remember its result
             _LOG.debug("Sumbitting %s", qdata)
-            kwargs = dict(taskDef=taskDef, quantum=qdata.quantum, butler=butler, taskFactory=taskFactory,
-                          skipExisting=self.skipExisting, enableLsstDebug=self.enableLsstDebug)
+            kwargs = dict(taskDef=taskDef, quantum=qdata.quantum,
+                          butler=butler, executor=self.quantumExecutor)
             results[qdata.index] = pool.apply_async(self._executePipelineTask, (), kwargs)
 
         # Everything is submitted, wait until it's complete
@@ -147,7 +191,7 @@ class MPGraphExecutor(QuantumGraphExecutor):
                 res.get(self.timeout)
 
     @staticmethod
-    def _executePipelineTask(*, taskDef, quantum, butler, taskFactory, skipExisting, enableLsstDebug):
+    def _executePipelineTask(*, taskDef, quantum, butler, executor):
         """Execute PipelineTask on a single data item.
 
         Parameters
@@ -158,12 +202,7 @@ class MPGraphExecutor(QuantumGraphExecutor):
             Quantum for this execution.
         butler : `~lsst.daf.butler.Butler`
             Data butler instance.
-        taskFactory : `~lsst.pipe.base.TaskFactory`
-            Task factory.
-        skipExisting : `bool`
-            If True then quanta with all existing outputs are not executed.
-        enableLsstDebug : `bool`, optional
-            Enable debugging with ``lsstDebug`` facility for a task.
+        executor : `QuantumExecutor`
+            Executor for single quantum.
         """
-        executor = SingleQuantumExecutor(butler, taskFactory, skipExisting, enableLsstDebug)
-        return executor.execute(taskDef, quantum)
+        return executor.execute(taskDef, quantum, butler)

@@ -393,6 +393,11 @@ def _makeExecOptions(parser):
     group.add_argument("--timeout", type=float,
                        help="Timeout for multiprocessing; maximum wall time (sec)")
 
+    # run-time graph fixup option
+    group.add_argument("--graph-fixup", type=str, default=None,
+                       help="Name of the class or factory method which makes an instance "
+                       "used for execution graph fixup.")
+
 # ------------------------
 #  Exported definitions --
 # ------------------------

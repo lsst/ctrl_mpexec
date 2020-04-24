@@ -150,6 +150,7 @@ def _makeArgs(pipeline=None, qgraph=None, pipeline_actions=(), order_pipeline=Fa
     args.processes = 1
     args.profile = None
     args.enableLsstDebug = False
+    args.graph_fixup = None
     return args
 
 

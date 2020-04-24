@@ -19,7 +19,7 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-__all__ = ['QuantumGraphExecutor']
+__all__ = ["QuantumExecutor", "QuantumGraphExecutor"]
 
 # -------------------------------
 #  Imports of standard modules --
@@ -31,6 +31,31 @@ from abc import ABC, abstractmethod
 # -----------------------------
 
 
+class QuantumExecutor(ABC):
+    """Class which abstracts execution of a single Quantum.
+
+    In general implementation should not depend on execution model and
+    execution should always happen in-process. Main reason for existence
+    of this class is to provide do-nothing implementation that can be used
+    in the unit tests.
+    """
+
+    @abstractmethod
+    def execute(self, taskDef, quantum, butler):
+        """Execute single quantum.
+
+        Parameters
+        ----------
+        taskDef : `~lsst.pipe.base.TaskDef`
+            Task definition structure.
+        quantum : `~lsst.daf.butler.Quantum`
+            Quantum for this execution.
+        butler : `~lsst.daf.butler.Butler`
+            Data butler instance
+        """
+        raise NotImplementedError
+
+
 class QuantumGraphExecutor(ABC):
     """Class which abstracts QuantumGraph execution.
 
@@ -39,7 +64,7 @@ class QuantumGraphExecutor(ABC):
     """
 
     @abstractmethod
-    def execute(self, graph, butler, taskFactory):
+    def execute(self, graph, butler):
         """Execute whole graph.
 
         Implementation of this method depends on particular execution model
@@ -53,6 +78,5 @@ class QuantumGraphExecutor(ABC):
             Execution graph.
         butler : `~lsst.daf.butler.Butler`
             Data butler instance
-        taskFactory : `~lsst.pipe.base.TaskFactory`
-            Task factory.
         """
+        raise NotImplementedError

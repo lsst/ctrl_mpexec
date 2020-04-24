@@ -54,10 +54,13 @@ import lsst.pex.config as pexConfig
 from lsst.pipe.base import GraphBuilder, Pipeline, QuantumGraph
 from .cmdLineParser import makeParser
 from .dotTools import graph2dot, pipeline2dot
+from .executionGraphFixup import ExecutionGraphFixup
 from .mpGraphExecutor import MPGraphExecutor
 from .preExecInit import PreExecInit
+from .singleQuantumExecutor import SingleQuantumExecutor
 from .taskFactory import TaskFactory
 from . import util
+from lsst.utils import doImport
 
 # ----------------------------------
 #  Local non-exported definitions --
@@ -681,11 +684,15 @@ class CmdLineFwk:
                                registerDatasetTypes=args.register_dataset_types)
 
         if not args.init_only:
+            graphFixup = self._importGraphFixup(args)
+            quantumExecutor = SingleQuantumExecutor(taskFactory,
+                                                    skipExisting=args.skip_existing,
+                                                    enableLsstDebug=args.enableLsstDebug)
             executor = MPGraphExecutor(numProc=args.processes, timeout=self.MP_TIMEOUT,
-                                       skipExisting=args.skip_existing,
-                                       enableLsstDebug=args.enableLsstDebug)
+                                       quantumExecutor=quantumExecutor,
+                                       executionGraphFixup=graphFixup)
             with util.profile(args.profile, _LOG):
-                executor.execute(graph, butler, taskFactory)
+                executor.execute(graph, butler)
 
     def showInfo(self, args, pipeline, graph=None):
         """Display useful info about pipeline and environment.
@@ -901,3 +908,34 @@ class CmdLineFwk:
                         parentIq = hashToParent[dhash]
                         uses.add((iq, parentIq))  # iq uses parentIq
                         print("Parent Quantum {} - Child Quantum {}".format(parentIq, iq))
+
+    def _importGraphFixup(self, args):
+        """Import/instantiate graph fixup object.
+
+        Parameters
+        ----------
+        args : `argparse.Namespace`
+            Parsed command line.
+
+        Returns
+        -------
+        fixup : `ExecutionGraphFixup` or `None`
+
+        Raises
+        ------
+        ValueError
+            Raised if import fails, method call raises exception, or returned
+            instance has unexpected type.
+        """
+        if args.graph_fixup:
+            try:
+                factory = doImport(args.graph_fixup)
+            except Exception as exc:
+                raise ValueError("Failed to import graph fixup class/method") from exc
+            try:
+                fixup = factory()
+            except Exception as exc:
+                raise ValueError("Failed to make instance of graph fixup") from exc
+            if not isinstance(fixup, ExecutionGraphFixup):
+                raise ValueError("Graph fixup is not an instance of ExecutionGraphFixup class")
+            return fixup
