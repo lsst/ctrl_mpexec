@@ -180,7 +180,7 @@ class ButlerMock:
         if remember:
             self.registry.disassociate(self.run, [ref])
         else:
-            self.registry.removeDataset(ref)
+            self.registry.removeDatasets([ref])
 
 
 def registerDatasetTypes(registry, pipeline):
