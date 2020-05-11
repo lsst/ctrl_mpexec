@@ -39,57 +39,61 @@ from lsst.pipe.base import iterConnections, Pipeline
 #  Local non-exported definitions --
 # ----------------------------------
 
+# Node styles indexed by node type.
+_STYLES = dict(
+    task=dict(shape="box", style="filled,bold", fillcolor="gray70"),
+    dsType=dict(shape="box", style="rounded,filled", fillcolor="gray90"),
+    dataset=dict(shape="box", style="rounded,filled", fillcolor="gray90"),
+)
+
+
+def _renderNode(file, nodeName, style, labels):
+    """Render GV node"""
+    label = r'\n'.join(labels)
+    attrib = dict(_STYLES[style], label=label)
+    attrib = ", ".join([f'{key}="{val}"' for key, val in attrib.items()])
+    print(f'"{nodeName}" [{attrib}];', file=file)
+
 
 def _renderTaskNode(nodeName, taskDef, file, idx=None):
     """Render GV node for a task"""
-    label = [taskDef.taskName.rpartition('.')[-1]]
+    labels = [taskDef.taskName.rpartition('.')[-1]]
     if idx is not None:
-        label += ["index: {}".format(idx)]
+        labels += [f"index: {idx}"]
     if taskDef.label:
-        label += ["label: {}".format(taskDef.label)]
-    label = r'\n'.join(label)
-    attrib = dict(shape="box",
-                  style="filled,bold",
-                  fillcolor="gray70",
-                  label=label)
-    attrib = ['{}="{}"'.format(key, val) for key, val in attrib.items()]
-    print("{} [{}];".format(nodeName, ", ".join(attrib)), file=file)
+        labels += [f"label: {taskDef.label}"]
+    _renderNode(file, nodeName, "task", labels)
 
 
 def _renderDSTypeNode(name, dimensions, file):
     """Render GV node for a dataset type"""
-    label = [name]
+    labels = [name]
     if dimensions:
-        label += ["Dimensions: " + ", ".join(dimensions)]
-    label = r'\n'.join(label)
-    attrib = dict(shape="box",
-                  style="rounded,filled",
-                  fillcolor="gray90",
-                  label=label)
-    attrib = ['{}="{}"'.format(key, val) for key, val in attrib.items()]
-    print("{} [{}];".format(name, ", ".join(attrib)), file=file)
+        labels += ["Dimensions: " + ", ".join(dimensions)]
+    _renderNode(file, name, "dsType", labels)
 
 
 def _renderDSNode(nodeName, dsRef, file):
     """Render GV node for a dataset"""
-    label = [dsRef.datasetType.name]
-    for key in sorted(dsRef.dataId.keys()):
-        label += [str(key) + "=" + str(dsRef.dataId[key])]
-    label = r'\n'.join(label)
-    attrib = dict(shape="box",
-                  style="rounded,filled",
-                  fillcolor="gray90",
-                  label=label)
-    attrib = ['{}="{}"'.format(key, val) for key, val in attrib.items()]
-    print("{} [{}];".format(nodeName, ", ".join(attrib)), file=file)
+    labels = [dsRef.datasetType.name]
+    labels += [f"{key} = {dsRef.dataId[key]}" for key in sorted(dsRef.dataId.keys())]
+    _renderNode(file, nodeName, "dataset", labels)
+
+
+def _renderEdge(fromName, toName, file, **kwargs):
+    """Render GV edge"""
+    if kwargs:
+        attrib = ", ".join([f'{key}="{val}"' for key, val in kwargs.items()])
+        print(f'"{fromName}" -> "{toName}" [{attrib}];', file=file)
+    else:
+        print(f'"{fromName}" -> "{toName}";', file=file)
 
 
 def _datasetRefId(dsRef):
-    """Make an idetifying string for given ref"""
-    idStr = str(dsRef.datasetType.name)
-    for key in sorted(dsRef.dataId.keys()):
-        idStr += ":" + str(key) + "=" + str(dsRef.dataId[key])
-    return idStr
+    """Make an identifying string for given ref"""
+    dsId = [dsRef.datasetType.name]
+    dsId += [f"{key} = {dsRef.dataId[key]}" for key in sorted(dsRef.dataId.keys())]
+    return ":".join(dsId)
 
 
 def _makeDSNode(dsRef, allDatasetRefs, file):
@@ -152,13 +156,13 @@ def graph2dot(qgraph, file):
             for dsRefs in quantum.predictedInputs.values():
                 for dsRef in dsRefs:
                     nodeName = _makeDSNode(dsRef, allDatasetRefs, file)
-                    print("{} -> {};".format(nodeName, taskNodeName), file=file)
+                    _renderEdge(nodeName, taskNodeName, file)
 
             # quantum outputs
             for dsRefs in quantum.outputs.values():
                 for dsRef in dsRefs:
                     nodeName = _makeDSNode(dsRef, allDatasetRefs, file)
-                    print("{} -> {};".format(taskNodeName, nodeName), file=file)
+                    _renderEdge(taskNodeName, nodeName, file)
 
     print("}", file=file)
     if close:
@@ -229,7 +233,7 @@ def pipeline2dot(pipeline, file):
                 dimensions = expand_dimensions(attr.dimensions)
                 _renderDSTypeNode(attr.name, dimensions, file)
                 allDatasets.add(attr.name)
-            print("{} -> {};".format(attr.name, taskNodeName), file=file)
+            _renderEdge(attr.name, taskNodeName, file)
 
         for attr in iterConnections(taskDef.connections, 'prerequisiteInputs'):
             if attr.name not in allDatasets:
@@ -237,14 +241,14 @@ def pipeline2dot(pipeline, file):
                 _renderDSTypeNode(attr.name, dimensions, file)
                 allDatasets.add(attr.name)
             # use dashed line for prerequisite edges to distinguish them
-            print("{} -> {} [style = dashed];".format(attr.name, taskNodeName), file=file)
+            _renderEdge(attr.name, taskNodeName, file, style="dashed")
 
         for attr in iterConnections(taskDef.connections, 'outputs'):
             if attr.name not in allDatasets:
                 dimensions = expand_dimensions(attr.dimensions)
                 _renderDSTypeNode(attr.name, dimensions, file)
                 allDatasets.add(attr.name)
-            print("{} -> {};".format(taskNodeName, attr.name), file=file)
+            _renderEdge(taskNodeName, attr.name, file)
 
     print("}", file=file)
     if close:
