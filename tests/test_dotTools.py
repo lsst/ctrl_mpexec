@@ -23,6 +23,7 @@
 """
 
 import io
+import re
 import unittest
 
 from lsst.pipe.base import (PipelineTask, PipelineTaskConfig,
@@ -134,6 +135,22 @@ class DotToolsTestCase(unittest.TestCase):
         nedges = 10
         nextra = 2  # graph header and closing
         self.assertEqual(len(lines), ndatasets + ntasks + nedges + nextra)
+
+        # make sure that all node names are quoted
+        nodeRe = re.compile(r"^([^ ]+) \[.+\];$")
+        edgeRe = re.compile(r"^([^ ]+) *-> *([^ ]+);$")
+        for line in lines:
+            match = nodeRe.match(line)
+            if match:
+                node = match.group(1)
+                self.assertEqual(node[0] + node[-1], '""')
+                continue
+            match = edgeRe.match(line)
+            if match:
+                for group in (1, 2):
+                    node = match.group(group)
+                    self.assertEqual(node[0] + node[-1], '""')
+                continue
 
 
 class MyMemoryTestCase(lsst.utils.tests.MemoryTestCase):
