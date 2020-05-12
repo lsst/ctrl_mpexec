@@ -30,6 +30,7 @@ import itertools
 # -----------------------------
 #  Imports for other modules --
 # -----------------------------
+from lsst.daf.butler import DatasetType
 from lsst.pipe.base import PipelineDatasetTypes
 
 _LOG = logging.getLogger(__name__.partition(".")[2])
@@ -81,6 +82,7 @@ class PreExecInit:
         # is consistent with what tasks would save
         if saveInitOutputs:
             self.saveInitOutputs(graph)
+            self.saveConfigs(graph)
 
     def initializeDatasetTypes(self, graph, registerDatasetTypes=False):
         """Save or check DatasetTypes output by the tasks in a graph.
@@ -106,9 +108,17 @@ class PreExecInit:
             does not exist in registry.
         """
         pipeline = list(nodes.taskDef for nodes in graph)
+
+        # Make dataset types for configurations
+        configDatasetTypes = [DatasetType(taskDef.configDatasetName, {},
+                                          storageClass="Config",
+                                          universe=self.butler.registry.dimensions)
+                              for taskDef in pipeline]
+
         datasetTypes = PipelineDatasetTypes.fromPipeline(pipeline, registry=self.butler.registry)
         for datasetType in itertools.chain(datasetTypes.initIntermediates, datasetTypes.initOutputs,
-                                           datasetTypes.intermediates, datasetTypes.outputs):
+                                           datasetTypes.intermediates, datasetTypes.outputs,
+                                           configDatasetTypes):
             if registerDatasetTypes:
                 _LOG.debug("Registering DatasetType %s with registry", datasetType)
                 # this is a no-op if it already exists and is consistent,
@@ -136,8 +146,8 @@ class PreExecInit:
             exists. Content of a butler collection may be changed if
             exception is raised.
 
-        Note
-        ----
+        Notes
+        -----
         If ``skipExisting`` is `True` then existing datasets are not
         overwritten, instead we should check that their stored object is
         exactly the same as what we would save at this time. Comparing
@@ -172,3 +182,42 @@ class PreExecInit:
                     # butler will raise exception if dataset is already there
                     _LOG.debug("Saving InitOutputs for task=%s key=%s", task, name)
                     self.butler.put(initOutputVar, attribute.name, {})
+
+    def saveConfigs(self, graph):
+        """Write configurations for pipeline tasks to butler or check that
+        existing configurations are equal to the new ones.
+
+        Parameters
+        ----------
+        graph : `~lsst.pipe.base.QuantumGraph`
+            Execution graph.
+
+        Raises
+        ------
+        Exception
+            Raised if ``skipExisting`` is `False` and datasets already
+            exists. Content of a butler collection may be changed if
+            exception is raised.
+        """
+        def logConfigMismatch(msg):
+            """Log messages about configuration mismatch.
+            """
+            _LOG.fatal("Comparing configuration: %s", msg)
+
+        _LOG.debug("Will save Configs for all tasks")
+        for taskNodes in graph:
+            taskDef = taskNodes.taskDef
+            configName = taskDef.configDatasetName
+
+            oldConfig = None
+            if self.skipExisting:
+                oldConfig = self.butler.get(configName, {})
+                if oldConfig is not None:
+                    if not taskDef.config.compare(oldConfig, shortcut=False, output=logConfigMismatch):
+                        raise TypeError(
+                            f"Config does not match existing task config {configName!r} in butler; "
+                            "tasks configurations must be consistent within the same run collection")
+            if oldConfig is None:
+                # butler will raise exception if dataset is already there
+                _LOG.debug("Saving Config for task=%s dataset type=%s", taskDef.label, configName)
+                self.butler.put(taskDef.config, configName, {})

@@ -196,10 +196,13 @@ def registerDatasetTypes(registry, pipeline):
         Iterable of TaskDef instances.
     """
     for taskDef in pipeline:
+        configDatasetType = DatasetType(taskDef.configDatasetName, {},
+                                        storageClass="Config",
+                                        universe=registry.dimensions)
         datasetTypes = pipeBase.TaskDatasetTypes.fromTaskDef(taskDef, registry=registry)
         for datasetType in itertools.chain(datasetTypes.initInputs, datasetTypes.initOutputs,
                                            datasetTypes.inputs, datasetTypes.outputs,
-                                           datasetTypes.prerequisites):
+                                           datasetTypes.prerequisites, [configDatasetType]):
             _LOG.info("Registering %s with registry", datasetType)
             # this is a no-op if it already exists and is consistent,
             # and it raises if it is inconsistent.
