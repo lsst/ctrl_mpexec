@@ -276,6 +276,9 @@ def _makeMetaOutputOptions(parser):
     group.add_argument("--register-dataset-types", dest="register_dataset_types", default=False,
                        action="store_true",
                        help="Register DatasetTypes that do not already exist in the Registry.")
+    group.add_argument("--no-versions", dest="no_versions", default=False,
+                       action="store_true",
+                       help="Do not save or check package versions.")
 
 
 def _makeLoggingOptions(parser):

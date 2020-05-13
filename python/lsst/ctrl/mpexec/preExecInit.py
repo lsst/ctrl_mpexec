@@ -30,6 +30,7 @@ import itertools
 # -----------------------------
 #  Imports for other modules --
 # -----------------------------
+from lsst.base import Packages
 from lsst.daf.butler import DatasetType
 from lsst.pipe.base import PipelineDatasetTypes
 
@@ -58,7 +59,7 @@ class PreExecInit:
         self.taskFactory = taskFactory
         self.skipExisting = skipExisting
 
-    def initialize(self, graph, saveInitOutputs=True, registerDatasetTypes=False):
+    def initialize(self, graph, saveInitOutputs=True, registerDatasetTypes=False, saveVersions=True):
         """Perform all initialization steps.
 
         Convenience method to execute all initialization steps. Instead of
@@ -70,10 +71,14 @@ class PreExecInit:
         graph : `~lsst.pipe.base.QuantumGraph`
             Execution graph.
         saveInitOutputs : `bool`, optional
-            If ``True`` (default) then save task "init outputs" to butler.
+            If ``True`` (default) then save "init outputs", configurations,
+            and package versions to butler.
         registerDatasetTypes : `bool`, optional
             If ``True`` then register dataset types in registry, otherwise
             they must be already registered.
+        saveVersions : `bool`, optional
+            If ``False`` then do not save package versions even if
+            ``saveInitOutputs`` is set to ``True``.
         """
         # register dataset types or check consistency
         self.initializeDatasetTypes(graph, registerDatasetTypes)
@@ -83,6 +88,8 @@ class PreExecInit:
         if saveInitOutputs:
             self.saveInitOutputs(graph)
             self.saveConfigs(graph)
+            if saveVersions:
+                self.savePackageVersions(graph)
 
     def initializeDatasetTypes(self, graph, registerDatasetTypes=False):
         """Save or check DatasetTypes output by the tasks in a graph.
@@ -115,10 +122,15 @@ class PreExecInit:
                                           universe=self.butler.registry.dimensions)
                               for taskDef in pipeline]
 
+        # And one dataset type for package versions
+        packagesDatasetType = DatasetType("packages", {},
+                                          storageClass="Packages",
+                                          universe=self.butler.registry.dimensions)
+
         datasetTypes = PipelineDatasetTypes.fromPipeline(pipeline, registry=self.butler.registry)
         for datasetType in itertools.chain(datasetTypes.initIntermediates, datasetTypes.initOutputs,
                                            datasetTypes.intermediates, datasetTypes.outputs,
-                                           configDatasetTypes):
+                                           configDatasetTypes, [packagesDatasetType]):
             if registerDatasetTypes:
                 _LOG.debug("Registering DatasetType %s with registry", datasetType)
                 # this is a no-op if it already exists and is consistent,
@@ -221,3 +233,36 @@ class PreExecInit:
                 # butler will raise exception if dataset is already there
                 _LOG.debug("Saving Config for task=%s dataset type=%s", taskDef.label, configName)
                 self.butler.put(taskDef.config, configName, {})
+
+    def savePackageVersions(self, graph):
+        """Write versions of software packages to butler.
+
+        Parameters
+        ----------
+        graph : `~lsst.pipe.base.QuantumGraph`
+            Execution graph.
+
+        Raises
+        ------
+        Exception
+            Raised if ``checkExisting`` is ``True`` but versions are not
+            compatible.
+        """
+        packages = Packages.fromSystem()
+        datasetType = "packages"
+        oldPackages = self.butler.get(datasetType, {}) if self.skipExisting else None
+        if oldPackages is not None:
+            # Note that because we can only detect python modules that have been imported, the stored
+            # list of products may be more or less complete than what we have now.  What's important is
+            # that the products that are in common have the same version.
+            diff = packages.difference(oldPackages)
+            if diff:
+                versions_str = "; ".join(f"{pkg}: {diff[pkg][1]} vs {diff[pkg][0]}" for pkg in diff)
+                raise TypeError(f"Package versions mismatch: ({versions_str})")
+            # Update the old set of packages in case we have more packages that haven't been persisted.
+            extra = packages.extra(oldPackages)
+            if extra:
+                oldPackages.update(packages)
+                self.butler.put(oldPackages, datasetType, {})
+        else:
+            self.butler.put(packages, datasetType, {})

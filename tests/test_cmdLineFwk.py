@@ -145,6 +145,7 @@ def _makeArgs(pipeline=None, qgraph=None, pipeline_actions=(), order_pipeline=Fa
     args.output = {}
     args.register_dataset_types = False
     args.skip_init_writes = False
+    args.no_versions = False
     args.skip_existing = False
     args.init_only = False
     args.processes = 1
@@ -331,6 +332,7 @@ class CmdLineFwkTestCase(unittest.TestCase):
 
         AddTask.stopAt = -1
         args.skip_existing = True
+        args.no_versions = True
         fwk.runPipeline(qgraph, taskFactory, args, butler=butler)
         self.assertEqual(AddTask.countExec, nQuanta)
 
