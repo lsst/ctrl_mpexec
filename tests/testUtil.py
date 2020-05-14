@@ -24,6 +24,7 @@
 
 __all__ = ["AddTaskConfig", "AddTask", "AddTaskFactoryMock", "ButlerMock"]
 
+import contextlib
 import itertools
 import logging
 import numpy
@@ -143,6 +144,10 @@ class ButlerMock:
         """
         return frozenset(dataId.items())
 
+    @contextlib.contextmanager
+    def transaction(self):
+        yield
+
     def get(self, datasetRefOrType, dataId=None, parameters=None, **kwds):
         datasetType, dataId = self._standardizeArgs(datasetRefOrType, dataId, **kwds)
         _LOG.info("butler.get: datasetType=%s dataId=%s", datasetType.name, dataId)
@@ -196,10 +201,17 @@ def registerDatasetTypes(registry, pipeline):
         Iterable of TaskDef instances.
     """
     for taskDef in pipeline:
+        configDatasetType = DatasetType(taskDef.configDatasetName, {},
+                                        storageClass="Config",
+                                        universe=registry.dimensions)
+        packagesDatasetType = DatasetType("packages", {},
+                                          storageClass="Packages",
+                                          universe=registry.dimensions)
         datasetTypes = pipeBase.TaskDatasetTypes.fromTaskDef(taskDef, registry=registry)
         for datasetType in itertools.chain(datasetTypes.initInputs, datasetTypes.initOutputs,
                                            datasetTypes.inputs, datasetTypes.outputs,
-                                           datasetTypes.prerequisites):
+                                           datasetTypes.prerequisites,
+                                           [configDatasetType, packagesDatasetType]):
             _LOG.info("Registering %s with registry", datasetType)
             # this is a no-op if it already exists and is consistent,
             # and it raises if it is inconsistent.

@@ -58,8 +58,8 @@ class ExecutionGraphFixup(ABC):
             Iterable of topologically ordered quanta as returned from
             `lsst.pipe.base.QuantumGraph.traverse` method.
 
-        Yieds
-        -----
+        Yields
+        ------
         quantum : `~lsst.pipe.base.QuantumIterData`
         """
         raise NotImplementedError

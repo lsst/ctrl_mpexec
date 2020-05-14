@@ -30,6 +30,8 @@ import itertools
 # -----------------------------
 #  Imports for other modules --
 # -----------------------------
+from lsst.base import Packages
+from lsst.daf.butler import DatasetType
 from lsst.pipe.base import PipelineDatasetTypes
 
 _LOG = logging.getLogger(__name__.partition(".")[2])
@@ -57,7 +59,7 @@ class PreExecInit:
         self.taskFactory = taskFactory
         self.skipExisting = skipExisting
 
-    def initialize(self, graph, saveInitOutputs=True, registerDatasetTypes=False):
+    def initialize(self, graph, saveInitOutputs=True, registerDatasetTypes=False, saveVersions=True):
         """Perform all initialization steps.
 
         Convenience method to execute all initialization steps. Instead of
@@ -69,10 +71,14 @@ class PreExecInit:
         graph : `~lsst.pipe.base.QuantumGraph`
             Execution graph.
         saveInitOutputs : `bool`, optional
-            If ``True`` (default) then save task "init outputs" to butler.
+            If ``True`` (default) then save "init outputs", configurations,
+            and package versions to butler.
         registerDatasetTypes : `bool`, optional
             If ``True`` then register dataset types in registry, otherwise
             they must be already registered.
+        saveVersions : `bool`, optional
+            If ``False`` then do not save package versions even if
+            ``saveInitOutputs`` is set to ``True``.
         """
         # register dataset types or check consistency
         self.initializeDatasetTypes(graph, registerDatasetTypes)
@@ -81,6 +87,9 @@ class PreExecInit:
         # is consistent with what tasks would save
         if saveInitOutputs:
             self.saveInitOutputs(graph)
+            self.saveConfigs(graph)
+            if saveVersions:
+                self.savePackageVersions(graph)
 
     def initializeDatasetTypes(self, graph, registerDatasetTypes=False):
         """Save or check DatasetTypes output by the tasks in a graph.
@@ -106,9 +115,22 @@ class PreExecInit:
             does not exist in registry.
         """
         pipeline = list(nodes.taskDef for nodes in graph)
+
+        # Make dataset types for configurations
+        configDatasetTypes = [DatasetType(taskDef.configDatasetName, {},
+                                          storageClass="Config",
+                                          universe=self.butler.registry.dimensions)
+                              for taskDef in pipeline]
+
+        # And one dataset type for package versions
+        packagesDatasetType = DatasetType("packages", {},
+                                          storageClass="Packages",
+                                          universe=self.butler.registry.dimensions)
+
         datasetTypes = PipelineDatasetTypes.fromPipeline(pipeline, registry=self.butler.registry)
         for datasetType in itertools.chain(datasetTypes.initIntermediates, datasetTypes.initOutputs,
-                                           datasetTypes.intermediates, datasetTypes.outputs):
+                                           datasetTypes.intermediates, datasetTypes.outputs,
+                                           configDatasetTypes, [packagesDatasetType]):
             if registerDatasetTypes:
                 _LOG.debug("Registering DatasetType %s with registry", datasetType)
                 # this is a no-op if it already exists and is consistent,
@@ -136,8 +158,8 @@ class PreExecInit:
             exists. Content of a butler collection may be changed if
             exception is raised.
 
-        Note
-        ----
+        Notes
+        -----
         If ``skipExisting`` is `True` then existing datasets are not
         overwritten, instead we should check that their stored object is
         exactly the same as what we would save at this time. Comparing
@@ -172,3 +194,77 @@ class PreExecInit:
                     # butler will raise exception if dataset is already there
                     _LOG.debug("Saving InitOutputs for task=%s key=%s", task, name)
                     self.butler.put(initOutputVar, attribute.name, {})
+
+    def saveConfigs(self, graph):
+        """Write configurations for pipeline tasks to butler or check that
+        existing configurations are equal to the new ones.
+
+        Parameters
+        ----------
+        graph : `~lsst.pipe.base.QuantumGraph`
+            Execution graph.
+
+        Raises
+        ------
+        Exception
+            Raised if ``skipExisting`` is `False` and datasets already exists.
+            Content of a butler collection should not be changed if exception
+            is raised.
+        """
+        def logConfigMismatch(msg):
+            """Log messages about configuration mismatch.
+            """
+            _LOG.fatal("Comparing configuration: %s", msg)
+
+        _LOG.debug("Will save Configs for all tasks")
+        # start transaction to rollback any changes on exceptions
+        with self.butler.transaction():
+            for taskNodes in graph:
+                taskDef = taskNodes.taskDef
+                configName = taskDef.configDatasetName
+
+                oldConfig = None
+                if self.skipExisting:
+                    oldConfig = self.butler.get(configName, {})
+                    if oldConfig is not None:
+                        if not taskDef.config.compare(oldConfig, shortcut=False, output=logConfigMismatch):
+                            raise TypeError(
+                                f"Config does not match existing task config {configName!r} in butler; "
+                                "tasks configurations must be consistent within the same run collection")
+                if oldConfig is None:
+                    # butler will raise exception if dataset is already there
+                    _LOG.debug("Saving Config for task=%s dataset type=%s", taskDef.label, configName)
+                    self.butler.put(taskDef.config, configName, {})
+
+    def savePackageVersions(self, graph):
+        """Write versions of software packages to butler.
+
+        Parameters
+        ----------
+        graph : `~lsst.pipe.base.QuantumGraph`
+            Execution graph.
+
+        Raises
+        ------
+        Exception
+            Raised if ``checkExisting`` is ``True`` but versions are not
+            compatible.
+        """
+        packages = Packages.fromSystem()
+        datasetType = "packages"
+        oldPackages = self.butler.get(datasetType, {}) if self.skipExisting else None
+        if oldPackages is not None:
+            # Note that because we can only detect python modules that have been imported, the stored
+            # list of products may be more or less complete than what we have now.  What's important is
+            # that the products that are in common have the same version.
+            diff = packages.difference(oldPackages)
+            if diff:
+                versions_str = "; ".join(f"{pkg}: {diff[pkg][1]} vs {diff[pkg][0]}" for pkg in diff)
+                raise TypeError(f"Package versions mismatch: ({versions_str})")
+            # Update the old set of packages in case we have more packages that haven't been persisted.
+            extra = packages.extra(oldPackages)
+            if extra:
+                oldPackages.update(packages)
+                self.butler.put(oldPackages, datasetType, {})
+        else:
+            self.butler.put(packages, datasetType, {})

@@ -681,7 +681,8 @@ class CmdLineFwk:
         preExecInit = PreExecInit(butler, taskFactory, args.skip_existing)
         preExecInit.initialize(graph,
                                saveInitOutputs=not args.skip_init_writes,
-                               registerDatasetTypes=args.register_dataset_types)
+                               registerDatasetTypes=args.register_dataset_types,
+                               saveVersions=not args.no_versions)
 
         if not args.init_only:
             graphFixup = self._importGraphFixup(args)
