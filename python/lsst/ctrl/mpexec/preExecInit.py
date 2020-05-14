@@ -207,9 +207,9 @@ class PreExecInit:
         Raises
         ------
         Exception
-            Raised if ``skipExisting`` is `False` and datasets already
-            exists. Content of a butler collection may be changed if
-            exception is raised.
+            Raised if ``skipExisting`` is `False` and datasets already exists.
+            Content of a butler collection should not be changed if exception
+            is raised.
         """
         def logConfigMismatch(msg):
             """Log messages about configuration mismatch.
@@ -217,22 +217,24 @@ class PreExecInit:
             _LOG.fatal("Comparing configuration: %s", msg)
 
         _LOG.debug("Will save Configs for all tasks")
-        for taskNodes in graph:
-            taskDef = taskNodes.taskDef
-            configName = taskDef.configDatasetName
+        # start transaction to rollback any changes on exceptions
+        with self.butler.transaction():
+            for taskNodes in graph:
+                taskDef = taskNodes.taskDef
+                configName = taskDef.configDatasetName
 
-            oldConfig = None
-            if self.skipExisting:
-                oldConfig = self.butler.get(configName, {})
-                if oldConfig is not None:
-                    if not taskDef.config.compare(oldConfig, shortcut=False, output=logConfigMismatch):
-                        raise TypeError(
-                            f"Config does not match existing task config {configName!r} in butler; "
-                            "tasks configurations must be consistent within the same run collection")
-            if oldConfig is None:
-                # butler will raise exception if dataset is already there
-                _LOG.debug("Saving Config for task=%s dataset type=%s", taskDef.label, configName)
-                self.butler.put(taskDef.config, configName, {})
+                oldConfig = None
+                if self.skipExisting:
+                    oldConfig = self.butler.get(configName, {})
+                    if oldConfig is not None:
+                        if not taskDef.config.compare(oldConfig, shortcut=False, output=logConfigMismatch):
+                            raise TypeError(
+                                f"Config does not match existing task config {configName!r} in butler; "
+                                "tasks configurations must be consistent within the same run collection")
+                if oldConfig is None:
+                    # butler will raise exception if dataset is already there
+                    _LOG.debug("Saving Config for task=%s dataset type=%s", taskDef.label, configName)
+                    self.butler.put(taskDef.config, configName, {})
 
     def savePackageVersions(self, graph):
         """Write versions of software packages to butler.

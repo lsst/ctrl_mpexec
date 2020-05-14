@@ -24,6 +24,7 @@
 
 __all__ = ["AddTaskConfig", "AddTask", "AddTaskFactoryMock", "ButlerMock"]
 
+import contextlib
 import itertools
 import logging
 import numpy
@@ -142,6 +143,10 @@ class ButlerMock:
         """Make a dict key out of dataId.
         """
         return frozenset(dataId.items())
+
+    @contextlib.contextmanager
+    def transaction(self):
+        yield
 
     def get(self, datasetRefOrType, dataId=None, parameters=None, **kwds):
         datasetType, dataId = self._standardizeArgs(datasetRefOrType, dataId, **kwds)
