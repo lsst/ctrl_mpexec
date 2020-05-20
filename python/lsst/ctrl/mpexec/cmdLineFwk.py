@@ -44,7 +44,6 @@ from lsst.daf.butler import (
     Butler,
     CollectionSearch,
     CollectionType,
-    DatasetRef,
     DatasetTypeRestriction,
     Registry,
 )
@@ -875,6 +874,15 @@ class CmdLineFwk:
         args : `argparse.Namespace`
             Parsed command line
         """
+        def dumpURIs(thisRef):
+            primary, components = butler.getURIs(thisRef, predict=True, run="TBD")
+            if primary:
+                print(f"    {primary}")
+            else:
+                print(f"    (disassembled artifact)")
+                for compName, compUri in components.items():
+                    print(f"        {compName}: {compUri}")
+
         butler = _ButlerFactory.makeReadButler(args)
         hashToParent = {}
         for iq, (taskDef, quantum) in enumerate(graph.quanta()):
@@ -883,19 +891,11 @@ class CmdLineFwk:
             print("  inputs:")
             for key, refs in quantum.predictedInputs.items():
                 for ref in refs:
-                    if butler.datastore.exists(ref):
-                        print("    {}".format(butler.datastore.getUri(ref)))
-                    else:
-                        fakeRef = DatasetRef(ref.datasetType, ref.dataId)
-                        print("    {}".format(butler.datastore.getUri(fakeRef, predict=True)))
+                    dumpURIs(ref)
             print("  outputs:")
             for key, refs in quantum.outputs.items():
                 for ref in refs:
-                    if butler.datastore.exists(ref):
-                        print("    {}".format(butler.datastore.getUri(ref)))
-                    else:
-                        fakeRef = DatasetRef(ref.datasetType, ref.dataId)
-                        print("    {}".format(butler.datastore.getUri(fakeRef, predict=True)))
+                    dumpURIs(ref)
                     # Store hash to figure out dependency
                     dhash = hash((key, ref.dataId))
                     hashToParent[dhash] = iq
