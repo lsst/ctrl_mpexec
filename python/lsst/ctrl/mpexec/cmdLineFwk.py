@@ -226,8 +226,6 @@ class _ButlerFactory:
             construction parameter of the same name.
         """
         assert not (args.extend_run and args.replace_run), "In mutually-exclusive group in ArgumentParser."
-        if self.inputs and self.output is not None and self.output.exists:
-            raise ValueError("Cannot use --output with existing collection with --inputs.")
         if args.extend_run and self.outputRun is None:
             raise ValueError("Cannot --extend-run when no output collection is given.")
         if args.extend_run and not self.outputRun.exists:
