@@ -603,7 +603,8 @@ class CmdLineFwk:
         """
 
         if args.qgraph:
-
+            if args.butler_config:
+                _ButlerFactory.makeWriteButler(args)
             with open(args.qgraph, 'rb') as pickleFile:
                 qgraph = pickle.load(pickleFile)
                 if not isinstance(qgraph, QuantumGraph):
