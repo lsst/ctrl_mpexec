@@ -167,7 +167,7 @@ class ButlerMock:
         dsdata[key] = obj
         if self.fullRegistry:
             ref = self.registry.insertDatasets(datasetType, dataIds=[dataId], run=self.run, producer=producer,
-                                               recursive=False, **kwds)
+                                               **kwds)
         else:
             # we should return DatasetRef with reasonable ID, ID is supposed to be unique
             refId = sum(len(val) for val in self.datasets.values())
