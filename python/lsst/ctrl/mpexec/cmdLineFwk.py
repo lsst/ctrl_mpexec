@@ -31,7 +31,6 @@ import argparse
 import datetime
 import fnmatch
 import logging
-import pickle
 import re
 import sys
 from typing import List, Optional, Tuple
@@ -233,7 +232,7 @@ class _ButlerFactory:
         if args.extend_run and not self.outputRun.exists:
             raise ValueError(f"Cannot --extend-run; output collection "
                              f"'{self.outputRun.name}' does not exist.")
-        if not args.extend_run and self.outputRun.exists:
+        if not args.extend_run and self.outputRun is not None and self.outputRun.exists:
             raise ValueError(f"Output run '{self.outputRun.name}' already exists, but "
                              f"--extend-run was not given.")
         if args.prune_replaced and not args.replace_run:
@@ -282,7 +281,7 @@ class _ButlerFactory:
         return butler, inputs, self
 
     @classmethod
-    def makeReadButler(cls, args: argparse.Namespace):
+    def makeReadButler(cls, args: argparse.Namespace) -> Butler:
         """Construct a read-only butler according to the given command-line
         arguments.
 
@@ -303,7 +302,8 @@ class _ButlerFactory:
         return Butler(butler=butler, collections=inputs)
 
     @classmethod
-    def makeRegistryAndCollections(cls, args: argparse.Namespace) -> CollectionSearch:
+    def makeRegistryAndCollections(cls, args: argparse.Namespace) -> \
+            Tuple[Registry, CollectionSearch, Optional[str]]:
         """Return a read-only registry, a collection search path, and the name
         of the run to be used for future writes.
 
@@ -591,8 +591,7 @@ class CmdLineFwk:
         Parameters
         ----------
         pipeline : `~lsst.pipe.base.Pipeline`
-            Pipeline, can be empty or ``None`` if graph is read from pickle
-            file.
+            Pipeline, can be empty or ``None`` if graph is read from a file.
         args : `argparse.Namespace`
             Parsed command line
 
@@ -602,21 +601,18 @@ class CmdLineFwk:
             If resulting graph is empty then `None` is returned.
         """
 
+        registry, collections, run = _ButlerFactory.makeRegistryAndCollections(args)
+
         if args.qgraph:
 
             with open(args.qgraph, 'rb') as pickleFile:
-                qgraph = pickle.load(pickleFile)
-                if not isinstance(qgraph, QuantumGraph):
-                    raise TypeError("QuantumGraph pickle file has incorrect object type: {}".format(
-                        type(qgraph)))
+                qgraph = QuantumGraph.load(pickleFile, registry.dimensions)
 
             # pipeline can not be provided in this case
             if pipeline:
                 raise ValueError("Pipeline must not be given when quantum graph is read from file.")
 
         else:
-
-            registry, collections, run = _ButlerFactory.makeRegistryAndCollections(args)
 
             # make execution plan (a.k.a. DAG) for pipeline
             graphBuilder = GraphBuilder(registry,
@@ -634,13 +630,13 @@ class CmdLineFwk:
 
         if args.save_qgraph:
             with open(args.save_qgraph, "wb") as pickleFile:
-                pickle.dump(qgraph, pickleFile)
+                qgraph.save(pickleFile)
 
         if args.save_single_quanta:
             for iq, sqgraph in enumerate(qgraph.quantaAsQgraph()):
                 filename = args.save_single_quanta.format(iq)
                 with open(filename, "wb") as pickleFile:
-                    pickle.dump(sqgraph, pickleFile)
+                    qgraph.save(pickleFile)
 
         if args.qgraph_dot:
             graph2dot(qgraph, args.qgraph_dot)

@@ -33,7 +33,8 @@ import unittest
 from lsst.ctrl.mpexec.cmdLineFwk import CmdLineFwk
 from lsst.ctrl.mpexec.cmdLineParser import (_ACTION_ADD_TASK, _ACTION_CONFIG,
                                             _ACTION_CONFIG_FILE, _ACTION_ADD_INSTRUMENT)
-from lsst.daf.butler import Quantum, Config
+from lsst.daf.butler import Config, Quantum, Registry
+from lsst.daf.butler.registry import RegistryConfig
 import lsst.pex.config as pexConfig
 from lsst.pipe.base import (Pipeline, PipelineTask, PipelineTaskConfig,
                             QuantumGraph, QuantumGraphTaskNodes,
@@ -64,6 +65,23 @@ def makeTmpFile(contents=None):
     yield tmpname
     with contextlib.suppress(OSError):
         os.remove(tmpname)
+
+
+@contextlib.contextmanager
+def makeSQLiteRegistry():
+    """Context manager to create new empty registry database.
+
+    Yields
+    ------
+    config : `RegistryConfig`
+        Registry configuration for initialized registry database.
+    """
+    with makeTmpFile() as filename:
+        uri = f"sqlite:///{filename}"
+        config = RegistryConfig()
+        config["db"] = uri
+        Registry.fromConfig(config, create=True)
+        yield config
 
 
 class SimpleConnections(PipelineTaskConnections, dimensions=(),
@@ -106,7 +124,8 @@ class TaskFactoryMock(TaskFactory):
 
 
 def _makeArgs(pipeline=None, qgraph=None, pipeline_actions=(), order_pipeline=False,
-              save_pipeline="", save_qgraph="", save_single_quanta="", pipeline_dot="", qgraph_dot=""):
+              save_pipeline="", save_qgraph="", save_single_quanta="",
+              pipeline_dot="", qgraph_dot="", registryConfig=None):
     """Return parsed command line arguments.
 
     Parameters
@@ -130,6 +149,8 @@ def _makeArgs(pipeline=None, qgraph=None, pipeline_actions=(), order_pipeline=Fa
     """
     args = argparse.Namespace()
     args.butler_config = Config()
+    if registryConfig:
+        args.butler_config["registry"] = registryConfig
     # The default datastore has a relocatable root, so we need to specify
     # some root here for it to use
     args.butler_config.configFile = "."
@@ -142,7 +163,12 @@ def _makeArgs(pipeline=None, qgraph=None, pipeline_actions=(), order_pipeline=Fa
     args.save_single_quanta = save_single_quanta
     args.pipeline_dot = pipeline_dot
     args.qgraph_dot = qgraph_dot
-    args.output = {}
+    args.input = ""
+    args.output = None
+    args.output_run = None
+    args.extend_run = False
+    args.replace_run = False
+    args.prune_replaced = False
     args.register_dataset_types = False
     args.skip_init_writes = False
     args.no_versions = False
@@ -260,13 +286,13 @@ class CmdLineFwkTestCase(unittest.TestCase):
         """
         fwk = CmdLineFwk()
 
-        with makeTmpFile() as tmpname:
+        with makeTmpFile() as tmpname, makeSQLiteRegistry() as registryConfig:
 
             # make non-empty graph and store it in a file
             qgraph = _makeQGraph()
             with open(tmpname, "wb") as pickleFile:
-                pickle.dump(qgraph, pickleFile)
-            args = _makeArgs(qgraph=tmpname)
+                qgraph.save(pickleFile)
+            args = _makeArgs(qgraph=tmpname, registryConfig=registryConfig)
             qgraph = fwk.makeGraph(None, args)
             self.assertIsInstance(qgraph, QuantumGraph)
             self.assertEqual(len(qgraph), 1)
@@ -274,15 +300,16 @@ class CmdLineFwkTestCase(unittest.TestCase):
             # pickle with wrong object type
             with open(tmpname, "wb") as pickleFile:
                 pickle.dump({}, pickleFile)
-            args = _makeArgs(qgraph=tmpname)
+            args = _makeArgs(qgraph=tmpname, registryConfig=registryConfig)
             with self.assertRaises(TypeError):
                 fwk.makeGraph(None, args)
 
-            # reading empty graph from pickle should return None
+            # reading empty graph from pickle should work but makeGraph()
+            # will return None and make a warning
             qgraph = QuantumGraph()
             with open(tmpname, "wb") as pickleFile:
-                pickle.dump(qgraph, pickleFile)
-            args = _makeArgs(qgraph=tmpname)
+                qgraph.save(pickleFile)
+            args = _makeArgs(qgraph=tmpname, registryConfig=registryConfig)
             with self.assertWarnsRegex(UserWarning, "QuantumGraph is empty"):
                 # this also tests that warning is generated for empty graph
                 qgraph = fwk.makeGraph(None, args)
