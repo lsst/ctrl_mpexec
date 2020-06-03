@@ -156,7 +156,7 @@ class ButlerMock:
         dsdata = self.datasets.get(dsTypeName)
         if dsdata:
             return dsdata.get(key)
-        return None
+        raise LookupError
 
     def put(self, obj, datasetRefOrType, dataId=None, producer=None, **kwds):
         datasetType, dataId = self._standardizeArgs(datasetRefOrType, dataId, **kwds)

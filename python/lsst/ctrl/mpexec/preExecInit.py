@@ -182,14 +182,16 @@ class PreExecInit:
                     # check if it is there already
                     _LOG.debug("Retrieving InitOutputs for task=%s key=%s dsTypeName=%s",
                                task, name, attribute.name)
-                    objFromStore = self.butler.get(attribute.name, {})
-                    if objFromStore is not None:
+                    try:
+                        objFromStore = self.butler.get(attribute.name, {})
                         # Types are supposed to be identical.
                         # TODO: Check that object contents is identical too.
                         if type(objFromStore) is not type(initOutputVar):
                             raise TypeError(f"Stored initOutput object type {type(objFromStore)} "
                                             f"is different  from task-generated type "
                                             f"{type(initOutputVar)} for task {taskDef}")
+                    except LookupError:
+                        pass
                 if objFromStore is None:
                     # butler will raise exception if dataset is already there
                     _LOG.debug("Saving InitOutputs for task=%s key=%s", task, name)
@@ -225,12 +227,14 @@ class PreExecInit:
 
                 oldConfig = None
                 if self.skipExisting:
-                    oldConfig = self.butler.get(configName, {})
-                    if oldConfig is not None:
+                    try:
+                        oldConfig = self.butler.get(configName, {})
                         if not taskDef.config.compare(oldConfig, shortcut=False, output=logConfigMismatch):
                             raise TypeError(
                                 f"Config does not match existing task config {configName!r} in butler; "
                                 "tasks configurations must be consistent within the same run collection")
+                    except LookupError:
+                        pass
                 if oldConfig is None:
                     # butler will raise exception if dataset is already there
                     _LOG.debug("Saving Config for task=%s dataset type=%s", taskDef.label, configName)
@@ -252,7 +256,12 @@ class PreExecInit:
         """
         packages = Packages.fromSystem()
         datasetType = "packages"
-        oldPackages = self.butler.get(datasetType, {}) if self.skipExisting else None
+        oldPackages = None
+        if self.skipExisting:
+            try:
+                oldPackages = self.butler.get(datasetType, {})
+            except LookupError:
+                pass
         if oldPackages is not None:
             # Note that because we can only detect python modules that have been imported, the stored
             # list of products may be more or less complete than what we have now.  What's important is
