@@ -255,25 +255,36 @@ class PreExecInit:
             compatible.
         """
         packages = Packages.fromSystem()
+        _LOG.debug("want to save packages: %s", packages)
         datasetType = "packages"
+        dataId = {}
         oldPackages = None
-        if self.skipExisting:
-            try:
-                oldPackages = self.butler.get(datasetType, {})
-            except LookupError:
-                pass
-        if oldPackages is not None:
-            # Note that because we can only detect python modules that have been imported, the stored
-            # list of products may be more or less complete than what we have now.  What's important is
-            # that the products that are in common have the same version.
-            diff = packages.difference(oldPackages)
-            if diff:
-                versions_str = "; ".join(f"{pkg}: {diff[pkg][1]} vs {diff[pkg][0]}" for pkg in diff)
-                raise TypeError(f"Package versions mismatch: ({versions_str})")
-            # Update the old set of packages in case we have more packages that haven't been persisted.
-            extra = packages.extra(oldPackages)
-            if extra:
-                oldPackages.update(packages)
-                self.butler.put(oldPackages, datasetType, {})
-        else:
-            self.butler.put(packages, datasetType, {})
+        # start transaction to rollback any changes on exceptions
+        with self.butler.transaction():
+            if self.skipExisting:
+                try:
+                    oldPackages = self.butler.get(datasetType, dataId, collections=[self.butler.run])
+                    _LOG.debug("old packages: %s", oldPackages)
+                except LookupError:
+                    pass
+            if oldPackages is not None:
+                # Note that because we can only detect python modules that have been imported, the stored
+                # list of products may be more or less complete than what we have now.  What's important is
+                # that the products that are in common have the same version.
+                diff = packages.difference(oldPackages)
+                if diff:
+                    versions_str = "; ".join(f"{pkg}: {diff[pkg][1]} vs {diff[pkg][0]}" for pkg in diff)
+                    raise TypeError(f"Package versions mismatch: ({versions_str})")
+                else:
+                    _LOG.debug("new packages are consistent with old")
+                # Update the old set of packages in case we have more packages that haven't been persisted.
+                extra = packages.extra(oldPackages)
+                if extra:
+                    _LOG.debug("extra packages: %s", extra)
+                    oldPackages.update(packages)
+                    # have to remove existing dataset first, butler nas no replace option
+                    ref = self.butler.registry.findDataset(datasetType, dataId, collections=[self.butler.run])
+                    self.butler.pruneDatasets([ref], unstore=True, purge=True)
+                    self.butler.put(oldPackages, datasetType, dataId)
+            else:
+                self.butler.put(packages, datasetType, dataId)
