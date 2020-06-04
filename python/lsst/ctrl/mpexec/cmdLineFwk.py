@@ -636,7 +636,7 @@ class CmdLineFwk:
             for iq, sqgraph in enumerate(qgraph.quantaAsQgraph()):
                 filename = args.save_single_quanta.format(iq)
                 with open(filename, "wb") as pickleFile:
-                    qgraph.save(pickleFile)
+                    sqgraph.save(pickleFile)
 
         if args.qgraph_dot:
             graph2dot(qgraph, args.qgraph_dot)
