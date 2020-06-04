@@ -158,7 +158,7 @@ class ButlerMock:
             return dsdata.get(key)
         raise LookupError
 
-    def put(self, obj, datasetRefOrType, dataId=None, producer=None, **kwds):
+    def put(self, obj, datasetRefOrType, dataId=None, **kwds):
         datasetType, dataId = self._standardizeArgs(datasetRefOrType, dataId, **kwds)
         _LOG.info("butler.put: datasetType=%s dataId=%s obj=%r", datasetType.name, dataId, obj)
         dsTypeName = datasetType.name
@@ -166,8 +166,7 @@ class ButlerMock:
         dsdata = self.datasets.setdefault(dsTypeName, {})
         dsdata[key] = obj
         if self.fullRegistry:
-            ref = self.registry.insertDatasets(datasetType, dataIds=[dataId], run=self.run, producer=producer,
-                                               **kwds)
+            ref = self.registry.insertDatasets(datasetType, dataIds=[dataId], run=self.run, **kwds)
         else:
             # we should return DatasetRef with reasonable ID, ID is supposed to be unique
             refId = sum(len(val) for val in self.datasets.values())
