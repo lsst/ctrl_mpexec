@@ -2,7 +2,7 @@
 #
 # Developed for the LSST Data Management System.
 # This product includes software developed by the LSST Project
-# (http://www.lsst.org).
+# (https://www.lsst.org).
 # See the COPYRIGHT file at the top-level directory of this distribution
 # for details of code ownership.
 #
@@ -21,23 +21,19 @@
 
 import click
 
-from lsst.daf.butler.cli.butler import LoaderCLI
-from lsst.daf.butler.cli.opt import log_level_option, long_log_option
+from lsst.daf.butler.cli.utils import MWOption
 
 
-class PipetaskCLI(LoaderCLI):
+class pipeline_dot_option:  # noqa: N801
 
-    localCmdPkg = "lsst.ctrl.mpexec.cli.cmd"
+    defaultHelp = "Location for storing GraphViz DOT representation of a pipeline."
 
+    def __init__(self, required=False, help=defaultHelp):
+        self.required = required
+        self.help = help
 
-@click.command(cls=PipetaskCLI, context_settings=dict(help_option_names=["-h", "--help"]))
-@log_level_option()
-@long_log_option()
-def cli(log_level, long_log):
-    # log_level is handled by get_command and list_commands, and is called in
-    # one of those functions before this is called.
-    pass
-
-
-def main():
-    return cli()
+    def __call__(self, f):
+        return click.option("--pipeline-dot", cls=MWOption,
+                            help=self.help,
+                            required=self.required,
+                            type=click.Path(exists=True, writable=True, file_okay=True, dir_okay=False))(f)

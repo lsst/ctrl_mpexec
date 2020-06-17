@@ -2,7 +2,7 @@
 #
 # Developed for the LSST Data Management System.
 # This product includes software developed by the LSST Project
-# (http://www.lsst.org).
+# (https://www.lsst.org).
 # See the COPYRIGHT file at the top-level directory of this distribution
 # for details of code ownership.
 #
@@ -19,25 +19,11 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-import click
 
-from lsst.daf.butler.cli.butler import LoaderCLI
-from lsst.daf.butler.cli.opt import log_level_option, long_log_option
-
-
-class PipetaskCLI(LoaderCLI):
-
-    localCmdPkg = "lsst.ctrl.mpexec.cli.cmd"
-
-
-@click.command(cls=PipetaskCLI, context_settings=dict(help_option_names=["-h", "--help"]))
-@log_level_option()
-@long_log_option()
-def cli(log_level, long_log):
-    # log_level is handled by get_command and list_commands, and is called in
-    # one of those functions before this is called.
-    pass
-
-
-def main():
-    return cli()
+from .delete import delete_option
+from .order_pipeline import order_pipeline_option
+from .pipeline import pipeline_option
+from .pipeline_dot import pipeline_dot_option
+from .save_pipeline import save_pipeline_option
+from .show import show_option
+from .task import task_option
