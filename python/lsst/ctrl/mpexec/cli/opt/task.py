@@ -27,7 +27,7 @@ from lsst.daf.butler.cli.utils import MWOption, split_commas
 class task_option:  # noqa: N801
 
     defaultHelp = ("Task name to add to pipeline, must be a fully qualified task name. Task name can be "
-                   "followed by colon and label name, if label is not given than task base name (class name) "
+                   "followed by colon and label name, if label is not given then task base name (class name) "
                    "is used as label.")
     defaultMetavar = "TASK[:LABEL]"
     optionFlags = ("-t", "--task")
