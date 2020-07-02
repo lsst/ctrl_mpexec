@@ -131,7 +131,9 @@ class PreExecInit:
         for datasetType in itertools.chain(datasetTypes.initIntermediates, datasetTypes.initOutputs,
                                            datasetTypes.intermediates, datasetTypes.outputs,
                                            configDatasetTypes, [packagesDatasetType]):
-            if registerDatasetTypes:
+            # Only composites are registered, no components, and by this point
+            # the composite should already exist.
+            if registerDatasetTypes and not datasetType.isComponent():
                 _LOG.debug("Registering DatasetType %s with registry", datasetType)
                 # this is a no-op if it already exists and is consistent,
                 # and it raises if it is inconsistent.
