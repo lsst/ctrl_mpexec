@@ -213,8 +213,10 @@ def registerDatasetTypes(registry, pipeline):
                                            [configDatasetType, packagesDatasetType]):
             _LOG.info("Registering %s with registry", datasetType)
             # this is a no-op if it already exists and is consistent,
-            # and it raises if it is inconsistent.
-            registry.registerDatasetType(datasetType)
+            # and it raises if it is inconsistent. But components must be
+            # skipped
+            if not datasetType.isComponent():
+                registry.registerDatasetType(datasetType)
 
 
 def makeSimpleQGraph(nQuanta=5, pipeline=None, butler=None, skipExisting=False):
