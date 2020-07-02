@@ -141,6 +141,11 @@ class PreExecInit:
             else:
                 _LOG.debug("Checking DatasetType %s against registry", datasetType)
                 expected = self.butler.registry.getDatasetType(datasetType.name)
+                if datasetType.isComponent() \
+                        and datasetType.parentStorageClass == DatasetType.PlaceholderParentStorageClass:
+                    # Force the parent storage classes to match since we
+                    # are using a placeholder
+                    datasetType.finalizeParentStorageClass(expected.parentStorageClass)
                 if expected != datasetType:
                     raise ValueError(f"DatasetType configuration does not match Registry: "
                                      f"{datasetType} != {expected}")
