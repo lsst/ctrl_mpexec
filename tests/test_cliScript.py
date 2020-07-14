@@ -19,14 +19,13 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-import click.testing
 import os
 import tempfile
 import unittest
 
 from lsst.ctrl.mpexec.cli import script
 from lsst.ctrl.mpexec.cli.pipetask import cli as pipetaskCli
-from lsst.daf.butler.cli.utils import clickResultMsg
+from lsst.daf.butler.cli.utils import clickResultMsg, LogCliRunner
 from lsst.pipe.base import Pipeline
 import lsst.utils.tests
 
@@ -95,7 +94,7 @@ config.connections.initout='add_init_output'"""),
         ]
 
         for showInfo in testdata:
-            runner = click.testing.CliRunner()
+            runner = LogCliRunner()
             result = runner.invoke(pipetaskCli, ["build",
                                                  "--task", "testUtil.AddTask:task",
                                                  "--config", "task:addend=100",
