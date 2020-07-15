@@ -48,19 +48,32 @@ class PipetaskCommand(click.Command):
         super().parse_args(ctx, args)
 
 
-@click.command(cls=PipetaskCommand, short_help="Build pipeline definition.")
+buildEpilog = """Notes:
+
+--task, --delete, --config, --config-file, and --instrument action options can
+appear multiple times; all values are used, in order left to right.
+
+FILE reads command-line options from the specified file. Data may be
+distributed among multiple lines (e.g. one option per line). Data after # is
+treated as a comment and ignored. Blank lines and lines starting with # are
+ignored.
+"""
+
+@click.command(cls=PipetaskCommand, epilog=buildEpilog, short_help="Build pipeline definition.")
 @click.pass_context
 @pipeline_option()
+
 @task_option(multiple=True)
 @delete_option(metavar="LABEL", multiple=True)
 @config_option(metavar="LABEL:NAME=VALUE", multiple=True)
 @config_file_option(help="Configuration override file(s), applies to a task with a given label.",
                     metavar="LABEL:FILE",
                     multiple=True)
+@instrument_parameter(help=instrumentOptionHelp, metavar="instrument", multiple=True)
+
 @order_pipeline_option()
 @save_pipeline_option()
 @pipeline_dot_option()
-@instrument_parameter(help=instrumentOptionHelp, metavar="instrument", multiple=True)
 @show_option(multiple=True)
 @log_level_option(defaultValue=None)
 def build(ctx, *args, **kwargs):
