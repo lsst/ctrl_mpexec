@@ -880,31 +880,19 @@ class CmdLineFwk:
                     print(f"        {compName}: {compUri}")
 
         butler = _ButlerFactory.makeReadButler(args)
-        hashToParent = {}
-        for iq, (taskDef, quantum) in enumerate(graph.quanta()):
-            shortname = taskDef.taskName.split('.')[-1]
-            print("Quantum {}: {}".format(iq, shortname))
+        for qdata in graph.traverse():
+            shortname = qdata.taskDef.taskName.split('.')[-1]
+            print("Quantum {}: {}".format(qdata.index, shortname))
             print("  inputs:")
-            for key, refs in quantum.predictedInputs.items():
+            for key, refs in qdata.quantum.predictedInputs.items():
                 for ref in refs:
                     dumpURIs(ref)
             print("  outputs:")
-            for key, refs in quantum.outputs.items():
+            for key, refs in qdata.quantum.outputs.items():
                 for ref in refs:
                     dumpURIs(ref)
-                    # Store hash to figure out dependency
-                    dhash = hash((key, ref.dataId))
-                    hashToParent[dhash] = iq
-
-        uses = set()
-        for iq, (taskDef, quantum) in enumerate(graph.quanta()):
-            for key, refs in quantum.predictedInputs.items():
-                for ref in refs:
-                    dhash = hash((key, ref.dataId))
-                    if dhash in hashToParent and (iq, hashToParent[dhash]) not in uses:
-                        parentIq = hashToParent[dhash]
-                        uses.add((iq, parentIq))  # iq uses parentIq
-                        print("Parent Quantum {} - Child Quantum {}".format(parentIq, iq))
+            for parent in qdata.dependencies:
+                print("Parent Quantum {} - Child Quantum {}".format(parent, qdata.index))
 
     def _importGraphFixup(self, args):
         """Import/instantiate graph fixup object.
