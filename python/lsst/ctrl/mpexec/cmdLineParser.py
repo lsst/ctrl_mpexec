@@ -141,12 +141,10 @@ class _InputCollectionAction(Action):
         value :== collection[,collection[...]]
         collection :== [dataset_type:]collection_name
 
-    and converts value into a dictionary whose keys a dataset type names
-    (or empty string when dataset type name is missing) and values are
-    ordered lists of collection names. Values from multiple arguments are
-    all collected into the same dictionary. Resulting list of collections
-    could contain multiple instances of the same collection name if it
-    appears multiple time on command line.
+    Converts `values` into a list whose items are a 2-item tuple, the first
+    item is the collection_name if one is provided or an elipsis `...` if
+    collection_name is not provided, and the second item is the dataset_type:
+    `((dataset_type, collection_name),)` or `((dataset_type, ...))`
     """
 
     def __call__(self, parser, namespace, values, option_string=None):
