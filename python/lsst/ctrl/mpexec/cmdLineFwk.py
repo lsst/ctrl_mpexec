@@ -31,6 +31,7 @@ import argparse
 import datetime
 import fnmatch
 import logging
+import os
 import re
 import sys
 from typing import List, Optional, Tuple
@@ -510,8 +511,10 @@ class CmdLineFwk:
         else:
             message_fmt = "%c %p: %m%n"
 
-        # global logging config
-        lsst.log.configure_prop(_LOG_PROP.format(message_fmt))
+        # Initialize global logging config. Skip if the env var LSST_LOG_CONFIG exists.
+        # The file it points to would already configure lsst.log.
+        if not os.path.isfile(os.environ.get("LSST_LOG_CONFIG", "")):
+            lsst.log.configure_prop(_LOG_PROP.format(message_fmt))
 
         # Forward all Python logging to lsst.log
         lgr = logging.getLogger()
