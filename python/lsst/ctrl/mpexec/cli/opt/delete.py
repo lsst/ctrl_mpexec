@@ -21,14 +21,13 @@
 
 import click
 
-from lsst.daf.butler.core.utils import iterable
 from lsst.daf.butler.cli.utils import MWOption, split_commas
 
 
 class delete_option:  # noqa: N801
 
     defaultHelp = "Delete task with given label from pipeline."
-    optionFlags = ("--delete")
+    optionFlags = ("--delete",)
     optionKey = "delete"
 
     def __init__(self, help=defaultHelp, metavar=None, multiple=False, required=False):
@@ -39,7 +38,7 @@ class delete_option:  # noqa: N801
         self.required = required
 
     def __call__(self, f):
-        return click.option(*iterable(self.optionFlags), cls=MWOption,
+        return click.option(*self.optionFlags, cls=MWOption,
                             callback=self.callback,
                             help=self.help,
                             metavar=self.metavar,
