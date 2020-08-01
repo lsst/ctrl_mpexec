@@ -35,6 +35,7 @@ from lsst.ctrl.mpexec.cmdLineParser import (_ACTION_ADD_TASK, _ACTION_CONFIG,
                                             _ACTION_CONFIG_FILE, _ACTION_ADD_INSTRUMENT)
 from lsst.daf.butler import Config, Quantum, Registry
 from lsst.daf.butler.registry import RegistryConfig
+from lsst.obs.base import Instrument
 import lsst.pex.config as pexConfig
 from lsst.pipe.base import (Pipeline, PipelineTask, PipelineTaskConfig,
                             QuantumGraph, QuantumGraphTaskNodes,
@@ -45,6 +46,11 @@ from testUtil import (AddTask, AddTaskFactoryMock, makeSimpleQGraph)
 
 
 logging.basicConfig(level=logging.INFO)
+
+# Have to monkey-patch Instrument.fromName() to not retrieve non-existing
+# instrument from registry, these tests can run fine without actual instrument
+# and implementing full mock for Instrument is too complicated.
+Instrument.fromName = lambda name, reg: None
 
 
 @contextlib.contextmanager

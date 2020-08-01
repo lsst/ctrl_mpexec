@@ -32,6 +32,7 @@ from itertools import chain
 # -----------------------------
 from .quantumGraphExecutor import QuantumExecutor
 from lsst.log import Log
+from lsst.obs.base import Instrument
 from lsst.pipe.base import ButlerQuantumContext
 
 # ----------------------------------
@@ -77,6 +78,9 @@ class SingleQuantumExecutor(QuantumExecutor):
                 import debug  # noqa:F401
             except ImportError:
                 _LOG.warn("No 'debug' module found.")
+
+        # initialize global state
+        self.initGlobals(quantum, butler)
 
         task = self.makeTask(taskClass, config, butler)
         self.runQuantum(task, quantum, taskDef, butler)
@@ -219,6 +223,7 @@ class SingleQuantumExecutor(QuantumExecutor):
         # Get the input and output references for the task
         connectionInstance = task.config.connections.ConnectionsClass(config=task.config)
         inputRefs, outputRefs = connectionInstance.buildDatasetRefs(quantum)
+
         # Call task runQuantum() method. Any exception thrown by the task
         # propagates to caller.
         task.runQuantum(butlerQC, inputRefs, outputRefs)
@@ -233,3 +238,36 @@ class SingleQuantumExecutor(QuantumExecutor):
                     f" it could happen due to inconsistent options between Quantum generation"
                     f" and execution") from exc
             butlerQC.put(task.metadata, ref[0])
+
+    def initGlobals(self, quantum, butler):
+        """Initialize global state needed for task execution.
+
+        Parameters
+        ----------
+        quantum : `~lsst.daf.butler.Quantum`
+            Single Quantum instance.
+        butler : `~lsst.daf.butler.Butler`
+            Data butler.
+
+        Notes
+        -----
+        There is an issue with initializing filters singleton which is done
+        by instrument, to avoid requiring tasks to do it in runQuantum()
+        we do it here when any dataId has an instrument dimension. Also for
+        now we only allow single instrument, verify that all instrument
+        names in all dataIds are identical.
+
+        This will need revision when filter singleton disappears.
+        """
+        oneInstrument = None
+        for datasetRefs in chain(quantum.predictedInputs.values(), quantum.outputs.values()):
+            for datasetRef in datasetRefs:
+                dataId = datasetRef.dataId
+                instrument = dataId.get("instrument")
+                if instrument is not None:
+                    if oneInstrument is not None:
+                        assert instrument == oneInstrument, \
+                            "Currently require that only one instrument is used per graph"
+                    else:
+                        oneInstrument = instrument
+                        Instrument.fromName(instrument, butler.registry)
