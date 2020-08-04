@@ -23,9 +23,10 @@
 """
 
 import logging
+import time
 import unittest
 
-from lsst.ctrl.mpexec import MPGraphExecutor, QuantumExecutor
+from lsst.ctrl.mpexec import MPGraphExecutor, MPTimeoutError, QuantumExecutor
 from lsst.ctrl.mpexec.execFixupDataId import ExecFixupDataId
 from testUtil import makeSimpleQGraph
 
@@ -36,13 +37,16 @@ logging.basicConfig(level=logging.INFO)
 class QuantumExecutorMock(QuantumExecutor):
     """Mock class for QuantumExecutor
     """
-    def __init__(self):
+    def __init__(self, sleep=None):
         self.taskDefs = []
         self.quanta = []
+        self.sleep = sleep
 
     def execute(self, taskDef, quantum, butler):
         self.taskDefs += [taskDef]
         self.quanta += [quantum]
+        if self.sleep:
+            time.sleep(self.sleep)
 
     def getDataIds(self, field):
         """Returns values for dataId field for each visited quanta"""
@@ -82,6 +86,18 @@ class MPGraphExecutorTestCase(unittest.TestCase):
             if reverse:
                 expected = list(reversed(expected))
             self.assertEqual(qexec.getDataIds("detector"), expected)
+
+    def test_mpexec_timeout(self):
+        """Make simple graph and execute, add dependencies"""
+
+        nQuanta = 3
+        butler, qgraph = makeSimpleQGraph(nQuanta)
+
+        for reverse in (False, True):
+            qexec = QuantumExecutorMock(sleep=3)
+            mpexec = MPGraphExecutor(numProc=3, timeout=1, quantumExecutor=qexec)
+            with self.assertRaises(MPTimeoutError):
+                mpexec.execute(qgraph, butler)
 
 
 if __name__ == "__main__":
