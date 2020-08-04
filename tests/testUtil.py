@@ -138,6 +138,15 @@ class ButlerMock:
                 datasetType = self.registry.getDatasetType(datasetRefOrType)
         return datasetType, dataId
 
+    @classmethod
+    def _unpickle(cls, fullRegistry, run):
+        return cls(fullRegistry, run)
+
+    def __reduce__(self):
+        """Support pickling.
+        """
+        return (ButlerMock._unpickle, (self.fullRegistry, self.run))
+
     @staticmethod
     def key(dataId):
         """Make a dict key out of dataId.

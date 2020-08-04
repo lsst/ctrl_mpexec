@@ -687,7 +687,8 @@ class CmdLineFwk:
             quantumExecutor = SingleQuantumExecutor(taskFactory,
                                                     skipExisting=args.skip_existing,
                                                     enableLsstDebug=args.enableLsstDebug)
-            executor = MPGraphExecutor(numProc=args.processes, timeout=self.MP_TIMEOUT,
+            timeout = self.MP_TIMEOUT if args.timeout is None else args.timeout
+            executor = MPGraphExecutor(numProc=args.processes, timeout=timeout,
                                        quantumExecutor=quantumExecutor,
                                        executionGraphFixup=graphFixup)
             with util.profile(args.profile, _LOG):

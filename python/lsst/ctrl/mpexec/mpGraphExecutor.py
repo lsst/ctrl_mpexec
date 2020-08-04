@@ -19,7 +19,7 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-__all__ = ['MPGraphExecutor']
+__all__ = ["MPGraphExecutor", "MPGraphExecutorError", "MPTimeoutError"]
 
 # -------------------------------
 #  Imports of standard modules --
@@ -38,6 +38,12 @@ _LOG = logging.getLogger(__name__.partition(".")[2])
 
 class MPGraphExecutorError(Exception):
     """Exception class for errors raised by MPGraphExecutor.
+    """
+    pass
+
+
+class MPTimeoutError(MPGraphExecutorError):
+    """Exception raised when task execution times out.
     """
     pass
 
@@ -153,8 +159,9 @@ class MPGraphExecutor(QuantumGraphExecutor):
 
         pool = multiprocessing.Pool(processes=self.numProc, maxtasksperchild=1)
 
-        # map quantum id to AsyncResult
+        # map quantum id to AsyncResult and QuantumIterData
         results = {}
+        qdataMap = {}
 
         # Add each Quantum to a pool, wait until it pre-requisites completed.
         # TODO: This is not super-efficient as it stops at the first Quantum
@@ -172,7 +179,14 @@ class MPGraphExecutor(QuantumGraphExecutor):
                 # Wait for max. timeout for this result to be ready.
                 # This can raise on timeout or if remote call raises.
                 _LOG.debug("Check dependency %s for %s", dep, qdata)
-                results[dep].get(self.timeout)
+                try:
+                    results[dep].get(self.timeout)
+                except multiprocessing.TimeoutError as exc:
+                    failed_qdata = qdataMap[dep]
+                    raise MPTimeoutError(
+                        f"Timeout ({self.timeout}sec) for task {failed_qdata.taskDef} while processing "
+                        f"quantum with dataId={failed_qdata.quantum.dataId}"
+                    ) from exc
                 _LOG.debug("Result %s is ready", dep)
 
             # Add it to the pool and remember its result
@@ -180,6 +194,7 @@ class MPGraphExecutor(QuantumGraphExecutor):
             kwargs = dict(taskDef=taskDef, quantum=qdata.quantum,
                           butler=butler, executor=self.quantumExecutor)
             results[qdata.index] = pool.apply_async(self._executePipelineTask, (), kwargs)
+            qdataMap[qdata.index] = qdata
 
         # Everything is submitted, wait until it's complete
         _LOG.debug("Wait for all tasks")
@@ -188,7 +203,14 @@ class MPGraphExecutor(QuantumGraphExecutor):
                 _LOG.debug("Result %d is ready", qid)
             else:
                 _LOG.debug("Waiting for result %d", qid)
-                res.get(self.timeout)
+                try:
+                    res.get(self.timeout)
+                except multiprocessing.TimeoutError as exc:
+                    failed_qdata = qdataMap[qid]
+                    raise MPTimeoutError(
+                        f"Timeout ({self.timeout}sec) for task {failed_qdata.taskDef} while processing "
+                        f"quantum with dataId={failed_qdata.quantum.dataId}"
+                    ) from exc
 
     @staticmethod
     def _executePipelineTask(*, taskDef, quantum, butler, executor):
