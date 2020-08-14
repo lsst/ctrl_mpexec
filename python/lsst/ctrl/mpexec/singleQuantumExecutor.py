@@ -237,7 +237,7 @@ class SingleQuantumExecutor(QuantumExecutor):
                     f"Quantum outputs is missing metadata dataset type {taskDef.metadataDatasetName},"
                     f" it could happen due to inconsistent options between Quantum generation"
                     f" and execution") from exc
-            butlerQC.put(task.metadata, ref[0])
+            butlerQC.put(task.getFullMetadata(), ref[0])
 
     def initGlobals(self, quantum, butler):
         """Initialize global state needed for task execution.
