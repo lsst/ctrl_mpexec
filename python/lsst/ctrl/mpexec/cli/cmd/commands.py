@@ -26,14 +26,8 @@ from lsst.daf.butler.cli.opt import (config_file_option,
                                      config_option,
                                      log_level_option)
 from lsst.daf.butler.cli.utils import cli_handle_exception
-from lsst.obs.base.cli.opt import instrument_parameter
-from ..opt import (delete_option,
-                   order_pipeline_option,
-                   pipeline_dot_option,
-                   pipeline_option,
-                   save_pipeline_option,
-                   show_option,
-                   task_option)
+from lsst.obs.base.cli.opt import instrument_option
+from .. import opt
 from .. import script
 from ..utils import makePipelineActions
 
@@ -61,21 +55,19 @@ ignored.
 
 @click.command(cls=PipetaskCommand, epilog=buildEpilog, short_help="Build pipeline definition.")
 @click.pass_context
-@pipeline_option()
-
-@task_option(multiple=True)
-@delete_option(metavar="LABEL", multiple=True)
+@opt.pipeline_option()
+@opt.task_option()
+@opt.delete_option(metavar="LABEL")
 @config_option(metavar="LABEL:NAME=VALUE", multiple=True)
 @config_file_option(help="Configuration override file(s), applies to a task with a given label.",
                     metavar="LABEL:FILE",
                     multiple=True)
-@instrument_parameter(help=instrumentOptionHelp, metavar="instrument", multiple=True)
-
-@order_pipeline_option()
-@save_pipeline_option()
-@pipeline_dot_option()
-@show_option(multiple=True)
-@log_level_option(defaultValue=None)
+@instrument_option(help=instrumentOptionHelp, metavar="instrument", multiple=True)
+@opt.order_pipeline_option()
+@opt.save_pipeline_option()
+@opt.pipeline_dot_option()
+@opt.show_option()
+@log_level_option()
 def build(ctx, *args, **kwargs):
     """Build and optionally save pipeline definition.
 
@@ -91,8 +83,8 @@ def build(ctx, *args, **kwargs):
     # pipeline actions from the CLI arguments and pass that list to the script
     # function using the `pipeline_actions` kwarg name, and remove the action
     # options from kwargs.
-    for pipelineAction in (task_option.optionKey, delete_option.optionKey, config_option.optionKey,
-                           config_file_option.optionKey, instrument_parameter.optionKey):
+    for pipelineAction in (opt.task_option.name(), opt.delete_option.name(), config_option.name(),
+                           config_file_option.name(), instrument_option.name()):
         kwargs.pop(pipelineAction)
     kwargs['pipeline_actions'] = makePipelineActions(ctx.obj)
     cli_handle_exception(script.build, *args, **kwargs)
