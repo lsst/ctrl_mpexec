@@ -19,10 +19,9 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-from click import ClickException
-
 from lsst.daf.butler.cli.cliLog import CliLog
 from ... import CmdLineFwk
+from ...cmdLineParser import _PipelineAction
 
 
 def build(order_pipeline=None, pipeline=None, pipeline_actions=(), pipeline_dot=None, save_pipeline=None,
@@ -41,7 +40,7 @@ def build(order_pipeline=None, pipeline=None, pipeline_actions=(), pipeline_dot=
     order_pipeline : `bool`
         If true, order tasks in pipeline based on their data dependencies,
         ordering is performed as last step before saving or executing pipeline.
-    pipeline_actions : `list` [`PipelineAction`]]
+    pipeline_actions : `list` [`PipelineAction`]] or `PipelineAction`
         A list of pipeline actions in the order they should be executed.
     pipeline_dot : `str`
         Path location for storing GraphViz DOT representation of a pipeline.
@@ -57,6 +56,13 @@ def build(order_pipeline=None, pipeline=None, pipeline_actions=(), pipeline_dot=
     pipeline : `lsst.pipe.base.Pipeline`
         The pipeline instance that was built.
     """
+    # If pipeline_actions is a single instance, not a list, then put it in
+    # a list. _PipelineAction is a namedtuple, so we can't use
+    # `lsst.daf.butler.core.utils.iterable` because a namedtuple *is* iterable,
+    # but we need a list of _PipelineAction.
+    if isinstance(pipeline_actions, _PipelineAction):
+        pipeline_actions = (pipeline_actions,)
+
     if log_level is not None:
         CliLog.setLogLevels(log_level)
 
