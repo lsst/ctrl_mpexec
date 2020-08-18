@@ -20,10 +20,4 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 
-from .delete import delete_option
-from .order_pipeline import order_pipeline_option
-from .pipeline import pipeline_option
-from .pipeline_dot import pipeline_dot_option
-from .save_pipeline import save_pipeline_option
-from .show import show_option
-from .task import task_option
+from .options import *

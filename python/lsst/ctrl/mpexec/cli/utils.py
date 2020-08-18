@@ -21,8 +21,9 @@
 
 
 from lsst.daf.butler.cli.opt import (config_file_option, config_option)
-from lsst.obs.base.cli.opt import instrument_parameter
-from .opt import (delete_option, task_option)
+from lsst.obs.base.cli.opt import instrument_option
+from .opt import (delete_option,
+                  task_option)
 from ..cmdLineParser import (_ACTION_ADD_TASK,
                              _ACTION_DELETE_TASK,
                              _ACTION_CONFIG,
@@ -31,11 +32,11 @@ from ..cmdLineParser import (_ACTION_ADD_TASK,
 
 
 def makePipelineActions(args,
-                        taskFlags=task_option.optionFlags,
-                        deleteFlags=delete_option.optionFlags,
-                        configFlags=config_option.optionFlags,
-                        configFileFlags=config_file_option.optionFlags,
-                        instrumentFlags=instrument_parameter.optionFlags):
+                        taskFlags=task_option.opts(),
+                        deleteFlags=delete_option.opts(),
+                        configFlags=config_option.opts(),
+                        configFileFlags=config_file_option.opts(),
+                        instrumentFlags=instrument_option.opts()):
     """Make a list of pipline actions from a list of option flags and
     values.
 
@@ -46,19 +47,19 @@ def makePipelineActions(args,
         passed in on the command line.
     taskFlags : `list` [`str`], optional
         The option flags to use to recoginze a task action, by default
-        task_option.optionFlags
+        task_option.opts()
     deleteFlags : `list` [`str`], optional
         The option flags to use to recoginze a delete action, by default
-        delete_option.optionFlags
+        delete_option.opts()
     configFlags : `list` [`str`], optional
         The option flags to use to recoginze a config action, by default
-        config_option.optionFlags
+        config_option.opts()
     configFileFlags : `list` [`str`], optional
         The option flags to use to recoginze a config-file action, by default
-        config_file_option.optionFlags
+        config_file_option.opts()
     instrumentFlags : `list` [`str`], optional
         The option flags to use to recoginze an instrument action, by default
-        instrument_parameter.optionFlags
+        instrument_option.opts()
 
     Returns
     -------

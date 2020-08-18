@@ -23,21 +23,32 @@ import unittest
 import unittest.mock
 
 from lsst.daf.butler.tests import CliCmdTestBase
+from lsst.daf.butler.cli.utils import Mocker
 from lsst.ctrl.mpexec.cli.pipetask import cli
-from lsst.ctrl.mpexec.cli.cmd import build
+from lsst.ctrl.mpexec.cli.cmd import build, qgraph, run
 from lsst.ctrl.mpexec.cmdLineParser import _PipelineAction
 
 
 class BuildTestCase(CliCmdTestBase, unittest.TestCase):
 
-    defaultExpected = dict(order_pipeline=False,
-                           pipeline=None,
-                           pipeline_actions=list(),
-                           pipeline_dot=None,
-                           save_pipeline=None,
-                           show=(),
-                           log_level=dict())
-    command = build
+    def setUp(self):
+        Mocker.reset()
+        super().setUp()
+
+    @staticmethod
+    def defaultExpected():
+        return dict(order_pipeline=False,
+                    pipeline=None,
+                    pipeline_actions=list(),
+                    pipeline_dot=None,
+                    save_pipeline=None,
+                    show=(),
+                    log_level=dict())
+
+    @staticmethod
+    def command():
+        return build
+
     cli = cli
 
     def test_actionConversion(self):
@@ -48,6 +59,92 @@ class BuildTestCase(CliCmdTestBase, unittest.TestCase):
                       self.makeExpected(pipeline_actions=[_PipelineAction(action="new_task",
                                                                           label=None,
                                                                           value="foo")]))
+
+
+class QgraphTestCase(CliCmdTestBase, unittest.TestCase):
+
+    def setUp(self):
+        Mocker.reset()
+        super().setUp()
+
+    @staticmethod
+    def defaultExpected():
+        return dict(butler_config=None,
+                    data_query=None,
+                    extend_run=False,
+                    input=(),
+                    log_level={},
+                    output=None,
+                    output_run=None,
+                    pipeline=None,
+                    prune_replaced=None,
+                    qgraph=None,
+                    qgraph_dot=None,
+                    replace_run=False,
+                    save_qgraph=None,
+                    save_single_quanta=None,
+                    show=(),
+                    skip_existing=False)
+
+    @staticmethod
+    def command():
+        return qgraph
+
+    cli = cli
+
+    def test_defaultValues(self):
+        """Test the default values match the defaultExpected values."""
+        self.run_test(["qgraph"], self.makeExpected())
+
+
+class RunTestCase(CliCmdTestBase, unittest.TestCase):
+
+    @staticmethod
+    def defaultExpected():
+        return dict(butler_config=None,
+                    data_query=None,
+                    debug=None,
+                    do_raise=False,
+                    extend_run=False,
+                    graph_fixup=None,
+                    init_only=False,
+                    input=(),
+                    log_level={},
+                    no_versions=False,
+                    output=None,
+                    output_run=None,
+                    processes=None,
+                    profile=None,
+                    prune_replaced=None,
+                    qgraph=None,
+                    register_dataset_types=False,
+                    replace_run=False,
+                    skip_existing=False,
+                    skip_init_writes=False,
+                    timeout=None)
+
+    @staticmethod
+    def command():
+        return run
+
+    cli = cli
+
+    def setUp(self):
+        Mocker.reset()
+        super().setUp()
+
+    def test_defaultValues(self):
+        """Test the default values match the defaultExpected values."""
+        self.run_test(["run"], self.makeExpected())
+
+    def test_subcommandPassButlerParameters(self):
+        """Test that a butler parameter passed to `qgraph` are forwarded to
+        `run`."""
+        configFileName = "butler_config.yaml"
+        self.run_test(["qgraph", "--butler-config", configFileName, "run"],
+                      (QgraphTestCase.makeExpected(butler_config=configFileName),  # qgraph call
+                       self.makeExpected(butler_config=configFileName)),  # run call
+                      withTempFile=configFileName)
 
 
 if __name__ == "__main__":
