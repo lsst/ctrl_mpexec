@@ -55,6 +55,11 @@ def build(order_pipeline=None, pipeline=None, pipeline_actions=(), pipeline_dot=
     -------
     pipeline : `lsst.pipe.base.Pipeline`
         The pipeline instance that was built.
+
+    Raises
+    ------
+    Exception
+        Raised if there is a failure building the pipeline.
     """
     # If pipeline_actions is a single instance, not a list, then put it in
     # a list. _PipelineAction is a namedtuple, so we can't use
@@ -80,10 +85,9 @@ def build(order_pipeline=None, pipeline=None, pipeline_actions=(), pipeline_dot=
     args = MakePipelineArgs(pipeline, pipeline_actions, pipeline_dot, save_pipeline)
 
     f = CmdLineFwk()
-    try:
-        pipeline = f.makePipeline(args)
-    except Exception as exc:
-        raise ClickException(f"Failed to build pipeline: {exc}") from exc
+
+    # Will raise an exception if it fails to build the pipeline.
+    pipeline = f.makePipeline(args)
 
     class ShowInfoArgs:
         """A container class for arguments to CmdLineFwk.showInfo, whose
