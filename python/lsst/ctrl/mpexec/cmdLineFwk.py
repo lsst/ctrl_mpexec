@@ -690,6 +690,7 @@ class CmdLineFwk:
             timeout = self.MP_TIMEOUT if args.timeout is None else args.timeout
             executor = MPGraphExecutor(numProc=args.processes, timeout=timeout,
                                        quantumExecutor=quantumExecutor,
+                                       failFast=args.fail_fast,
                                        executionGraphFixup=graphFixup)
             with util.profile(args.profile, _LOG):
                 executor.execute(graph, butler)

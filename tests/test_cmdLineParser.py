@@ -189,7 +189,7 @@ class CmdLineParserTestCase(unittest.TestCase):
             """.split())
         run_options = qgraph_options + """register_dataset_types skip_init_writes
                       init_only processes profile timeout doraise graph_fixup
-                      no_versions""".split()
+                      no_versions fail_fast""".split()
         self.assertEqual(set(vars(args).keys()), set(common_options + run_options))
         self.assertEqual(args.subcommand, 'run')
 

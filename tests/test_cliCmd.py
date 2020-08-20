@@ -121,7 +121,8 @@ class RunTestCase(CliCmdTestBase, unittest.TestCase):
                     replace_run=False,
                     skip_existing=False,
                     skip_init_writes=False,
-                    timeout=None)
+                    timeout=None,
+                    fail_fast=False)
 
     @staticmethod
     def command():

@@ -47,7 +47,8 @@ def run(do_raise,
         prune_replaced,
         data_query,
         skip_existing,
-        debug):
+        debug,
+        fail_fast):
     """Implements the command line interface `pipetask run` subcommand, should
     only be called by command line tools and unit test code that test this
     function.
@@ -127,6 +128,9 @@ def run(do_raise,
     debug : `bool`
         If true, enable debugging output using lsstDebug facility (imports
         debug.py).
+    fail_fast : `bool`
+        If true then stop processing at first error, otherwise process as many
+        tasks as possible.
     """
 
     if log_level is not None:
@@ -157,7 +161,8 @@ def run(do_raise,
                      prune_replaced,
                      data_query,
                      skip_existing,
-                     debug):
+                     debug,
+                     fail_fast):
             self.do_raise = do_raise
             self.graph_fixup = graph_fixup
             self.init_only = init_only
@@ -177,13 +182,14 @@ def run(do_raise,
             self.data_query = data_query
             self.skip_existing = skip_existing
             self.enableLsstDebug = debug
+            self.fail_fast = fail_fast
 
     args = RunArgs(do_raise=do_raise, graph_fixup=graph_fixup, init_only=init_only, no_versions=no_versions,
                    processes=processes, profile=profile, skip_init_writes=skip_init_writes, timeout=timeout,
                    register_dataset_types=register_dataset_types, butler_config=butler_config, input=input,
                    output=output, output_run=output_run, extend_run=extend_run, replace_run=replace_run,
                    prune_replaced=prune_replaced, data_query=data_query, skip_existing=skip_existing,
-                   debug=debug)
+                   debug=debug, fail_fast=fail_fast)
 
     f = CmdLineFwk()
     taskFactory = TaskFactory()
