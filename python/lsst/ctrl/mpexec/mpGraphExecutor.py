@@ -26,6 +26,7 @@ __all__ = ["MPGraphExecutor", "MPGraphExecutorError", "MPTimeoutError"]
 # -------------------------------
 import logging
 import multiprocessing
+import time
 
 # -----------------------------
 #  Imports for other modules --
@@ -61,13 +62,16 @@ class MPGraphExecutor(QuantumGraphExecutor):
     quantumExecutor : `QuantumExecutor`
         Executor for single quantum. For multiprocess-style execution when
         ``numProc`` is greater than one this instance must support pickle.
+    failFast : `bool`, optional
+        If set to ``True`` then stop processing on first error from any task.
     executionGraphFixup : `ExecutionGraphFixup`, optional
         Instance used for modification of execution graph.
     """
-    def __init__(self, numProc, timeout, quantumExecutor, *, executionGraphFixup=None):
+    def __init__(self, numProc, timeout, quantumExecutor, *, failFast=False, executionGraphFixup=None):
         self.numProc = numProc
         self.timeout = timeout
         self.quantumExecutor = quantumExecutor
+        self.failFast = failFast
         self.executionGraphFixup = executionGraphFixup
 
     def execute(self, graph, butler):
@@ -163,54 +167,109 @@ class MPGraphExecutor(QuantumGraphExecutor):
         results = {}
         qdataMap = {}
 
-        # Add each Quantum to a pool, wait until it pre-requisites completed.
-        # TODO: This is not super-efficient as it stops at the first Quantum
-        # that cannot be executed (yet) and does not check other Quanta.
-        for qdata in iterable:
+        # we may need to iterate several times so make it a list
+        qdataItems = list(iterable)
 
-            # check that task can run in sub-process
+        # check that all tasks can run in sub-process
+        for qdata in qdataItems:
             taskDef = qdata.taskDef
             if not taskDef.taskClass.canMultiprocess:
                 raise MPGraphExecutorError(f"Task {taskDef.taskName} does not support multiprocessing;"
                                            " use single process")
 
-            # Wait for all dependencies
-            for dep in qdata.dependencies:
-                # Wait for max. timeout for this result to be ready.
-                # This can raise on timeout or if remote call raises.
-                _LOG.debug("Check dependency %s for %s", dep, qdata)
-                try:
-                    results[dep].get(self.timeout)
-                except multiprocessing.TimeoutError as exc:
-                    failed_qdata = qdataMap[dep]
-                    raise MPTimeoutError(
-                        f"Timeout ({self.timeout}sec) for task {failed_qdata.taskDef} while processing "
-                        f"quantum with dataId={failed_qdata.quantum.dataId}"
-                    ) from exc
-                _LOG.debug("Result %s is ready", dep)
+        # quantum ids which are processing and start time for each
+        runningJobs = {}
+        # quantum ids which finished successfully
+        finishedJobs = set()
+        # quantum ids which failed
+        failedJobs = set()
 
-            # Add it to the pool and remember its result
-            _LOG.debug("Sumbitting %s", qdata)
-            kwargs = dict(taskDef=taskDef, quantum=qdata.quantum,
-                          butler=butler, executor=self.quantumExecutor)
-            results[qdata.index] = pool.apply_async(self._executePipelineTask, (), kwargs)
-            qdataMap[qdata.index] = qdata
+        while qdataItems or runningJobs:
 
-        # Everything is submitted, wait until it's complete
-        _LOG.debug("Wait for all tasks")
-        for qid, res in results.items():
-            if res.ready():
-                _LOG.debug("Result %d is ready", qid)
-            else:
-                _LOG.debug("Waiting for result %d", qid)
-                try:
-                    res.get(self.timeout)
-                except multiprocessing.TimeoutError as exc:
-                    failed_qdata = qdataMap[qid]
-                    raise MPTimeoutError(
-                        f"Timeout ({self.timeout}sec) for task {failed_qdata.taskDef} while processing "
-                        f"quantum with dataId={failed_qdata.quantum.dataId}"
-                    ) from exc
+            _LOG.debug("qdataItems: %s", len(qdataItems))
+            _LOG.debug("runningJobs: %s", len(runningJobs))
+
+            # See if any jobs have finished, updating while iterating so make
+            # a copy of keys.
+            for qid in list(runningJobs.keys()):
+                if results[qid].ready():
+                    _LOG.debug("ready: %s", qid)
+                    # finished
+                    del runningJobs[qid]
+                    try:
+                        results[qid].get()
+                        finishedJobs.add(qid)
+                        _LOG.debug("finished: %s", qid)
+                    except Exception as exc:
+                        _LOG.debug("failed: %s", qid)
+                        if self.failFast:
+                            raise MPGraphExecutorError("Task raised an exception") from exc
+                        else:
+                            failed_qdata = qdataMap[qid]
+                            _LOG.error(
+                                "Task %s generated exception while processing quantum with dataId=%s; "
+                                "processing will continue for remaining tasks.",
+                                failed_qdata.taskDef, failed_qdata.quantum.dataId, exc_info=exc
+                            )
+                            failedJobs.add(qid)
+                else:
+                    # check for timeout
+                    now = time.time()
+                    if now - runningJobs[qid] > self.timeout:
+                        _LOG.debug("timeout: %s", qid)
+                        del runningJobs[qid]
+                        failedJobs.add(qid)
+                        failed_qdata = qdataMap[qid]
+                        if self.failFast:
+                            raise MPTimeoutError(
+                                f"Timeout ({self.timeout}sec) for task {failed_qdata.taskDef} while "
+                                f"processing quantum with dataId={failed_qdata.quantum.dataId}"
+                            )
+                        else:
+                            # have to stop the task but pool has no way to do it
+                            _LOG.error(
+                                "Timeout (%s sec) for task %s while processing quantum with dataId=%s; "
+                                "task is NOT killed but processing continues for remaining tasks.",
+                                self.timeout, failed_qdata.taskDef, failed_qdata.quantum.dataId
+                            )
+
+            # see if we can start more jobs
+            remainingQdataItems = []
+            for qdata in qdataItems:
+
+                # check all dependencies
+                if qdata.dependencies & failedJobs:
+                    # upstream job has failed, skipping this
+                    failedJobs.add(qdata.index)
+                    _LOG.error(
+                        "Upstream job failed for task %s with dataId=%s, skipping this task.",
+                        qdata.taskDef, qdata.quantum.dataId
+                    )
+                elif qdata.dependencies <= finishedJobs:
+                    # all dependencies are completed, start new job
+                    if len(runningJobs) < self.numProc:
+                        _LOG.debug("Sumbitting %s: %s %s", qdata.index, qdata.taskDef, qdata.quantum.dataId)
+                        kwargs = dict(taskDef=qdata.taskDef, quantum=qdata.quantum,
+                                      butler=butler, executor=self.quantumExecutor)
+                        results[qdata.index] = pool.apply_async(self._executePipelineTask, (), kwargs)
+                        qdataMap[qdata.index] = qdata
+                        runningJobs[qdata.index] = time.time()
+                    else:
+                        remainingQdataItems.append(qdata)
+                else:
+                    # need to wait longer
+                    remainingQdataItems.append(qdata)
+            qdataItems = remainingQdataItems
+
+            # Here we want to wait until one of the running jobs completes
+            # but multiprocessing does not provide an API for that, for now
+            # just sleep a little bit and go back to the loop.
+            if runningJobs:
+                time.sleep(0.1)
+
+        # if any job failed raise an exception
+        if failedJobs:
+            raise MPGraphExecutorError("One or more tasks failed or timed out during execution.")
 
     @staticmethod
     def _executePipelineTask(*, taskDef, quantum, butler, executor):
@@ -227,4 +286,4 @@ class MPGraphExecutor(QuantumGraphExecutor):
         executor : `QuantumExecutor`
             Executor for single quantum.
         """
-        return executor.execute(taskDef, quantum, butler)
+        executor.execute(taskDef, quantum, butler)

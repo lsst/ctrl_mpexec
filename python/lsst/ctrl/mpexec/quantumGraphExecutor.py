@@ -52,6 +52,11 @@ class QuantumExecutor(ABC):
             Quantum for this execution.
         butler : `~lsst.daf.butler.Butler`
             Data butler instance
+
+        Notes
+        -----
+        Any exception raised by the task or code that wraps task execution is
+        propagated to the caller of this method.
         """
         raise NotImplementedError
 
@@ -74,7 +79,7 @@ class QuantumGraphExecutor(ABC):
 
         Parameters
         ----------
-        graph : `~lsst.pip.base.QuantumGraph`
+        graph : `~lsst.pipe.base.QuantumGraph`
             Execution graph.
         butler : `~lsst.daf.butler.Butler`
             Data butler instance
