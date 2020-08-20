@@ -393,6 +393,9 @@ def _makeExecOptions(parser):
     group.add_argument("-j", "--processes", type=int, default=1, help="Number of processes to use")
     group.add_argument("--timeout", type=float,
                        help="Timeout for multiprocessing; maximum wall time (sec)")
+    group.add_argument("--fail-fast", action="store_true", default=False,
+                       help="Stop processing at first error, default is to process as many tasks "
+                       "as possible.")
 
     # run-time graph fixup option
     group.add_argument("--graph-fixup", type=str, default=None,

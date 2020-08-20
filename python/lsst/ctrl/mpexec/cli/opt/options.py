@@ -232,3 +232,8 @@ task_option = MWOptionDecorator("-t", "--task",
 
 timeout_option = MWOptionDecorator("--timeout",
                                    help="Timeout for multiprocessing; maximum wall time (sec).")
+
+fail_fast_option = MWOptionDecorator("--fail-fast",
+                                     help=unwrap("""Stop processing at first error, default is to process
+                                                 as many tasks as possible."""),
+                                     is_flag=True)

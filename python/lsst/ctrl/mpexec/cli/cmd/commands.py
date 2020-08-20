@@ -167,6 +167,7 @@ def qgraph(ctx, *args, **kwargs):
 @opt.profile_option()
 @opt.processes_option()
 @opt.timeout_option()
+@opt.fail_fast_option()
 @opt.graph_fixup_option()
 @option_section(sectionText="Meta-information output options:")
 @opt.skip_init_writes_option()
