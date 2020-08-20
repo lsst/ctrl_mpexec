@@ -148,7 +148,7 @@ class MPGraphExecutor(QuantumGraphExecutor):
                                       butler=butler, executor=self.quantumExecutor)
 
     def _executeQuantaMP(self, iterable, butler):
-        """Execute all Quanta in separate process pool.
+        """Execute all Quanta in separate processes.
 
         Parameters
         ----------
@@ -161,10 +161,8 @@ class MPGraphExecutor(QuantumGraphExecutor):
 
         disableImplicitThreading()  # To prevent thread contention
 
-        pool = multiprocessing.Pool(processes=self.numProc, maxtasksperchild=1)
-
         # map quantum id to AsyncResult and QuantumIterData
-        results = {}
+        process = {}
         qdataMap = {}
 
         # we may need to iterate several times so make it a list
@@ -192,25 +190,27 @@ class MPGraphExecutor(QuantumGraphExecutor):
             # See if any jobs have finished, updating while iterating so make
             # a copy of keys.
             for qid in list(runningJobs.keys()):
-                if results[qid].ready():
+                proc = process[qid]
+                if not proc.is_alive():
                     _LOG.debug("ready: %s", qid)
                     # finished
                     del runningJobs[qid]
-                    try:
-                        results[qid].get()
+                    if proc.exitcode == 0:
                         finishedJobs.add(qid)
                         _LOG.debug("finished: %s", qid)
-                    except Exception as exc:
+                    else:
                         _LOG.debug("failed: %s", qid)
+                        failed_qdata = qdataMap[qid]
                         if self.failFast:
-                            raise MPGraphExecutorError("Task raised an exception") from exc
-                        else:
-                            failed_qdata = qdataMap[qid]
-                            _LOG.error(
-                                "Task %s generated exception while processing quantum with dataId=%s; "
-                                "processing will continue for remaining tasks.",
-                                failed_qdata.taskDef, failed_qdata.quantum.dataId, exc_info=exc
+                            raise MPGraphExecutorError(
+                                f"Task {failed_qdata.taskDef} failed while processing quantum with "
+                                f"dataId={failed_qdata.quantum.dataId}, exit code={proc.exitcode}"
                             )
+                        else:
+                            _LOG.error(
+                                "Task %s failed while processing quantum with dataId=%s; "
+                                "processing will continue for remaining tasks.",
+                                failed_qdata.taskDef, failed_qdata.quantum.dataId)
                             failedJobs.add(qid)
                 else:
                     # check for timeout
@@ -226,12 +226,21 @@ class MPGraphExecutor(QuantumGraphExecutor):
                                 f"processing quantum with dataId={failed_qdata.quantum.dataId}"
                             )
                         else:
-                            # have to stop the task but pool has no way to do it
                             _LOG.error(
                                 "Timeout (%s sec) for task %s while processing quantum with dataId=%s; "
-                                "task is NOT killed but processing continues for remaining tasks.",
+                                "task is killed, processing continues for remaining tasks.",
                                 self.timeout, failed_qdata.taskDef, failed_qdata.quantum.dataId
                             )
+                            # try to kill and then kill harder
+                            _LOG.debug("Terminating process %s", proc.name)
+                            proc.terminate()
+                            for i in range(10):
+                                time.sleep(0.1)
+                                if not proc.is_alive():
+                                    break
+                            else:
+                                _LOG.debug("Killing process %s", proc.name)
+                                proc.kill()
 
             # see if we can start more jobs
             remainingQdataItems = []
@@ -251,7 +260,11 @@ class MPGraphExecutor(QuantumGraphExecutor):
                         _LOG.debug("Sumbitting %s: %s %s", qdata.index, qdata.taskDef, qdata.quantum.dataId)
                         kwargs = dict(taskDef=qdata.taskDef, quantum=qdata.quantum,
                                       butler=butler, executor=self.quantumExecutor)
-                        results[qdata.index] = pool.apply_async(self._executePipelineTask, (), kwargs)
+                        process[qdata.index] = multiprocessing.Process(
+                            target=self._executePipelineTask, args=(), kwargs=kwargs,
+                            name=f"task-{qdata.index}"
+                        )
+                        process[qdata.index].start()
                         qdataMap[qdata.index] = qdata
                         runningJobs[qdata.index] = time.time()
                     else:
