@@ -24,6 +24,7 @@ __all__ = ["MPGraphExecutor", "MPGraphExecutorError", "MPTimeoutError"]
 # -------------------------------
 #  Imports of standard modules --
 # -------------------------------
+from enum import Enum
 import logging
 import multiprocessing
 import time
@@ -35,6 +36,133 @@ from .quantumGraphExecutor import QuantumGraphExecutor
 from lsst.base import disableImplicitThreading
 
 _LOG = logging.getLogger(__name__.partition(".")[2])
+
+
+# Possible states for the executing task:
+#  - PENDING: job has not started yet
+#  - RUNNING: job is currently executing
+#  - FINISHED: job finished successfully
+#  - FAILED: job execution failed (process returned non-zero status)
+#  - TIMED_OUT: job is killed due to too long execution time
+#  - FAILED_DEP: one of the dependencies of this job has failed/timed out
+JobState = Enum("JobState", "PENDING RUNNING FINISHED FAILED TIMED_OUT FAILED_DEP")
+
+
+class _Job:
+    """Class representing a job running single task.
+
+    Parameters
+    ----------
+    qdata : `~lsst.pipe.base.QuantumIterData`
+        Quantum and some associated information.
+    """
+    def __init__(self, qdata):
+        self.qdata = qdata
+        self.process = None
+        self.state = JobState.PENDING
+        self.started = None
+
+    def start(self, butler, quantumExecutor):
+        """Start process which runs the task.
+
+        Parameters
+        ----------
+        butler : `lsst.daf.butler.Butler`
+            Data butler instance.
+        quantumExecutor : `QuantumExecutor`
+            Executor for single quantum.
+        """
+        taskDef = self.qdata.taskDef
+        quantum = self.qdata.quantum
+        self.process = multiprocessing.Process(
+            target=quantumExecutor.execute, args=(taskDef, quantum, butler),
+            name=f"task-{self.qdata.index}"
+        )
+        self.process.start()
+        self.started = time.time()
+        self.state = JobState.RUNNING
+
+    def stop(self):
+        """Stop the process.
+        """
+        self.process.terminate()
+        # give it 1 second to finish or KILL
+        for i in range(10):
+            time.sleep(0.1)
+            if not self.process.is_alive():
+                break
+        else:
+            _LOG.debug("Killing process %s", self.process.name)
+            self.process.kill()
+
+    def __str__(self):
+        return f"<{self.qdata.taskDef} dataId={self.qdata.quantum.dataId}>"
+
+
+class _JobList:
+    """SImple list of _Job instances with few convenience methods.
+
+    Parameters
+    ----------
+    iterable : iterable of `~lsst.pipe.base.QuantumIterData`
+        Sequence if Quanta to execute. This has to be ordered according to
+        task dependencies.
+    """
+    def __init__(self, iterable):
+        self.jobs = [_Job(qdata) for qdata in iterable]
+
+    def pending(self):
+        """Return list of jobs that wait for execution.
+
+        Returns
+        -------
+        jobs : `list` [`_Job`]
+            List of jobs.
+        """
+        return [job for job in self.jobs if job.state == JobState.PENDING]
+
+    def running(self):
+        """Return list of jobs that are executing.
+
+        Returns
+        -------
+        jobs : `list` [`_Job`]
+            List of jobs.
+        """
+        return [job for job in self.jobs if job.state == JobState.RUNNING]
+
+    def finishedIds(self):
+        """Return set of jobs IDs that finished successfully (not failed).
+
+        Job ID is the index of the corresponding quantum.
+
+        Returns
+        -------
+        jobsIds : `set` [`int`]
+            Set of integer job IDs.
+        """
+        return set(job.qdata.index for job in self.jobs if job.state == JobState.FINISHED)
+
+    def failedIds(self):
+        """Return set of jobs IDs that failed for any reason.
+
+        Returns
+        -------
+        jobsIds : `set` [`int`]
+            Set of integer job IDs.
+        """
+        return set(job.qdata.index for job in self.jobs
+                   if job.state in (JobState.FAILED, JobState.FAILED_DEP, JobState.TIMED_OUT))
+
+    def timedOutIds(self):
+        """Return set of jobs IDs that timed out.
+
+        Returns
+        -------
+        jobsIds : `set` [`int`]
+            Set of integer job IDs.
+        """
+        return set(job.qdata.index for job in self.jobs if job.state == JobState.TIMED_OUT)
 
 
 class MPGraphExecutorError(Exception):
@@ -144,8 +272,7 @@ class MPGraphExecutor(QuantumGraphExecutor):
         """
         for qdata in iterable:
             _LOG.debug("Executing %s", qdata)
-            self._executePipelineTask(taskDef=qdata.taskDef, quantum=qdata.quantum,
-                                      butler=butler, executor=self.quantumExecutor)
+            self.quantumExecutor.execute(qdata.taskDef, qdata.quantum, butler)
 
     def _executeQuantaMP(self, iterable, butler):
         """Execute all Quanta in separate processes.
@@ -161,142 +288,85 @@ class MPGraphExecutor(QuantumGraphExecutor):
 
         disableImplicitThreading()  # To prevent thread contention
 
-        # map quantum id to AsyncResult and QuantumIterData
-        process = {}
-        qdataMap = {}
-
-        # we may need to iterate several times so make it a list
-        qdataItems = list(iterable)
+        # re-pack input quantum data into jobs list
+        jobs = _JobList(iterable)
 
         # check that all tasks can run in sub-process
-        for qdata in qdataItems:
-            taskDef = qdata.taskDef
+        for job in jobs.jobs:
+            taskDef = job.qdata.taskDef
             if not taskDef.taskClass.canMultiprocess:
                 raise MPGraphExecutorError(f"Task {taskDef.taskName} does not support multiprocessing;"
                                            " use single process")
 
-        # quantum ids which are processing and start time for each
-        runningJobs = {}
-        # quantum ids which finished successfully
-        finishedJobs = set()
-        # quantum ids which failed
-        failedJobs = set()
+        while jobs.pending() or jobs.running():
 
-        while qdataItems or runningJobs:
+            _LOG.debug("#pendingJobs: %s", len(jobs.pending()))
+            _LOG.debug("#runningJobs: %s", len(jobs.running()))
 
-            _LOG.debug("qdataItems: %s", len(qdataItems))
-            _LOG.debug("runningJobs: %s", len(runningJobs))
-
-            # See if any jobs have finished, updating while iterating so make
-            # a copy of keys.
-            for qid in list(runningJobs.keys()):
-                proc = process[qid]
+            # See if any jobs have finished
+            for job in jobs.running():
+                proc = job.process
                 if not proc.is_alive():
-                    _LOG.debug("ready: %s", qid)
+                    _LOG.debug("finished: %s", job)
                     # finished
-                    del runningJobs[qid]
                     if proc.exitcode == 0:
-                        finishedJobs.add(qid)
-                        _LOG.debug("finished: %s", qid)
+                        job.state = JobState.FINISHED
+                        _LOG.debug("success: %s", job)
                     else:
-                        _LOG.debug("failed: %s", qid)
-                        failed_qdata = qdataMap[qid]
+                        job.state = JobState.FAILED
+                        _LOG.debug("failed: %s", job)
                         if self.failFast:
                             raise MPGraphExecutorError(
-                                f"Task {failed_qdata.taskDef} failed while processing quantum with "
-                                f"dataId={failed_qdata.quantum.dataId}, exit code={proc.exitcode}"
+                                f"Task {job} failed, exit code={proc.exitcode}."
                             )
                         else:
                             _LOG.error(
-                                "Task %s failed while processing quantum with dataId=%s; "
-                                "processing will continue for remaining tasks.",
-                                failed_qdata.taskDef, failed_qdata.quantum.dataId)
-                            failedJobs.add(qid)
+                                "Task %s failed; processing will continue for remaining tasks.", job
+                            )
                 else:
                     # check for timeout
                     now = time.time()
-                    if now - runningJobs[qid] > self.timeout:
-                        _LOG.debug("timeout: %s", qid)
-                        del runningJobs[qid]
-                        failedJobs.add(qid)
-                        failed_qdata = qdataMap[qid]
+                    if now - job.started > self.timeout:
+                        job.state = JobState.TIMED_OUT
+                        _LOG.debug("Terminating job %s due to timeout", job)
+                        job.stop()
                         if self.failFast:
-                            raise MPTimeoutError(
-                                f"Timeout ({self.timeout}sec) for task {failed_qdata.taskDef} while "
-                                f"processing quantum with dataId={failed_qdata.quantum.dataId}"
-                            )
+                            raise MPTimeoutError(f"Timeout ({self.timeout} sec) for task {job}.")
                         else:
                             _LOG.error(
-                                "Timeout (%s sec) for task %s while processing quantum with dataId=%s; "
-                                "task is killed, processing continues for remaining tasks.",
-                                self.timeout, failed_qdata.taskDef, failed_qdata.quantum.dataId
+                                "Timeout (%s sec) for task %s; task is killed, processing continues "
+                                "for remaining tasks.", self.timeout, job
                             )
-                            # try to kill and then kill harder
-                            _LOG.debug("Terminating process %s", proc.name)
-                            proc.terminate()
-                            for i in range(10):
-                                time.sleep(0.1)
-                                if not proc.is_alive():
-                                    break
-                            else:
-                                _LOG.debug("Killing process %s", proc.name)
-                                proc.kill()
 
             # see if we can start more jobs
-            remainingQdataItems = []
-            for qdata in qdataItems:
+            for job in jobs.pending():
 
                 # check all dependencies
-                if qdata.dependencies & failedJobs:
+                if job.qdata.dependencies & jobs.failedIds():
                     # upstream job has failed, skipping this
-                    failedJobs.add(qdata.index)
-                    _LOG.error(
-                        "Upstream job failed for task %s with dataId=%s, skipping this task.",
-                        qdata.taskDef, qdata.quantum.dataId
-                    )
-                elif qdata.dependencies <= finishedJobs:
-                    # all dependencies are completed, start new job
-                    if len(runningJobs) < self.numProc:
-                        _LOG.debug("Sumbitting %s: %s %s", qdata.index, qdata.taskDef, qdata.quantum.dataId)
-                        kwargs = dict(taskDef=qdata.taskDef, quantum=qdata.quantum,
-                                      butler=butler, executor=self.quantumExecutor)
-                        process[qdata.index] = multiprocessing.Process(
-                            target=self._executePipelineTask, args=(), kwargs=kwargs,
-                            name=f"task-{qdata.index}"
-                        )
-                        process[qdata.index].start()
-                        qdataMap[qdata.index] = qdata
-                        runningJobs[qdata.index] = time.time()
-                    else:
-                        remainingQdataItems.append(qdata)
-                else:
-                    # need to wait longer
-                    remainingQdataItems.append(qdata)
-            qdataItems = remainingQdataItems
+                    job.state = JobState.FAILED_DEP
+                    _LOG.error("Upstream job failed for task %s, skipping this task.", job)
+                elif job.qdata.dependencies <= jobs.finishedIds():
+                    # all dependencies have completed, can start new job
+                    if len(jobs.running()) < self.numProc:
+                        _LOG.debug("Sumbitting %s", job)
+                        job.start(butler, self.quantumExecutor)
 
             # Here we want to wait until one of the running jobs completes
             # but multiprocessing does not provide an API for that, for now
             # just sleep a little bit and go back to the loop.
-            if runningJobs:
+            if jobs.running():
                 time.sleep(0.1)
 
-        # if any job failed raise an exception
-        if failedJobs:
-            raise MPGraphExecutorError("One or more tasks failed or timed out during execution.")
+        if jobs.failedIds():
+            # print list of failed jobs
+            _LOG.error("Failed jobs:")
+            for job in jobs.jobs:
+                if job.state != JobState.FINISHED:
+                    _LOG.error("  - %s: %s", job.state, job)
 
-    @staticmethod
-    def _executePipelineTask(*, taskDef, quantum, butler, executor):
-        """Execute PipelineTask on a single data item.
-
-        Parameters
-        ----------
-        taskDef : `~lsst.pipe.base.TaskDef`
-            Task definition structure.
-        quantum : `~lsst.daf.butler.Quantum`
-            Quantum for this execution.
-        butler : `~lsst.daf.butler.Butler`
-            Data butler instance.
-        executor : `QuantumExecutor`
-            Executor for single quantum.
-        """
-        executor.execute(taskDef, quantum, butler)
+            # if any job failed raise an exception
+            if jobs.failedIds() == jobs.timedOutIds():
+                raise MPTimeoutError("One or more tasks timed out during execution.")
+            else:
+                raise MPGraphExecutorError("One or more tasks failed or timed out during execution.")

@@ -218,7 +218,7 @@ class MPGraphExecutorTestCase(unittest.TestCase):
         # with failFast=False exception happens after last task finishes
         qexec = QuantumExecutorMock(mp=True)
         mpexec = MPGraphExecutor(numProc=3, timeout=1, quantumExecutor=qexec, failFast=False)
-        with self.assertRaises(MPGraphExecutorError):
+        with self.assertRaises(MPTimeoutError):
             mpexec.execute(qgraph, butler=None)
         self.assertCountEqual(qexec.getDataIds("detector"), [0, 2])
 
