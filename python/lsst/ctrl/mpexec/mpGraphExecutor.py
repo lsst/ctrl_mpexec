@@ -24,6 +24,7 @@ __all__ = ["MPGraphExecutor", "MPGraphExecutorError", "MPTimeoutError"]
 # -------------------------------
 #  Imports of standard modules --
 # -------------------------------
+import copy
 from enum import Enum
 import logging
 import multiprocessing
@@ -72,6 +73,10 @@ class _Job:
         quantumExecutor : `QuantumExecutor`
             Executor for single quantum.
         """
+        # Butler can have live database connections which is a problem with
+        # fork-type activation. Make a copy of butler, this guarantees that
+        # no database is open right after copy.
+        butler = copy.copy(butler)
         taskDef = self.qdata.taskDef
         quantum = self.qdata.quantum
         self.process = multiprocessing.Process(
