@@ -26,8 +26,7 @@ from ... import CmdLineFwk
 from ...cmdLineParser import _PipelineAction
 
 
-def build(order_pipeline=None, pipeline=None, pipeline_actions=(), pipeline_dot=None, save_pipeline=None,
-          show=(), log_level=None):
+def build(order_pipeline, pipeline, pipeline_actions, pipeline_dot, save_pipeline, show, log_level, **kwargs):
     """Implements the command line interface `pipetask build` subcommand,
     should only be called by command line tools and unit test code that tests
     this function.
@@ -52,6 +51,15 @@ def build(order_pipeline=None, pipeline=None, pipeline_actions=(), pipeline_dot=
         Path location for storing resulting pipeline definition in YAML format.
     show : `list` [`str`]
         Descriptions of what to dump to stdout.
+    log_level : `list` of `tuple`
+        Per-component logging levels, each item in the list is a tuple
+        (component, level), `component` is a logger name or an empty string
+        or `None` for root logger, `level` is a logging level name, one of
+        CRITICAL, ERROR, WARNING, INFO, DEBUG (case insensitive).
+    kwargs : `dict` [`str`, `str`]
+        Ignored; click commands may accept options for more than one script
+        function and pass all the option kwargs to each of the script functions
+        which ingore these unused kwargs.
 
     Returns
     -------

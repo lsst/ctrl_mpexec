@@ -28,17 +28,16 @@ from ... import CmdLineFwk
 _log = logging.getLogger(__name__.partition(".")[2])
 
 
-def qgraph(pipeline=None, log_level=(), qgraph=None, skip_existing=False, save_qgraph=None,
-           save_single_quanta=None, qgraph_dot=None, butler_config=None, input=list(), output=None,
-           output_run=None, extend_run=False, replace_run=False, prune_replaced=None, data_query="",
-           show=None):
+def qgraph(pipelineObj, log_level, qgraph, skip_existing, save_qgraph, save_single_quanta, qgraph_dot,
+           butler_config, input, output, output_run, extend_run, replace_run, prune_replaced, data_query,
+           show, **kwargs):
     """Implements the command line interface `pipetask qgraph` subcommand,
     should only be called by command line tools and unit test code that test
     this function.
 
     Parameters
     ----------
-    pipeline : `pipe.base.Pipeline` or None.
+    pipelineObj : `pipe.base.Pipeline` or None.
         The pipeline object used to generate a qgraph. If this is not `None`
         then `qgraph` should be `None`.
     log_level : `list` of `tuple`
@@ -102,6 +101,10 @@ def qgraph(pipeline=None, log_level=(), qgraph=None, skip_existing=False, save_q
         User query selection expression.
     show : `list` [`str`] or `None`
         Descriptions of what to dump to stdout.
+    kwargs : `dict` [`str`, `str`]
+        Ignored; click commands may accept options for more than one script
+        function and pass all the option kwargs to each of the script functions
+        which ingore these unused kwargs.
 
     Returns
     -------
@@ -127,10 +130,10 @@ def qgraph(pipeline=None, log_level=(), qgraph=None, skip_existing=False, save_q
                            skip_existing=skip_existing)
 
     f = CmdLineFwk()
-    qgraph = f.makeGraph(pipeline, args)
+    qgraph = f.makeGraph(pipelineObj, args)
 
     # optionally dump some info.
     if show:
-        f.showInfo(args, pipeline, qgraph)
+        f.showInfo(args, pipelineObj, qgraph)
 
     return qgraph
