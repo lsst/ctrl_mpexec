@@ -20,6 +20,7 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 import logging
+from types import SimpleNamespace
 
 from lsst.daf.butler.cli.cliLog import CliLog
 from ... import CmdLineFwk
@@ -110,34 +111,20 @@ def qgraph(pipeline=None, log_level=(), qgraph=None, skip_existing=False, save_q
     if log_level is not None:
         CliLog.setLogLevels(log_level)
 
-    class MakeGraphArgs:
-        """A container class for arguments to CmdLineFwk.makeGraph, whose
-        API (currently) is written to accept inputs from argparse in a generic
-        container class.
-        """
-
-        def __init__(self, qgraph, save_qgraph, save_single_quanta, qgraph_dot, butler_config, input, output,
-                     output_run, extend_run, replace_run, prune_replaced, data_query, show, skip_existing):
-            self.qgraph = qgraph
-            self.save_qgraph = save_qgraph
-            self.save_single_quanta = save_single_quanta
-            self.qgraph_dot = qgraph_dot
-            self.butler_config = butler_config
-            self.input = input
-            self.output = output
-            self.output_run = output_run
-            self.extend_run = extend_run
-            self.replace_run = replace_run
-            self.prune_replaced = prune_replaced
-            self.data_query = data_query
-            self.show = show
-            self.skip_existing = skip_existing
-
-    args = MakeGraphArgs(qgraph=qgraph, save_qgraph=save_qgraph, save_single_quanta=save_single_quanta,
-                         qgraph_dot=qgraph_dot, butler_config=butler_config, input=input, output=output,
-                         output_run=output_run, extend_run=extend_run, replace_run=replace_run,
-                         prune_replaced=prune_replaced, data_query=data_query, show=show,
-                         skip_existing=skip_existing)
+    args = SimpleNamespace(qgraph=qgraph,
+                           save_qgraph=save_qgraph,
+                           save_single_quanta=save_single_quanta,
+                           qgraph_dot=qgraph_dot,
+                           butler_config=butler_config,
+                           input=input,
+                           output=output,
+                           output_run=output_run,
+                           extend_run=extend_run,
+                           replace_run=replace_run,
+                           prune_replaced=prune_replaced,
+                           data_query=data_query,
+                           show=show,
+                           skip_existing=skip_existing)
 
     f = CmdLineFwk()
     qgraph = f.makeGraph(pipeline, args)

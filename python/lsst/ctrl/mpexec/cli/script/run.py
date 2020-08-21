@@ -20,6 +20,7 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 import logging
+from types import SimpleNamespace
 
 from lsst.daf.butler.cli.cliLog import CliLog
 from ... import CmdLineFwk, TaskFactory
@@ -136,60 +137,26 @@ def run(do_raise,
     if log_level is not None:
         CliLog.setLogLevels(log_level)
 
-    class RunArgs:
-        """A container class for arguments to CmdLineFwk.runPipeline, whose
-        API (currently) is written to accept inputs from argparse in a generic
-        container class.
-        """
-
-        def __init__(self,
-                     do_raise,
-                     graph_fixup,
-                     init_only,
-                     no_versions,
-                     processes,
-                     profile,
-                     skip_init_writes,
-                     timeout,
-                     register_dataset_types,
-                     butler_config,
-                     input,
-                     output,
-                     output_run,
-                     extend_run,
-                     replace_run,
-                     prune_replaced,
-                     data_query,
-                     skip_existing,
-                     debug,
-                     fail_fast):
-            self.do_raise = do_raise
-            self.graph_fixup = graph_fixup
-            self.init_only = init_only
-            self.no_versions = no_versions
-            self.processes = processes
-            self.profile = profile
-            self.skip_init_writes = skip_init_writes
-            self.timeout = timeout
-            self.register_dataset_types = register_dataset_types
-            self.butler_config = butler_config
-            self.input = input
-            self.output = output
-            self.output_run = output_run
-            self.extend_run = extend_run
-            self.replace_run = replace_run
-            self.prune_replaced = prune_replaced
-            self.data_query = data_query
-            self.skip_existing = skip_existing
-            self.enableLsstDebug = debug
-            self.fail_fast = fail_fast
-
-    args = RunArgs(do_raise=do_raise, graph_fixup=graph_fixup, init_only=init_only, no_versions=no_versions,
-                   processes=processes, profile=profile, skip_init_writes=skip_init_writes, timeout=timeout,
-                   register_dataset_types=register_dataset_types, butler_config=butler_config, input=input,
-                   output=output, output_run=output_run, extend_run=extend_run, replace_run=replace_run,
-                   prune_replaced=prune_replaced, data_query=data_query, skip_existing=skip_existing,
-                   debug=debug, fail_fast=fail_fast)
+    args = SimpleNamespace(do_raise=do_raise,
+                           graph_fixup=graph_fixup,
+                           init_only=init_only,
+                           no_versions=no_versions,
+                           processes=processes,
+                           profile=profile,
+                           skip_init_writes=skip_init_writes,
+                           timeout=timeout,
+                           register_dataset_types=register_dataset_types,
+                           butler_config=butler_config,
+                           input=input,
+                           output=output,
+                           output_run=output_run,
+                           extend_run=extend_run,
+                           replace_run=replace_run,
+                           prune_replaced=prune_replaced,
+                           data_query=data_query,
+                           skip_existing=skip_existing,
+                           enableLsstDebug=debug,
+                           fail_fast=fail_fast)
 
     f = CmdLineFwk()
     taskFactory = TaskFactory()

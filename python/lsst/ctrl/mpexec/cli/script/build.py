@@ -19,6 +19,8 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+from types import SimpleNamespace
+
 from lsst.daf.butler.cli.cliLog import CliLog
 from ... import CmdLineFwk
 from ...cmdLineParser import _PipelineAction
@@ -71,34 +73,17 @@ def build(order_pipeline=None, pipeline=None, pipeline_actions=(), pipeline_dot=
     if log_level is not None:
         CliLog.setLogLevels(log_level)
 
-    class MakePipelineArgs:
-        """A container class for arguments to CmdLineFwk.makePipeline, whose
-        API (currently) is written to accept inputs from argparse in a generic
-        container class.
-        """
-        def __init__(self, pipeline, pipeline_actions, pipeline_dot, save_pipeline):
-            self.pipeline = pipeline
-            self.pipeline_dot = pipeline_dot
-            self.save_pipeline = save_pipeline
-            self.pipeline_actions = pipeline_actions
-
-    args = MakePipelineArgs(pipeline, pipeline_actions, pipeline_dot, save_pipeline)
+    args = SimpleNamespace(pipeline=pipeline,
+                           pipeline_actions=pipeline_actions,
+                           pipeline_dot=pipeline_dot,
+                           save_pipeline=save_pipeline)
 
     f = CmdLineFwk()
 
     # Will raise an exception if it fails to build the pipeline.
     pipeline = f.makePipeline(args)
 
-    class ShowInfoArgs:
-        """A container class for arguments to CmdLineFwk.showInfo, whose
-        API (currently) is written to accept inputs from argparse in a generic
-        container class.
-        """
-
-        def __init__(self, show):
-            self.show = show
-
-    args = ShowInfoArgs(show)
+    args = SimpleNamespace(show=show)
     f.showInfo(args, pipeline)
 
     return pipeline
