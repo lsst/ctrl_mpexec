@@ -107,13 +107,6 @@ def qgraph(pipeline=None, log_level=(), qgraph=None, skip_existing=False, save_q
     qgraph : `lsst.pipe.base.QuantumGraph`
         The qgraph object that was created.
     """
-    # if pipeline is not None and qgraph is not None:
-    #     raise ClickException(
-    #         "Do not pass '--qgraph' file location if running 'build' command before 'qgraph'.")
-    # if pipeline is None and qgraph is None:
-    #     raise ClickException(  # or, could make an anonymous pipeline...?
-    #         "Run 'build' command before 'qgraph' or provide a serialzed qgraph file location.")
-
     if log_level is not None:
         CliLog.setLogLevels(log_level)
 
