@@ -23,7 +23,6 @@ import click
 
 from lsst.daf.butler.cli.butler import LoaderCLI
 from lsst.daf.butler.cli.opt import log_level_option, long_log_option
-from lsst.daf.butler.cli.utils import ForwardOptions
 
 
 class PipetaskCLI(LoaderCLI):
@@ -31,34 +30,13 @@ class PipetaskCLI(LoaderCLI):
     localCmdPkg = "lsst.ctrl.mpexec.cli.cmd"
 
 
-@click.command(cls=PipetaskCLI, chain=True, context_settings=dict(help_option_names=["-h", "--help"]))
+@click.command(cls=PipetaskCLI, context_settings=dict(help_option_names=["-h", "--help"]))
 @log_level_option()
 @long_log_option()
 def cli(log_level, long_log):
     # log_level is handled by get_command and list_commands, and is called in
     # one of those functions before this is called.
     pass
-
-
-class PipetaskObjects:
-    def __init__(self):
-
-        # The pipeline object that gets created by a subcommand
-        self.pipeline = None
-
-        # The qgraph object that gets created by a subcommand
-        self.qgraph = None
-
-        # The arguments used to initialize a butler in a subcommand, can be
-        # used by subsequent subcommands.
-        self.butlerArgs = ForwardOptions()
-
-
-@cli.resultcallback()
-def processPipeline(processors, log_level, long_log):
-    objs = PipetaskObjects()
-    for processor in processors:
-        objs = processor(objs)
 
 
 def main():
