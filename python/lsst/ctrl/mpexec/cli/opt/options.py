@@ -35,7 +35,8 @@ data_query_option = MWOptionDecorator("-d", "--data-query",
 
 
 debug_option = MWOptionDecorator("--debug",
-                                 help="Enable debugging output using lsstDebug facility (imports debug.py).")
+                                 help="Enable debugging output using lsstDebug facility (imports debug.py).",
+                                 is_flag=True)
 
 
 delete_option = MWOptionDecorator("--delete",
