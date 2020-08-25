@@ -19,11 +19,12 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+import click
 import os
 import tempfile
 import unittest
 
-from lsst.ctrl.mpexec.cli import script
+from lsst.ctrl.mpexec.cli import script, opt
 from lsst.ctrl.mpexec.cli.pipetask import cli as pipetaskCli
 from lsst.daf.butler.cli.utils import clickResultMsg, LogCliRunner
 from lsst.pipe.base import Pipeline
@@ -34,10 +35,22 @@ class BuildTestCase(unittest.TestCase):
     """Test a few of the inputs to the build script function to test basic
     funcitonality."""
 
+    @staticmethod
+    def buildArgs(**kwargs):
+        defaultArgs = dict(log_level=(),
+                           order_pipeline=False,
+                           pipeline=None,
+                           pipeline_actions=(),
+                           pipeline_dot=None,
+                           save_pipeline=None,
+                           show=())
+        defaultArgs.update(kwargs)
+        return defaultArgs
+
     def testMakeEmptyPipeline(self):
         """Test building a pipeline with default arguments.
         """
-        pipeline = script.build()
+        pipeline = script.build(**self.buildArgs())
         self.assertIsInstance(pipeline, Pipeline)
         self.assertEqual(len(pipeline), 0)
 
@@ -46,11 +59,11 @@ class BuildTestCase(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tempdir:
             # make empty pipeline and store it in a file
             filename = os.path.join(tempdir, "pipeline")
-            pipeline = script.build(save_pipeline=filename)
+            pipeline = script.build(**self.buildArgs(filename=filename))
             self.assertIsInstance(pipeline, Pipeline)
 
             # read pipeline from a file
-            pipeline = script.build(pipeline=filename)
+            pipeline = script.build(**self.buildArgs(filename=filename))
             self.assertIsInstance(pipeline, Pipeline)
             self.assertIsInstance(pipeline, Pipeline)
             self.assertEqual(len(pipeline), 0)
@@ -102,6 +115,57 @@ config.connections.initout='add_init_output'"""),
             self.assertEqual(result.exit_code, 0, clickResultMsg(result))
             if showInfo.expectedOutput is not None:
                 self.assertIn(showInfo.expectedOutput, result.output, msg=f"for {showInfo}")
+
+    def testMissingOption(self):
+        """Test that if options for the build script are missing that it fails.
+        """
+
+        @click.command()
+        @opt.pipeline_build_options()
+        def cli(**kwargs):
+            script.build(**kwargs)
+
+        runner = click.testing.CliRunner()
+        result = runner.invoke(cli)
+        # The cli call should fail, because script.build takes more options
+        # than are defined by pipeline_build_options.
+        self.assertNotEqual(result.exit_code, 0)
+
+
+class QgraphTestCase(unittest.TestCase):
+
+    def testMissingOption(self):
+        """Test that if options for the qgraph script are missing that it
+        fails."""
+
+        @click.command()
+        @opt.pipeline_build_options()
+        def cli(**kwargs):
+            script.qgraph(**kwargs)
+
+        runner = click.testing.CliRunner()
+        result = runner.invoke(cli)
+        # The cli call should fail, because qgraph.build takes more options
+        # than are defined by pipeline_build_options.
+        self.assertNotEqual(result.exit_code, 0)
+
+
+class RunTestCase(unittest.TestCase):
+
+    def testMissingOption(self):
+        """Test that if options for the run script are missing that it
+        fails."""
+
+        @click.command()
+        @opt.pipeline_build_options()
+        def cli(**kwargs):
+            script.run(**kwargs)
+
+        runner = click.testing.CliRunner()
+        result = runner.invoke(cli)
+        # The cli call should fail, because qgraph.run takes more options
+        # than are defined by pipeline_build_options.
+        self.assertNotEqual(result.exit_code, 0)
 
 
 if __name__ == "__main__":

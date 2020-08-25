@@ -25,8 +25,7 @@ from lsst.daf.butler.cli.utils import MWOptionDecorator, MWPath, split_commas, u
 
 
 butler_config_option = MWOptionDecorator("-b", "--butler-config",
-                                         help="Location of the gen3 butler/registry config file.",
-                                         type=MWPath(dir_okay=False, file_okay=True, readable=True))
+                                         help="Location of the gen3 butler/registry config file.")
 
 
 data_query_option = MWOptionDecorator("-d", "--data-query",
@@ -35,7 +34,8 @@ data_query_option = MWOptionDecorator("-d", "--data-query",
 
 
 debug_option = MWOptionDecorator("--debug",
-                                 help="Enable debugging output using lsstDebug facility (imports debug.py).")
+                                 help="Enable debugging output using lsstDebug facility (imports debug.py).",
+                                 is_flag=True)
 
 
 delete_option = MWOptionDecorator("--delete",

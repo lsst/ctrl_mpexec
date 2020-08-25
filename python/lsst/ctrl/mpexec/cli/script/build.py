@@ -19,13 +19,14 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+from types import SimpleNamespace
+
 from lsst.daf.butler.cli.cliLog import CliLog
 from ... import CmdLineFwk
 from ...cmdLineParser import _PipelineAction
 
 
-def build(order_pipeline=None, pipeline=None, pipeline_actions=(), pipeline_dot=None, save_pipeline=None,
-          show=(), log_level=None):
+def build(order_pipeline, pipeline, pipeline_actions, pipeline_dot, save_pipeline, show, log_level, **kwargs):
     """Implements the command line interface `pipetask build` subcommand,
     should only be called by command line tools and unit test code that tests
     this function.
@@ -50,6 +51,15 @@ def build(order_pipeline=None, pipeline=None, pipeline_actions=(), pipeline_dot=
         Path location for storing resulting pipeline definition in YAML format.
     show : `list` [`str`]
         Descriptions of what to dump to stdout.
+    log_level : `list` of `tuple`
+        Per-component logging levels, each item in the list is a tuple
+        (component, level), `component` is a logger name or an empty string
+        or `None` for root logger, `level` is a logging level name, one of
+        CRITICAL, ERROR, WARNING, INFO, DEBUG (case insensitive).
+    kwargs : `dict` [`str`, `str`]
+        Ignored; click commands may accept options for more than one script
+        function and pass all the option kwargs to each of the script functions
+        which ingore these unused kwargs.
 
     Returns
     -------
@@ -71,34 +81,17 @@ def build(order_pipeline=None, pipeline=None, pipeline_actions=(), pipeline_dot=
     if log_level is not None:
         CliLog.setLogLevels(log_level)
 
-    class MakePipelineArgs:
-        """A container class for arguments to CmdLineFwk.makePipeline, whose
-        API (currently) is written to accept inputs from argparse in a generic
-        container class.
-        """
-        def __init__(self, pipeline, pipeline_actions, pipeline_dot, save_pipeline):
-            self.pipeline = pipeline
-            self.pipeline_dot = pipeline_dot
-            self.save_pipeline = save_pipeline
-            self.pipeline_actions = pipeline_actions
-
-    args = MakePipelineArgs(pipeline, pipeline_actions, pipeline_dot, save_pipeline)
+    args = SimpleNamespace(pipeline=pipeline,
+                           pipeline_actions=pipeline_actions,
+                           pipeline_dot=pipeline_dot,
+                           save_pipeline=save_pipeline)
 
     f = CmdLineFwk()
 
     # Will raise an exception if it fails to build the pipeline.
     pipeline = f.makePipeline(args)
 
-    class ShowInfoArgs:
-        """A container class for arguments to CmdLineFwk.showInfo, whose
-        API (currently) is written to accept inputs from argparse in a generic
-        container class.
-        """
-
-        def __init__(self, show):
-            self.show = show
-
-    args = ShowInfoArgs(show)
+    args = SimpleNamespace(show=show)
     f.showInfo(args, pipeline)
 
     return pipeline

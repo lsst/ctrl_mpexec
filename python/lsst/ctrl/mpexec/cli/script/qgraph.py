@@ -20,6 +20,7 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 import logging
+from types import SimpleNamespace
 
 from lsst.daf.butler.cli.cliLog import CliLog
 from ... import CmdLineFwk
@@ -27,17 +28,16 @@ from ... import CmdLineFwk
 _log = logging.getLogger(__name__.partition(".")[2])
 
 
-def qgraph(pipeline=None, log_level=(), qgraph=None, skip_existing=False, save_qgraph=None,
-           save_single_quanta=None, qgraph_dot=None, butler_config=None, input=list(), output=None,
-           output_run=None, extend_run=False, replace_run=False, prune_replaced=None, data_query="",
-           show=None):
+def qgraph(pipelineObj, log_level, qgraph, skip_existing, save_qgraph, save_single_quanta, qgraph_dot,
+           butler_config, input, output, output_run, extend_run, replace_run, prune_replaced, data_query,
+           show, **kwargs):
     """Implements the command line interface `pipetask qgraph` subcommand,
     should only be called by command line tools and unit test code that test
     this function.
 
     Parameters
     ----------
-    pipeline : `pipe.base.Pipeline` or None.
+    pipelineObj : `pipe.base.Pipeline` or None.
         The pipeline object used to generate a qgraph. If this is not `None`
         then `qgraph` should be `None`.
     log_level : `list` of `tuple`
@@ -101,56 +101,39 @@ def qgraph(pipeline=None, log_level=(), qgraph=None, skip_existing=False, save_q
         User query selection expression.
     show : `list` [`str`] or `None`
         Descriptions of what to dump to stdout.
+    kwargs : `dict` [`str`, `str`]
+        Ignored; click commands may accept options for more than one script
+        function and pass all the option kwargs to each of the script functions
+        which ingore these unused kwargs.
 
     Returns
     -------
     qgraph : `lsst.pipe.base.QuantumGraph`
         The qgraph object that was created.
     """
-    # if pipeline is not None and qgraph is not None:
-    #     raise ClickException(
-    #         "Do not pass '--qgraph' file location if running 'build' command before 'qgraph'.")
-    # if pipeline is None and qgraph is None:
-    #     raise ClickException(  # or, could make an anonymous pipeline...?
-    #         "Run 'build' command before 'qgraph' or provide a serialzed qgraph file location.")
-
     if log_level is not None:
         CliLog.setLogLevels(log_level)
 
-    class MakeGraphArgs:
-        """A container class for arguments to CmdLineFwk.makeGraph, whose
-        API (currently) is written to accept inputs from argparse in a generic
-        container class.
-        """
-
-        def __init__(self, qgraph, save_qgraph, save_single_quanta, qgraph_dot, butler_config, input, output,
-                     output_run, extend_run, replace_run, prune_replaced, data_query, show, skip_existing):
-            self.qgraph = qgraph
-            self.save_qgraph = save_qgraph
-            self.save_single_quanta = save_single_quanta
-            self.qgraph_dot = qgraph_dot
-            self.butler_config = butler_config
-            self.input = input
-            self.output = output
-            self.output_run = output_run
-            self.extend_run = extend_run
-            self.replace_run = replace_run
-            self.prune_replaced = prune_replaced
-            self.data_query = data_query
-            self.show = show
-            self.skip_existing = skip_existing
-
-    args = MakeGraphArgs(qgraph=qgraph, save_qgraph=save_qgraph, save_single_quanta=save_single_quanta,
-                         qgraph_dot=qgraph_dot, butler_config=butler_config, input=input, output=output,
-                         output_run=output_run, extend_run=extend_run, replace_run=replace_run,
-                         prune_replaced=prune_replaced, data_query=data_query, show=show,
-                         skip_existing=skip_existing)
+    args = SimpleNamespace(qgraph=qgraph,
+                           save_qgraph=save_qgraph,
+                           save_single_quanta=save_single_quanta,
+                           qgraph_dot=qgraph_dot,
+                           butler_config=butler_config,
+                           input=input,
+                           output=output,
+                           output_run=output_run,
+                           extend_run=extend_run,
+                           replace_run=replace_run,
+                           prune_replaced=prune_replaced,
+                           data_query=data_query,
+                           show=show,
+                           skip_existing=skip_existing)
 
     f = CmdLineFwk()
-    qgraph = f.makeGraph(pipeline, args)
+    qgraph = f.makeGraph(pipelineObj, args)
 
     # optionally dump some info.
     if show:
-        f.showInfo(args, pipeline, qgraph)
+        f.showInfo(args, pipelineObj, qgraph)
 
     return qgraph
