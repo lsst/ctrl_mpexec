@@ -1,0 +1,27 @@
+#!/usr/bin/env python
+
+import argparse
+from base64 import b64decode
+
+# Copy this for now until the main copy is updated
+import pickle
+import zlib
+
+from lsst.ctrl.mpexec import SingleQuantumExecutor, TaskFactory
+from lsst.pipe.base import graphNew
+
+
+parser = argparse.ArgumentParser(description="Script to run init in a cwl workflow")
+parser.add_argument("quantum", type=str, help="pickle string of a quantum")
+parser.add_argument("butler", type=str, help="pickle string for the butler")
+parser.add_argument("--deps", help="this is unneeded but is here for the cwl dependency system")
+
+args = parser.parse_args()
+
+quantum = pickle.loads(zlib.decompress(b64decode(args.quantum)))
+butler = pickle.loads(b64decode(args.butler))
+
+tf = TaskFactory()
+
+executor = SingleQuantumExecutor(tf)
+executor.execute(quantum.taskDef, quantum.quantum, butler)
