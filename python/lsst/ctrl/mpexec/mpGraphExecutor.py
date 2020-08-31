@@ -24,10 +24,10 @@ __all__ = ["MPGraphExecutor", "MPGraphExecutorError", "MPTimeoutError"]
 # -------------------------------
 #  Imports of standard modules --
 # -------------------------------
-import copy
 from enum import Enum
 import logging
 import multiprocessing
+import pickle
 import time
 
 # -----------------------------
@@ -74,18 +74,36 @@ class _Job:
             Executor for single quantum.
         """
         # Butler can have live database connections which is a problem with
-        # fork-type activation. Make a copy of butler, this guarantees that
-        # no database is open right after copy.
-        butler = copy.copy(butler)
+        # fork-type activation. Make a pickle of butler to pass that across
+        # fork.
+        butler_pickle = pickle.dumps(butler)
         taskDef = self.qdata.taskDef
         quantum = self.qdata.quantum
         self.process = multiprocessing.Process(
-            target=quantumExecutor.execute, args=(taskDef, quantum, butler),
+            target=self._executeJob,
+            args=(quantumExecutor, taskDef, quantum, butler_pickle),
             name=f"task-{self.qdata.index}"
         )
         self.process.start()
         self.started = time.time()
         self.state = JobState.RUNNING
+
+    def _executeJob(self, quantumExecutor, taskDef, quantum, butler_pickle):
+        """Execute a job with arguments.
+
+        Parameters
+        ----------
+        quantumExecutor : `QuantumExecutor`
+            Executor for single quantum.
+        taskDef : `~lsst.pipe.base.TaskDef`
+            Task definition structure.
+        quantum : `~lsst.daf.butler.Quantum`
+            Quantum for this task execution.
+        butler_pickle : `bytes`
+            Data butler instance in pickled form.
+        """
+        butler = pickle.loads(butler_pickle)
+        quantumExecutor.execute(taskDef, quantum, butler)
 
     def stop(self):
         """Stop the process.
