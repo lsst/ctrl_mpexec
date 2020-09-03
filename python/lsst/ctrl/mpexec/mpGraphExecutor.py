@@ -30,6 +30,8 @@ import multiprocessing
 import pickle
 import time
 
+from lsst.pipe.base.graph.graph import QuantumGraph
+
 # -----------------------------
 #  Imports for other modules --
 # -----------------------------
@@ -54,14 +56,16 @@ class _Job:
 
     Parameters
     ----------
-    qdata : `~lsst.pipe.base.QuantumIterData`
+    qnode: `~lsst.pipe.base.QuantumNode`
         Quantum and some associated information.
     """
-    def __init__(self, qdata):
-        self.qdata = qdata
+    def __init__(self, qnode):
+        self.qnode = qnode
         self.process = None
         self.state = JobState.PENDING
         self.started = None
+        self.index = qnode.nodeId.number
+        self.taskDef = qnode.taskDef
 
     def start(self, butler, quantumExecutor):
         """Start process which runs the task.
@@ -77,12 +81,12 @@ class _Job:
         # fork-type activation. Make a pickle of butler to pass that across
         # fork.
         butler_pickle = pickle.dumps(butler)
-        taskDef = self.qdata.taskDef
-        quantum = self.qdata.quantum
+        taskDef = self.taskDef
+        quantum = self.qnode.quantum
         self.process = multiprocessing.Process(
             target=self._executeJob,
             args=(quantumExecutor, taskDef, quantum, butler_pickle),
-            name=f"task-{self.qdata.index}"
+            name=f"task-{self.index}"
         )
         self.process.start()
         self.started = time.time()
@@ -127,7 +131,7 @@ class _Job:
             self.process = None
 
     def __str__(self):
-        return f"<{self.qdata.taskDef} dataId={self.qdata.quantum.dataId}>"
+        return f"<{self.qnode.taskDef} dataId={self.qnode.quantum.dataId}>"
 
 
 class _JobList:
@@ -140,7 +144,7 @@ class _JobList:
         task dependencies.
     """
     def __init__(self, iterable):
-        self.jobs = [_Job(qdata) for qdata in iterable]
+        self.jobs = [_Job(qnode) for qnode in iterable]
 
     def pending(self):
         """Return list of jobs that wait for execution.
@@ -162,27 +166,25 @@ class _JobList:
         """
         return [job for job in self.jobs if job.state == JobState.RUNNING]
 
-    def finishedIds(self):
-        """Return set of jobs IDs that finished successfully (not failed).
-
-        Job ID is the index of the corresponding quantum.
+    def finishedNodes(self):
+        """Return set of QuantumNodes that finished successfully (not failed).
 
         Returns
         -------
-        jobsIds : `set` [`int`]
-            Set of integer job IDs.
+        QuantumNodes : `set` [`~lsst.pipe.base.QuantumNode`]
+            Set of QuantumNodes that have successfully finished
         """
-        return set(job.qdata.index for job in self.jobs if job.state == JobState.FINISHED)
+        return set(job.qnode for job in self.jobs if job.state == JobState.FINISHED)
 
-    def failedIds(self):
+    def failedNodes(self):
         """Return set of jobs IDs that failed for any reason.
 
         Returns
         -------
-        jobsIds : `set` [`int`]
-            Set of integer job IDs.
+        QuantumNodes : `set` [`~lsst.pipe.base.QuantumNode`]
+            Set of QUantumNodes that failed during processing
         """
-        return set(job.qdata.index for job in self.jobs
+        return set(job.qnode for job in self.jobs
                    if job.state in (JobState.FAILED, JobState.FAILED_DEP, JobState.TIMED_OUT))
 
     def timedOutIds(self):
@@ -193,7 +195,7 @@ class _JobList:
         jobsIds : `set` [`int`]
             Set of integer job IDs.
         """
-        return set(job.qdata.index for job in self.jobs if job.state == JobState.TIMED_OUT)
+        return set(job.qnode for job in self.jobs if job.state == JobState.TIMED_OUT)
 
     def cleanup(self):
         """Do periodic cleanup for jobs that did not finish correctly.
@@ -246,24 +248,24 @@ class MPGraphExecutor(QuantumGraphExecutor):
 
     def execute(self, graph, butler):
         # Docstring inherited from QuantumGraphExecutor.execute
-        quantaIter = self._fixupQuanta(graph.traverse())
+        graph = self._fixupQuanta(graph)
         if self.numProc > 1:
-            self._executeQuantaMP(quantaIter, butler)
+            self._executeQuantaMP(graph, butler)
         else:
-            self._executeQuantaInProcess(quantaIter, butler)
+            self._executeQuantaInProcess(graph, butler)
 
-    def _fixupQuanta(self, quantaIter):
+    def _fixupQuanta(self, graph: QuantumGraph):
         """Call fixup code to modify execution graph.
 
         Parameters
         ----------
-        quantaIter : iterable of `~lsst.pipe.base.QuantumIterData`
-            Quanta as originated from a quantum graph.
+        graph : `QuantumGraph`
+            `QuantumGraph` to modify
 
         Returns
         -------
-        quantaIter : iterable of `~lsst.pipe.base.QuantumIterData`
-            Possibly updated set of quanta, properly ordered for execution.
+        graph : `QuantumGraph`
+            Modified `QuantumGraph`.
 
         Raises
         ------
@@ -272,58 +274,39 @@ class MPGraphExecutor(QuantumGraphExecutor):
             i.e. it has dependency cycles.
         """
         if not self.executionGraphFixup:
-            return quantaIter
+            return graph
 
         _LOG.debug("Call execution graph fixup method")
-        quantaIter = self.executionGraphFixup.fixupQuanta(quantaIter)
+        graph = self.executionGraphFixup.fixupQuanta(graph)
 
-        # need it correctly ordered as dependencies may have changed
-        # after modification, so do topo-sort
-        updatedQuanta = list(quantaIter)
-        quanta = []
-        ids = set()
-        _LOG.debug("Re-ordering execution graph")
-        while updatedQuanta:
-            # find quantum that has all dependencies resolved already
-            for i, qdata in enumerate(updatedQuanta):
-                if ids.issuperset(qdata.dependencies):
-                    _LOG.debug("Found next quanta to execute: %s", qdata)
-                    del updatedQuanta[i]
-                    ids.add(qdata.index)
-                    # we could yield here but I want to detect cycles before
-                    # returning anything from this method
-                    quanta.append(qdata)
-                    break
-            else:
-                # means remaining quanta have dependency cycle
-                raise MPGraphExecutorError(
-                    "Updated execution graph has dependency clycle.")
+        # Detect if there is now a cycle created within the graph
+        if graph.findCycle():
+            raise MPGraphExecutorError(
+                "Updated execution graph has dependency cycle.")
 
-        return quanta
+        return graph
 
-    def _executeQuantaInProcess(self, iterable, butler):
+    def _executeQuantaInProcess(self, graph, butler):
         """Execute all Quanta in current process.
 
         Parameters
         ----------
-        iterable : iterable of `~lsst.pipe.base.QuantumIterData`
-            Sequence if Quanta to execute. It is guaranteed that re-requisites
-            for a given Quantum will always appear before that Quantum.
+        graph : `QuantumGraph`
+            `QuantumGraph` that is to be executed
         butler : `lsst.daf.butler.Butler`
             Data butler instance
         """
-        for qdata in iterable:
-            _LOG.debug("Executing %s", qdata)
-            self.quantumExecutor.execute(qdata.taskDef, qdata.quantum, butler)
+        for qnode in graph:
+            _LOG.debug("Executing %s", qnode)
+            self.quantumExecutor.execute(qnode.taskDef, qnode.quantum, butler)
 
-    def _executeQuantaMP(self, iterable, butler):
+    def _executeQuantaMP(self, graph, butler):
         """Execute all Quanta in separate processes.
 
         Parameters
         ----------
-        iterable : iterable of `~lsst.pipe.base.QuantumIterData`
-            Sequence if Quanta to execute. It is guaranteed that re-requisites
-            for a given Quantum will always appear before that Quantum.
+        graph : `QuantumGraph`
+            `QuantumGraph` that is to be executed.
         butler : `lsst.daf.butler.Butler`
             Data butler instance
         """
@@ -331,11 +314,11 @@ class MPGraphExecutor(QuantumGraphExecutor):
         disableImplicitThreading()  # To prevent thread contention
 
         # re-pack input quantum data into jobs list
-        jobs = _JobList(iterable)
+        jobs = _JobList(graph)
 
         # check that all tasks can run in sub-process
         for job in jobs.jobs:
-            taskDef = job.qdata.taskDef
+            taskDef = job.taskDef
             if not taskDef.taskClass.canMultiprocess:
                 raise MPGraphExecutorError(f"Task {taskDef.taskName} does not support multiprocessing;"
                                            " use single process")
@@ -390,11 +373,11 @@ class MPGraphExecutor(QuantumGraphExecutor):
             for job in jobs.pending():
 
                 # check all dependencies
-                if job.qdata.dependencies & jobs.failedIds():
+                if graph.determineInputsToQuantumNode(job.qnode) & jobs.failedNodes():
                     # upstream job has failed, skipping this
                     job.state = JobState.FAILED_DEP
                     _LOG.error("Upstream job failed for task %s, skipping this task.", job)
-                elif job.qdata.dependencies <= jobs.finishedIds():
+                elif graph.determineInputsToQuantumNode(job.qnode) <= jobs.finishedNodes():
                     # all dependencies have completed, can start new job
                     if len(jobs.running()) < self.numProc:
                         _LOG.debug("Sumbitting %s", job)
@@ -409,7 +392,7 @@ class MPGraphExecutor(QuantumGraphExecutor):
             if jobs.running():
                 time.sleep(0.1)
 
-        if jobs.failedIds():
+        if jobs.failedNodes():
             # print list of failed jobs
             _LOG.error("Failed jobs:")
             for job in jobs.jobs:
@@ -417,7 +400,7 @@ class MPGraphExecutor(QuantumGraphExecutor):
                     _LOG.error("  - %s: %s", job.state, job)
 
             # if any job failed raise an exception
-            if jobs.failedIds() == jobs.timedOutIds():
+            if jobs.failedNodes() == jobs.timedOutIds():
                 raise MPTimeoutError("One or more tasks timed out during execution.")
             else:
                 raise MPGraphExecutorError("One or more tasks failed or timed out during execution.")

@@ -24,11 +24,13 @@
 
 import contextlib
 import copy
+from dataclasses import dataclass
 import logging
 import os
 import pickle
 import shutil
 import tempfile
+from typing import NamedTuple
 import unittest
 
 from lsst.ctrl.mpexec.cmdLineFwk import CmdLineFwk
@@ -40,8 +42,8 @@ from lsst.daf.butler.registry import RegistryConfig
 from lsst.obs.base import Instrument
 import lsst.pex.config as pexConfig
 from lsst.pipe.base import (Pipeline, PipelineTask, PipelineTaskConfig,
-                            QuantumGraph, QuantumGraphTaskNodes,
-                            TaskDef, TaskFactory, PipelineTaskConnections)
+                            QuantumGraph, TaskDef, TaskFactory,
+                            PipelineTaskConnections)
 import lsst.pipe.base.connectionTypes as cT
 import lsst.utils.tests
 from lsst.pipe.base.tests.simpleQGraph import (AddTaskFactoryMock, makeSimpleQGraph)
@@ -164,6 +166,16 @@ def _makeArgs(cmd="run", registryConfig=None, **kwargs):
     return args
 
 
+class FakeTaskDef(NamedTuple):
+    name: str
+
+
+@dataclass(frozen=True)
+class FakeDSRef:
+    datasetType: str
+    dataId: tuple
+
+
 def _makeQGraph():
     """Make a trivial QuantumGraph with one quantum.
 
@@ -174,10 +186,12 @@ def _makeQGraph():
     -------
     qgraph : `~lsst.pipe.base.QuantumGraph`
     """
-    taskDef = TaskDef(taskName="taskOne", config=SimpleConfig())
-    quanta = [Quantum()]
-    taskNodes = QuantumGraphTaskNodes(taskDef=taskDef, quanta=quanta, initInputs={}, initOutputs={})
-    qgraph = QuantumGraph([taskNodes])
+
+    # The task name in TaskDef needs to be a real importable name, use one that is sure to exist
+    taskDef = TaskDef(taskName="lsst.pipe.base.Struct", config=SimpleConfig())
+    quanta = [Quantum(taskName="lsst.pipe.base.Struct",
+                      inputs={FakeTaskDef("A"): FakeDSRef("A", (1, 2))})]  # type: ignore
+    qgraph = QuantumGraph({taskDef: set(quanta)})
     return qgraph
 
 
@@ -289,7 +303,7 @@ class CmdLineFwkTestCase(unittest.TestCase):
 
             # reading empty graph from pickle should work but makeGraph()
             # will return None and make a warning
-            qgraph = QuantumGraph()
+            qgraph = QuantumGraph(dict())
             with open(tmpname, "wb") as pickleFile:
                 qgraph.save(pickleFile)
             args = _makeArgs(qgraph=tmpname, registryConfig=registryConfig)
@@ -339,8 +353,8 @@ class CmdLineFwkTestCaseWithButler(unittest.TestCase):
         nQuanta = 5
         butler, qgraph = makeSimpleQGraph(nQuanta, root=self.root)
 
-        # should have one task and number of quanta
-        self.assertEqual(len(list(qgraph.quanta())), nQuanta)
+        self.assertEqual(len(qgraph.taskGraph), 5)
+        self.assertEqual(len(qgraph), nQuanta)
 
         args = _makeArgs()
         fwk = CmdLineFwk()
@@ -357,8 +371,8 @@ class CmdLineFwkTestCaseWithButler(unittest.TestCase):
         nQuanta = 5
         butler, qgraph = makeSimpleQGraph(nQuanta, root=self.root)
 
-        # should have one task and number of quanta
-        self.assertEqual(len(list(qgraph.quanta())), nQuanta)
+        self.assertEqual(len(qgraph.taskGraph), 5)
+        self.assertEqual(len(qgraph), nQuanta)
 
         args = _makeArgs()
         fwk = CmdLineFwk()
@@ -385,7 +399,7 @@ class CmdLineFwkTestCaseWithButler(unittest.TestCase):
         butler, qgraph = makeSimpleQGraph(nQuanta, root=self.root)
 
         # should have one task and number of quanta
-        self.assertEqual(len(list(qgraph.quanta())), nQuanta)
+        self.assertEqual(len(qgraph), nQuanta)
 
         args = _makeArgs()
         fwk = CmdLineFwk()
@@ -417,7 +431,7 @@ class CmdLineFwkTestCaseWithButler(unittest.TestCase):
         butler, qgraph = makeSimpleQGraph(nQuanta, root=self.root)
 
         # should have one task and number of quanta
-        self.assertEqual(len(list(qgraph.quanta())), nQuanta)
+        self.assertEqual(len(qgraph), nQuanta)
 
         args = _makeArgs()
         fwk = CmdLineFwk()
@@ -451,7 +465,7 @@ class CmdLineFwkTestCaseWithButler(unittest.TestCase):
         butler, qgraph = makeSimpleQGraph(nQuanta, root=self.root, inMemory=False)
 
         # should have one task and number of quanta
-        self.assertEqual(len(list(qgraph.quanta())), nQuanta)
+        self.assertEqual(len(qgraph), nQuanta)
 
         fwk = CmdLineFwk()
         taskFactory = AddTaskFactoryMock()

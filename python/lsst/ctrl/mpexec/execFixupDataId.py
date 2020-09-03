@@ -21,9 +21,11 @@
 
 __all__ = ['ExecutionGraphFixup']
 
-from typing import Any, Iterable, Sequence, Tuple, Union
+from collections import defaultdict
+import networkx as nx
+from typing import Sequence, Union, Tuple, Any
 
-from lsst.pipe.base import QuantumIterData
+from lsst.pipe.base import QuantumGraph, QuantumNode
 from .executionGraphFixup import ExecutionGraphFixup
 
 
@@ -75,37 +77,43 @@ class ExecFixupDataId(ExecutionGraphFixup):
         else:
             self.dimensions = tuple(self.dimensions)
 
-    def _key(self, qdata: QuantumIterData) -> Tuple[Any, ...]:
+    def _key(self, qnode: QuantumNode) -> Tuple[Any, ...]:
         """Produce comparison key for quantum data.
-
         Parameters
         ----------
-        qdata : `QuantumIterData`
+        qnode : `QuantumNode`
+            An individual node in a `~lsst.pipe.base.QuantumGraph`
 
         Returns
         -------
         key : `tuple`
         """
-        dataId = qdata.quantum.dataId
+        dataId = qnode.quantum.dataId
         key = tuple(dataId[dim] for dim in self.dimensions)
         return key
 
-    def fixupQuanta(self, quanta: Iterable[QuantumIterData]) -> Iterable[QuantumIterData]:
-        # Docstring inherited from ExecutionGraphFixup.fixupQuanta
-        quanta = list(quanta)
-        # Index task quanta by the key
-        keyQuanta = {}
-        for qdata in quanta:
-            if qdata.taskDef.label == self.taskLabel:
-                key = self._key(qdata)
-                keyQuanta.setdefault(key, []).append(qdata)
-        if not keyQuanta:
+    def fixupQuanta(self, graph: QuantumGraph) -> QuantumGraph:
+        taskDef = graph.findTaskDefByLabel(self.taskLabel)
+        if taskDef is None:
             raise ValueError(f"Cannot find task with label {self.taskLabel}")
-        # order keys
+        quanta = list(graph.quantaForTask(taskDef))
+        keyQuanta = defaultdict(list)
+        for q in quanta:
+            key = self._key(q)
+            keyQuanta[key].append(q)
         keys = sorted(keyQuanta.keys(), reverse=self.reverse)
-        # for each quanta in a key add dependency to all quanta in a preceding key
+        networkGraph = graph.graph
+
         for prev_key, key in zip(keys, keys[1:]):
-            prev_indices = frozenset(qdata.index for qdata in keyQuanta[prev_key])
-            for qdata in keyQuanta[key]:
-                qdata.dependencies |= prev_indices
-        return quanta
+            for prev_node in keyQuanta[prev_key]:
+                for node in keyQuanta[key]:
+                    # remove any existing edges between the two nodes, but
+                    # don't fail if there are not any. Both directions need
+                    # tried because in a directed graph, order maters
+                    try:
+                        networkGraph.remove_edge(node, prev_node)
+                        networkGraph.remove_edge(prev_node, node)
+                    except nx.NetworkXException:
+                        pass
+                    networkGraph.add_edge(prev_node, node)
+        return graph

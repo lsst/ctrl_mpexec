@@ -142,18 +142,17 @@ def graph2dot(qgraph, file):
     print("digraph QuantumGraph {", file=file)
 
     allDatasetRefs = {}
-    for taskId, nodes in enumerate(qgraph):
+    for taskId, taskDef in enumerate(qgraph.taskGraph):
 
-        taskDef = nodes.taskDef
-
-        for qId, quantum in enumerate(nodes.quanta):
+        quanta = qgraph.getQuantaForTask(taskDef)
+        for qId, quantum in enumerate(quanta):
 
             # node for a task
             taskNodeName = "task_{}_{}".format(taskId, qId)
             _renderTaskNode(taskNodeName, taskDef, file)
 
             # quantum inputs
-            for dsRefs in quantum.predictedInputs.values():
+            for dsRefs in quantum.inputs.values():
                 for dsRef in dsRefs:
                     nodeName = _makeDSNode(dsRef, allDatasetRefs, file)
                     _renderEdge(nodeName, taskNodeName, file)

@@ -633,20 +633,21 @@ class CmdLineFwk:
             qgraph = graphBuilder.makeGraph(pipeline, collections, run, args.data_query)
 
         # count quanta in graph and give a warning if it's empty and return None
-        nQuanta = qgraph.countQuanta()
+        nQuanta = len(qgraph)
         if nQuanta == 0:
             warnings.warn("QuantumGraph is empty", stacklevel=2)
             return None
         else:
             _LOG.info("QuantumGraph contains %d quanta for %d tasks",
-                      nQuanta, len(qgraph))
+                      nQuanta, len(qgraph.taskGraph))
 
         if args.save_qgraph:
             with open(args.save_qgraph, "wb") as pickleFile:
                 qgraph.save(pickleFile)
 
         if args.save_single_quanta:
-            for iq, sqgraph in enumerate(qgraph.quantaAsQgraph()):
+            for iq, quantumNode in enumerate(qgraph):
+                sqgraph = qgraph.subset(quantumNode)
                 filename = args.save_single_quanta.format(iq)
                 with open(filename, "wb") as pickleFile:
                     sqgraph.save(pickleFile)
@@ -860,13 +861,13 @@ class CmdLineFwk:
         graph : `QuantumGraph`
             Execution graph.
         """
-        for taskNodes in graph:
-            print(taskNodes.taskDef)
+        for taskNode in graph.taskGraph:
+            print(taskNode)
 
-            for iq, quantum in enumerate(taskNodes.quanta):
+            for iq, quantum in enumerate(graph.getQuantaForTask(taskNode)):
                 print("  Quantum {}:".format(iq))
                 print("    inputs:")
-                for key, refs in quantum.predictedInputs.items():
+                for key, refs in quantum.inputs.items():
                     dataIds = ["DataId({})".format(ref.dataId) for ref in refs]
                     print("      {}: [{}]".format(key, ", ".join(dataIds)))
                 print("    outputs:")
@@ -900,7 +901,7 @@ class CmdLineFwk:
             shortname = qdata.taskDef.taskName.split('.')[-1]
             print("Quantum {}: {}".format(qdata.index, shortname))
             print("  inputs:")
-            for key, refs in qdata.quantum.predictedInputs.items():
+            for key, refs in qdata.quantum.inputs.items():
                 for ref in refs:
                     dumpURIs(ref)
             print("  outputs:")
