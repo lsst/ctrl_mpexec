@@ -686,6 +686,7 @@ class CmdLineFwk:
             graphFixup = self._importGraphFixup(args)
             quantumExecutor = SingleQuantumExecutor(taskFactory,
                                                     skipExisting=args.skip_existing,
+                                                    clobberPartialOutputs=args.clobber_partial_outputs,
                                                     enableLsstDebug=args.enableLsstDebug)
             timeout = self.MP_TIMEOUT if args.timeout is None else args.timeout
             executor = MPGraphExecutor(numProc=args.processes, timeout=timeout,

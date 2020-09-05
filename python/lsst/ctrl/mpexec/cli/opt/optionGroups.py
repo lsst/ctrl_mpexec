@@ -113,6 +113,7 @@ class execution_options(OptionGroup):  # noqa: N801
     def __init__(self):
         self.decorators = [
             option_section(sectionText="Execution options:"),
+            ctrlMpExecOpts.clobber_partial_outputs_option(),
             ctrlMpExecOpts.do_raise_option(),
             ctrlMpExecOpts.profile_option(),
             ctrlMpExecOpts.processes_option(),

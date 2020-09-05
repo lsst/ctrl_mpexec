@@ -189,7 +189,7 @@ class CmdLineParserTestCase(unittest.TestCase):
             """.split())
         run_options = qgraph_options + """register_dataset_types skip_init_writes
                       init_only processes profile timeout doraise graph_fixup
-                      no_versions fail_fast""".split()
+                      no_versions fail_fast clobber_partial_outputs""".split()
         self.assertEqual(set(vars(args).keys()), set(common_options + run_options))
         self.assertEqual(args.subcommand, 'run')
 
@@ -214,6 +214,7 @@ class CmdLineParserTestCase(unittest.TestCase):
         self.assertEqual(args.extend_run, False)
         self.assertEqual(args.replace_run, False)
         self.assertEqual(args.processes, 1)
+        self.assertFalse(args.clobber_partial_outputs)
         self.assertIsNone(args.profile)
         self.assertIsNone(args.timeout)
         self.assertIsNone(args.graph_fixup)
@@ -235,6 +236,7 @@ class CmdLineParserTestCase(unittest.TestCase):
             -j 66
             --profile profile.out
             --timeout 10.10
+            --clobber-partial-outputs
             -t taskname:label
             --show config
             --show config=Task.*
@@ -251,6 +253,7 @@ class CmdLineParserTestCase(unittest.TestCase):
         self.assertTrue(args.longlog)
         self.assertEqual(args.output, "outputColl")
         self.assertEqual(args.processes, 66)
+        self.assertTrue(args.clobber_partial_outputs)
         self.assertEqual(args.profile, 'profile.out')
         self.assertEqual(args.timeout, 10.10)
         self.assertIsNone(args.graph_fixup)
