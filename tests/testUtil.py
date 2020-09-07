@@ -22,17 +22,14 @@
 """Bunch of common classes and methods for use in unit tests.
 """
 
-__all__ = ["AddTaskConfig", "AddTask", "AddTaskFactoryMock", "ButlerMock"]
+__all__ = ["AddTaskConfig", "AddTask", "AddTaskFactoryMock"]
 
-import contextlib
 import itertools
 import logging
 import numpy
-import os
-from types import SimpleNamespace
 
-from lsst.daf.butler import (ButlerConfig, DatasetRef, DimensionUniverse,
-                             DatasetType, Registry, CollectionSearch)
+from lsst.daf.butler import (Butler, DatasetType, CollectionSearch)
+import lsst.daf.butler.tests as butlerTests
 import lsst.pex.config as pexConfig
 import lsst.pipe.base as pipeBase
 from lsst.pipe.base import connectionTypes as cT
@@ -41,50 +38,74 @@ _LOG = logging.getLogger(__name__)
 
 
 class AddTaskConnections(pipeBase.PipelineTaskConnections,
-                         dimensions=("instrument", "detector")):
-    input = cT.Input(name="add_input",
+                         dimensions=("instrument", "detector"),
+                         defaultTemplates={"in": "_in", "out": "_out"}):
+    """Connections for AddTask, has one input and two outputs,
+    plus one init output.
+    """
+    input = cT.Input(name="add_dataset{in}",
                      dimensions=["instrument", "detector"],
                      storageClass="NumpyArray",
                      doc="Input dataset type for this task")
-    output = cT.Output(name="add_output",
+    output = cT.Output(name="add_dataset{out}",
                        dimensions=["instrument", "detector"],
                        storageClass="NumpyArray",
                        doc="Output dataset type for this task")
-    initout = cT.InitOutput(name="add_init_output",
+    output2 = cT.Output(name="add2_dataset{out}",
+                        dimensions=["instrument", "detector"],
+                        storageClass="NumpyArray",
+                        doc="Output dataset type for this task")
+    initout = cT.InitOutput(name="add_init_output{out}",
                             storageClass="NumpyArray",
                             doc="Init Output dataset type for this task")
 
 
 class AddTaskConfig(pipeBase.PipelineTaskConfig,
                     pipelineConnections=AddTaskConnections):
+    """Config for AddTask.
+    """
     addend = pexConfig.Field(doc="amount to add", dtype=int, default=3)
 
 
-# example task which overrides run() method
 class AddTask(pipeBase.PipelineTask):
+    """Trivial PipelineTask for testing, has some extras useful for specific
+    unit tests.
+    """
+
     ConfigClass = AddTaskConfig
     _DefaultName = "add_task"
 
     initout = numpy.array([999])
     """InitOutputs for this task"""
 
-    countExec = 0
-    """Number of times run() method was called for this class"""
-
-    stopAt = -1
-    """Raises exception at this call to run()"""
+    taskFactory = None
+    """Factory that makes instances"""
 
     def run(self, input):
-        if AddTask.stopAt == AddTask.countExec:
-            raise RuntimeError("pretend something bad happened")
-        AddTask.countExec += 1
+
+        if self.taskFactory:
+            # do some bookkeeping
+            if self.taskFactory.stopAt == self.taskFactory.countExec:
+                raise RuntimeError("pretend something bad happened")
+            self.taskFactory.countExec += 1
+
         self.metadata.add("add", self.config.addend)
-        output = [val + self.config.addend for val in input]
-        _LOG.info("input = %s, output = %s", input, output)
-        return pipeBase.Struct(output=output)
+        output = input + self.config.addend
+        output2 = output + self.config.addend
+        _LOG.info("input = %s, output = %s, output2 = %s", input, output, output2)
+        return pipeBase.Struct(output=output, output2=output2)
 
 
 class AddTaskFactoryMock(pipeBase.TaskFactory):
+    """Special task factory that instantiates AddTask.
+
+    It also defines some bookkeeping variables used by AddTask to report
+    progress to unit tests.
+    """
+    def __init__(self, stopAt=-1):
+        self.countExec = 0  # incremented by AddTask
+        self.stopAt = stopAt  # AddTask raises exception at this call to run()
+
     def loadTaskClass(self, taskName):
         if taskName == "AddTask":
             return AddTask, "AddTask"
@@ -94,106 +115,9 @@ class AddTaskFactoryMock(pipeBase.TaskFactory):
             config = taskClass.ConfigClass()
             if overrides:
                 overrides.applyTo(config)
-        return taskClass(config=config, initInputs=None)
-
-
-class ButlerMock:
-    """Mock version of butler, only usable for testing
-
-    Parameters
-    ----------
-    fullRegistry : `boolean`, optional
-        If True then instantiate SQLite registry with default configuration.
-        If False then registry is just a namespace with `dimensions` attribute
-        containing DimensionUniverse from default configuration.
-    """
-    def __init__(self, fullRegistry=False, collection="TestColl"):
-        self.datasets = {}
-        self.fullRegistry = fullRegistry
-        if self.fullRegistry:
-            testDir = os.path.dirname(__file__)
-            configFile = os.path.join(testDir, "config/butler.yaml")
-            butlerConfig = ButlerConfig(configFile)
-            self.registry = Registry.fromConfig(butlerConfig, create=True)
-            self.registry.registerRun(collection)
-            self.run = collection
-        else:
-            self.registry = SimpleNamespace(dimensions=DimensionUniverse.fromConfig())
-            self.run = collection
-
-    def _standardizeArgs(self, datasetRefOrType, dataId=None, **kwds):
-        """Copied from real Butler
-        """
-        if isinstance(datasetRefOrType, DatasetRef):
-            if dataId is not None or kwds:
-                raise ValueError("DatasetRef given, cannot use dataId as well")
-            datasetType = datasetRefOrType.datasetType
-            dataId = datasetRefOrType.dataId
-        else:
-            # Don't check whether DataId is provided, because Registry APIs
-            # can usually construct a better error message when it wasn't.
-            if isinstance(datasetRefOrType, DatasetType):
-                datasetType = datasetRefOrType
-            else:
-                datasetType = self.registry.getDatasetType(datasetRefOrType)
-        return datasetType, dataId
-
-    @classmethod
-    def _unpickle(cls, fullRegistry, run):
-        return cls(fullRegistry, run)
-
-    def __reduce__(self):
-        """Support pickling.
-        """
-        return (ButlerMock._unpickle, (self.fullRegistry, self.run))
-
-    @staticmethod
-    def key(dataId):
-        """Make a dict key out of dataId.
-        """
-        return frozenset(dataId.items())
-
-    @contextlib.contextmanager
-    def transaction(self):
-        yield
-
-    def get(self, datasetRefOrType, dataId=None, parameters=None, **kwds):
-        datasetType, dataId = self._standardizeArgs(datasetRefOrType, dataId, **kwds)
-        _LOG.info("butler.get: datasetType=%s dataId=%s", datasetType.name, dataId)
-        dsTypeName = datasetType.name
-        key = self.key(dataId)
-        dsdata = self.datasets.get(dsTypeName)
-        if dsdata:
-            return dsdata.get(key)
-        raise LookupError
-
-    def put(self, obj, datasetRefOrType, dataId=None, **kwds):
-        datasetType, dataId = self._standardizeArgs(datasetRefOrType, dataId, **kwds)
-        _LOG.info("butler.put: datasetType=%s dataId=%s obj=%r", datasetType.name, dataId, obj)
-        dsTypeName = datasetType.name
-        key = self.key(dataId)
-        dsdata = self.datasets.setdefault(dsTypeName, {})
-        dsdata[key] = obj
-        if self.fullRegistry:
-            ref = self.registry.insertDatasets(datasetType, dataIds=[dataId], run=self.run, **kwds)
-        else:
-            # we should return DatasetRef with reasonable ID, ID is supposed to be unique
-            refId = sum(len(val) for val in self.datasets.values())
-            ref = DatasetRef(datasetType, dataId, id=refId)
-        return ref
-
-    def remove(self, datasetRefOrType, dataId=None, *, delete=True, remember=True, **kwds):
-        datasetType, dataId = self._standardizeArgs(datasetRefOrType, dataId, **kwds)
-        _LOG.info("butler.remove: datasetType=%s dataId=%s", datasetType.name, dataId)
-        dsTypeName = datasetType.name
-        key = self.key(dataId)
-        dsdata = self.datasets.get(dsTypeName)
-        del dsdata[key]
-        ref = self.registry.find(self.run, datasetType, dataId, **kwds)
-        if remember:
-            self.registry.disassociate(self.run, [ref])
-        else:
-            self.registry.removeDatasets([ref])
+        task = taskClass(config=config, initInputs=None)
+        task.taskFactory = self
+        return task
 
 
 def registerDatasetTypes(registry, pipeline):
@@ -228,7 +152,7 @@ def registerDatasetTypes(registry, pipeline):
                 registry.registerDatasetType(datasetType)
 
 
-def makeSimpleQGraph(nQuanta=5, pipeline=None, butler=None, skipExisting=False):
+def makeSimpleQGraph(nQuanta=5, pipeline=None, butler=None, root=None, skipExisting=False):
     """Make simple QuantumGraph for tests.
 
     Makes simple one-task pipeline with AddTask, sets up in-memory
@@ -259,28 +183,34 @@ def makeSimpleQGraph(nQuanta=5, pipeline=None, butler=None, skipExisting=False):
 
     if pipeline is None:
         pipeline = pipeBase.Pipeline("test pipeline")
-        pipeline.addTask(AddTask, "task1")
+        # make a bunch of tasks that execute in well defined order (via data
+        # dependencies)
+        for lvl in range(nQuanta):
+            pipeline.addTask(AddTask, f"task{lvl}")
+            pipeline.addConfigOverride(f"task{lvl}", "connections.in", f"{lvl}")
+            pipeline.addConfigOverride(f"task{lvl}", "connections.out", f"{lvl+1}")
+
         pipeline = list(pipeline.toExpandedPipeline())
 
     if butler is None:
 
-        butler = ButlerMock(fullRegistry=True)
+        if root is None:
+            raise ValueError("Must provide `root` when `butler` is None")
+
+        repo = butlerTests.makeTestRepo(root, {})
+        collection = "test"
+        butler = Butler(butler=repo, run=collection)
 
         # Add dataset types to registry
         registerDatasetTypes(butler.registry, pipeline)
 
-        # Small set of DataIds included in QGraph
-        records = [dict(instrument="INSTR", id=i, full_name=str(i)) for i in range(nQuanta)]
-        dataIds = [dict(instrument="INSTR", detector=detector) for detector in range(nQuanta)]
-
         # Add all needed dimensions to registry
         butler.registry.insertDimensionData("instrument", dict(name="INSTR"))
-        butler.registry.insertDimensionData("detector", *records)
+        butler.registry.insertDimensionData("detector", dict(instrument="INSTR", id=0, full_name="det0"))
 
         # Add inputs to butler
-        for i, dataId in enumerate(dataIds):
-            data = numpy.array([i, 10*i])
-            butler.put(data, "add_input", dataId)
+        data = numpy.array([0., 1., 2., 5.])
+        butler.put(data, "add_dataset0", instrument="INSTR", detector=0)
 
     # Make the graph, task factory is not needed here
     builder = pipeBase.GraphBuilder(registry=butler.registry, skipExisting=skipExisting)

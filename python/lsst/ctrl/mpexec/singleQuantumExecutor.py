@@ -53,22 +53,30 @@ class SingleQuantumExecutor(QuantumExecutor):
         Instance of a task factory.
     skipExisting : `bool`, optional
         If True then quanta with all existing outputs are not executed.
+    clobberPartialOutputs : `bool`, optional
+        If True then delete any partial outputs from quantum execution. If
+        complete outputs exists then exception is raise if ``skipExisting`` is
+        False.
     enableLsstDebug : `bool`, optional
         Enable debugging with ``lsstDebug`` facility for a task.
     """
-    def __init__(self, taskFactory, skipExisting=False, enableLsstDebug=False):
+    def __init__(self, taskFactory, skipExisting=False, clobberPartialOutputs=False, enableLsstDebug=False):
         self.taskFactory = taskFactory
         self.skipExisting = skipExisting
         self.enableLsstDebug = enableLsstDebug
+        self.clobberPartialOutputs = clobberPartialOutputs
 
     def execute(self, taskDef, quantum, butler):
         # Docstring inherited from QuantumExecutor.execute
         taskClass, config = taskDef.taskClass, taskDef.config
         self.setupLogging(taskClass, config, quantum)
-        if self.skipExisting and self.quantumOutputsExist(quantum, butler):
+
+        # check whether to skip or delete old outputs
+        if self.checkExistingOutputs(quantum, butler, taskDef):
             _LOG.info("Quantum execution skipped due to existing outputs, "
                       f"task={taskClass.__name__} dataId={quantum.dataId}.")
             return
+
         self.updateQuantumInputs(quantum, butler)
 
         # enable lsstDebug debugging
@@ -109,8 +117,11 @@ class SingleQuantumExecutor(QuantumExecutor):
             else:
                 Log.MDC("LABEL", '[' + ', '.join([str(dataId) for dataId in dataIds]) + ']')
 
-    def quantumOutputsExist(self, quantum, butler):
+    def checkExistingOutputs(self, quantum, butler, taskDef):
         """Decide whether this quantum needs to be executed.
+
+        If only partial outputs exist then they are removed if
+        ``clobberPartialOutputs`` is True, otherwise an exception is raised.
 
         Parameters
         ----------
@@ -118,12 +129,14 @@ class SingleQuantumExecutor(QuantumExecutor):
             Quantum to check for existing outputs
         butler : `~lsst.daf.butler.Butler`
             Data butler.
+        taskDef : `~lsst.pipe.base.TaskDef`
+            Task definition structure.
 
         Returns
         -------
         exist : `bool`
-            True if all quantum's outputs exist in a collection, False
-            otherwise.
+            True if all quantum's outputs exist in a collection and
+            ``skipExisting`` is True, False otherwise.
 
         Raises
         ------
@@ -140,16 +153,28 @@ class SingleQuantumExecutor(QuantumExecutor):
                 ref = registry.findDataset(datasetRef.datasetType, datasetRef.dataId,
                                            collections=butler.run)
                 if ref is None:
-                    missingRefs.append(datasetRefs)
+                    missingRefs.append(datasetRef)
                 else:
-                    existingRefs.append(datasetRefs)
+                    existingRefs.append(ref)
         if existingRefs and missingRefs:
-            # some outputs exist and same not, can't do a thing with that
-            raise RuntimeError(f"Registry inconsistency while checking for existing outputs:"
-                               f" collection={collection} existingRefs={existingRefs}"
-                               f" missingRefs={missingRefs}")
+            # some outputs exist and some don't, either delete existing ones or complain
+            _LOG.debug("Partial outputs exist for task %s dataId=%s collection=%s "
+                       "existingRefs=%s missingRefs=%s",
+                       taskDef, quantum.dataId, collection, existingRefs, missingRefs)
+            if self.clobberPartialOutputs:
+                _LOG.info("Removing partial outputs for task %s: %s", taskDef, existingRefs)
+                butler.pruneDatasets(existingRefs, disassociate=True, unstore=True, purge=True)
+                return False
+            else:
+                raise RuntimeError(f"Registry inconsistency while checking for existing outputs:"
+                                   f" collection={collection} existingRefs={existingRefs}"
+                                   f" missingRefs={missingRefs}")
+        elif existingRefs:
+            # complete outputs exist, this is fine only if skipExisting is set
+            return self.skipExisting
         else:
-            return bool(existingRefs)
+            # no outputs exist
+            return False
 
     def makeTask(self, taskClass, config, butler):
         """Make new task instance.

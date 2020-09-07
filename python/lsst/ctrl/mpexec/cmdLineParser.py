@@ -361,7 +361,8 @@ def _makeQuantumGraphOptions(parser):
                        default=False, action="store_true",
                        help=("If all Quantum outputs already exist in the output RUN collection "
                              "then that Quantum will be excluded from the QuantumGraph.  "
-                             "Requires --extend-run."))
+                             "Requires --extend-run. When this option is used with 'run' command "
+                             "it skips execution of quantum if all its output exist."))
     group.add_argument("-q", "--save-qgraph", dest="save_qgraph",
                        help="Location for storing a serialized quantum graph definition "
                        "(pickle file).",
@@ -385,6 +386,9 @@ def _makeExecOptions(parser):
     parser : `argparse.ArgumentParser`
     """
     group = parser.add_argument_group("Execution options")
+    group.add_argument("--clobber-partial-outputs", action="store_true", default=False,
+                       help=("Remove incomplete outputs from previous execution of the same "
+                             "quantum before new execution."))
     group.add_argument("--doraise", action="store_true",
                        help="raise an exception on error (else log a message and continue)?")
     group.add_argument("--profile", metavar="PATH", help="Dump cProfile statistics to filename")
