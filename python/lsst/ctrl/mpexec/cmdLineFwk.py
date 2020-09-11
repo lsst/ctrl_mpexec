@@ -213,7 +213,7 @@ class _ButlerFactory:
             self.outputRun = None
         else:
             raise ValueError("Cannot write without at least one of (--output, --output-run).")
-        self.inputs = list(CollectionSearch.fromExpression(args.input))
+        self.inputs = list(CollectionSearch.fromExpression(args.input)) if args.input else []
 
     def check(self, args: argparse.Namespace):
         """Check command-line options for consistency with each other and the
@@ -353,11 +353,21 @@ class _ButlerFactory:
             chainDefinition = list(self.output.chain if self.output.exists else self.inputs)
             if args.replace_run:
                 replaced, _ = chainDefinition.pop(0)
-                if args.prune_replaced:
-                    # TODO: DM-23671: need a butler API for pruning an
-                    # entire RUN collection, then apply it to 'replaced'
-                    # here.
-                    raise NotImplementedError("Support for --prune-replaced is not yet implemented.")
+                if args.prune_replaced == "unstore":
+                    # Remove datasets from datastore
+                    with butler.transaction():
+                        refs = butler.registry.queryDatasets(..., collections=replaced)
+                        butler.pruneDatasets(refs, unstore=True, run=replaced, disassociate=False)
+                elif args.prune_replaced == "purge":
+                    # Erase entire collection and all datasets, need to remove
+                    # collection from its chain collection first.
+                    with butler.transaction():
+                        butler.registry.setCollectionChain(self.output.name, chainDefinition)
+                        butler.pruneCollection(replaced, purge=True, unstore=True)
+                elif args.prune_replaced is not None:
+                    raise NotImplementedError(
+                        f"Unsupported --prune-replaced option '{args.prune_replaced}'."
+                    )
             chainDefinition.insert(0, self.outputRun.name)
             chainDefinition = CollectionSearch.fromExpression(chainDefinition)
             _LOG.debug("Preparing butler to write to '%s' and read from '%s'=%s",

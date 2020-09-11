@@ -22,8 +22,8 @@
 """Simple unit test for cmdLineFwk module.
 """
 
-import argparse
 import contextlib
+import copy
 import logging
 import os
 import pickle
@@ -32,6 +32,7 @@ import tempfile
 import unittest
 
 from lsst.ctrl.mpexec.cmdLineFwk import CmdLineFwk
+import lsst.ctrl.mpexec.cmdLineParser as parser_mod
 from lsst.ctrl.mpexec.cmdLineParser import (_ACTION_ADD_TASK, _ACTION_CONFIG,
                                             _ACTION_CONFIG_FILE, _ACTION_ADD_INSTRUMENT)
 from lsst.daf.butler import Config, Quantum, Registry
@@ -75,7 +76,19 @@ def makeTmpFile(contents=None):
 
 
 @contextlib.contextmanager
-def makeSQLiteRegistry():
+def temporaryDirectory():
+    """Context manager that creates and destroys temporary directory.
+
+    Difference from `tempfile.TemporaryDirectory` is that it ignores errors
+    when deleting a directory, which may happen with some filesystems.
+    """
+    tmpdir = tempfile.mkdtemp()
+    yield tmpdir
+    shutil.rmtree(tmpdir, ignore_errors=True)
+
+
+@contextlib.contextmanager
+def makeSQLiteRegistry(create=True):
     """Context manager to create new empty registry database.
 
     Yields
@@ -83,11 +96,12 @@ def makeSQLiteRegistry():
     config : `RegistryConfig`
         Registry configuration for initialized registry database.
     """
-    with makeTmpFile() as filename:
-        uri = f"sqlite:///{filename}"
+    with temporaryDirectory() as tmpdir:
+        uri = f"sqlite:///{tmpdir}/gen3.sqlite"
         config = RegistryConfig()
         config["db"] = uri
-        Registry.fromConfig(config, create=True)
+        if create:
+            Registry.fromConfig(config, create=True)
         yield config
 
 
@@ -130,64 +144,34 @@ class TaskFactoryMock(TaskFactory):
         return taskClass(config=config, butler=butler)
 
 
-def _makeArgs(pipeline=None, qgraph=None, pipeline_actions=(), order_pipeline=False,
-              save_pipeline="", save_qgraph="", save_single_quanta="",
-              pipeline_dot="", qgraph_dot="", registryConfig=None):
+def _makeArgs(cmd="run", registryConfig=None, **kwargs):
     """Return parsed command line arguments.
+
+    By default butler_config is set to `Config` populated with some defaults,
+    it can be overriden completely by keyword argument.
 
     Parameters
     ----------
-    pipeline : `str`, optional
-        Name of the YAML file with pipeline.
-    qgraph : `str`, optional
-        Name of the pickle file with QGraph.
-    pipeline_actions : itrable of `cmdLinePArser._PipelineAction`, optional
-    order_pipeline : `bool`
-    save_pipeline : `str`
-        Name of the YAML file to store pipeline.
-    save_qgraph : `str`
-        Name of the pickle file to store QGraph.
-    save_single_quanta : `str`
-        Name of the pickle file pattern to store individual QGraph.
-    pipeline_dot : `str`
-        Name of the DOT file to write pipeline graph.
-    qgraph_dot : `str`
-        Name of the DOT file to write QGraph representation.
+    cmd : `str`, optional
+        Produce arguments for this pipetask command.
+    registryConfig : `RegistryConfig`, optional
+        Override for registry configuration.
+    **kwargs
+        Overrides for other arguments.
     """
-    args = argparse.Namespace()
+    # call parser for "run" command to set defaults for all arguments
+    parser = parser_mod.makeParser()
+    args = parser.parse_args([cmd])
+    # override butler_config with our defaults
     args.butler_config = Config()
     if registryConfig:
         args.butler_config["registry"] = registryConfig
     # The default datastore has a relocatable root, so we need to specify
     # some root here for it to use
     args.butler_config.configFile = "."
-    args.pipeline = pipeline
-    args.qgraph = qgraph
-    args.pipeline_actions = pipeline_actions
-    args.order_pipeline = order_pipeline
-    args.save_pipeline = save_pipeline
-    args.save_qgraph = save_qgraph
-    args.save_single_quanta = save_single_quanta
-    args.pipeline_dot = pipeline_dot
-    args.qgraph_dot = qgraph_dot
-    args.input = ""
-    args.output = None
-    args.output_run = None
-    args.extend_run = False
-    args.replace_run = False
-    args.prune_replaced = False
-    args.register_dataset_types = False
-    args.skip_init_writes = False
-    args.no_versions = False
-    args.skip_existing = False
-    args.clobber_partial_outputs = False
-    args.init_only = False
-    args.processes = 1
-    args.profile = None
-    args.enableLsstDebug = False
-    args.graph_fixup = None
-    args.timeout = None
-    args.fail_fast = False
+    # override arguments from keyword parameters
+    for key, value in kwargs.items():
+        setattr(args, key, value)
     return args
 
 
@@ -468,6 +452,103 @@ class CmdLineFwkTestCaseWithButler(unittest.TestCase):
         # number of executed quanta is incremented
         self.assertEqual(taskFactory.countExec, nQuanta + 1)
 
+    def testSimpleQGraphReplaceRun(self):
+        """Test repeated execution of trivial quantum graph with
+        --replace-run.
+        """
+
+        # need non-memory registry in this case
+        nQuanta = 5
+        butler, qgraph = makeSimpleQGraph(nQuanta, root=self.root, inMemory=False)
+
+        # should have one task and number of quanta
+        self.assertEqual(len(list(qgraph.quanta())), nQuanta)
+
+        fwk = CmdLineFwk()
+        taskFactory = AddTaskFactoryMock()
+
+        # run whole thing
+        args = _makeArgs(
+            butler_config=self.root,
+            input="test",
+            output="output",
+            output_run="output/run1")
+        # deep copy is needed because quanta are updated in place
+        fwk.runPipeline(copy.deepcopy(qgraph), taskFactory, args)
+        self.assertEqual(taskFactory.countExec, nQuanta)
+
+        # need to refresh collections explicitly (or make new butler/registry)
+        butler.registry._collections.refresh()
+        collections = set(butler.registry.queryCollections(...))
+        self.assertEqual(collections, {"test", "output", "output/run1"})
+
+        # number of datasets written by pipeline:
+        #  - nQuanta of init_outputs
+        #  - nQuanta of configs
+        #  - packages (single dataset)
+        #  - nQuanta * two output datasets
+        #  - nQuanta of metadata
+        n_outputs = nQuanta * 5 + 1
+        refs = butler.registry.queryDatasets(..., collections="output/run1")
+        self.assertEqual(len(list(refs)), n_outputs)
+
+        # re-run with --replace-run (--inputs is not compatible)
+        args.input = None
+        args.replace_run = True
+        args.output_run = "output/run2"
+        fwk.runPipeline(copy.deepcopy(qgraph), taskFactory, args)
+
+        butler.registry._collections.refresh()
+        collections = set(butler.registry.queryCollections(...))
+        self.assertEqual(collections, {"test", "output", "output/run1", "output/run2"})
+
+        # new output collection
+        refs = butler.registry.queryDatasets(..., collections="output/run2")
+        self.assertEqual(len(list(refs)), n_outputs)
+
+        # old output collection is still there
+        refs = butler.registry.queryDatasets(..., collections="output/run1")
+        self.assertEqual(len(list(refs)), n_outputs)
+
+        # re-run with --replace-run and --prune-replaced=unstore
+        args.input = None
+        args.replace_run = True
+        args.prune_replaced = "unstore"
+        args.output_run = "output/run3"
+        fwk.runPipeline(copy.deepcopy(qgraph), taskFactory, args)
+
+        butler.registry._collections.refresh()
+        collections = set(butler.registry.queryCollections(...))
+        self.assertEqual(collections, {"test", "output", "output/run1", "output/run2", "output/run3"})
+
+        # new output collection
+        refs = butler.registry.queryDatasets(..., collections="output/run3")
+        self.assertEqual(len(list(refs)), n_outputs)
+
+        # old output collection is still there, and it has all datasets but
+        # they are not in datastore
+        refs = butler.registry.queryDatasets(..., collections="output/run2")
+        refs = list(refs)
+        self.assertEqual(len(refs), n_outputs)
+        with self.assertRaises(FileNotFoundError):
+            butler.get(refs[0], collections="output/run2")
+
+        # re-run with --replace-run and --prune-replaced=purge
+        args.input = None
+        args.replace_run = True
+        args.prune_replaced = "purge"
+        args.output_run = "output/run4"
+        fwk.runPipeline(copy.deepcopy(qgraph), taskFactory, args)
+
+        butler.registry._collections.refresh()
+        collections = set(butler.registry.queryCollections(...))
+        # output/run3 should disappear now
+        self.assertEqual(collections, {"test", "output", "output/run1", "output/run2", "output/run4"})
+
+        # new output collection
+        refs = butler.registry.queryDatasets(..., collections="output/run4")
+        self.assertEqual(len(list(refs)), n_outputs)
+
     def testShowGraph(self):
         """Test for --show options for quantum graph.
         """
@@ -476,8 +557,7 @@ class CmdLineFwkTestCaseWithButler(unittest.TestCase):
         nQuanta = 2
         butler, qgraph = makeSimpleQGraph(nQuanta, root=self.root)
 
-        args = _makeArgs()
-        args.show = ["graph"]
+        args = _makeArgs(show=["graph"])
         fwk.showInfo(args, pipeline=None, graph=qgraph)
         # TODO: cannot test "workflow" option presently, it instanciates
         # butler from command line options and there is no way to pass butler
