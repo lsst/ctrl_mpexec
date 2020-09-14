@@ -28,7 +28,7 @@ import itertools
 import logging
 import numpy
 
-from lsst.daf.butler import (Butler, DatasetType, CollectionSearch)
+from lsst.daf.butler import (Butler, Config, DatasetType, CollectionSearch)
 import lsst.daf.butler.tests as butlerTests
 import lsst.pex.config as pexConfig
 import lsst.pipe.base as pipeBase
@@ -39,23 +39,23 @@ _LOG = logging.getLogger(__name__)
 
 class AddTaskConnections(pipeBase.PipelineTaskConnections,
                          dimensions=("instrument", "detector"),
-                         defaultTemplates={"in": "_in", "out": "_out"}):
+                         defaultTemplates={"in_tmpl": "_in", "out_tmpl": "_out"}):
     """Connections for AddTask, has one input and two outputs,
     plus one init output.
     """
-    input = cT.Input(name="add_dataset{in}",
+    input = cT.Input(name="add_dataset{in_tmpl}",
                      dimensions=["instrument", "detector"],
                      storageClass="NumpyArray",
                      doc="Input dataset type for this task")
-    output = cT.Output(name="add_dataset{out}",
+    output = cT.Output(name="add_dataset{out_tmpl}",
                        dimensions=["instrument", "detector"],
                        storageClass="NumpyArray",
                        doc="Output dataset type for this task")
-    output2 = cT.Output(name="add2_dataset{out}",
+    output2 = cT.Output(name="add2_dataset{out_tmpl}",
                         dimensions=["instrument", "detector"],
                         storageClass="NumpyArray",
                         doc="Output dataset type for this task")
-    initout = cT.InitOutput(name="add_init_output{out}",
+    initout = cT.InitOutput(name="add_init_output{out_tmpl}",
                             storageClass="NumpyArray",
                             doc="Init Output dataset type for this task")
 
@@ -152,7 +152,7 @@ def registerDatasetTypes(registry, pipeline):
                 registry.registerDatasetType(datasetType)
 
 
-def makeSimpleQGraph(nQuanta=5, pipeline=None, butler=None, root=None, skipExisting=False):
+def makeSimpleQGraph(nQuanta=5, pipeline=None, butler=None, root=None, skipExisting=False, inMemory=True):
     """Make simple QuantumGraph for tests.
 
     Makes simple one-task pipeline with AddTask, sets up in-memory
@@ -169,9 +169,14 @@ def makeSimpleQGraph(nQuanta=5, pipeline=None, butler=None, root=None, skipExist
     butler : `~lsst.daf.butler.Butler`, optional
         Data butler instance, this should be an instance returned from a
         previous call to this method.
+    root : `str`
+        Path or URI to the root location of the new repository. Only used if
+        ``butler`` is None.
     skipExisting : `bool`, optional
         If `True` (default), a Quantum is not created if all its outputs
         already exist.
+    inMemory : `bool`, optional
+        If true make in-memory repository.
 
     Returns
     -------
@@ -187,8 +192,8 @@ def makeSimpleQGraph(nQuanta=5, pipeline=None, butler=None, root=None, skipExist
         # dependencies)
         for lvl in range(nQuanta):
             pipeline.addTask(AddTask, f"task{lvl}")
-            pipeline.addConfigOverride(f"task{lvl}", "connections.in", f"{lvl}")
-            pipeline.addConfigOverride(f"task{lvl}", "connections.out", f"{lvl+1}")
+            pipeline.addConfigOverride(f"task{lvl}", "connections.in_tmpl", f"{lvl}")
+            pipeline.addConfigOverride(f"task{lvl}", "connections.out_tmpl", f"{lvl+1}")
 
         pipeline = list(pipeline.toExpandedPipeline())
 
@@ -197,7 +202,11 @@ def makeSimpleQGraph(nQuanta=5, pipeline=None, butler=None, root=None, skipExist
         if root is None:
             raise ValueError("Must provide `root` when `butler` is None")
 
-        repo = butlerTests.makeTestRepo(root, {})
+        config = Config()
+        if not inMemory:
+            config["registry", "db"] = f"sqlite:///{root}/gen3.sqlite"
+            config["datastore", "cls"] = "lsst.daf.butler.datastores.posixDatastore.PosixDatastore"
+        repo = butlerTests.makeTestRepo(root, {}, config=config)
         collection = "test"
         butler = Butler(butler=repo, run=collection)
 
@@ -212,7 +221,7 @@ def makeSimpleQGraph(nQuanta=5, pipeline=None, butler=None, root=None, skipExist
         data = numpy.array([0., 1., 2., 5.])
         butler.put(data, "add_dataset0", instrument="INSTR", detector=0)
 
-    # Make the graph, task factory is not needed here
+    # Make the graph
     builder = pipeBase.GraphBuilder(registry=butler.registry, skipExisting=skipExisting)
     qgraph = builder.makeGraph(
         pipeline,

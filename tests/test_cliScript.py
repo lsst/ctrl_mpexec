@@ -93,22 +93,22 @@ config.saveMetadata=True
 config.addend=100
 
 # name for connection input
-config.connections.input='add_dataset{in}'
+config.connections.input='add_dataset{in_tmpl}'
 
 # name for connection output
-config.connections.output='add_dataset{out}'
+config.connections.output='add_dataset{out_tmpl}'
 
 # name for connection output2
-config.connections.output2='add2_dataset{out}'
+config.connections.output2='add2_dataset{out_tmpl}'
 
 # name for connection initout
-config.connections.initout='add_init_output{out}'
+config.connections.initout='add_init_output{out_tmpl}'
 
 # Template parameter used to format corresponding field template parameter
-config.connections.in='_in'
+config.connections.in_tmpl='_in'
 
 # Template parameter used to format corresponding field template parameter
-config.connections.out='_out'"""),
+config.connections.out_tmpl='_out'"""),
 
             # history will contain machine-specific paths, TBD how to verify
             ShowInfo("history=task::addend", None),
