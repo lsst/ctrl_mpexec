@@ -196,8 +196,6 @@ def makeSimpleQGraph(nQuanta=5, pipeline=None, butler=None, root=None, skipExist
             pipeline.addConfigOverride(f"task{lvl}", "connections.in_tmpl", f"{lvl}")
             pipeline.addConfigOverride(f"task{lvl}", "connections.out_tmpl", f"{lvl+1}")
 
-        pipeline = list(pipeline.toExpandedPipeline())
-
     if butler is None:
 
         if root is None:
@@ -212,7 +210,7 @@ def makeSimpleQGraph(nQuanta=5, pipeline=None, butler=None, root=None, skipExist
         butler = Butler(butler=repo, run=collection)
 
         # Add dataset types to registry
-        registerDatasetTypes(butler.registry, pipeline)
+        registerDatasetTypes(butler.registry, pipeline.toExpandedPipeline())
 
         # Add all needed dimensions to registry
         butler.registry.insertDimensionData("instrument", dict(name="INSTR"))
