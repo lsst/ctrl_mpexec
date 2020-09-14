@@ -24,6 +24,7 @@
 
 import logging
 from multiprocessing import Manager
+import psutil
 import time
 from types import SimpleNamespace
 import unittest
@@ -292,6 +293,29 @@ class MPGraphExecutorTestCase(unittest.TestCase):
         with self.assertRaises(MPGraphExecutorError):
             mpexec.execute(qgraph, butler=None)
         self.assertCountEqual(qexec.getDataIds("detector"), [0])
+
+    def test_mpexec_num_fd(self):
+        """Check that number of open files stays reasonable
+        """
+
+        taskDef = TaskDefMock()
+        qgraph = QuantumGraphMock([
+            QuantumIterDataMock(index=i, taskDef=taskDef, detector=i) for i in range(20)
+        ])
+
+        this_proc = psutil.Process()
+        num_fds_0 = this_proc.num_fds()
+
+        # run in multi-process mode, the order of results is not defined
+        qexec = QuantumExecutorMock(mp=True)
+        mpexec = MPGraphExecutor(numProc=3, timeout=100, quantumExecutor=qexec)
+        mpexec.execute(qgraph, butler=None)
+
+        num_fds_1 = this_proc.num_fds()
+        # They should be the same but allow small growth just in case.
+        # Without DM-26728 fix the difference would be equal to number of
+        # quanta (20).
+        self.assertLess(num_fds_1 - num_fds_0, 5)
 
 
 if __name__ == "__main__":
