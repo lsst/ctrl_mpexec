@@ -129,8 +129,9 @@ def registerDatasetTypes(registry, pipeline):
     ----------
     registry : `~lsst.daf.butler.Registry`
         Registry instance.
-    pipeline : `~lsst.pipe.base.Pipeline`
-        Iterable of TaskDef instances.
+    pipeline : `typing.Iterable` of `TaskDef`
+        Iterable of TaskDef instances, likely the output of the method
+        toExpandedPipeline on a `~lsst.pipe.base.Pipeline` object
     """
     for taskDef in pipeline:
         configDatasetType = DatasetType(taskDef.configDatasetName, {},
