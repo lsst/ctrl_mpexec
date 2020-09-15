@@ -118,6 +118,14 @@ class _Job:
             _LOG.debug("Killing process %s", self.process.name)
             self.process.kill()
 
+    def cleanup(self):
+        """Release processes resources, has to be called for each finished
+        process.
+        """
+        if self.process and not self.process.is_alive():
+            self.process.close()
+            self.process = None
+
     def __str__(self):
         return f"<{self.qdata.taskDef} dataId={self.qdata.quantum.dataId}>"
 
@@ -186,6 +194,17 @@ class _JobList:
             Set of integer job IDs.
         """
         return set(job.qdata.index for job in self.jobs if job.state == JobState.TIMED_OUT)
+
+    def cleanup(self):
+        """Do periodic cleanup for jobs that did not finish correctly.
+
+        If timed out jobs are killed but take too long to stop then regular
+        cleanup will not work for them. Here we check all timed out jobs
+        periodically and do cleanup if they managed to die by this time.
+        """
+        for job in self.jobs:
+            if job.state == JobState.TIMED_OUT and job.process is not None:
+                job.cleanup()
 
 
 class MPGraphExecutorError(Exception):
@@ -328,19 +347,21 @@ class MPGraphExecutor(QuantumGraphExecutor):
 
             # See if any jobs have finished
             for job in jobs.running():
-                proc = job.process
-                if not proc.is_alive():
+                if not job.process.is_alive():
                     _LOG.debug("finished: %s", job)
                     # finished
-                    if proc.exitcode == 0:
+                    exitcode = job.process.exitcode
+                    if exitcode == 0:
                         job.state = JobState.FINISHED
+                        job.cleanup()
                         _LOG.debug("success: %s", job)
                     else:
                         job.state = JobState.FAILED
+                        job.cleanup()
                         _LOG.debug("failed: %s", job)
                         if self.failFast:
                             raise MPGraphExecutorError(
-                                f"Task {job} failed, exit code={proc.exitcode}."
+                                f"Task {job} failed, exit code={exitcode}."
                             )
                         else:
                             _LOG.error(
@@ -353,6 +374,7 @@ class MPGraphExecutor(QuantumGraphExecutor):
                         job.state = JobState.TIMED_OUT
                         _LOG.debug("Terminating job %s due to timeout", job)
                         job.stop()
+                        job.cleanup()
                         if self.failFast:
                             raise MPTimeoutError(f"Timeout ({self.timeout} sec) for task {job}.")
                         else:
@@ -374,6 +396,9 @@ class MPGraphExecutor(QuantumGraphExecutor):
                     if len(jobs.running()) < self.numProc:
                         _LOG.debug("Sumbitting %s", job)
                         job.start(butler, self.quantumExecutor)
+
+            # Do cleanup for timed out jobs if necessary.
+            jobs.cleanup()
 
             # Here we want to wait until one of the running jobs completes
             # but multiprocessing does not provide an API for that, for now
