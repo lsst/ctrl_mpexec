@@ -124,6 +124,7 @@ pipeline_dot_option = MWOptionDecorator("--pipeline-dot",
 
 
 processes_option = MWOptionDecorator("-j", "--processes",
+                                     default=1,
                                      help="Number of processes to use.",
                                      type=click.IntRange(min=1))
 
