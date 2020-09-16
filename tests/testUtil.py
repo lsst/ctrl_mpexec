@@ -129,8 +129,9 @@ def registerDatasetTypes(registry, pipeline):
     ----------
     registry : `~lsst.daf.butler.Registry`
         Registry instance.
-    pipeline : `~lsst.pipe.base.Pipeline`
-        Iterable of TaskDef instances.
+    pipeline : `typing.Iterable` of `TaskDef`
+        Iterable of TaskDef instances, likely the output of the method
+        toExpandedPipeline on a `~lsst.pipe.base.Pipeline` object
     """
     for taskDef in pipeline:
         configDatasetType = DatasetType(taskDef.configDatasetName, {},
@@ -195,8 +196,6 @@ def makeSimpleQGraph(nQuanta=5, pipeline=None, butler=None, root=None, skipExist
             pipeline.addConfigOverride(f"task{lvl}", "connections.in_tmpl", f"{lvl}")
             pipeline.addConfigOverride(f"task{lvl}", "connections.out_tmpl", f"{lvl+1}")
 
-        pipeline = list(pipeline.toExpandedPipeline())
-
     if butler is None:
 
         if root is None:
@@ -211,7 +210,7 @@ def makeSimpleQGraph(nQuanta=5, pipeline=None, butler=None, root=None, skipExist
         butler = Butler(butler=repo, run=collection)
 
         # Add dataset types to registry
-        registerDatasetTypes(butler.registry, pipeline)
+        registerDatasetTypes(butler.registry, pipeline.toExpandedPipeline())
 
         # Add all needed dimensions to registry
         butler.registry.insertDimensionData("instrument", dict(name="INSTR"))
