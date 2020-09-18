@@ -40,7 +40,7 @@ forwardEpilog = unwrap("""Options marked with (f) are forwarded to the next subc
                 are chained in the same command execution. Previous values may be overridden by passing new
                 option values into the next subcommand.""")
 
-buildEpilog = unwrap(f"""Notes:
+buildEpilog = unwrap("""Notes:
 
 --task, --delete, --config, --config-file, and --instrument action options can
 appear multiple times; all values are used, in order left to right.
