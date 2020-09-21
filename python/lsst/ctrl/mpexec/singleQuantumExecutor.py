@@ -90,6 +90,9 @@ class SingleQuantumExecutor(QuantumExecutor):
         # initialize global state
         self.initGlobals(quantum, butler)
 
+        # Ensure that we are executing a frozen config
+        config.freeze()
+
         task = self.makeTask(taskClass, config, butler)
         self.runQuantum(task, quantum, taskDef, butler)
 
