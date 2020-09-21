@@ -360,6 +360,9 @@ class MPGraphExecutor(QuantumGraphExecutor):
                         job.cleanup()
                         _LOG.debug("failed: %s", job)
                         if self.failFast:
+                            for stopJob in jobs.running():
+                                if stopJob is not job:
+                                    stopJob.stop()
                             raise MPGraphExecutorError(
                                 f"Task {job} failed, exit code={exitcode}."
                             )
