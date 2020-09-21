@@ -94,7 +94,7 @@ order_pipeline_option = MWOptionDecorator("--order-pipeline",
 
 
 output_option = MWOptionDecorator("-o", "--output",
-                                  help=unwrap(f"""Name of the output CHAINED collection. This may either be an
+                                  help=unwrap("""Name of the output CHAINED collection. This may either be an
                                               existing CHAINED collection to use as both input and output
                                               (incompatible with --input), or a new CHAINED collection created
                                               to include all inputs (requires --input). In both cases, the
@@ -161,7 +161,7 @@ register_dataset_types_option = MWOptionDecorator("--register-dataset-types",
 
 
 replace_run_option = MWOptionDecorator("--replace-run",
-                                       help=unwrap(f"""Before creating a new RUN collection in an existing
+                                       help=unwrap("""Before creating a new RUN collection in an existing
                                                    CHAINED collection, remove the first child collection
                                                    (which must be of type RUN). This can be used to repeatedly
                                                    write to the same (parent) collection during development,

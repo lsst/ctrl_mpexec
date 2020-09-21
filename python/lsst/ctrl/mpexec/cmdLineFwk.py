@@ -237,9 +237,9 @@ class _ButlerFactory:
             raise ValueError(f"Output run '{self.outputRun.name}' already exists, but "
                              f"--extend-run was not given.")
         if args.prune_replaced and not args.replace_run:
-            raise ValueError(f"--prune-replaced requires --replace-run.")
+            raise ValueError("--prune-replaced requires --replace-run.")
         if args.replace_run and (self.output is None or not self.output.exists):
-            raise ValueError(f"--output must point to an existing CHAINED collection for --replace-run.")
+            raise ValueError("--output must point to an existing CHAINED collection for --replace-run.")
 
     @classmethod
     def _makeReadParts(cls, args: argparse.Namespace):
@@ -891,7 +891,7 @@ class CmdLineFwk:
             if primary:
                 print(f"    {primary}")
             else:
-                print(f"    (disassembled artifact)")
+                print("    (disassembled artifact)")
                 for compName, compUri in components.items():
                     print(f"        {compName}: {compUri}")
 

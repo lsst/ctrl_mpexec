@@ -22,7 +22,8 @@
 import click
 
 from lsst.daf.butler.cli.opt import (config_file_option,
-                                     config_option)
+                                     config_option,
+                                     options_file_option)
 from lsst.daf.butler.cli.utils import (cli_handle_exception,
                                        MWCommand,
                                        MWCtxObj,
@@ -39,7 +40,7 @@ forwardEpilog = unwrap("""Options marked with (f) are forwarded to the next subc
                 are chained in the same command execution. Previous values may be overridden by passing new
                 option values into the next subcommand.""")
 
-buildEpilog = unwrap(f"""Notes:
+buildEpilog = unwrap("""Notes:
 
 --task, --delete, --config, --config-file, and --instrument action options can
 appear multiple times; all values are used, in order left to right.
@@ -80,6 +81,7 @@ def _doBuild(ctx, **kwargs):
 @ctrlMpExecOpts.show_option()
 @ctrlMpExecOpts.pipeline_build_options()
 @option_section(sectionText="")
+@options_file_option()
 def build(ctx, **kwargs):
     """Build and optionally save pipeline definition.
 
@@ -96,6 +98,7 @@ def build(ctx, **kwargs):
 @ctrlMpExecOpts.qgraph_options()
 @ctrlMpExecOpts.butler_options()
 @option_section(sectionText="")
+@options_file_option()
 def qgraph(ctx, **kwargs):
     """Build and optionally save quantum graph.
     """
@@ -114,6 +117,7 @@ def qgraph(ctx, **kwargs):
 @ctrlMpExecOpts.execution_options()
 @ctrlMpExecOpts.meta_info_options()
 @option_section(sectionText="")
+@options_file_option()
 def run(ctx, **kwargs):
     """Build and execute pipeline and quantum graph.
     """
