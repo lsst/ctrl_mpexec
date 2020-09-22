@@ -44,7 +44,7 @@ from lsst.pipe.base import (Pipeline, PipelineTask, PipelineTaskConfig,
                             TaskDef, TaskFactory, PipelineTaskConnections)
 import lsst.pipe.base.connectionTypes as cT
 import lsst.utils.tests
-from testUtil import (AddTaskFactoryMock, makeSimpleQGraph)
+from lsst.pipe.base.tests.simpleQGraph import (AddTaskFactoryMock, makeSimpleQGraph)
 
 
 logging.basicConfig(level=logging.INFO)
@@ -243,7 +243,7 @@ class CmdLineFwkTestCase(unittest.TestCase):
         # single task pipeline with config overrides, cannot use TaskOne, need
         # something that can be imported with `doImport()`
         actions = [
-            _ACTION_ADD_TASK("testUtil.AddTask:task"),
+            _ACTION_ADD_TASK("lsst.pipe.base.tests.simpleQGraph.AddTask:task"),
             _ACTION_CONFIG("task:addend=100")
         ]
         args = _makeArgs(pipeline_actions=actions)
@@ -255,7 +255,7 @@ class CmdLineFwkTestCase(unittest.TestCase):
         overrides = b"config.addend = 1000\n"
         with makeTmpFile(overrides) as tmpname:
             actions = [
-                _ACTION_ADD_TASK("testUtil.AddTask:task"),
+                _ACTION_ADD_TASK("lsst.pipe.base.tests.simpleQGraph.AddTask:task"),
                 _ACTION_CONFIG_FILE("task:" + tmpname)
             ]
             args = _makeArgs(pipeline_actions=actions)
@@ -266,7 +266,7 @@ class CmdLineFwkTestCase(unittest.TestCase):
 
         # Check --instrument option, for now it only checks that it does not crash
         actions = [
-            _ACTION_ADD_TASK("testUtil.AddTask:task"),
+            _ACTION_ADD_TASK("lsst.pipe.base.tests.simpleQGraph.AddTask:task"),
             _ACTION_ADD_INSTRUMENT("Instrument")
         ]
         args = _makeArgs(pipeline_actions=actions)
@@ -315,7 +315,7 @@ class CmdLineFwkTestCase(unittest.TestCase):
         fwk = CmdLineFwk()
 
         actions = [
-            _ACTION_ADD_TASK("testUtil.AddTask:task"),
+            _ACTION_ADD_TASK("lsst.pipe.base.tests.simpleQGraph.AddTask:task"),
             _ACTION_CONFIG("task:addend=100")
         ]
         args = _makeArgs(pipeline_actions=actions)

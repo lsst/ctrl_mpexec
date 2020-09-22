@@ -82,7 +82,7 @@ class BuildTestCase(unittest.TestCase):
             ShowInfo("pipeline", """description: anonymous
 tasks:
   task:
-    class: testUtil.AddTask
+    class: lsst.pipe.base.tests.simpleQGraph.AddTask
     config:
     - addend: '100'"""),
             ShowInfo("config", """### Configuration for task `task'
@@ -118,7 +118,7 @@ config.connections.out_tmpl='_out'"""),
         for showInfo in testdata:
             runner = LogCliRunner()
             result = runner.invoke(pipetaskCli, ["build",
-                                                 "--task", "testUtil.AddTask:task",
+                                                 "--task", "lsst.pipe.base.tests.simpleQGraph.AddTask:task",
                                                  "--config", "task:addend=100",
                                                  "--show", showInfo.show])
             self.assertEqual(result.exit_code, 0, clickResultMsg(result))
