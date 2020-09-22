@@ -249,8 +249,7 @@ class SingleQuantumExecutor(QuantumExecutor):
         butlerQC = ButlerQuantumContext(butler, quantum)
 
         # Get the input and output references for the task
-        connectionInstance = task.config.connections.ConnectionsClass(config=task.config)
-        inputRefs, outputRefs = connectionInstance.buildDatasetRefs(quantum)
+        inputRefs, outputRefs = taskDef.connections.buildDatasetRefs(quantum)
 
         # Call task runQuantum() method. Any exception thrown by the task
         # propagates to caller.
