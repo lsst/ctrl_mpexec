@@ -86,6 +86,9 @@ class TaskFactory(BaseTaskFactory):
                 descriptorMap[name] = dsType
             initInputs = {k: butler.get(v) for k, v in descriptorMap.items()}
 
+        # Freeze the config
+        config.freeze()
+
         # make task instance
         task = taskClass(config=config, initInputs=initInputs)
 
