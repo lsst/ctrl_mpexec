@@ -28,7 +28,7 @@ import tempfile
 import unittest
 
 from lsst.ctrl.mpexec import PreExecInit
-from testUtil import makeSimpleQGraph, AddTaskFactoryMock
+from lsst.pipe.base.tests.simpleQGraph import makeSimpleQGraph, AddTaskFactoryMock
 
 
 @contextlib.contextmanager
