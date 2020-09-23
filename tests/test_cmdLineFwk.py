@@ -45,6 +45,7 @@ from lsst.pipe.base import (Pipeline, PipelineTask, PipelineTaskConfig,
 import lsst.pipe.base.connectionTypes as cT
 import lsst.utils.tests
 from lsst.pipe.base.tests.simpleQGraph import (AddTaskFactoryMock, makeSimpleQGraph)
+from lsst.utils.tests import temporaryDirectory
 
 
 logging.basicConfig(level=logging.INFO)
@@ -73,18 +74,6 @@ def makeTmpFile(contents=None):
     yield tmpname
     with contextlib.suppress(OSError):
         os.remove(tmpname)
-
-
-@contextlib.contextmanager
-def temporaryDirectory():
-    """Context manager that creates and destroys temporary directory.
-
-    Difference from `tempfile.TemporaryDirectory` is that it ignores errors
-    when deleting a directory, which may happen with some filesystems.
-    """
-    tmpdir = tempfile.mkdtemp()
-    yield tmpdir
-    shutil.rmtree(tmpdir, ignore_errors=True)
 
 
 @contextlib.contextmanager
