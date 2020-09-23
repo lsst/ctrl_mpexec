@@ -13,14 +13,14 @@ _LOG = logging.getLogger(__name__.partition(".")[2])
 
 
 class CalexpToCoaddTaskConnections(PipelineTaskConnections,
-                                   dimensions=("skymap", "tract", "patch", "abstract_filter")):
+                                   dimensions=("skymap", "tract", "patch", "band")):
     calexp = cT.Input(name="calexp",
                       dimensions=["instrument", "visit", "detector"],
                       multiple=True,
                       storageClass="ExposureF",
                       doc="DatasetType for the input image")
     coadd = cT.Output(name="deepCoadd_calexp",
-                      dimensions=["skymap", "tract", "patch", "abstract_filter"],
+                      dimensions=["skymap", "tract", "patch", "band"],
                       storageClass="ExposureF",
                       doc="DatasetType for the output image")
 

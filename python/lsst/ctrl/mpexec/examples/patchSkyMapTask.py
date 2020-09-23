@@ -11,9 +11,9 @@ _LOG = logging.getLogger(__name__.partition(".")[2])
 
 
 class PatchSkyMapTaskConnections(PipelineTaskConnections,
-                                 dimensions=("skymap", "tract", "patch", "abstract_filter")):
+                                 dimensions=("skymap", "tract", "patch", "band")):
     coadd = cT.Input(name="deepCoadd_calexp",
-                     dimensions=["skymap", "tract", "patch", "abstract_filter"],
+                     dimensions=["skymap", "tract", "patch", "band"],
                      storageClass="ExposureF",
                      doc="DatasetType for the input image")
     inputCatalog = cT.Input(name="deepCoadd_mergeDet",
@@ -21,7 +21,7 @@ class PatchSkyMapTaskConnections(PipelineTaskConnections,
                             storageClass="SourceCatalog",
                             doc="DatasetType for the input catalog (merged detections).")
     outputCatalog = cT.Output(name="deepCoadd_meas",
-                              dimensions=["skymap", "tract", "patch", "abstract_filter"],
+                              dimensions=["skymap", "tract", "patch", "band"],
                               storageClass="SourceCatalog",
                               doc=("DatasetType for the output catalog "
                                    "(deblended per-band measurements)"))
