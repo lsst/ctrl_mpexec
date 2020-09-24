@@ -90,6 +90,9 @@ class SingleQuantumExecutor(QuantumExecutor):
         # initialize global state
         self.initGlobals(quantum, butler)
 
+        # Ensure that we are executing a frozen config
+        config.freeze()
+
         task = self.makeTask(taskClass, config, butler)
         self.runQuantum(task, quantum, taskDef, butler)
 
@@ -246,8 +249,7 @@ class SingleQuantumExecutor(QuantumExecutor):
         butlerQC = ButlerQuantumContext(butler, quantum)
 
         # Get the input and output references for the task
-        connectionInstance = task.config.connections.ConnectionsClass(config=task.config)
-        inputRefs, outputRefs = connectionInstance.buildDatasetRefs(quantum)
+        inputRefs, outputRefs = taskDef.connections.buildDatasetRefs(quantum)
 
         # Call task runQuantum() method. Any exception thrown by the task
         # propagates to caller.

@@ -69,8 +69,8 @@ class TaskFactory(BaseTaskFactory):
             if overrides:
                 overrides.applyTo(config)
         elif overrides is not None:
-            _LOG.waring("Both config and overrides are specified for task %s, overrides are ignored",
-                        taskClass.__name__)
+            _LOG.warning("Both config and overrides are specified for task %s, overrides are ignored",
+                         taskClass.__name__)
 
         # if we don't have a butler, try to construct without initInputs;
         # let PipelineTasks raise if that's impossible
@@ -85,6 +85,9 @@ class TaskFactory(BaseTaskFactory):
                                      attribute.storageClass)
                 descriptorMap[name] = dsType
             initInputs = {k: butler.get(v) for k, v in descriptorMap.items()}
+
+        # Freeze the config
+        config.freeze()
 
         # make task instance
         task = taskClass(config=config, initInputs=initInputs)
