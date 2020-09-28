@@ -123,12 +123,6 @@ pipeline_dot_option = MWOptionDecorator("--pipeline-dot",
                                         type=MWPath(writable=True, file_okay=True, dir_okay=False))
 
 
-processes_option = MWOptionDecorator("-j", "--processes",
-                                     default=1,
-                                     help="Number of processes to use.",
-                                     type=click.IntRange(min=1))
-
-
 profile_option = MWOptionDecorator("--profile",
                                    help="Dump cProfile statistics to file name.",
                                    type=MWPath(file_okay=True, dir_okay=False))
