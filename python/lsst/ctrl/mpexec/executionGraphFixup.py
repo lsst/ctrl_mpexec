@@ -22,9 +22,8 @@
 __all__ = ['ExecutionGraphFixup']
 
 from abc import ABC, abstractmethod
-from typing import Iterable
 
-from lsst.pipe.base import QuantumIterData
+from lsst.pipe.base import QuantumGraph
 
 
 class ExecutionGraphFixup(ABC):
@@ -44,22 +43,20 @@ class ExecutionGraphFixup(ABC):
     """
 
     @abstractmethod
-    def fixupQuanta(self, quanta: Iterable[QuantumIterData]) -> Iterable[QuantumIterData]:
+    def fixupQuanta(self, graph: QuantumGraph) -> QuantumGraph:
         """Update quanta in a graph.
 
         Potentially anything in the graph could be changed if it does not
-        break executor assumptions. Returned quanta will be re-ordered by
-        executor, if modifications result in a dependency cycle the executor
-        will raise an exception.
+        break executor assumptions. If modifications result in a dependency
+        cycle the executor will raise an exception.
 
         Parameters
         ----------
-        quanta : iterable [`~lsst.pipe.base.QuantumIterData`]
-            Iterable of topologically ordered quanta as returned from
-            `lsst.pipe.base.QuantumGraph.traverse` method.
+        graph : QuantumGraph
+            Quantum Graph that will be executed by the executor
 
-        Yields
+        Returns
         ------
-        quantum : `~lsst.pipe.base.QuantumIterData`
+        graph : QuantumGraph
         """
         raise NotImplementedError

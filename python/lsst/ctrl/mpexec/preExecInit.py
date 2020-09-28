@@ -114,7 +114,7 @@ class PreExecInit:
             Raised if ``registerDatasetTypes`` is ``False`` and DatasetType
             does not exist in registry.
         """
-        pipeline = list(nodes.taskDef for nodes in graph)
+        pipeline = graph.taskGraph
 
         # Make dataset types for configurations
         configDatasetTypes = [DatasetType(taskDef.configDatasetName, {},
@@ -178,8 +178,7 @@ class PreExecInit:
         potentially introduce some extensible mechanism for that.
         """
         _LOG.debug("Will save InitOutputs for all tasks")
-        for taskNodes in graph:
-            taskDef = taskNodes.taskDef
+        for taskDef in graph.iterTaskGraph():
             task = self.taskFactory.makeTask(taskDef.taskClass, taskDef.config, None, self.butler)
             for name in taskDef.connections.initOutputs:
                 attribute = getattr(taskDef.connections, name)
@@ -228,8 +227,7 @@ class PreExecInit:
         _LOG.debug("Will save Configs for all tasks")
         # start transaction to rollback any changes on exceptions
         with self.butler.transaction():
-            for taskNodes in graph:
-                taskDef = taskNodes.taskDef
+            for taskDef in graph.taskGraph:
                 configName = taskDef.configDatasetName
 
                 oldConfig = None

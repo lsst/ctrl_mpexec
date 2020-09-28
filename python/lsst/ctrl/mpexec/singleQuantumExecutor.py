@@ -24,6 +24,7 @@ __all__ = ['SingleQuantumExecutor']
 # -------------------------------
 #  Imports of standard modules --
 # -------------------------------
+from collections import defaultdict
 import logging
 from itertools import chain
 
@@ -34,6 +35,7 @@ from .quantumGraphExecutor import QuantumExecutor
 from lsst.log import Log
 from lsst.obs.base import Instrument
 from lsst.pipe.base import ButlerQuantumContext
+from lsst.daf.butler import Quantum
 
 # ----------------------------------
 #  Local non-exported definitions --
@@ -77,7 +79,7 @@ class SingleQuantumExecutor(QuantumExecutor):
                       f"task={taskClass.__name__} dataId={quantum.dataId}.")
             return
 
-        self.updateQuantumInputs(quantum, butler)
+        quantum = self.updatedQuantumInputs(quantum, butler)
 
         # enable lsstDebug debugging
         if self.enableLsstDebug:
@@ -113,7 +115,7 @@ class SingleQuantumExecutor(QuantumExecutor):
             Single Quantum instance.
         """
         # include input dataIds into MDC
-        dataIds = set(ref.dataId for ref in chain.from_iterable(quantum.predictedInputs.values()))
+        dataIds = set(ref.dataId for ref in chain.from_iterable(quantum.inputs.values()))
         if dataIds:
             if len(dataIds) == 1:
                 Log.MDC("LABEL", str(dataIds.pop()))
@@ -199,8 +201,8 @@ class SingleQuantumExecutor(QuantumExecutor):
         # call task factory for that
         return self.taskFactory.makeTask(taskClass, config, None, butler)
 
-    def updateQuantumInputs(self, quantum, butler):
-        """Update quantum with extra information.
+    def updatedQuantumInputs(self, quantum, butler):
+        """Update quantum with extra information, returns a new updated Quantum.
 
         Some methods may require input DatasetRefs to have non-None
         ``dataset_id``, but in case of intermediate dataset it may not be
@@ -213,9 +215,15 @@ class SingleQuantumExecutor(QuantumExecutor):
             Single Quantum instance.
         butler : `~lsst.daf.butler.Butler`
             Data butler.
+
+        Returns
+        -------
+        update : `~lsst.daf.butler.Quantum`
+            Updated Quantum instance
         """
-        for refsForDatasetType in quantum.predictedInputs.values():
-            newRefsForDatasetType = []
+        updatedInputs = defaultdict(list)
+        for key, refsForDatasetType in quantum.inputs.items():
+            newRefsForDatasetType = updatedInputs[key]
             for ref in refsForDatasetType:
                 if ref.id is None:
                     resolvedRef = butler.registry.findDataset(ref.datasetType, ref.dataId,
@@ -229,7 +237,13 @@ class SingleQuantumExecutor(QuantumExecutor):
                     _LOG.debug("Updating dataset ID for %s", ref)
                 else:
                     newRefsForDatasetType.append(ref)
-            refsForDatasetType[:] = newRefsForDatasetType
+        return Quantum(taskName=quantum.taskName,
+                       taskClass=quantum.taskClass,
+                       dataId=quantum.dataId,
+                       initInputs=quantum.initInputs,
+                       inputs=updatedInputs,
+                       outputs=quantum.outputs
+                       )
 
     def runQuantum(self, task, quantum, taskDef, butler):
         """Execute task on a single quantum.
@@ -287,7 +301,7 @@ class SingleQuantumExecutor(QuantumExecutor):
         This will need revision when filter singleton disappears.
         """
         oneInstrument = None
-        for datasetRefs in chain(quantum.predictedInputs.values(), quantum.outputs.values()):
+        for datasetRefs in chain(quantum.inputs.values(), quantum.outputs.values()):
             for datasetRef in datasetRefs:
                 dataId = datasetRef.dataId
                 instrument = dataId.get("instrument")

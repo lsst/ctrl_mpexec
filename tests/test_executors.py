@@ -23,6 +23,7 @@
 """
 
 import logging
+import networkx as nx
 from multiprocessing import Manager
 import psutil
 import time
@@ -31,6 +32,7 @@ import unittest
 
 from lsst.ctrl.mpexec import MPGraphExecutor, MPGraphExecutorError, MPTimeoutError, QuantumExecutor
 from lsst.ctrl.mpexec.execFixupDataId import ExecFixupDataId
+from lsst.pipe.base import NodeId
 
 
 logging.basicConfig(level=logging.DEBUG)
@@ -68,16 +70,48 @@ class QuantumIterDataMock:
         self.taskDef = taskDef
         self.quantum = SimpleNamespace(dataId=dataId)
         self.dependencies = set()
+        self.nodeId = NodeId(index, "DummyBuildString")
 
 
 class QuantumGraphMock:
     """Mock for quantum graph.
     """
     def __init__(self, qdata):
-        self.qdata = qdata
+        self._graph = nx.DiGraph()
+        previous = qdata[0]
+        for node in qdata[1:]:
+            self._graph.add_edge(previous, node)
+            previous = node
 
-    def traverse(self):
-        return self.qdata
+    def __iter__(self):
+        yield from nx.topological_sort(self._graph)
+
+    def findTaskDefByLabel(self, label):
+        for q in self:
+            if q.taskDef.label == label:
+                return q.taskDef
+
+    def quantaForTask(self, taskDef):
+        quanta = set()
+        for q in self:
+            if q.taskDef == taskDef:
+                quanta.add(q)
+        return quanta
+
+    @property
+    def graph(self):
+        return self._graph
+
+    def findCycle(self):
+        return []
+
+    def determineInputsToQuantumNode(self, node):
+        result = set()
+        for n in node.dependencies:
+            for otherNode in self:
+                if otherNode.index == n:
+                    result.add(otherNode)
+        return result
 
 
 class TaskMockMP:
@@ -183,7 +217,6 @@ class MPGraphExecutorTestCase(unittest.TestCase):
         taskDef = TaskDefMock()
 
         for reverse in (False, True):
-
             qgraph = QuantumGraphMock([
                 QuantumIterDataMock(index=i, taskDef=taskDef, detector=i) for i in range(3)
             ])
