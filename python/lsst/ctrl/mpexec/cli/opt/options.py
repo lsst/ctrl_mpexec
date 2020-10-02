@@ -196,7 +196,8 @@ show_option = MWOptionDecorator("--show",
                                             its label or all tasks; `pipeline` to show pipeline composition;
                                             `graph` to show information about quanta; `workflow` to show
                                             information about quanta and their dependency; `tasks` to show
-                                            task composition."""),
+                                            task composition; `uri` to show predicted dataset URIs of
+                                            quanta"""),
                                 metavar="ITEM|ITEM=VALUE",
                                 multiple=True)
 

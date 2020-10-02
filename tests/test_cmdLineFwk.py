@@ -577,7 +577,17 @@ class CmdLineFwkTestCaseWithButler(unittest.TestCase):
 
         args = _makeArgs(show=["graph"])
         fwk.showInfo(args, pipeline=None, graph=qgraph)
-        # TODO: cannot test "workflow" option presently, it instanciates
+
+    def testShowGraphWorkflow(self):
+        fwk = CmdLineFwk()
+
+        nQuanta = 2
+        butler, qgraph = makeSimpleQGraph(nQuanta, root=self.root)
+
+        args = _makeArgs(show=["workflow"])
+        fwk.showInfo(args, pipeline=None, graph=qgraph)
+
+        # TODO: cannot test "uri" option presently, it instanciates
         # butler from command line options and there is no way to pass butler
         # mock to that code.
 
