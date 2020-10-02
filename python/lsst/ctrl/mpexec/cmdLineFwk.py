@@ -51,13 +51,11 @@ from lsst.daf.butler.registry import MissingCollectionError
 import lsst.log
 import lsst.pex.config as pexConfig
 from lsst.pipe.base import GraphBuilder, Pipeline, QuantumGraph
-from .cmdLineParser import makeParser
 from .dotTools import graph2dot, pipeline2dot
 from .executionGraphFixup import ExecutionGraphFixup
 from .mpGraphExecutor import MPGraphExecutor
 from .preExecInit import PreExecInit
 from .singleQuantumExecutor import SingleQuantumExecutor
-from .taskFactory import TaskFactory
 from . import util
 from lsst.utils import doImport
 
@@ -442,66 +440,6 @@ class CmdLineFwk:
 
     def __init__(self):
         pass
-
-    def parseAndRun(self, argv=None):
-        """
-        This method is a main entry point for this class, it parses command
-        line and executes all commands.
-
-        Parameters
-        ----------
-        argv : `list` of `str`, optional
-            list of command line arguments, if not specified then
-            `sys.argv[1:]` is used
-        """
-
-        if argv is None:
-            argv = sys.argv[1:]
-
-        # start with parsing command line, only do partial parsing now as
-        # the tasks can add more arguments later
-        parser = makeParser()
-        args = parser.parse_args(argv)
-
-        # First thing to do is to setup logging.
-        self.configLog(args.longlog, args.loglevel)
-
-        taskFactory = TaskFactory()
-
-        # make pipeline out of command line arguments (can return empty pipeline)
-        try:
-            pipeline = self.makePipeline(args)
-        except Exception as exc:
-            print("Failed to build pipeline: {}".format(exc), file=sys.stderr)
-            raise
-
-        if args.subcommand == "build":
-            # stop here but process --show option first
-            self.showInfo(args, pipeline)
-            return 0
-
-        # make quantum graph
-        try:
-            qgraph = self.makeGraph(pipeline, args)
-        except Exception as exc:
-            print("Failed to build graph: {}".format(exc), file=sys.stderr)
-            raise
-
-        # optionally dump some info
-        self.showInfo(args, pipeline, qgraph)
-
-        if qgraph is None:
-            # No need to raise an exception here, code that makes graph
-            # should have printed warning message already.
-            return 2
-
-        if args.subcommand == "qgraph":
-            # stop here
-            return 0
-
-        # execute
-        if args.subcommand == "run":
-            return self.runPipeline(qgraph, taskFactory, args)
 
     @staticmethod
     def configLog(longlog, logLevels):

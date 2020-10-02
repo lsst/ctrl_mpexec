@@ -25,7 +25,7 @@
 import unittest
 
 from lsst.ctrl.mpexec.cli.utils import makePipelineActions
-from lsst.ctrl.mpexec.cmdLineParser import _PipelineAction
+from lsst.ctrl.mpexec.cli.utils import _PipelineAction
 
 
 class PipelineActionTestCase(unittest.TestCase):

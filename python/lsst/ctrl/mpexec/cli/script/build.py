@@ -23,7 +23,7 @@ from types import SimpleNamespace
 
 from lsst.daf.butler.cli.cliLog import CliLog
 from ... import CmdLineFwk
-from ...cmdLineParser import _PipelineAction
+from ..utils import _PipelineAction
 
 
 def build(order_pipeline, pipeline, pipeline_actions, pipeline_dot, save_pipeline, show, log_level, **kwargs):

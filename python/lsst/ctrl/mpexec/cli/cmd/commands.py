@@ -25,6 +25,7 @@ from lsst.daf.butler.cli.opt import (config_file_option,
                                      config_option,
                                      options_file_option)
 from lsst.daf.butler.cli.utils import (cli_handle_exception,
+                                       Mocker,
                                        MWCommand,
                                        MWCtxObj,
                                        option_section,
@@ -118,9 +119,21 @@ def qgraph(ctx, **kwargs):
 @ctrlMpExecOpts.meta_info_options()
 @option_section(sectionText="")
 @options_file_option()
+# --call-mocker is for use with test code, it is not intended for CLI or other
+# non-testing use. It allows this command function to be executed
+# programatically and have it call Mocker with its kwargs, which can the be
+# gotten from Mocker later. At some point, ctrl_mpexec should stop passing
+# around a SimpleNamespace of arguments, which would make this workaround
+# unnecessary.
+@click.option("--call-mocker",
+              is_flag=True,
+              hidden=True)  # do not show this option in the help menu.
 def run(ctx, **kwargs):
     """Build and execute pipeline and quantum graph.
     """
+    if kwargs["call_mocker"]:
+        Mocker(**kwargs)
+        return
     pipeline = _doBuild(ctx, **kwargs)
     qgraph = cli_handle_exception(script.qgraph, pipelineObj=pipeline, **kwargs)
     cli_handle_exception(script.run, qgraphObj=qgraph, **kwargs)
