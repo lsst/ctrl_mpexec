@@ -47,7 +47,7 @@ class PipelineActionTestCase(unittest.TestCase):
                          [_PipelineAction(action="configfile", label="task", value="filename")])
         self.assertEqual(makePipelineActions(["--config-file", "task:filename"]),
                          [_PipelineAction(action="configfile", label="task", value="filename")])
-        self.assertEqual(makePipelineActions(["-i", "foo"]),
+        self.assertEqual(makePipelineActions(["--instrument", "foo"]),
                          [_PipelineAction(action="add_instrument", label=None, value="foo")])
         self.assertEqual(makePipelineActions(["--instrument", "foo"]),
                          [_PipelineAction(action="add_instrument", label=None, value="foo")])
@@ -65,7 +65,7 @@ class PipelineActionTestCase(unittest.TestCase):
                                               "-C", "task:filename",
                                               "-x",
                                               "-c", "task:addend=100",
-                                              "-i", "instr"]),
+                                              "--instrument", "instr"]),
                          [_PipelineAction(action="configfile", label="task", value="filename"),
                           _PipelineAction(action="config", label="task", value="addend=100"),
                           _PipelineAction(action="add_instrument", label=None, value="instr")])

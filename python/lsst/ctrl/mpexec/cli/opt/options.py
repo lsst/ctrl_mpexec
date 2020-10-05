@@ -72,7 +72,7 @@ init_only_option = MWOptionDecorator("--init-only",
 # specified by the input_option callback defined in commands.py. Should
 # that callback definition get moved here? Should these defaults be made
 # less use-case specific and moved to commands.py? Is it ok as is?
-input_option = MWOptionDecorator("--input",
+input_option = MWOptionDecorator("-i", "--input",
                                  callback=split_commas,
                                  default=list(),
                                  help=unwrap("""Comma-separated names of the input collection(s). Entries may
