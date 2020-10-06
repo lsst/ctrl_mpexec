@@ -22,5 +22,8 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import sys
-from lsst.ctrl.mpexec.cmdLineFwk import CmdLineFwk
-sys.exit(CmdLineFwk().parseAndRun())
+
+from lsst.ctrl.mpexec.cli.pipetask import main
+
+if __name__ == "__main__":
+    sys.exit(main())

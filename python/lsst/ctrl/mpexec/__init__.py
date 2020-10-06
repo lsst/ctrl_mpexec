@@ -20,7 +20,6 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 from .cmdLineFwk import *
-from .cmdLineParser import *
 from .dotTools import *
 from .executionGraphFixup import *
 from .mpGraphExecutor import *

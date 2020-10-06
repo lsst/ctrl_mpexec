@@ -20,15 +20,70 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 
+import collections
+import re
+
 from lsst.daf.butler.cli.opt import (config_file_option, config_option)
 from lsst.obs.base.cli.opt import instrument_option
 from .opt import (delete_option,
                   task_option)
-from ..cmdLineParser import (_ACTION_ADD_TASK,
-                             _ACTION_DELETE_TASK,
-                             _ACTION_CONFIG,
-                             _ACTION_CONFIG_FILE,
-                             _ACTION_ADD_INSTRUMENT)
+
+
+# Class which determines an action that needs to be performed
+# when building pipeline, its attributes are:
+#   action: the name of the action, e.g. "new_task", "delete_task"
+#   label:  task label, can be None if action does not require label
+#   value:  argument value excluding task label.
+_PipelineAction = collections.namedtuple("_PipelineAction", "action,label,value")
+
+
+class _PipelineActionType:
+    """Class defining a callable type which converts strings into
+    ``_PipelineAction`` instances.
+
+    Parameters
+    ----------
+    action : `str`
+        Name of the action, will become `action` attribute of instance.
+    regex : `str`
+        Regular expression for argument value, it can define groups 'label'
+        and 'value' which will become corresponding attributes of a
+        returned instance.
+    """
+
+    def __init__(self, action, regex='.*', valueType=str):
+        self.action = action
+        self.regex = re.compile(regex)
+        self.valueType = valueType
+
+    def __call__(self, value):
+        match = self.regex.match(value)
+        if not match:
+            raise TypeError("Unrecognized option syntax: " + value)
+        # get "label" group or use None as label
+        try:
+            label = match.group("label")
+        except IndexError:
+            label = None
+        # if "value" group is not defined use whole string
+        try:
+            value = match.group("value")
+        except IndexError:
+            pass
+        value = self.valueType(value)
+        return _PipelineAction(self.action, label, value)
+
+    def __repr__(self):
+        """String representation of this class.
+        """
+        return f"_PipelineActionType(action={self.action})"
+
+
+_ACTION_ADD_TASK = _PipelineActionType("new_task", "(?P<value>[^:]+)(:(?P<label>.+))?")
+_ACTION_DELETE_TASK = _PipelineActionType("delete_task", "(?P<value>)(?P<label>.+)")
+_ACTION_CONFIG = _PipelineActionType("config", "(?P<label>.+):(?P<value>.+=.+)")
+_ACTION_CONFIG_FILE = _PipelineActionType("configfile", "(?P<label>.+):(?P<value>.+)")
+_ACTION_ADD_INSTRUMENT = _PipelineActionType("add_instrument", "(?P<value>[^:]+)")
 
 
 def makePipelineActions(args,

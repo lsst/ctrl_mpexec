@@ -22,6 +22,8 @@
 """Simple unit test for cmdLineFwk module.
 """
 
+import click
+from types import SimpleNamespace
 import contextlib
 import copy
 from dataclasses import dataclass
@@ -34,10 +36,11 @@ from typing import NamedTuple
 import unittest
 
 from lsst.ctrl.mpexec.cmdLineFwk import CmdLineFwk
-import lsst.ctrl.mpexec.cmdLineParser as parser_mod
-from lsst.ctrl.mpexec.cmdLineParser import (_ACTION_ADD_TASK, _ACTION_CONFIG,
-                                            _ACTION_CONFIG_FILE, _ACTION_ADD_INSTRUMENT)
+from lsst.ctrl.mpexec.cli.pipetask import cli as pipetaskCli
+from lsst.ctrl.mpexec.cli.utils import (_ACTION_ADD_TASK, _ACTION_CONFIG,
+                                        _ACTION_CONFIG_FILE, _ACTION_ADD_INSTRUMENT)
 from lsst.daf.butler import Config, Quantum, Registry
+from lsst.daf.butler.cli.utils import Mocker
 from lsst.daf.butler.registry import RegistryConfig
 from lsst.obs.base import Instrument
 import lsst.pex.config as pexConfig
@@ -135,7 +138,7 @@ class TaskFactoryMock(TaskFactory):
         return taskClass(config=config, butler=butler)
 
 
-def _makeArgs(cmd="run", registryConfig=None, **kwargs):
+def _makeArgs(registryConfig=None, **kwargs):
     """Return parsed command line arguments.
 
     By default butler_config is set to `Config` populated with some defaults,
@@ -150,9 +153,21 @@ def _makeArgs(cmd="run", registryConfig=None, **kwargs):
     **kwargs
         Overrides for other arguments.
     """
-    # call parser for "run" command to set defaults for all arguments
-    parser = parser_mod.makeParser()
-    args = parser.parse_args([cmd])
+    # Execute the "run" command with the --call-mocker flag set so we can get
+    # all the default arguments that were passed to the command function out of
+    # the Mocker call.
+    # At some point, ctrl_mpexec should stop passing around a SimpleNamespace
+    # of arguments, which would make this workaround unnecessary.
+    runner = click.testing.CliRunner()
+    result = result = runner.invoke(pipetaskCli, ["run", "--call-mocker"])
+    if result.exit_code != 0:
+        raise RuntimeError("Failure getting default args from 'pipetask run'.")
+    _, args = Mocker.mock.call_args
+    args["enableLsstDebug"] = args.pop("debug")
+    if "pipeline_actions" not in args:
+        args["pipeline_actions"] = []
+    args = SimpleNamespace(**args)
+
     # override butler_config with our defaults
     args.butler_config = Config()
     if registryConfig:
