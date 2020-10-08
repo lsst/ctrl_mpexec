@@ -752,27 +752,37 @@ class CmdLineFwk:
             print(f"Pipeline has no tasks named {taskName}", file=sys.stderr)
             sys.exit(1)
 
-        cpath, _, cname = pattern.rpartition(".")
         found = False
         for taskDef in tasks:
-            try:
-                if not cpath:
-                    # looking for top-level field
-                    hconfig = taskDef.config
-                else:
-                    hconfig = eval("config." + cpath, {}, {"config": taskDef.config})
-            except AttributeError:
-                # Means this config object has no such field, but maybe some other task has it.
-                continue
-            except Exception:
-                # Any other exception probably means some error in the expression.
-                print(f"ERROR: Failed to evaluate field expression `{pattern}'", file=sys.stderr)
-                sys.exit(1)
 
-            if hasattr(hconfig, cname):
-                print(f"### Configuration field for task `{taskDef.label}'")
-                print(pexConfig.history.format(hconfig, cname))
-                found = True
+            config = taskDef.config
+
+            # Look for any matches in the config hierarchy for this name
+            for nmatch, thisName in enumerate(fnmatch.filter(config.names(), pattern)):
+                if nmatch > 0:
+                    print("")
+
+                partitioned = thisName.split(".")
+                cpath, cname = partitioned[:-1], partitioned[-1]
+
+                hconfig = config  # the config that we're interested in
+
+                for i, cpt in enumerate(cpath):
+                    # We know this should be available because we checked
+                    # all the names above but we still might be caught out
+                    try:
+                        hconfig = getattr(hconfig, cpt)
+                    except AttributeError:
+                        config_path = ".".join(["config"] + cpath[:i])
+                        print(f"Error: Unable to extract {cname} from {config_path} "
+                              f"from task {taskDef.label}", file=sys.stderr)
+                        hconfig = None
+
+                # Sometimes we end up with a non-Config so skip those
+                if isinstance(hconfig, pexConfig.Config) and hasattr(hconfig, cname):
+                    print(f"### Configuration field for task `{taskDef.label}'")
+                    print(pexConfig.history.format(hconfig, cname))
+                    found = True
 
         if not found:
             print(f"None of the tasks has field named {pattern}", file=sys.stderr)
