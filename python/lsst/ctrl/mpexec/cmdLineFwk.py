@@ -584,9 +584,9 @@ class CmdLineFwk:
                 qgraph.save(pickleFile)
 
         if args.save_single_quanta:
-            for iq, quantumNode in enumerate(qgraph):
+            for quantumNode in qgraph:
                 sqgraph = qgraph.subset(quantumNode)
-                filename = args.save_single_quanta.format(iq)
+                filename = args.save_single_quanta.format(quantumNode.nodeId.number)
                 with open(filename, "wb") as pickleFile:
                     sqgraph.save(pickleFile)
 
@@ -666,7 +666,7 @@ class CmdLineFwk:
                     _LOG.warning("Pipeline is required for --show=%s", showCommand)
                     continue
 
-            if showCommand in ["graph", "workflow"]:
+            if showCommand in ["graph", "workflow", "uri"]:
                 if not graph:
                     _LOG.warning("QuantumGraph is required for --show=%s", showCommand)
                     continue
@@ -684,6 +684,9 @@ class CmdLineFwk:
             elif showCommand == "graph":
                 if graph:
                     self._showGraph(graph)
+            elif showCommand == "uri":
+                if graph:
+                    self._showUri(graph, args)
             elif showCommand == "workflow":
                 if graph:
                     self._showWorkflow(graph, args)
@@ -826,12 +829,25 @@ class CmdLineFwk:
     def _showWorkflow(self, graph, args):
         """Print quanta information and dependency to stdout
 
-        The input and predicted output URIs based on the Butler repo are printed.
-
         Parameters
         ----------
         graph : `QuantumGraph`
             Execution graph.
+        args : `argparse.Namespace`
+            Parsed command line
+        """
+        for node in graph:
+            print(f"Quantum {node.nodeId.number}: {node.taskDef.taskName}")
+            for parent in graph.determineInputsToQuantumNode(node):
+                print(f"Parent Quantum {parent.nodeId.number} - Child Quantum {node.nodeId.number}")
+
+    def _showUri(self, graph, args):
+        """Print input and predicted output URIs to stdout
+
+        Parameters
+        ----------
+        graph : `QuantumGraph`
+            Execution graph
         args : `argparse.Namespace`
             Parsed command line
         """
@@ -845,19 +861,16 @@ class CmdLineFwk:
                     print(f"        {compName}: {compUri}")
 
         butler = _ButlerFactory.makeReadButler(args)
-        for qdata in graph.traverse():
-            shortname = qdata.taskDef.taskName.split('.')[-1]
-            print("Quantum {}: {}".format(qdata.index, shortname))
+        for node in graph:
+            print(f"Quantum {node.nodeId.number}: {node.taskDef.taskName}")
             print("  inputs:")
-            for key, refs in qdata.quantum.inputs.items():
+            for key, refs in node.quantum.inputs.items():
                 for ref in refs:
                     dumpURIs(ref)
             print("  outputs:")
-            for key, refs in qdata.quantum.outputs.items():
+            for key, refs in node.quantum.outputs.items():
                 for ref in refs:
                     dumpURIs(ref)
-            for parent in qdata.dependencies:
-                print("Parent Quantum {} - Child Quantum {}".format(parent, qdata.index))
 
     def _importGraphFixup(self, args):
         """Import/instantiate graph fixup object.
