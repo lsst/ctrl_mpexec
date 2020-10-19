@@ -95,7 +95,7 @@ def makeSQLiteRegistry(create=True):
         config = RegistryConfig()
         config["db"] = uri
         if create:
-            Registry.fromConfig(config, create=True)
+            Registry.createFromConfig(config)
         yield config
 
 
