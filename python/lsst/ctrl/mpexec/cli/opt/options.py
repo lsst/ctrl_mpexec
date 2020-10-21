@@ -114,7 +114,7 @@ output_run_option = MWOptionDecorator("--output-run",
 
 pipeline_option = MWOptionDecorator("-p", "--pipeline",
                                     help="Location of a pipeline definition file in YAML format.",
-                                    type=MWPath(exists=True, file_okay=True, dir_okay=False, readable=True))
+                                    type=MWPath(file_okay=True, dir_okay=False, readable=True))
 
 
 pipeline_dot_option = MWOptionDecorator("--pipeline-dot",
