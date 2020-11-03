@@ -68,17 +68,11 @@ init_only_option = MWOptionDecorator("--init-only",
                                      is_flag=True)
 
 
-# TODO defaultMetavar and defaultHelp both match with the handling
-# specified by the input_option callback defined in commands.py. Should
-# that callback definition get moved here? Should these defaults be made
-# less use-case specific and moved to commands.py? Is it ok as is?
 input_option = MWOptionDecorator("-i", "--input",
                                  callback=split_commas,
                                  default=list(),
-                                 help=unwrap("""Comma-separated names of the input collection(s). Entries may
-                                             include a colon (:), the first string is a dataset type name that
-                                             restricts the search in that collection."""),
-                                 metavar="COLL,DSTYPE:COLL",
+                                 help=unwrap("""Comma-separated names of the input collection(s)."""),
+                                 metavar="COLLECTION",
                                  multiple=True)
 
 no_versions_option = MWOptionDecorator("--no-versions",
