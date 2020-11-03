@@ -211,9 +211,7 @@ class _ButlerFactory:
             self.outputRun = None
         else:
             raise ValueError("Cannot write without at least one of (--output, --output-run).")
-        self.inputs = (
-            list(CollectionSearch.fromExpression(args.input, registry.dimensions)) if args.input else []
-        )
+        self.inputs = list(CollectionSearch.fromExpression(args.input)) if args.input else []
 
     def check(self, args: argparse.Namespace):
         """Check command-line options for consistency with each other and the
@@ -278,7 +276,7 @@ class _ButlerFactory:
             inputs = list(self.inputs)
         if args.extend_run:
             inputs.insert(0, self.outputRun.name)
-        inputs = CollectionSearch.fromExpression(inputs, butler.registry.dimensions)
+        inputs = CollectionSearch.fromExpression(inputs)
         return butler, inputs, self
 
     @classmethod
@@ -369,14 +367,13 @@ class _ButlerFactory:
                         f"Unsupported --prune-replaced option '{args.prune_replaced}'."
                     )
             chainDefinition.insert(0, self.outputRun.name)
-            chainDefinition = CollectionSearch.fromExpression(chainDefinition, butler.registry.dimensions)
+            chainDefinition = CollectionSearch.fromExpression(chainDefinition)
             _LOG.debug("Preparing butler to write to '%s' and read from '%s'=%s",
                        self.outputRun.name, self.output.name, chainDefinition)
             return Butler(butler=butler, run=self.outputRun.name, collections=self.output.name,
                           chains={self.output.name: chainDefinition})
         else:
-            inputs = CollectionSearch.fromExpression([self.outputRun.name] + self.inputs,
-                                                     butler.registry.dimensions)
+            inputs = CollectionSearch.fromExpression([self.outputRun.name] + self.inputs)
             _LOG.debug("Preparing butler to write to '%s' and read from %s.", self.outputRun.name, inputs)
             return Butler(butler=butler, run=self.outputRun.name, collections=inputs)
 
