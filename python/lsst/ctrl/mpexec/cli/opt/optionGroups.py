@@ -24,9 +24,7 @@ __all__ = ("butler_options", "execution_options", "meta_info_options", "pipeline
            "qgraph_options")
 
 
-from functools import partial
-
-from lsst.daf.butler.cli.utils import option_section, split_kv, unwrap
+from lsst.daf.butler.cli.utils import option_section, unwrap
 import lsst.obs.base.cli.opt as obsBaseOpts
 import lsst.daf.butler.cli.opt as dafButlerOpts
 from . import options as ctrlMpExecOpts
@@ -88,16 +86,7 @@ class butler_options(OptionGroup):  # noqa: N801
         self.decorators = [
             option_section(sectionText="Data repository and selection options:"),
             ctrlMpExecOpts.butler_config_option(),
-            # CLI API says `--input` values should be given like
-            # "datasetType:collectionName" or just "datasetType", but CmdLineFwk api
-            # wants input values to be a tuple of tuples, where each tuple is
-            # ("collectionName", "datasetType"), or (..., "datasetType") with elipsis if no
-            # collectionName is provided. Setting `return_type=tuple`, `reverse_kv=True`,
-            # and `default_key=...` make `split_kv` callback structure its return value
-            # that way.
-            ctrlMpExecOpts.input_option(callback=partial(split_kv, return_type=tuple, default_key=...,
-                                                         reverse_kv=True, unseparated_okay=True),
-                                        multiple=True),
+            ctrlMpExecOpts.input_option(),
             ctrlMpExecOpts.output_option(),
             ctrlMpExecOpts.output_run_option(),
             ctrlMpExecOpts.extend_run_option(),

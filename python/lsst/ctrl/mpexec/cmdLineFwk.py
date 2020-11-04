@@ -350,7 +350,7 @@ class _ButlerFactory:
         if self.output is not None:
             chainDefinition = list(self.output.chain if self.output.exists else self.inputs)
             if args.replace_run:
-                replaced, _ = chainDefinition.pop(0)
+                replaced = chainDefinition.pop(0)
                 if args.prune_replaced == "unstore":
                     # Remove datasets from datastore
                     with butler.transaction():
