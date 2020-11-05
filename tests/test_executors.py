@@ -136,13 +136,23 @@ class TaskMockFail:
 
 
 class TaskMockSleep:
-    """Simple mock class for task which fails.
+    """Simple mock class for task which "runs" for some time.
     """
     canMultiprocess = True
 
     def runQuantum(self):
         _LOG.debug("TaskMockSleep.runQuantum")
         time.sleep(5.)
+
+
+class TaskMockLongSleep:
+    """Simple mock class for task which "runs" for very long time.
+    """
+    canMultiprocess = True
+
+    def runQuantum(self):
+        _LOG.debug("TaskMockLongSleep.runQuantum")
+        time.sleep(100.)
 
 
 class TaskMockNoMP:
@@ -313,12 +323,12 @@ class MPGraphExecutorTestCase(unittest.TestCase):
 
         taskDef = TaskDefMock()
         taskDefFail = TaskDefMock(taskClass=TaskMockFail)
-        taskDefSleep = TaskDefMock(taskClass=TaskMockSleep)
+        taskDefLongSleep = TaskDefMock(taskClass=TaskMockLongSleep)
         qdata = [
             QuantumIterDataMock(index=0, taskDef=taskDef, detector=0),
             QuantumIterDataMock(index=1, taskDef=taskDefFail, detector=1),
             QuantumIterDataMock(index=2, taskDef=taskDef, detector=2),
-            QuantumIterDataMock(index=3, taskDef=taskDefSleep, detector=3),
+            QuantumIterDataMock(index=3, taskDef=taskDefLongSleep, detector=3),
             QuantumIterDataMock(index=4, taskDef=taskDef, detector=4),
         ]
         qdata[1].dependencies.add(0)
