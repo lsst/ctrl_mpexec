@@ -87,6 +87,9 @@ class QuantumGraphMock:
     def __iter__(self):
         yield from nx.topological_sort(self._graph)
 
+    def __len__(self):
+        return len(self._graph)
+
     def findTaskDefByLabel(self, label):
         for q in self:
             if q.taskDef.label == label:
