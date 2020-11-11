@@ -83,7 +83,9 @@ class _Job:
         butler_pickle = pickle.dumps(butler)
         taskDef = self.taskDef
         quantum = self.qnode.quantum
-        self.process = multiprocessing.Process(
+        # Use fork for multiprocessing start method on all platforms
+        mp_ctx = multiprocessing.get_context("fork")
+        self.process = mp_ctx.Process(
             target=self._executeJob,
             args=(quantumExecutor, taskDef, quantum, butler_pickle),
             name=f"task-{self.index}"
