@@ -27,6 +27,7 @@ __all__ = ['SingleQuantumExecutor']
 from collections import defaultdict
 import logging
 from itertools import chain
+import time
 
 # -----------------------------
 #  Imports for other modules --
@@ -261,9 +262,15 @@ class SingleQuantumExecutor(QuantumExecutor):
         # Get the input and output references for the task
         inputRefs, outputRefs = taskDef.connections.buildDatasetRefs(quantum)
 
+        startTime = time.time()
+
         # Call task runQuantum() method. Any exception thrown by the task
         # propagates to caller.
         task.runQuantum(butlerQC, inputRefs, outputRefs)
+
+        stopTime = time.time()
+        _LOG.info("Execution of task '%s' on quantum %s took %.3f seconds",
+                  taskDef.label, quantum.dataId, stopTime - startTime)
 
         if taskDef.metadataDatasetName is not None:
             # DatasetRef has to be in the Quantum outputs, can lookup by name

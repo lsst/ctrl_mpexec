@@ -135,7 +135,7 @@ class _Job:
 
 
 class _JobList:
-    """SImple list of _Job instances with few convenience methods.
+    """Simple list of _Job instances with few convenience methods.
 
     Parameters
     ----------
@@ -296,9 +296,16 @@ class MPGraphExecutor(QuantumGraphExecutor):
         butler : `lsst.daf.butler.Butler`
             Data butler instance
         """
+        # Note that in non-MP case any failed task will generate an exception
+        # and kill the whole thing. In general we cannot guarantee exception
+        # safety so easiest and safest thing is to let it die.
+        count, totalCount = 0, len(graph)
         for qnode in graph:
             _LOG.debug("Executing %s", qnode)
             self.quantumExecutor.execute(qnode.taskDef, qnode.quantum, butler)
+            count += 1
+            _LOG.info("Executed %d quanta, %d remain out of total %d quanta.",
+                      count, totalCount - count, totalCount)
 
     def _executeQuantaMP(self, graph, butler):
         """Execute all Quanta in separate processes.
@@ -323,6 +330,7 @@ class MPGraphExecutor(QuantumGraphExecutor):
                 raise MPGraphExecutorError(f"Task {taskDef.taskName} does not support multiprocessing;"
                                            " use single process")
 
+        finished, failed = 0, 0
         while jobs.pending() or jobs.running():
 
             _LOG.debug("#pendingJobs: %s", len(jobs.pending()))
@@ -385,6 +393,14 @@ class MPGraphExecutor(QuantumGraphExecutor):
 
             # Do cleanup for timed out jobs if necessary.
             jobs.cleanup()
+
+            # Print progress message if something changed.
+            newFinished, newFailed = len(jobs.finishedNodes()), len(jobs.failedNodes())
+            if (finished, failed) != (newFinished, newFailed):
+                finished, failed = newFinished, newFailed
+                totalCount = len(jobs.jobs)
+                _LOG.info("Executed %d quanta successfully, %d failed and %d remain out of total %d quanta.",
+                          finished, failed, totalCount - finished - failed, totalCount)
 
             # Here we want to wait until one of the running jobs completes
             # but multiprocessing does not provide an API for that, for now
