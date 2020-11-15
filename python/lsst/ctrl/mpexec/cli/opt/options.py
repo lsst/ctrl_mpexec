@@ -185,7 +185,7 @@ show_option = MWOptionDecorator("--show",
                                             `config=[Task::]<PATTERN>:NOIGNORECASE` to dump configuration
                                             fields possibly matching given pattern and/or task label;
                                             `history=<FIELD>` to dump configuration history for a field, field
-                                            name is specified as [Task::][SubTask.]Field; `dump-config`,
+                                            name is specified as [Task::]<PATTERN>; `dump-config`,
                                             `dump-config=Task` to dump complete configuration for a task given
                                             its label or all tasks; `pipeline` to show pipeline composition;
                                             `graph` to show information about quanta; `workflow` to show

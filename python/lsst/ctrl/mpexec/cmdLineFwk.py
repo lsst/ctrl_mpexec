@@ -765,30 +765,27 @@ class CmdLineFwk:
                 if nmatch > 0:
                     print("")
 
-                partitioned = thisName.split(".")
-                cpath, cname = partitioned[:-1], partitioned[-1]
-
-                hconfig = config  # the config that we're interested in
-
-                for i, cpt in enumerate(cpath):
-                    # We know this should be available because we checked
-                    # all the names above but we still might be caught out
-                    try:
-                        hconfig = getattr(hconfig, cpt)
-                    except AttributeError:
-                        config_path = ".".join(["config"] + cpath[:i])
-                        print(f"Error: Unable to extract {cname} from {config_path} "
-                              f"from task {taskDef.label}", file=sys.stderr)
-                        hconfig = None
+                cpath, _, cname = thisName.rpartition(".")
+                try:
+                    if not cpath:
+                        # looking for top-level field
+                        hconfig = taskDef.config
+                    else:
+                        hconfig = eval("config." + cpath, {}, {"config": config})
+                except AttributeError:
+                    print(f"Error: Unable to extract attribute {cpath} from task {taskDef.label}",
+                          file=sys.stderr)
+                    hconfig = None
 
                 # Sometimes we end up with a non-Config so skip those
-                if isinstance(hconfig, pexConfig.Config) and hasattr(hconfig, cname):
+                if isinstance(hconfig, (pexConfig.Config, pexConfig.ConfigurableInstance)) and \
+                        hasattr(hconfig, cname):
                     print(f"### Configuration field for task `{taskDef.label}'")
                     print(pexConfig.history.format(hconfig, cname))
                     found = True
 
         if not found:
-            print(f"None of the tasks has field named {pattern}", file=sys.stderr)
+            print(f"None of the tasks has field matching {pattern}", file=sys.stderr)
             sys.exit(1)
 
     def _showTaskHierarchy(self, pipeline):
