@@ -26,22 +26,16 @@ from lsst.daf.butler.cli.opt import (config_file_option,
                                      options_file_option)
 from lsst.daf.butler.cli.utils import (cli_handle_exception,
                                        Mocker,
-                                       MWCommand,
                                        MWCtxObj,
                                        option_section,
                                        unwrap)
-import lsst.daf.butler.cli.opt as dafButlerOpts
 import lsst.obs.base.cli.opt as obsBaseOpts
 from .. import opt as ctrlMpExecOpts
 from .. import script
-from ..utils import makePipelineActions
+from ..utils import makePipelineActions, PipetaskCommand
 
 
-forwardEpilog = unwrap("""Options marked with (f) are forwarded to the next subcommand if multiple subcommands
-                are chained in the same command execution. Previous values may be overridden by passing new
-                option values into the next subcommand.""")
-
-buildEpilog = unwrap("""Notes:
+epilog = unwrap("""Notes:
 
 --task, --delete, --config, --config-file, and --instrument action options can
 appear multiple times; all values are used, in order left to right.
@@ -51,10 +45,6 @@ distributed among multiple lines (e.g. one option per line). Data after # is
 treated as a comment and ignored. Blank lines and lines starting with # are
 ignored.)
 """)
-
-qgraphEpilog = forwardEpilog
-
-runEpilog = forwardEpilog
 
 
 def _doBuild(ctx, **kwargs):
@@ -76,9 +66,8 @@ def _doBuild(ctx, **kwargs):
     return cli_handle_exception(script.build, **kwargs)
 
 
-@click.command(cls=MWCommand, epilog=buildEpilog, short_help="Build pipeline definition.")
+@click.command(cls=PipetaskCommand, epilog=epilog, short_help="Build pipeline definition.")
 @click.pass_context
-@dafButlerOpts.log_level_option()
 @ctrlMpExecOpts.show_option()
 @ctrlMpExecOpts.pipeline_build_options()
 @option_section(sectionText="")
@@ -91,9 +80,8 @@ def build(ctx, **kwargs):
     _doBuild(ctx, **kwargs)
 
 
-@click.command(cls=MWCommand, epilog=qgraphEpilog)
+@click.command(cls=PipetaskCommand, epilog=epilog)
 @click.pass_context
-@dafButlerOpts.log_level_option()
 @ctrlMpExecOpts.show_option()
 @ctrlMpExecOpts.pipeline_build_options()
 @ctrlMpExecOpts.qgraph_options()
@@ -107,9 +95,8 @@ def qgraph(ctx, **kwargs):
     cli_handle_exception(script.qgraph, pipelineObj=pipeline, **kwargs)
 
 
-@click.command(cls=MWCommand, epilog=runEpilog)
+@click.command(cls=PipetaskCommand, epilog=epilog)
 @click.pass_context
-@dafButlerOpts.log_level_option()
 @ctrlMpExecOpts.debug_option()
 @ctrlMpExecOpts.show_option()
 @ctrlMpExecOpts.pipeline_build_options()

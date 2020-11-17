@@ -22,13 +22,12 @@
 import logging
 from types import SimpleNamespace
 
-from lsst.daf.butler.cli.cliLog import CliLog
 from ... import CmdLineFwk
 
 _log = logging.getLogger(__name__.partition(".")[2])
 
 
-def qgraph(pipelineObj, log_level, qgraph, skip_existing, save_qgraph, save_single_quanta, qgraph_dot,
+def qgraph(pipelineObj, qgraph, skip_existing, save_qgraph, save_single_quanta, qgraph_dot,
            butler_config, input, output, output_run, extend_run, replace_run, prune_replaced, data_query,
            show, **kwargs):
     """Implements the command line interface `pipetask qgraph` subcommand,
@@ -40,11 +39,6 @@ def qgraph(pipelineObj, log_level, qgraph, skip_existing, save_qgraph, save_sing
     pipelineObj : `pipe.base.Pipeline` or None.
         The pipeline object used to generate a qgraph. If this is not `None`
         then `qgraph` should be `None`.
-    log_level : `list` of `tuple`
-        per-component logging levels, each item in the list is a tuple
-        (component, level), `component` is a logger name or an empty string
-        or `None` for root logger, `level` is a logging level name, one of
-        CRITICAL, ERROR, WARNING, INFO, DEBUG (case insensitive).
     qgraph : `str` or `None`
         Path location for a serialized quantum graph definition as a pickle
         file. If this option is not None then `pipeline` should be `None`.
@@ -111,9 +105,6 @@ def qgraph(pipelineObj, log_level, qgraph, skip_existing, save_qgraph, save_sing
     qgraph : `lsst.pipe.base.QuantumGraph`
         The qgraph object that was created.
     """
-    if log_level is not None:
-        CliLog.setLogLevels(log_level)
-
     args = SimpleNamespace(qgraph=qgraph,
                            save_qgraph=save_qgraph,
                            save_single_quanta=save_single_quanta,
