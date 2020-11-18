@@ -266,7 +266,7 @@ class _ButlerFactory:
         self.check(args)
         if self.output and self.output.exists:
             if args.replace_run:
-                replaced, _ = self.output.chain[0]
+                replaced = self.output.chain[0]
                 inputs = self.output.chain[1:]
                 _LOG.debug("Simulating collection search in '%s' after removing '%s'.",
                            self.output.name, replaced)
