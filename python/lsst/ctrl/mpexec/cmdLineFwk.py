@@ -106,7 +106,7 @@ class _OutputChainedCollectionInfo:
     """Whether this collection already exists in the registry (`bool`).
     """
 
-    chain: List[Tuple[str, DatasetTypeRestriction]]
+    chain: List[str]
     """The definition of the collection, if it already exists (`list`).
 
     Empty if the collection does not alredy exist.
