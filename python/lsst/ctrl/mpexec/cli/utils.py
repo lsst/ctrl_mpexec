@@ -24,6 +24,7 @@ import collections
 import re
 
 from lsst.daf.butler.cli.opt import (config_file_option, config_option)
+from lsst.daf.butler.cli.utils import MWCommand
 from lsst.obs.base.cli.opt import instrument_option
 from .opt import (delete_option,
                   task_option)
@@ -137,3 +138,9 @@ def makePipelineActions(args,
         elif args[i] in instrumentFlags:
             pipelineActions.append(_ACTION_ADD_INSTRUMENT(args[i+1]))
     return pipelineActions
+
+
+class PipetaskCommand(MWCommand):
+    """Command subclass with pipetask-command specific overrides."""
+
+    extra_epilog = "See 'pipetask --help' for more options."

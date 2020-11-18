@@ -22,7 +22,6 @@
 import logging
 from types import SimpleNamespace
 
-from lsst.daf.butler.cli.cliLog import CliLog
 from ... import CmdLineFwk, TaskFactory
 
 _log = logging.getLogger(__name__.partition(".")[2])
@@ -31,7 +30,6 @@ _log = logging.getLogger(__name__.partition(".")[2])
 def run(do_raise,
         graph_fixup,
         init_only,
-        log_level,
         no_versions,
         processes,
         profile,
@@ -66,11 +64,6 @@ def run(do_raise,
     init_only : `bool`
         If true, do not actually run; just register dataset types and/or save
         init outputs.
-    log_level : `list` of `tuple`
-        per-component logging levels, each item in the list is a tuple
-        (component, level), `component` is a logger name or an empty string
-        or `None` for root logger, `level` is a logging level name, one of
-        CRITICAL, ERROR, WARNING, INFO, DEBUG (case insensitive).
     no_versions : `bool`
         If true, do not save or check package versions.
     processes : `int`
@@ -142,10 +135,6 @@ def run(do_raise,
         function and pass all the option kwargs to each of the script functions
         which ingore these unused kwargs.
     """
-
-    if log_level is not None:
-        CliLog.setLogLevels(log_level)
-
     args = SimpleNamespace(do_raise=do_raise,
                            graph_fixup=graph_fixup,
                            init_only=init_only,
