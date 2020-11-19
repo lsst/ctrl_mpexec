@@ -639,6 +639,7 @@ class CmdLineFwk:
                                                     enableLsstDebug=args.enableLsstDebug)
             timeout = self.MP_TIMEOUT if args.timeout is None else args.timeout
             executor = MPGraphExecutor(numProc=args.processes, timeout=timeout,
+                                       startMethod=args.start_method,
                                        quantumExecutor=quantumExecutor,
                                        failFast=args.fail_fast,
                                        executionGraphFixup=graphFixup)

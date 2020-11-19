@@ -70,6 +70,9 @@ class SingleQuantumExecutor(QuantumExecutor):
         self.clobberPartialOutputs = clobberPartialOutputs
 
     def execute(self, taskDef, quantum, butler):
+
+        startTime = time.time()
+
         # Docstring inherited from QuantumExecutor.execute
         self.setupLogging(taskDef, quantum)
         taskClass, config = taskDef.taskClass, taskDef.config
@@ -98,6 +101,10 @@ class SingleQuantumExecutor(QuantumExecutor):
 
         task = self.makeTask(taskClass, config, butler)
         self.runQuantum(task, quantum, taskDef, butler)
+
+        stopTime = time.time()
+        _LOG.info("Execution of task '%s' on quantum %s took %.3f seconds",
+                  taskDef.label, quantum.dataId, stopTime - startTime)
 
     def setupLogging(self, taskDef, quantum):
         """Configure logging system for execution of this task.
@@ -262,15 +269,9 @@ class SingleQuantumExecutor(QuantumExecutor):
         # Get the input and output references for the task
         inputRefs, outputRefs = taskDef.connections.buildDatasetRefs(quantum)
 
-        startTime = time.time()
-
         # Call task runQuantum() method. Any exception thrown by the task
         # propagates to caller.
         task.runQuantum(butlerQC, inputRefs, outputRefs)
-
-        stopTime = time.time()
-        _LOG.info("Execution of task '%s' on quantum %s took %.3f seconds",
-                  taskDef.label, quantum.dataId, stopTime - startTime)
 
         if taskDef.metadataDatasetName is not None:
             # DatasetRef has to be in the Quantum outputs, can lookup by name

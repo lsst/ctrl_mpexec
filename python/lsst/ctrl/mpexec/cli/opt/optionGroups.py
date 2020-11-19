@@ -106,6 +106,7 @@ class execution_options(OptionGroup):  # noqa: N801
             ctrlMpExecOpts.do_raise_option(),
             ctrlMpExecOpts.profile_option(),
             dafButlerOpts.processes_option(),
+            ctrlMpExecOpts.start_method_option(),
             ctrlMpExecOpts.timeout_option(),
             ctrlMpExecOpts.fail_fast_option(),
             ctrlMpExecOpts.graph_fixup_option()]
