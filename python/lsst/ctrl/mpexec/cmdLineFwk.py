@@ -106,7 +106,7 @@ class _OutputChainedCollectionInfo:
     """Whether this collection already exists in the registry (`bool`).
     """
 
-    chain: List[Tuple[str, DatasetTypeRestriction]]
+    chain: List[str]
     """The definition of the collection, if it already exists (`list`).
 
     Empty if the collection does not alredy exist.
@@ -266,7 +266,7 @@ class _ButlerFactory:
         self.check(args)
         if self.output and self.output.exists:
             if args.replace_run:
-                replaced, _ = self.output.chain[0]
+                replaced = self.output.chain[0]
                 inputs = self.output.chain[1:]
                 _LOG.debug("Simulating collection search in '%s' after removing '%s'.",
                            self.output.name, replaced)
