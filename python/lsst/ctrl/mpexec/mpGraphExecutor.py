@@ -28,6 +28,7 @@ from enum import Enum
 import logging
 import multiprocessing
 import pickle
+import sys
 import time
 
 from lsst.pipe.base.graph.graph import QuantumGraph
@@ -37,6 +38,7 @@ from lsst.pipe.base.graph.graph import QuantumGraph
 # -----------------------------
 from .quantumGraphExecutor import QuantumGraphExecutor
 from lsst.base import disableImplicitThreading
+from lsst.daf.butler.cli.cliLog import CliLog
 
 _LOG = logging.getLogger(__name__.partition(".")[2])
 
@@ -64,10 +66,8 @@ class _Job:
         self.process = None
         self.state = JobState.PENDING
         self.started = None
-        self.index = qnode.nodeId.number
-        self.taskDef = qnode.taskDef
 
-    def start(self, butler, quantumExecutor):
+    def start(self, butler, quantumExecutor, startMethod=None):
         """Start process which runs the task.
 
         Parameters
@@ -76,39 +76,49 @@ class _Job:
             Data butler instance.
         quantumExecutor : `QuantumExecutor`
             Executor for single quantum.
+        startMethod : `str`, optional
+            Start method from `multiprocessing` module.
         """
         # Butler can have live database connections which is a problem with
         # fork-type activation. Make a pickle of butler to pass that across
-        # fork.
+        # fork. Unpickling of quantum has to happen after butler, this is why
+        # it is pickled manually here.
         butler_pickle = pickle.dumps(butler)
-        taskDef = self.taskDef
-        quantum = self.qnode.quantum
-        # Use fork for multiprocessing start method on all platforms
-        mp_ctx = multiprocessing.get_context("fork")
+        quantum_pickle = pickle.dumps(self.qnode.quantum)
+        taskDef = self.qnode.taskDef
+        logConfigState = CliLog.configState
+        mp_ctx = multiprocessing.get_context(startMethod)
         self.process = mp_ctx.Process(
-            target=self._executeJob,
-            args=(quantumExecutor, taskDef, quantum, butler_pickle),
-            name=f"task-{self.index}"
+            target=_Job._executeJob,
+            args=(quantumExecutor, taskDef, quantum_pickle, butler_pickle, logConfigState),
+            name=f"task-{self.qnode.nodeId.number}"
         )
         self.process.start()
         self.started = time.time()
         self.state = JobState.RUNNING
 
-    def _executeJob(self, quantumExecutor, taskDef, quantum, butler_pickle):
+    @staticmethod
+    def _executeJob(quantumExecutor, taskDef, quantum_pickle, butler_pickle, logConfigState):
         """Execute a job with arguments.
 
         Parameters
         ----------
         quantumExecutor : `QuantumExecutor`
             Executor for single quantum.
-        taskDef : `~lsst.pipe.base.TaskDef`
+        taskDef : `bytes`
             Task definition structure.
-        quantum : `~lsst.daf.butler.Quantum`
-            Quantum for this task execution.
+        quantum_pickle : `bytes`
+            Quantum for this task execution in pickled form.
         butler_pickle : `bytes`
             Data butler instance in pickled form.
         """
+        if logConfigState and not CliLog.configState:
+            # means that we are in a new spawned Python process and we have to
+            # re-initialize logging
+            CliLog.replayConfigState(logConfigState)
+
         butler = pickle.loads(butler_pickle)
+        quantum = pickle.loads(quantum_pickle)
         quantumExecutor.execute(taskDef, quantum, butler)
 
     def stop(self):
@@ -236,17 +246,29 @@ class MPGraphExecutor(QuantumGraphExecutor):
     quantumExecutor : `QuantumExecutor`
         Executor for single quantum. For multiprocess-style execution when
         ``numProc`` is greater than one this instance must support pickle.
+    startMethod : `str`, optional
+        Start method from `multiprocessing` module, `None` selects the best
+        one for current platform.
     failFast : `bool`, optional
         If set to ``True`` then stop processing on first error from any task.
     executionGraphFixup : `ExecutionGraphFixup`, optional
         Instance used for modification of execution graph.
     """
-    def __init__(self, numProc, timeout, quantumExecutor, *, failFast=False, executionGraphFixup=None):
+    def __init__(self, numProc, timeout, quantumExecutor, *,
+                 startMethod=None, failFast=False, executionGraphFixup=None):
         self.numProc = numProc
         self.timeout = timeout
         self.quantumExecutor = quantumExecutor
         self.failFast = failFast
         self.executionGraphFixup = executionGraphFixup
+
+        # We set default start method as spawn for MacOS and fork for Linux;
+        # None for all other platforms to use multiprocessing default.
+        if startMethod is None:
+            methods = dict(linux="fork", darwin="spawn")
+            startMethod = methods.get(sys.platform)
+        self.startMethod = startMethod
+        _LOG.info("Using %r for multiprocessing start method", self.startMethod)
 
     def execute(self, graph, butler):
         # Docstring inherited from QuantumGraphExecutor.execute
@@ -327,7 +349,7 @@ class MPGraphExecutor(QuantumGraphExecutor):
 
         # check that all tasks can run in sub-process
         for job in jobs.jobs:
-            taskDef = job.taskDef
+            taskDef = job.qnode.taskDef
             if not taskDef.taskClass.canMultiprocess:
                 raise MPGraphExecutorError(f"Task {taskDef.taskName} does not support multiprocessing;"
                                            " use single process")
@@ -347,7 +369,7 @@ class MPGraphExecutor(QuantumGraphExecutor):
                     if exitcode == 0:
                         job.state = JobState.FINISHED
                         job.cleanup()
-                        _LOG.debug("success: %s", job)
+                        _LOG.debug("success: %s took %.3f seconds", job, time.time() - job.started)
                     else:
                         job.state = JobState.FAILED
                         job.cleanup()
@@ -391,7 +413,7 @@ class MPGraphExecutor(QuantumGraphExecutor):
                     # all dependencies have completed, can start new job
                     if len(jobs.running()) < self.numProc:
                         _LOG.debug("Sumbitting %s", job)
-                        job.start(butler, self.quantumExecutor)
+                        job.start(butler, self.quantumExecutor, self.startMethod)
 
             # Do cleanup for timed out jobs if necessary.
             jobs.cleanup()

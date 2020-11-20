@@ -26,6 +26,7 @@ import logging
 import networkx as nx
 from multiprocessing import Manager
 import psutil
+import sys
 import time
 from types import SimpleNamespace
 import unittest
@@ -203,11 +204,18 @@ class MPGraphExecutorTestCase(unittest.TestCase):
             QuantumIterDataMock(index=i, taskDef=taskDef, detector=i) for i in range(3)
         ])
 
-        # run in multi-process mode, the order of results is not defined
-        qexec = QuantumExecutorMock(mp=True)
-        mpexec = MPGraphExecutor(numProc=3, timeout=100, quantumExecutor=qexec)
-        mpexec.execute(qgraph, butler=None)
-        self.assertCountEqual(qexec.getDataIds("detector"), [0, 1, 2])
+        methods = ["spawn"]
+        if sys.platform == "linux":
+            methods.append("fork")
+            methods.append("forkserver")
+
+        for method in methods:
+            with self.subTest(startMethod=method):
+                # run in multi-process mode, the order of results is not defined
+                qexec = QuantumExecutorMock(mp=True)
+                mpexec = MPGraphExecutor(numProc=3, timeout=100, quantumExecutor=qexec, startMethod=method)
+                mpexec.execute(qgraph, butler=None)
+                self.assertCountEqual(qexec.getDataIds("detector"), [0, 1, 2])
 
     def test_mpexec_nompsupport(self):
         """Try to run MP for task that has no MP support which should fail

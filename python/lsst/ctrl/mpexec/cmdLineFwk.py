@@ -31,7 +31,6 @@ import argparse
 import datetime
 import fnmatch
 import logging
-import os
 import re
 import sys
 from typing import List, Optional, Tuple
@@ -48,7 +47,6 @@ from lsst.daf.butler import (
     Registry,
 )
 from lsst.daf.butler.registry import MissingCollectionError
-import lsst.log
 import lsst.pex.config as pexConfig
 from lsst.pipe.base import GraphBuilder, Pipeline, QuantumGraph
 from .dotTools import graph2dot, pipeline2dot
@@ -62,15 +60,6 @@ from lsst.utils import doImport
 # ----------------------------------
 #  Local non-exported definitions --
 # ----------------------------------
-
-# logging properties
-_LOG_PROP = """\
-log4j.rootLogger=INFO, A1
-log4j.appender.A1=ConsoleAppender
-log4j.appender.A1.Target=System.err
-log4j.appender.A1.layout=PatternLayout
-log4j.appender.A1.layout.ConversionPattern={}
-"""
 
 _LOG = logging.getLogger(__name__.partition(".")[2])
 
@@ -441,48 +430,6 @@ class CmdLineFwk:
     def __init__(self):
         pass
 
-    @staticmethod
-    def configLog(longlog, logLevels):
-        """Configure logging system.
-
-        Parameters
-        ----------
-        longlog : `bool`
-            If True then make log messages appear in "long format"
-        logLevels : `list` of `tuple`
-            per-component logging levels, each item in the list is a tuple
-            (component, level), `component` is a logger name or `None` for root
-            logger, `level` is a logging level name ('DEBUG', 'INFO', etc.)
-        """
-        if longlog:
-            message_fmt = "%-5p %d{yyyy-MM-ddTHH:mm:ss.SSSZ} %c (%X{LABEL})(%F:%L)- %m%n"
-        else:
-            message_fmt = "%c %p: %m%n"
-
-        # Initialize global logging config. Skip if the env var LSST_LOG_CONFIG exists.
-        # The file it points to would already configure lsst.log.
-        if not os.path.isfile(os.environ.get("LSST_LOG_CONFIG", "")):
-            lsst.log.configure_prop(_LOG_PROP.format(message_fmt))
-
-        # Forward all Python logging to lsst.log
-        lgr = logging.getLogger()
-        lgr.setLevel(logging.INFO)  # same as in log4cxx config above
-        lgr.addHandler(lsst.log.LogHandler())
-
-        # also capture warnings and send them to logging
-        logging.captureWarnings(True)
-
-        # configure individual loggers
-        for component, level in logLevels:
-            level = getattr(lsst.log.Log, level.upper(), None)
-            if level is not None:
-                # set logging level for lsst.log
-                logger = lsst.log.Log.getLogger(component or "")
-                logger.setLevel(level)
-                # set logging level for Python logging
-                pyLevel = lsst.log.LevelTranslator.lsstLog2logging(level)
-                logging.getLogger(component).setLevel(pyLevel)
-
     def makePipeline(self, args):
         """Build a pipeline from command line arguments.
 
@@ -639,6 +586,7 @@ class CmdLineFwk:
                                                     enableLsstDebug=args.enableLsstDebug)
             timeout = self.MP_TIMEOUT if args.timeout is None else args.timeout
             executor = MPGraphExecutor(numProc=args.processes, timeout=timeout,
+                                       startMethod=args.start_method,
                                        quantumExecutor=quantumExecutor,
                                        failFast=args.fail_fast,
                                        executionGraphFixup=graphFixup)

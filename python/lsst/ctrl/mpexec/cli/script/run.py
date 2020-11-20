@@ -32,6 +32,7 @@ def run(do_raise,
         init_only,
         no_versions,
         processes,
+        start_method,
         profile,
         qgraphObj,
         register_dataset_types,
@@ -68,6 +69,9 @@ def run(do_raise,
         If true, do not save or check package versions.
     processes : `int`
         The number of processes to use.
+    start_method : `str` or `None`
+        Start method from `multiprocessing` module, `None` selects the best
+        one for current platform.
     profile : `str`
         File name to dump cProfile information to.
     qgraphObj : `lsst.pipe.base.QuantumGraph`
@@ -140,6 +144,7 @@ def run(do_raise,
                            init_only=init_only,
                            no_versions=no_versions,
                            processes=processes,
+                           start_method=start_method,
                            profile=profile,
                            skip_init_writes=skip_init_writes,
                            timeout=timeout,
