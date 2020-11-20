@@ -502,9 +502,7 @@ class CmdLineFwk:
         registry, collections, run = _ButlerFactory.makeRegistryAndCollections(args)
 
         if args.qgraph:
-
-            with open(args.qgraph, 'rb') as pickleFile:
-                qgraph = QuantumGraph.load(pickleFile, registry.dimensions)
+            qgraph = QuantumGraph.loadUri(args.qgraph, registry.dimensions)
 
             # pipeline can not be provided in this case
             if pipeline:
@@ -527,15 +525,13 @@ class CmdLineFwk:
                       nQuanta, len(qgraph.taskGraph))
 
         if args.save_qgraph:
-            with open(args.save_qgraph, "wb") as pickleFile:
-                qgraph.save(pickleFile)
+            qgraph.saveUri(args.save_qgraph)
 
         if args.save_single_quanta:
             for quantumNode in qgraph:
                 sqgraph = qgraph.subset(quantumNode)
-                filename = args.save_single_quanta.format(quantumNode.nodeId.number)
-                with open(filename, "wb") as pickleFile:
-                    sqgraph.save(pickleFile)
+                uri = args.save_single_quanta.format(quantumNode.nodeId.number)
+                sqgraph.saveUri(uri)
 
         if args.qgraph_dot:
             graph2dot(qgraph, args.qgraph_dot)
