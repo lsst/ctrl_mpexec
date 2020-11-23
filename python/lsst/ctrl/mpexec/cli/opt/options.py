@@ -133,8 +133,7 @@ prune_replaced_option = MWOptionDecorator("--prune-replaced",
 qgraph_option = MWOptionDecorator("-g", "--qgraph",
                                   help=unwrap("""Location for a serialized quantum graph definition (pickle
                                               file). If this option is given then all input data options and
-                                              pipeline-building options cannot be used."""),
-                                  type=MWPath(exists=True, file_okay=True, dir_okay=False, readable=True))
+                                              pipeline-building options cannot be used.  Can be a URI."""))
 
 
 qgraph_dot_option = MWOptionDecorator("--qgraph-dot",
@@ -166,16 +165,15 @@ save_pipeline_option = MWOptionDecorator("-s", "--save-pipeline",
                                          type=MWPath(dir_okay=False, file_okay=True, writable=True))
 
 save_qgraph_option = MWOptionDecorator("-q", "--save-qgraph",
-                                       help=unwrap("""Location for storing a serialized quantum graph
-                                                   definition (pickle file)."""),
-                                       type=MWPath(file_okay=True, dir_okay=False, readable=True))
+                                       help=unwrap("""URI location for storing a serialized quantum graph
+                                                   definition (pickle file)."""))
 
 
 save_single_quanta_option = MWOptionDecorator("--save-single-quanta",
                                               help=unwrap("""Format string of locations for storing individual
                                                           quantum graph definition (pickle files). The curly
                                                           brace {} in the input string will be replaced by a
-                                                          quantum number."""))
+                                                          quantum number. Can be a URI."""))
 
 
 show_option = MWOptionDecorator("--show",

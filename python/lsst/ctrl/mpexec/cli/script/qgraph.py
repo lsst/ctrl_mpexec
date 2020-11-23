@@ -40,17 +40,17 @@ def qgraph(pipelineObj, qgraph, skip_existing, save_qgraph, save_single_quanta, 
         The pipeline object used to generate a qgraph. If this is not `None`
         then `qgraph` should be `None`.
     qgraph : `str` or `None`
-        Path location for a serialized quantum graph definition as a pickle
+        URI location for a serialized quantum graph definition as a pickle
         file. If this option is not None then `pipeline` should be `None`.
     skip_existing : `bool`
         If all Quantum outputs already exist in the output RUN collection then
         that Quantum will be excluded from the QuantumGraph. Will only be used
         if `extend_run` flag is set.
     save_qgraph : `str` or `None`
-        Path location for storing a serialized quantum graph definition as a
+        URI location for storing a serialized quantum graph definition as a
         pickle file.
     save_single_quanta : `str` or `None`
-        Format string of locations for storing individual quantum graph
+        Format string of URI locations for storing individual quantum graph
         definition (pickle files). The curly brace {} in the input string will
         be replaced by a quantum number.
     qgraph_dot : `str` or `None`
