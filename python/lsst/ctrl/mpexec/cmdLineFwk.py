@@ -28,7 +28,6 @@ __all__ = ['CmdLineFwk']
 #  Imports of standard modules --
 # -------------------------------
 import argparse
-import datetime
 import fnmatch
 import logging
 import re
@@ -49,6 +48,7 @@ from lsst.daf.butler import (
 from lsst.daf.butler.registry import MissingCollectionError
 import lsst.pex.config as pexConfig
 from lsst.pipe.base import GraphBuilder, Pipeline, QuantumGraph
+from lsst.obs.base import Instrument
 from .dotTools import graph2dot, pipeline2dot
 from .executionGraphFixup import ExecutionGraphFixup
 from .mpGraphExecutor import MPGraphExecutor
@@ -193,7 +193,7 @@ class _ButlerFactory:
             if args.extend_run:
                 runName, _ = self.output.chain[0]
             else:
-                runName = "{}/{:%Y%m%dT%Hh%Mm%Ss}".format(self.output, datetime.datetime.now())
+                runName = "{}/{}".format(self.output, Instrument.makeCollectionTimestamp())
             self.outputRun = _OutputRunCollectionInfo(registry, runName)
         elif not writeable:
             # If we're not writing yet, ok to have no output run.
