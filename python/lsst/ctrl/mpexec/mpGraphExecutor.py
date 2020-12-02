@@ -268,7 +268,6 @@ class MPGraphExecutor(QuantumGraphExecutor):
             methods = dict(linux="fork", darwin="spawn")
             startMethod = methods.get(sys.platform)
         self.startMethod = startMethod
-        _LOG.info("Using %r for multiprocessing start method", self.startMethod)
 
     def execute(self, graph, butler):
         # Docstring inherited from QuantumGraphExecutor.execute
@@ -343,6 +342,8 @@ class MPGraphExecutor(QuantumGraphExecutor):
         """
 
         disableImplicitThreading()  # To prevent thread contention
+
+        _LOG.debug("Using %r for multiprocessing start method", self.startMethod)
 
         # re-pack input quantum data into jobs list
         jobs = _JobList(graph)
