@@ -62,7 +62,7 @@ Instrument.fromName = lambda name, reg: None
 
 
 @contextlib.contextmanager
-def makeTmpFile(contents=None):
+def makeTmpFile(contents=None, suffix=None):
     """Context manager for generating temporary file name.
 
     Temporary file is deleted on exiting context.
@@ -72,7 +72,7 @@ def makeTmpFile(contents=None):
     contents : `bytes`
         Data to write into a file.
     """
-    fd, tmpname = tempfile.mkstemp()
+    fd, tmpname = tempfile.mkstemp(suffix=suffix)
     if contents:
         os.write(fd, contents)
     os.close(fd)
@@ -290,7 +290,7 @@ class CmdLineFwkTestCase(unittest.TestCase):
         args = _makeArgs(pipeline_actions=actions)
         pipeline = fwk.makePipeline(args)
 
-    def testMakeGraphFromPickle(self):
+    def testMakeGraphFromSave(self):
         """Tests for CmdLineFwk.makeGraph method.
 
         Only most trivial case is tested that does not do actual graph
@@ -298,29 +298,29 @@ class CmdLineFwkTestCase(unittest.TestCase):
         """
         fwk = CmdLineFwk()
 
-        with makeTmpFile() as tmpname, makeSQLiteRegistry() as registryConfig:
+        with makeTmpFile(suffix=".qgraph") as tmpname, makeSQLiteRegistry() as registryConfig:
 
             # make non-empty graph and store it in a file
             qgraph = _makeQGraph()
-            with open(tmpname, "wb") as pickleFile:
-                qgraph.save(pickleFile)
+            with open(tmpname, "wb") as saveFile:
+                qgraph.save(saveFile)
             args = _makeArgs(qgraph=tmpname, registryConfig=registryConfig)
             qgraph = fwk.makeGraph(None, args)
             self.assertIsInstance(qgraph, QuantumGraph)
             self.assertEqual(len(qgraph), 1)
 
-            # pickle with wrong object type
-            with open(tmpname, "wb") as pickleFile:
-                pickle.dump({}, pickleFile)
+            # save with wrong object type
+            with open(tmpname, "wb") as saveFile:
+                pickle.dump({}, saveFile)
             args = _makeArgs(qgraph=tmpname, registryConfig=registryConfig)
-            with self.assertRaises(TypeError):
+            with self.assertRaises(ValueError):
                 fwk.makeGraph(None, args)
 
             # reading empty graph from pickle should work but makeGraph()
             # will return None and make a warning
             qgraph = QuantumGraph(dict())
-            with open(tmpname, "wb") as pickleFile:
-                qgraph.save(pickleFile)
+            with open(tmpname, "wb") as saveFile:
+                qgraph.save(saveFile)
             args = _makeArgs(qgraph=tmpname, registryConfig=registryConfig)
             with self.assertWarnsRegex(UserWarning, "QuantumGraph is empty"):
                 # this also tests that warning is generated for empty graph
