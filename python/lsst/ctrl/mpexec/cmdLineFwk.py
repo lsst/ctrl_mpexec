@@ -191,7 +191,7 @@ class _ButlerFactory:
             self.outputRun = _OutputRunCollectionInfo(registry, args.output_run)
         elif self.output is not None:
             if args.extend_run:
-                runName, _ = self.output.chain[0]
+                runName = self.output.chain[0]
             else:
                 runName = "{}/{}".format(self.output, Instrument.makeCollectionTimestamp())
             self.outputRun = _OutputRunCollectionInfo(registry, runName)
