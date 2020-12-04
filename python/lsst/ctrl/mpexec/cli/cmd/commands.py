@@ -24,8 +24,7 @@ import click
 from lsst.daf.butler.cli.opt import (config_file_option,
                                      config_option,
                                      options_file_option)
-from lsst.daf.butler.cli.utils import (cli_handle_exception,
-                                       MWCtxObj,
+from lsst.daf.butler.cli.utils import (MWCtxObj,
                                        option_section,
                                        unwrap)
 import lsst.obs.base.cli.opt as obsBaseOpts
@@ -62,7 +61,7 @@ def _doBuild(ctx, **kwargs):
                            obsBaseOpts.instrument_option.name()):
         kwargs.pop(pipelineAction)
     kwargs['pipeline_actions'] = makePipelineActions(MWCtxObj.getFrom(ctx).args)
-    return cli_handle_exception(script.build, **kwargs)
+    return script.build(**kwargs)
 
 
 @click.command(cls=PipetaskCommand, epilog=epilog, short_help="Build pipeline definition.")
@@ -91,7 +90,7 @@ def qgraph(ctx, **kwargs):
     """Build and optionally save quantum graph.
     """
     pipeline = _doBuild(ctx, **kwargs)
-    cli_handle_exception(script.qgraph, pipelineObj=pipeline, **kwargs)
+    script.qgraph(pipelineObj=pipeline, **kwargs)
 
 
 @click.command(cls=PipetaskCommand, epilog=epilog)
@@ -100,5 +99,5 @@ def run(ctx, **kwargs):
     """Build and execute pipeline and quantum graph.
     """
     pipeline = _doBuild(ctx, **kwargs)
-    qgraph = cli_handle_exception(script.qgraph, pipelineObj=pipeline, **kwargs)
-    cli_handle_exception(script.run, qgraphObj=qgraph, **kwargs)
+    qgraph = script.qgraph(pipelineObj=pipeline, **kwargs)
+    script.run(qgraphObj=qgraph, **kwargs)
