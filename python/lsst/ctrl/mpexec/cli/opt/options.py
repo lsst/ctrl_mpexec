@@ -226,6 +226,7 @@ task_option = MWOptionDecorator("-t", "--task",
 
 
 timeout_option = MWOptionDecorator("--timeout",
+                                   type=click.IntRange(min=0),
                                    help="Timeout for multiprocessing; maximum wall time (sec).")
 
 
