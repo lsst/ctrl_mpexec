@@ -21,8 +21,10 @@
 
 
 __all__ = ("butler_options", "execution_options", "meta_info_options", "pipeline_build_options",
-           "qgraph_options")
+           "qgraph_options", "run_options")
 
+
+import click
 
 from lsst.daf.butler.cli.utils import option_section, unwrap
 import lsst.obs.base.cli.opt as obsBaseOpts
@@ -125,3 +127,21 @@ class meta_info_options(OptionGroup):  # noqa: N801
             ctrlMpExecOpts.init_only_option(),
             ctrlMpExecOpts.register_dataset_types_option(),
             ctrlMpExecOpts.no_versions_option()]
+
+
+class run_options(OptionGroup):  # noqa: N801
+    """Decorator to add the run options to the run command."""
+
+    def __init__(self):
+        self.decorators = [
+            click.pass_context,
+            ctrlMpExecOpts.debug_option(),
+            ctrlMpExecOpts.show_option(),
+            pipeline_build_options(),
+            qgraph_options(),
+            butler_options(),
+            execution_options(),
+            meta_info_options(),
+            option_section(sectionText=""),
+            dafButlerOpts.options_file_option(),
+        ]
