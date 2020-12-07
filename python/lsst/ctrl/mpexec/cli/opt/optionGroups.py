@@ -72,6 +72,8 @@ class qgraph_options(OptionGroup):  # noqa: N801
         self.decorators = [
             option_section(sectionText="Quantum graph building options:"),
             ctrlMpExecOpts.qgraph_option(),
+            ctrlMpExecOpts.qgraph_id_option(),
+            ctrlMpExecOpts.qgraph_node_id_option(),
             ctrlMpExecOpts.skip_existing_option(),
             ctrlMpExecOpts.save_qgraph_option(),
             ctrlMpExecOpts.save_single_quanta_option(),

@@ -27,9 +27,9 @@ from ... import CmdLineFwk
 _log = logging.getLogger(__name__.partition(".")[2])
 
 
-def qgraph(pipelineObj, qgraph, skip_existing, save_qgraph, save_single_quanta, qgraph_dot,
-           butler_config, input, output, output_run, extend_run, replace_run, prune_replaced, data_query,
-           show, **kwargs):
+def qgraph(pipelineObj, qgraph, qgraph_id, qgraph_node_id, skip_existing, save_qgraph, save_single_quanta,
+           qgraph_dot, butler_config, input, output, output_run, extend_run, replace_run, prune_replaced,
+           data_query, show, **kwargs):
     """Implements the command line interface `pipetask qgraph` subcommand,
     should only be called by command line tools and unit test code that test
     this function.
@@ -42,6 +42,12 @@ def qgraph(pipelineObj, qgraph, skip_existing, save_qgraph, save_single_quanta, 
     qgraph : `str` or `None`
         URI location for a serialized quantum graph definition as a pickle
         file. If this option is not None then `pipeline` should be `None`.
+    qgraph_id : `str` or `None`
+        Quantum graph identifier, if specified must match the identifier of the
+        graph loaded from a file. Ignored if graph is not loaded from a file.
+    qgraph_node_id : `list` of `int`, optional
+        Only load a specified set of nodes if graph is loaded from a file,
+        nodes are identified by integer IDs.
     skip_existing : `bool`
         If all Quantum outputs already exist in the output RUN collection then
         that Quantum will be excluded from the QuantumGraph. Will only be used
@@ -106,6 +112,8 @@ def qgraph(pipelineObj, qgraph, skip_existing, save_qgraph, save_single_quanta, 
         The qgraph object that was created.
     """
     args = SimpleNamespace(qgraph=qgraph,
+                           qgraph_id=qgraph_id,
+                           qgraph_node_id=qgraph_node_id,
                            save_qgraph=save_qgraph,
                            save_single_quanta=save_single_quanta,
                            qgraph_dot=qgraph_dot,

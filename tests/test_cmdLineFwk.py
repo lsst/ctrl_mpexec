@@ -159,9 +159,9 @@ def _makeArgs(registryConfig=None, **kwargs):
     # At some point, ctrl_mpexec should stop passing around a SimpleNamespace
     # of arguments, which would make this workaround unnecessary.
     runner = click.testing.CliRunner()
-    result = result = runner.invoke(pipetaskCli, ["run", "--call-mocker"])
+    result = runner.invoke(pipetaskCli, ["run", "--call-mocker"])
     if result.exit_code != 0:
-        raise RuntimeError("Failure getting default args from 'pipetask run'.")
+        raise RuntimeError(f"Failure getting default args from 'pipetask run': {result}")
     _, args = Mocker.mock.call_args
     args["enableLsstDebug"] = args.pop("debug")
     if "pipeline_actions" not in args:
@@ -308,6 +308,15 @@ class CmdLineFwkTestCase(unittest.TestCase):
             qgraph = fwk.makeGraph(None, args)
             self.assertIsInstance(qgraph, QuantumGraph)
             self.assertEqual(len(qgraph), 1)
+
+            # will fail if graph id does not match
+            args = _makeArgs(
+                qgraph=tmpname,
+                qgraph_id="R2-D2 is that you?",
+                registryConfig=registryConfig
+            )
+            with self.assertRaisesRegex(ValueError, "graphID does not match"):
+                fwk.makeGraph(None, args)
 
             # save with wrong object type
             with open(tmpname, "wb") as saveFile:
@@ -566,6 +575,32 @@ class CmdLineFwkTestCaseWithButler(unittest.TestCase):
         # new output collection
         refs = butler.registry.queryDatasets(..., collections="output/run4")
         self.assertEqual(len(list(refs)), n_outputs)
+
+    def testSubgraph(self):
+        """Test successfull execution of trivial quantum graph.
+        """
+        nQuanta = 5
+        nNodes = 2
+        butler, qgraph = makeSimpleQGraph(nQuanta, root=self.root)
+
+        # Select first two nodes for execution. This depends on node ordering
+        # which I assume is the same as execution order.
+        nodeIds = [node.nodeId.number for node in qgraph]
+        nodeIds = nodeIds[:nNodes]
+
+        self.assertEqual(len(qgraph.taskGraph), 5)
+        self.assertEqual(len(qgraph), nQuanta)
+
+        with makeTmpFile(suffix=".qgraph") as tmpname, makeSQLiteRegistry() as registryConfig:
+            with open(tmpname, "wb") as saveFile:
+                qgraph.save(saveFile)
+
+            args = _makeArgs(qgraph=tmpname, qgraph_node_id=nodeIds, registryConfig=registryConfig)
+            fwk = CmdLineFwk()
+
+            # load graph, should only read a subset
+            qgraph = fwk.makeGraph(pipeline=None, args=args)
+            self.assertEqual(len(qgraph), nNodes)
 
     def testShowGraph(self):
         """Test for --show options for quantum graph.

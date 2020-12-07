@@ -191,7 +191,7 @@ class _ButlerFactory:
             self.outputRun = _OutputRunCollectionInfo(registry, args.output_run)
         elif self.output is not None:
             if args.extend_run:
-                runName, _ = self.output.chain[0]
+                runName = self.output.chain[0]
             else:
                 runName = "{}/{}".format(self.output, Instrument.makeCollectionTimestamp())
             self.outputRun = _OutputRunCollectionInfo(registry, runName)
@@ -502,7 +502,10 @@ class CmdLineFwk:
         registry, collections, run = _ButlerFactory.makeRegistryAndCollections(args)
 
         if args.qgraph:
-            qgraph = QuantumGraph.loadUri(args.qgraph, registry.dimensions)
+            # click passes empty tuple as default value for qgraph_node_id
+            nodes = args.qgraph_node_id or None
+            qgraph = QuantumGraph.loadUri(args.qgraph, registry.dimensions,
+                                          nodes=nodes, graphID=args.qgraph_id)
 
             # pipeline can not be provided in this case
             if pipeline:
@@ -521,8 +524,8 @@ class CmdLineFwk:
             warnings.warn("QuantumGraph is empty", stacklevel=2)
             return None
         else:
-            _LOG.info("QuantumGraph contains %d quanta for %d tasks",
-                      nQuanta, len(qgraph.taskGraph))
+            _LOG.info("QuantumGraph contains %d quanta for %d tasks, graph ID: %r",
+                      nQuanta, len(qgraph.taskGraph), qgraph.graphID)
 
         if args.save_qgraph:
             qgraph.saveUri(args.save_qgraph)
