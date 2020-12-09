@@ -24,9 +24,7 @@ import click
 from lsst.daf.butler.cli.opt import (config_file_option,
                                      config_option,
                                      options_file_option)
-from lsst.daf.butler.cli.utils import (cli_handle_exception,
-                                       Mocker,
-                                       MWCtxObj,
+from lsst.daf.butler.cli.utils import (MWCtxObj,
                                        option_section,
                                        unwrap)
 import lsst.obs.base.cli.opt as obsBaseOpts
@@ -63,7 +61,7 @@ def _doBuild(ctx, **kwargs):
                            obsBaseOpts.instrument_option.name()):
         kwargs.pop(pipelineAction)
     kwargs['pipeline_actions'] = makePipelineActions(MWCtxObj.getFrom(ctx).args)
-    return cli_handle_exception(script.build, **kwargs)
+    return script.build(**kwargs)
 
 
 @click.command(cls=PipetaskCommand, epilog=epilog, short_help="Build pipeline definition.")
@@ -92,35 +90,14 @@ def qgraph(ctx, **kwargs):
     """Build and optionally save quantum graph.
     """
     pipeline = _doBuild(ctx, **kwargs)
-    cli_handle_exception(script.qgraph, pipelineObj=pipeline, **kwargs)
+    script.qgraph(pipelineObj=pipeline, **kwargs)
 
 
 @click.command(cls=PipetaskCommand, epilog=epilog)
-@click.pass_context
-@ctrlMpExecOpts.debug_option()
-@ctrlMpExecOpts.show_option()
-@ctrlMpExecOpts.pipeline_build_options()
-@ctrlMpExecOpts.qgraph_options()
-@ctrlMpExecOpts.butler_options()
-@ctrlMpExecOpts.execution_options()
-@ctrlMpExecOpts.meta_info_options()
-@option_section(sectionText="")
-@options_file_option()
-# --call-mocker is for use with test code, it is not intended for CLI or other
-# non-testing use. It allows this command function to be executed
-# programatically and have it call Mocker with its kwargs, which can the be
-# gotten from Mocker later. At some point, ctrl_mpexec should stop passing
-# around a SimpleNamespace of arguments, which would make this workaround
-# unnecessary.
-@click.option("--call-mocker",
-              is_flag=True,
-              hidden=True)  # do not show this option in the help menu.
+@ctrlMpExecOpts.run_options()
 def run(ctx, **kwargs):
     """Build and execute pipeline and quantum graph.
     """
-    if kwargs["call_mocker"]:
-        Mocker(**kwargs)
-        return
     pipeline = _doBuild(ctx, **kwargs)
-    qgraph = cli_handle_exception(script.qgraph, pipelineObj=pipeline, **kwargs)
-    cli_handle_exception(script.run, qgraphObj=qgraph, **kwargs)
+    qgraph = script.qgraph(pipelineObj=pipeline, **kwargs)
+    script.run(qgraphObj=qgraph, **kwargs)

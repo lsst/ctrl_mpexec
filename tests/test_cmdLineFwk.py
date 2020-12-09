@@ -36,11 +36,15 @@ from typing import NamedTuple
 import unittest
 
 from lsst.ctrl.mpexec.cmdLineFwk import CmdLineFwk
-from lsst.ctrl.mpexec.cli.pipetask import cli as pipetaskCli
-from lsst.ctrl.mpexec.cli.utils import (_ACTION_ADD_TASK, _ACTION_CONFIG,
-                                        _ACTION_CONFIG_FILE, _ACTION_ADD_INSTRUMENT)
+from lsst.ctrl.mpexec.cli.opt import run_options
+from lsst.ctrl.mpexec.cli.utils import (
+    _ACTION_ADD_TASK,
+    _ACTION_CONFIG,
+    _ACTION_CONFIG_FILE,
+    _ACTION_ADD_INSTRUMENT,
+    PipetaskCommand,
+)
 from lsst.daf.butler import Config, Quantum, Registry
-from lsst.daf.butler.cli.utils import Mocker
 from lsst.daf.butler.registry import RegistryConfig
 from lsst.obs.base import Instrument
 import lsst.pex.config as pexConfig
@@ -142,7 +146,7 @@ def _makeArgs(registryConfig=None, **kwargs):
     """Return parsed command line arguments.
 
     By default butler_config is set to `Config` populated with some defaults,
-    it can be overriden completely by keyword argument.
+    it can be overridden completely by keyword argument.
 
     Parameters
     ----------
@@ -153,16 +157,26 @@ def _makeArgs(registryConfig=None, **kwargs):
     **kwargs
         Overrides for other arguments.
     """
-    # Execute the "run" command with the --call-mocker flag set so we can get
-    # all the default arguments that were passed to the command function out of
-    # the Mocker call.
-    # At some point, ctrl_mpexec should stop passing around a SimpleNamespace
-    # of arguments, which would make this workaround unnecessary.
+    # Use a mock to get the default value of arguments to 'run'.
+
+    mock = unittest.mock.Mock()
+
+    @click.command(cls=PipetaskCommand)
+    @run_options()
+    def fake_run(ctx, **kwargs):
+        """Fake "pipetask run" command for gathering input arguments.
+
+        The arguments & options should always match the arguments & options in
+        the "real" command function `lsst.ctrl.mpexec.cli.cmd.run`.
+        """
+        mock(**kwargs)
+
     runner = click.testing.CliRunner()
-    result = runner.invoke(pipetaskCli, ["run", "--call-mocker"])
+    result = runner.invoke(fake_run)
     if result.exit_code != 0:
-        raise RuntimeError(f"Failure getting default args from 'pipetask run': {result}")
-    _, args = Mocker.mock.call_args
+        raise RuntimeError(f"Failure getting default args from 'fake_run': {result}")
+    mock.assert_called_once()
+    args = mock.call_args[1]
     args["enableLsstDebug"] = args.pop("debug")
     if "pipeline_actions" not in args:
         args["pipeline_actions"] = []
