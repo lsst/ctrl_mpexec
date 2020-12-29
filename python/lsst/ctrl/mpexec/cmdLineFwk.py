@@ -213,7 +213,23 @@ class _ButlerFactory:
         """
         assert not (args.extend_run and args.replace_run), "In mutually-exclusive group in ArgumentParser."
         if self.inputs and self.output is not None and self.output.exists:
-            raise ValueError("Cannot use --output with existing collection with --inputs.")
+            # Passing the same inputs that were used to initialize the output
+            # collection is allowed; this means they must _end_ with the same
+            # collections, because we push new runs to the front of the chain.
+            for c1, c2 in zip(self.inputs[::-1], self.output.chain[::-1]):
+                if c1 != c2:
+                    raise ValueError(
+                        f"Output CHAINED collection {self.output.name!r} exists, but it ends with "
+                        "a different sequence of input collections than those given: "
+                        f"{c1!r} != {c2!r} in inputs={self.inputs} vs "
+                        f"{self.output.name}={self.output.chain}."
+                    )
+            if len(self.inputs) > len(self.output.chain):
+                nNew = len(self.inputs) - len(self.output.chain)
+                raise ValueError(
+                    f"Cannot add new input collections {self.inputs[:nNew]} after "
+                    "output collection is first created."
+                )
         if args.extend_run and self.outputRun is None:
             raise ValueError("Cannot --extend-run when no output collection is given.")
         if args.extend_run and not self.outputRun.exists:

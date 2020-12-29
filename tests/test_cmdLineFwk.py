@@ -533,8 +533,8 @@ class CmdLineFwkTestCaseWithButler(unittest.TestCase):
         refs = butler.registry.queryDatasets(..., collections="output/run1")
         self.assertEqual(len(list(refs)), n_outputs)
 
-        # re-run with --replace-run (--inputs is not compatible)
-        args.input = None
+        # re-run with --replace-run (--inputs is ignored, as long as it hasn't
+        # changed)
         args.replace_run = True
         args.output_run = "output/run2"
         fwk.runPipeline(copy.deepcopy(qgraph), taskFactory, args)
@@ -552,7 +552,6 @@ class CmdLineFwkTestCaseWithButler(unittest.TestCase):
         self.assertEqual(len(list(refs)), n_outputs)
 
         # re-run with --replace-run and --prune-replaced=unstore
-        args.input = None
         args.replace_run = True
         args.prune_replaced = "unstore"
         args.output_run = "output/run3"
@@ -575,6 +574,8 @@ class CmdLineFwkTestCaseWithButler(unittest.TestCase):
             butler.get(refs[0], collections="output/run2")
 
         # re-run with --replace-run and --prune-replaced=purge
+        # This time also remove --input; passing the same inputs that we
+        # started with and not passing inputs at all should be equivalent.
         args.input = None
         args.replace_run = True
         args.prune_replaced = "purge"
@@ -589,6 +590,27 @@ class CmdLineFwkTestCaseWithButler(unittest.TestCase):
         # new output collection
         refs = butler.registry.queryDatasets(..., collections="output/run4")
         self.assertEqual(len(list(refs)), n_outputs)
+
+        # Trying to run again with inputs that aren't exactly what we started
+        # with is an error, and the kind that should not modify the data repo.
+        with self.assertRaises(ValueError):
+            args.input = ["test", "output/run2"]
+            args.prune_replaced = None
+            args.replace_run = True
+            args.output_run = "output/run5"
+            fwk.runPipeline(copy.deepcopy(qgraph), taskFactory, args)
+        butler.registry.refresh()
+        collections = set(butler.registry.queryCollections(...))
+        self.assertEqual(collections, {"test", "output", "output/run1", "output/run2", "output/run4"})
+        with self.assertRaises(ValueError):
+            args.input = ["output/run2", "test"]
+            args.prune_replaced = None
+            args.replace_run = True
+            args.output_run = "output/run6"
+            fwk.runPipeline(copy.deepcopy(qgraph), taskFactory, args)
+        butler.registry.refresh()
+        collections = set(butler.registry.queryCollections(...))
+        self.assertEqual(collections, {"test", "output", "output/run1", "output/run2", "output/run4"})
 
     def testSubgraph(self):
         """Test successfull execution of trivial quantum graph.
