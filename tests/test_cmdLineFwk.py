@@ -519,7 +519,7 @@ class CmdLineFwkTestCaseWithButler(unittest.TestCase):
         self.assertEqual(taskFactory.countExec, nQuanta)
 
         # need to refresh collections explicitly (or make new butler/registry)
-        butler.registry._collections.refresh()
+        butler.registry.refresh()
         collections = set(butler.registry.queryCollections(...))
         self.assertEqual(collections, {"test", "output", "output/run1"})
 
@@ -539,7 +539,7 @@ class CmdLineFwkTestCaseWithButler(unittest.TestCase):
         args.output_run = "output/run2"
         fwk.runPipeline(copy.deepcopy(qgraph), taskFactory, args)
 
-        butler.registry._collections.refresh()
+        butler.registry.refresh()
         collections = set(butler.registry.queryCollections(...))
         self.assertEqual(collections, {"test", "output", "output/run1", "output/run2"})
 
@@ -558,7 +558,7 @@ class CmdLineFwkTestCaseWithButler(unittest.TestCase):
         args.output_run = "output/run3"
         fwk.runPipeline(copy.deepcopy(qgraph), taskFactory, args)
 
-        butler.registry._collections.refresh()
+        butler.registry.refresh()
         collections = set(butler.registry.queryCollections(...))
         self.assertEqual(collections, {"test", "output", "output/run1", "output/run2", "output/run3"})
 
@@ -581,7 +581,7 @@ class CmdLineFwkTestCaseWithButler(unittest.TestCase):
         args.output_run = "output/run4"
         fwk.runPipeline(copy.deepcopy(qgraph), taskFactory, args)
 
-        butler.registry._collections.refresh()
+        butler.registry.refresh()
         collections = set(butler.registry.queryCollections(...))
         # output/run3 should disappear now
         self.assertEqual(collections, {"test", "output", "output/run1", "output/run2", "output/run4"})
