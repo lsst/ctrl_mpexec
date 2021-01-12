@@ -32,7 +32,7 @@ import fnmatch
 import logging
 import re
 import sys
-from typing import List, Optional, Tuple
+from typing import Optional, Tuple
 import warnings
 
 # -----------------------------
@@ -42,10 +42,9 @@ from lsst.daf.butler import (
     Butler,
     CollectionSearch,
     CollectionType,
-    DatasetTypeRestriction,
     Registry,
 )
-from lsst.daf.butler.registry import MissingCollectionError
+from lsst.daf.butler.registry import MissingCollectionError, RegistryDefaults
 import lsst.pex.config as pexConfig
 from lsst.pipe.base import GraphBuilder, Pipeline, QuantumGraph
 from lsst.obs.base import Instrument
@@ -78,10 +77,10 @@ class _OutputChainedCollectionInfo:
     def __init__(self, registry: Registry, name: str):
         self.name = name
         try:
-            self.chain = list(registry.getCollectionChain(name))
+            self.chain = tuple(registry.getCollectionChain(name))
             self.exists = True
         except MissingCollectionError:
-            self.chain = []
+            self.chain = ()
             self.exists = False
 
     def __str__(self):
@@ -95,10 +94,10 @@ class _OutputChainedCollectionInfo:
     """Whether this collection already exists in the registry (`bool`).
     """
 
-    chain: List[str]
-    """The definition of the collection, if it already exists (`list`).
+    chain: Tuple[str, ...]
+    """The definition of the collection, if it already exists (`tuple` [`str`]).
 
-    Empty if the collection does not alredy exist.
+    Empty if the collection does not already exist.
     """
 
 
@@ -200,7 +199,7 @@ class _ButlerFactory:
             self.outputRun = None
         else:
             raise ValueError("Cannot write without at least one of (--output, --output-run).")
-        self.inputs = list(CollectionSearch.fromExpression(args.input)) if args.input else []
+        self.inputs = tuple(CollectionSearch.fromExpression(args.input)) if args.input else ()
 
     def check(self, args: argparse.Namespace):
         """Check command-line options for consistency with each other and the
@@ -355,16 +354,20 @@ class _ButlerFactory:
                     raise NotImplementedError(
                         f"Unsupported --prune-replaced option '{args.prune_replaced}'."
                     )
-            chainDefinition.insert(0, self.outputRun.name)
-            chainDefinition = CollectionSearch.fromExpression(chainDefinition)
+            if not self.output.exists:
+                butler.registry.registerCollection(self.output.name, CollectionType.CHAINED)
+            if not args.extend_run:
+                butler.registry.registerCollection(self.outputRun.name, CollectionType.RUN)
+                chainDefinition.insert(0, self.outputRun.name)
+                butler.registry.setCollectionChain(self.output.name, chainDefinition)
             _LOG.debug("Preparing butler to write to '%s' and read from '%s'=%s",
                        self.outputRun.name, self.output.name, chainDefinition)
-            return Butler(butler=butler, run=self.outputRun.name, collections=self.output.name,
-                          chains={self.output.name: chainDefinition})
+            butler.registry.defaults = RegistryDefaults(run=self.outputRun.name, collections=self.output.name)
         else:
-            inputs = CollectionSearch.fromExpression([self.outputRun.name] + self.inputs)
+            inputs = CollectionSearch.fromExpression((self.outputRun.name,) + self.inputs)
             _LOG.debug("Preparing butler to write to '%s' and read from %s.", self.outputRun.name, inputs)
-            return Butler(butler=butler, run=self.outputRun.name, collections=inputs)
+            butler.registry.defaults = RegistryDefaults(run=self.outputRun.name, collections=inputs)
+        return butler
 
     output: Optional[_OutputChainedCollectionInfo]
     """Information about the output chained collection, if there is or will be
@@ -376,9 +379,8 @@ class _ButlerFactory:
     one (`_OutputRunCollectionInfo` or `None`).
     """
 
-    inputs: List[Tuple[str, DatasetTypeRestriction]]
-    """Input collections, including those also used for outputs and any
-    restrictions on dataset types (`list`).
+    inputs: Tuple[str, ...]
+    """Input collections provided directly by the user (`tuple` [ `str` ]).
     """
 
 
