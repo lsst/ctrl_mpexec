@@ -29,20 +29,11 @@ import click
 from lsst.daf.butler.cli.utils import option_section, unwrap
 import lsst.obs.base.cli.opt as obsBaseOpts
 import lsst.daf.butler.cli.opt as dafButlerOpts
+from lsst.daf.butler.cli.utils import OptionGroup
 from . import options as ctrlMpExecOpts
 
 instrumentOptionHelp = ("Add an instrument which will be used to load config overrides when defining a "
                         "pipeline. This must be the fully qualified class name.")
-
-
-class OptionGroup:
-    """Base class for an option group decorator. Requires the option group
-    subclass to have a property called `decorator`."""
-
-    def __call__(self, f):
-        for decorator in reversed(self.decorators):
-            f = decorator(f)
-        return f
 
 
 class pipeline_build_options(OptionGroup):  # noqa: N801
