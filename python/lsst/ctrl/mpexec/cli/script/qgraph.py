@@ -131,6 +131,9 @@ def qgraph(pipelineObj, qgraph, qgraph_id, qgraph_node_id, skip_existing, save_q
     f = CmdLineFwk()
     qgraph = f.makeGraph(pipelineObj, args)
 
+    if qgraph is None:
+        raise RuntimeError("QuantumGraph is empty.")
+
     # optionally dump some info.
     if show:
         f.showInfo(args, pipelineObj, qgraph)
