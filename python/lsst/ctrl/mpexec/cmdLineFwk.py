@@ -461,7 +461,7 @@ class CmdLineFwk:
         pipeline : `~lsst.pipe.base.Pipeline`
         """
         if args.pipeline:
-            pipeline = Pipeline.fromFile(args.pipeline)
+            pipeline = Pipeline.from_uri(args.pipeline)
         else:
             pipeline = Pipeline("anonymous")
 
@@ -494,7 +494,7 @@ class CmdLineFwk:
                 raise ValueError(f"Unexpected pipeline action: {action.action}")
 
         if args.save_pipeline:
-            pipeline.toFile(args.save_pipeline)
+            pipeline.write_to_uri(args.save_pipeline)
 
         if args.pipeline_dot:
             pipeline2dot(pipeline, args.pipeline_dot)
