@@ -84,18 +84,15 @@ class _Job:
         startMethod : `str`, optional
             Start method from `multiprocessing` module.
         """
-        # Butler can have live database connections which is a problem with
-        # fork-type activation. Make a pickle of butler to pass that across
-        # fork. Unpickling of quantum has to happen after butler, this is why
+        # Unpickling of quantum has to happen after butler, this is why
         # it is pickled manually here.
-        butler_pickle = pickle.dumps(butler)
         quantum_pickle = pickle.dumps(self.qnode.quantum)
         taskDef = self.qnode.taskDef
         logConfigState = CliLog.configState
         mp_ctx = multiprocessing.get_context(startMethod)
         self.process = mp_ctx.Process(
             target=_Job._executeJob,
-            args=(quantumExecutor, taskDef, quantum_pickle, butler_pickle, logConfigState),
+            args=(quantumExecutor, taskDef, quantum_pickle, butler, logConfigState),
             name=f"task-{self.qnode.nodeId.number}"
         )
         self.process.start()
@@ -103,7 +100,7 @@ class _Job:
         self._state = JobState.RUNNING
 
     @staticmethod
-    def _executeJob(quantumExecutor, taskDef, quantum_pickle, butler_pickle, logConfigState):
+    def _executeJob(quantumExecutor, taskDef, quantum_pickle, butler, logConfigState):
         """Execute a job with arguments.
 
         Parameters
@@ -114,15 +111,18 @@ class _Job:
             Task definition structure.
         quantum_pickle : `bytes`
             Quantum for this task execution in pickled form.
-        butler_pickle : `bytes`
-            Data butler instance in pickled form.
+        butler : `lss.daf.butler.Butler`
+            Data butler instance.
         """
         if logConfigState and not CliLog.configState:
             # means that we are in a new spawned Python process and we have to
             # re-initialize logging
             CliLog.replayConfigState(logConfigState)
 
-        butler = pickle.loads(butler_pickle)
+        # have to reset connection pool to avoid sharing connections
+        if butler is not None:
+            butler.registry.resetConnectionPool()
+
         quantum = pickle.loads(quantum_pickle)
         quantumExecutor.execute(taskDef, quantum, butler)
 
