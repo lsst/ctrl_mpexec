@@ -199,7 +199,11 @@ class _ButlerFactory:
             self.outputRun = None
         else:
             raise ValueError("Cannot write without at least one of (--output, --output-run).")
-        self.inputs = tuple(CollectionSearch.fromExpression(args.input)) if args.input else ()
+        # Recursively flatten any input CHAINED collections.  We do this up
+        # front so we can tell if the user passes the same inputs on subsequent
+        # calls, even though we also flatten when we define the output CHAINED
+        # collection.
+        self.inputs = tuple(registry.queryCollections(args.input, flattenChains=True)) if args.input else ()
 
     def check(self, args: argparse.Namespace):
         """Check command-line options for consistency with each other and the
@@ -364,7 +368,7 @@ class _ButlerFactory:
                     # Erase entire collection and all datasets, need to remove
                     # collection from its chain collection first.
                     with butler.transaction():
-                        butler.registry.setCollectionChain(self.output.name, chainDefinition)
+                        butler.registry.setCollectionChain(self.output.name, chainDefinition, flatten=True)
                         butler.pruneCollection(replaced, purge=True, unstore=True)
                 elif args.prune_replaced is not None:
                     raise NotImplementedError(
@@ -375,7 +379,7 @@ class _ButlerFactory:
             if not args.extend_run:
                 butler.registry.registerCollection(self.outputRun.name, CollectionType.RUN)
                 chainDefinition.insert(0, self.outputRun.name)
-                butler.registry.setCollectionChain(self.output.name, chainDefinition)
+                butler.registry.setCollectionChain(self.output.name, chainDefinition, flatten=True)
             _LOG.debug("Preparing butler to write to '%s' and read from '%s'=%s",
                        self.outputRun.name, self.output.name, chainDefinition)
             butler.registry.defaults = RegistryDefaults(run=self.outputRun.name, collections=self.output.name)
