@@ -110,10 +110,10 @@ class ExecFixupDataId(ExecutionGraphFixup):
                     # remove any existing edges between the two nodes, but
                     # don't fail if there are not any. Both directions need
                     # tried because in a directed graph, order maters
-                    try:
-                        networkGraph.remove_edge(node, prev_node)
-                        networkGraph.remove_edge(prev_node, node)
-                    except nx.NetworkXException:
-                        pass
+                    for edge in ((node, prev_node), (prev_node, node)):
+                        try:
+                            networkGraph.remove_edge(*edge)
+                        except nx.NetworkXException:
+                            pass
                     networkGraph.add_edge(prev_node, node)
         return graph
