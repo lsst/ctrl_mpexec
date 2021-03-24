@@ -72,7 +72,7 @@ class QuantumMock:
 
     def __hash__(self):
         # dict.__eq__ is order-insensitive
-        return hash(sorted(kv for kv in self.dataId.items()))
+        return hash(tuple(sorted(kv for kv in self.dataId.items())))
 
 
 class QuantumIterDataMock:
