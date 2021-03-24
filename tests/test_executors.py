@@ -28,7 +28,6 @@ from multiprocessing import Manager
 import psutil
 import sys
 import time
-from types import SimpleNamespace
 import unittest
 import warnings
 
@@ -64,13 +63,25 @@ class QuantumExecutorMock(QuantumExecutor):
         return [quantum.dataId[field] for quantum in self.quanta]
 
 
+class QuantumMock:
+    def __init__(self, dataId):
+        self.dataId = dataId
+
+    def __eq__(self, other):
+        return self.dataId == other.dataId
+
+    def __hash__(self):
+        # dict.__eq__ is order-insensitive
+        return hash(sorted(kv for kv in self.dataId.items()))
+
+
 class QuantumIterDataMock:
     """Simple class to mock QuantumIterData.
     """
     def __init__(self, index, taskDef, **dataId):
         self.index = index
         self.taskDef = taskDef
-        self.quantum = SimpleNamespace(dataId=dataId)
+        self.quantum = QuantumMock(dataId)
         self.dependencies = set()
         self.nodeId = NodeId(index, "DummyBuildString")
 
@@ -96,7 +107,11 @@ class QuantumGraphMock:
             if q.taskDef.label == label:
                 return q.taskDef
 
-    def quantaForTask(self, taskDef):
+    def getQuantaForTask(self, taskDef):
+        nodes = self.getNodesForTask(taskDef)
+        return {q.quantum for q in nodes}
+
+    def getNodesForTask(self, taskDef):
         quanta = set()
         for q in self:
             if q.taskDef == taskDef:

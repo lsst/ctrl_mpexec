@@ -96,7 +96,7 @@ class ExecFixupDataId(ExecutionGraphFixup):
         taskDef = graph.findTaskDefByLabel(self.taskLabel)
         if taskDef is None:
             raise ValueError(f"Cannot find task with label {self.taskLabel}")
-        quanta = list(graph.quantaForTask(taskDef))
+        quanta = list(graph.getNodesForTask(taskDef))
         keyQuanta = defaultdict(list)
         for q in quanta:
             key = self._key(q)
