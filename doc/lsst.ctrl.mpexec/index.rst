@@ -36,9 +36,10 @@ You can find Jira issues for this module under the `ctrl_mpexec <https://jira.ls
 Command Line Scripts
 ====================
 
-.. click:: lsst.ctrl.mpexec.cli.pipetask:cli
-   :prog: pipetask
-   :show-nested:
+.. toctree::
+   :maxdepth: 1
+
+   pipetask
 
 .. _lsst.ctrl.mpexec-pyapi:
 
