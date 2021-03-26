@@ -18,20 +18,6 @@ lsst.ctrl.mpexec
 .. .. toctree::
 ..    :maxdepth: 1
 
-.. _lsst.ctrl.pipetask-script:
-
-Command Line Scripts
-====================
-
-The `pipetask` command is being ported from an argparse framework to a Click
-framework. During development the command implemented using Click is called
-`pipetask2`. At some point the current `pipetask` command will be removed and
-`pipetask2` will be renamed to `pipetask`.
-
-.. click:: lsst.ctrl.mpexec.cli.pipetask:cli
-   :prog: pipetask2
-   :show-nested:
-
 .. _lsst.ctrl.mpexec-contributing:
 
 Contributing
@@ -44,6 +30,16 @@ You can find Jira issues for this module under the `ctrl_mpexec <https://jira.ls
 
 .. .. toctree::
 ..    :maxdepth: 1
+
+.. _lsst.ctrl.mpexec-script:
+
+Command Line Scripts
+====================
+
+.. toctree::
+   :maxdepth: 1
+
+   pipetask
 
 .. _lsst.ctrl.mpexec-pyapi:
 
