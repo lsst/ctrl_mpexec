@@ -51,13 +51,19 @@ class PreExecInit:
         Task factory.
     skipExisting : `bool`, optional
         If `True` then do not try to overwrite any datasets that might exist
-        in the butler. If `False` then any existing conflicting dataset will
-        cause butler exception.
+        in ``butler.run``; instead compare them when appropriate/possible.  If
+        `False`, then any existing conflicting dataset will cause a butler
+        exception to be raised.
     """
     def __init__(self, butler, taskFactory, skipExisting=False):
         self.butler = butler
         self.taskFactory = taskFactory
         self.skipExisting = skipExisting
+        if self.skipExisting and self.butler.run is None:
+            raise RuntimeError(
+                "Cannot perform skipExisting logic unless butler is initialized "
+                "with a default output RUN collection."
+            )
 
     def initialize(self, graph, saveInitOutputs=True, registerDatasetTypes=False, saveVersions=True):
         """Perform all initialization steps.
@@ -189,7 +195,7 @@ class PreExecInit:
                     _LOG.debug("Retrieving InitOutputs for task=%s key=%s dsTypeName=%s",
                                task, name, attribute.name)
                     try:
-                        objFromStore = self.butler.get(attribute.name, {})
+                        objFromStore = self.butler.get(attribute.name, {}, collections=[self.butler.run])
                         # Types are supposed to be identical.
                         # TODO: Check that object contents is identical too.
                         if type(objFromStore) is not type(initOutputVar):
@@ -233,7 +239,7 @@ class PreExecInit:
                 oldConfig = None
                 if self.skipExisting:
                     try:
-                        oldConfig = self.butler.get(configName, {})
+                        oldConfig = self.butler.get(configName, {}, collections=[self.butler.run])
                         if not taskDef.config.compare(oldConfig, shortcut=False, output=logConfigMismatch):
                             raise TypeError(
                                 f"Config does not match existing task config {configName!r} in butler; "

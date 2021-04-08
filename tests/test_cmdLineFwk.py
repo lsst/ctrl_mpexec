@@ -424,6 +424,7 @@ class CmdLineFwkTestCaseWithButler(unittest.TestCase):
         # run remaining ones
         taskFactory.stopAt = -1
         args.skip_existing = True
+        args.extend_run = True
         args.no_versions = True
         fwk.runPipeline(qgraph, taskFactory, args, butler=butler)
         self.assertEqual(taskFactory.countExec, nQuanta)
@@ -455,6 +456,7 @@ class CmdLineFwkTestCaseWithButler(unittest.TestCase):
 
         taskFactory.stopAt = -1
         args.skip_existing = True
+        args.extend_run = True
         args.no_versions = True
         excRe = "Registry inconsistency while checking for existing outputs.*"
         with self.assertRaisesRegex(RuntimeError, excRe):
@@ -487,6 +489,7 @@ class CmdLineFwkTestCaseWithButler(unittest.TestCase):
 
         taskFactory.stopAt = -1
         args.skip_existing = True
+        args.extend_run = True
         args.clobber_partial_outputs = True
         args.no_versions = True
         fwk.runPipeline(qgraph, taskFactory, args, butler=butler)
