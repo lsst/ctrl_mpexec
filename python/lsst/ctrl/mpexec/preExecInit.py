@@ -185,7 +185,11 @@ class PreExecInit:
         """
         _LOG.debug("Will save InitOutputs for all tasks")
         for taskDef in graph.iterTaskGraph():
-            task = self.taskFactory.makeTask(taskDef.taskClass, taskDef.config, None, self.butler)
+            task = self.taskFactory.makeTask(taskDef.taskClass,
+                                             taskDef.label,
+                                             taskDef.config,
+                                             None,
+                                             self.butler)
             for name in taskDef.connections.initOutputs:
                 attribute = getattr(taskDef.connections, name)
                 initOutputVar = getattr(task, name)

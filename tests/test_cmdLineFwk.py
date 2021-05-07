@@ -134,12 +134,12 @@ class TaskFactoryMock(TaskFactory):
         elif taskName == "TaskTwo":
             return TaskTwo, "TaskTwo"
 
-    def makeTask(self, taskClass, config, overrides, butler):
+    def makeTask(self, taskClass, name, config, overrides, butler):
         if config is None:
             config = taskClass.ConfigClass()
             if overrides:
                 overrides.applyTo(config)
-        return taskClass(config=config, butler=butler)
+        return taskClass(config=config, butler=butler, name=name)
 
 
 def _makeArgs(registryConfig=None, **kwargs):

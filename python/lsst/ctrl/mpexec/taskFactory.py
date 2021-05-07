@@ -35,13 +35,16 @@ _LOG = logging.getLogger(__name__.partition(".")[2])
 class TaskFactory(BaseTaskFactory):
     """Class instantiating PipelineTasks.
     """
-    def makeTask(self, taskClass, config, overrides, butler):
+    def makeTask(self, taskClass, name, config, overrides, butler):
         """Create new PipelineTask instance from its class.
 
         Parameters
         ----------
         taskClass : type
             PipelineTask class.
+        name : `str` or `None`
+            The name of the new task; if `None` then use
+            ``taskClass._DefaultName``.
         config : `pex.Config` or None
             Configuration object, if ``None`` then use task-defined
             configuration class to create new instance.
@@ -90,6 +93,6 @@ class TaskFactory(BaseTaskFactory):
         config.freeze()
 
         # make task instance
-        task = taskClass(config=config, initInputs=initInputs)
+        task = taskClass(config=config, initInputs=initInputs, name=name)
 
         return task
