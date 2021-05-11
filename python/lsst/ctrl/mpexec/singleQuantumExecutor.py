@@ -75,7 +75,7 @@ class SingleQuantumExecutor(QuantumExecutor):
 
         # Docstring inherited from QuantumExecutor.execute
         self.setupLogging(taskDef, quantum)
-        taskClass, config = taskDef.taskClass, taskDef.config
+        taskClass, label, config = taskDef.taskClass, taskDef.label, taskDef.config
 
         # check whether to skip or delete old outputs
         if self.checkExistingOutputs(quantum, butler, taskDef):
@@ -99,7 +99,7 @@ class SingleQuantumExecutor(QuantumExecutor):
         # Ensure that we are executing a frozen config
         config.freeze()
 
-        task = self.makeTask(taskClass, config, butler)
+        task = self.makeTask(taskClass, label, config, butler)
         self.runQuantum(task, quantum, taskDef, butler)
 
         stopTime = time.time()
@@ -185,13 +185,15 @@ class SingleQuantumExecutor(QuantumExecutor):
             # no outputs exist
             return False
 
-    def makeTask(self, taskClass, config, butler):
+    def makeTask(self, taskClass, name, config, butler):
         """Make new task instance.
 
         Parameters
         ----------
         taskClass : `type`
             Sub-class of `~lsst.pipe.base.PipelineTask`.
+        name : `str`
+            Name for this task.
         config : `~lsst.pipe.base.PipelineTaskConfig`
             Configuration object for this task
 
@@ -203,7 +205,7 @@ class SingleQuantumExecutor(QuantumExecutor):
             Data butler.
         """
         # call task factory for that
-        return self.taskFactory.makeTask(taskClass, config, None, butler)
+        return self.taskFactory.makeTask(taskClass, name, config, None, butler)
 
     def updatedQuantumInputs(self, quantum, butler):
         """Update quantum with extra information, returns a new updated Quantum.
