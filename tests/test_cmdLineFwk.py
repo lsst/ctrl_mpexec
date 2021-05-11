@@ -318,7 +318,7 @@ class CmdLineFwkTestCase(unittest.TestCase):
             qgraph = _makeQGraph()
             with open(tmpname, "wb") as saveFile:
                 qgraph.save(saveFile)
-            args = _makeArgs(qgraph=tmpname, registryConfig=registryConfig)
+            args = _makeArgs(qgraph=tmpname, registryConfig=registryConfig, execution_butler_location=None)
             qgraph = fwk.makeGraph(None, args)
             self.assertIsInstance(qgraph, QuantumGraph)
             self.assertEqual(len(qgraph), 1)
@@ -327,7 +327,8 @@ class CmdLineFwkTestCase(unittest.TestCase):
             args = _makeArgs(
                 qgraph=tmpname,
                 qgraph_id="R2-D2 is that you?",
-                registryConfig=registryConfig
+                registryConfig=registryConfig,
+                execution_butler_location=None
             )
             with self.assertRaisesRegex(ValueError, "graphID does not match"):
                 fwk.makeGraph(None, args)
@@ -335,7 +336,7 @@ class CmdLineFwkTestCase(unittest.TestCase):
             # save with wrong object type
             with open(tmpname, "wb") as saveFile:
                 pickle.dump({}, saveFile)
-            args = _makeArgs(qgraph=tmpname, registryConfig=registryConfig)
+            args = _makeArgs(qgraph=tmpname, registryConfig=registryConfig, execution_butler_location=None)
             with self.assertRaises(ValueError):
                 fwk.makeGraph(None, args)
 
@@ -344,7 +345,7 @@ class CmdLineFwkTestCase(unittest.TestCase):
             qgraph = QuantumGraph(dict())
             with open(tmpname, "wb") as saveFile:
                 qgraph.save(saveFile)
-            args = _makeArgs(qgraph=tmpname, registryConfig=registryConfig)
+            args = _makeArgs(qgraph=tmpname, registryConfig=registryConfig, execution_butler_location=None)
             with self.assertWarnsRegex(UserWarning, "QuantumGraph is empty"):
                 # this also tests that warning is generated for empty graph
                 qgraph = fwk.makeGraph(None, args)
@@ -634,7 +635,8 @@ class CmdLineFwkTestCaseWithButler(unittest.TestCase):
             with open(tmpname, "wb") as saveFile:
                 qgraph.save(saveFile)
 
-            args = _makeArgs(qgraph=tmpname, qgraph_node_id=nodeIds, registryConfig=registryConfig)
+            args = _makeArgs(qgraph=tmpname, qgraph_node_id=nodeIds, registryConfig=registryConfig,
+                             execution_butler_location=None)
             fwk = CmdLineFwk()
 
             # load graph, should only read a subset
