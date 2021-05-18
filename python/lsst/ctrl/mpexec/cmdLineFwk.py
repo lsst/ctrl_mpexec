@@ -28,6 +28,7 @@ __all__ = ['CmdLineFwk']
 #  Imports of standard modules --
 # -------------------------------
 import argparse
+import copy
 import fnmatch
 import logging
 import re
@@ -46,7 +47,7 @@ from lsst.daf.butler import (
 )
 from lsst.daf.butler.registry import MissingCollectionError, RegistryDefaults
 import lsst.pex.config as pexConfig
-from lsst.pipe.base import GraphBuilder, Pipeline, QuantumGraph
+from lsst.pipe.base import GraphBuilder, Pipeline, QuantumGraph, buildExecutionButler
 from lsst.obs.base import Instrument
 from .dotTools import graph2dot, pipeline2dot
 from .executionGraphFixup import ExecutionGraphFixup
@@ -560,6 +561,22 @@ class CmdLineFwk:
 
         if args.qgraph_dot:
             graph2dot(qgraph, args.qgraph_dot)
+
+        if args.execution_butler_location:
+            butler = Butler(args.butler_config)
+            newArgs = copy.deepcopy(args)
+
+            def builderShim(butler):
+                newArgs.butler_config = butler._config
+                # Calling makeWriteButler is done for the side effects of
+                # calling that method, maining parsing all the args into
+                # collection names, creating collections, etc.
+                newButler = _ButlerFactory.makeWriteButler(newArgs)
+                return newButler
+
+            buildExecutionButler(butler, qgraph, args.execution_butler_location, run,
+                                 butlerModifier=builderShim, collections=args.input,
+                                 clobber=args.clobber_execution_butler)
 
         return qgraph
 

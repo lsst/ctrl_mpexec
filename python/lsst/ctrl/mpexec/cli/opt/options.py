@@ -290,3 +290,13 @@ fail_fast_option = MWOptionDecorator("--fail-fast",
                                      help=unwrap("""Stop processing at first error, default is to process
                                                  as many tasks as possible."""),
                                      is_flag=True)
+
+save_execution_butler_option = MWOptionDecorator("--save-execution-butler",
+                                                 help=unwrap("""Export location for an
+                                                             execution-specific butler after making
+                                                             QuantumGraph"""))
+
+clobber_execution_butler_option = MWOptionDecorator("--clobber-execution-butler",
+                                                    help=unwrap("""When creating execution butler overwrite
+                                                                   any existing products"""),
+                                                    is_flag=True)

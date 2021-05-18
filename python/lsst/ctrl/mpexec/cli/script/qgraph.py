@@ -29,7 +29,7 @@ _log = logging.getLogger(__name__.partition(".")[2])
 
 def qgraph(pipelineObj, qgraph, qgraph_id, qgraph_node_id, skip_existing, save_qgraph, save_single_quanta,
            qgraph_dot, butler_config, input, output, output_run, extend_run, replace_run, prune_replaced,
-           data_query, show, **kwargs):
+           data_query, show, save_execution_butler, clobber_execution_butler, **kwargs):
     """Implements the command line interface `pipetask qgraph` subcommand,
     should only be called by command line tools and unit test code that test
     this function.
@@ -101,6 +101,11 @@ def qgraph(pipelineObj, qgraph, qgraph_id, qgraph_node_id, skip_existing, save_q
         User query selection expression.
     show : `list` [`str`] or `None`
         Descriptions of what to dump to stdout.
+    save_execution_butler : `str` or `None`
+        URI location for storing an execution Butler build from the
+        QuantumGraph.
+    clobber_execution_butler : `bool`
+        It True overwrite existing execution butler files if present.
     kwargs : `dict` [`str`, `str`]
         Ignored; click commands may accept options for more than one script
         function and pass all the option kwargs to each of the script functions
@@ -126,7 +131,10 @@ def qgraph(pipelineObj, qgraph, qgraph_id, qgraph_node_id, skip_existing, save_q
                            prune_replaced=prune_replaced,
                            data_query=data_query,
                            show=show,
-                           skip_existing=skip_existing)
+                           skip_existing=skip_existing,
+                           execution_butler_location=save_execution_butler,
+                           clobber_execution_butler=clobber_execution_butler
+                           )
 
     f = CmdLineFwk()
     qgraph = f.makeGraph(pipelineObj, args)
