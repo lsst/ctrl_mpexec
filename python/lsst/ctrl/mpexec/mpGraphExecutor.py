@@ -32,6 +32,7 @@ import sys
 import time
 
 from lsst.pipe.base.graph.graph import QuantumGraph
+from lsst.pipe.base import InvalidQuantumError
 
 # -----------------------------
 #  Imports for other modules --
@@ -397,7 +398,7 @@ class MPGraphExecutor(QuantumGraphExecutor):
                         jobs.setJobState(job, JobState.FAILED)
                         job.cleanup()
                         _LOG.debug("failed: %s", job)
-                        if self.failFast:
+                        if self.failFast or exitcode == InvalidQuantumError.EXIT_CODE:
                             for stopJob in jobs.running:
                                 if stopJob is not job:
                                     stopJob.stop()
