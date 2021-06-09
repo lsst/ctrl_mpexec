@@ -210,7 +210,10 @@ class SingleQuantumExecutor(QuantumExecutor):
                 if ref is None:
                     missingRefs.append(datasetRef)
                 else:
-                    existingRefs.append(ref)
+                    if butler.datastore.exists(ref):
+                        existingRefs.append(ref)
+                    else:
+                        missingRefs.append(datasetRef)
         if existingRefs and missingRefs:
             # some outputs exist and some don't, either delete existing ones or complain
             _LOG.debug("Partial outputs exist for task %s dataId=%s collection=%s "
