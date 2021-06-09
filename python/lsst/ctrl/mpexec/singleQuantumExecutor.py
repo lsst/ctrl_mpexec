@@ -64,11 +64,11 @@ class SingleQuantumExecutor(QuantumExecutor):
     taskFactory : `~lsst.pipe.base.TaskFactory`
         Instance of a task factory.
     skipExisting : `bool`, optional
-        If True then quanta with all existing outputs are not executed.
-    clobberPartialOutputs : `bool`, optional
-        If True then delete any partial outputs from quantum execution. If
-        complete outputs exists then exception is raise if ``skipExisting`` is
-        False.
+        If `True`, then quanta that succeeded will not be rerun.
+    clobberOutputs : `bool`, optional
+        If `True`, then existing outputs will be overwritten.  If
+        `skipExisting` is also `True`, only outputs from failed quanta will
+        be overwritten.
     enableLsstDebug : `bool`, optional
         Enable debugging with ``lsstDebug`` facility for a task.
     exitOnKnownError : `bool`, optional
@@ -77,12 +77,12 @@ class SingleQuantumExecutor(QuantumExecutor):
         exception propagate up to calling.  This is always the behavior for
         InvalidQuantumError.
     """
-    def __init__(self, taskFactory, skipExisting=False, clobberPartialOutputs=False, enableLsstDebug=False,
+    def __init__(self, taskFactory, skipExisting=False, clobberOutputs=False, enableLsstDebug=False,
                  exitOnKnownError=False):
         self.taskFactory = taskFactory
         self.skipExisting = skipExisting
         self.enableLsstDebug = enableLsstDebug
-        self.clobberPartialOutputs = clobberPartialOutputs
+        self.clobberOutputs = clobberOutputs
         self.exitOnKnownError = exitOnKnownError
 
     def execute(self, taskDef, quantum, butler):
@@ -167,7 +167,7 @@ class SingleQuantumExecutor(QuantumExecutor):
         """Decide whether this quantum needs to be executed.
 
         If only partial outputs exist then they are removed if
-        ``clobberPartialOutputs`` is True, otherwise an exception is raised.
+        ``clobberOutputs`` is True, otherwise an exception is raised.
 
         Parameters
         ----------
@@ -219,7 +219,7 @@ class SingleQuantumExecutor(QuantumExecutor):
             _LOG.debug("Partial outputs exist for task %s dataId=%s collection=%s "
                        "existingRefs=%s missingRefs=%s",
                        taskDef, quantum.dataId, collection, existingRefs, missingRefs)
-            if self.clobberPartialOutputs:
+            if self.clobberOutputs:
                 _LOG.info("Removing partial outputs for task %s: %s", taskDef, existingRefs)
                 butler.pruneDatasets(existingRefs, disassociate=True, unstore=True, purge=True)
                 return False

@@ -252,11 +252,13 @@ skip_existing_option = MWOptionDecorator("--skip-existing",
                                          is_flag=True)
 
 
-clobber_partial_outputs_option = MWOptionDecorator("--clobber-partial-outputs",
-                                                   help=unwrap("""Remove incomplete outputs from previous
-                                                               execution of the same quantum before new
-                                                               execution."""),
-                                                   is_flag=True)
+clobber_outputs_option = MWOptionDecorator("--clobber-outputs",
+                                           help=unwrap("""Remove outputs from previous execution of the same
+                                                       quantum before new execution.  If `--skip-existing`
+                                                       is also passed, then only failed quanta will be
+                                                       clobbered. Requires the 'run` command's `--extend-run`
+                                                       flag to be set."""),
+                                           is_flag=True)
 
 
 skip_init_writes_option = MWOptionDecorator("--skip-init-writes",
