@@ -15,8 +15,15 @@ lsst.ctrl.mpexec
 
 .. toctree linking to topics related to using the module's APIs.
 
-.. .. toctree::
-..    :maxdepth: 1
+.. _lsst.ctrl.mpexec-changes:
+
+Changes
+=======
+
+.. toctree::
+   :maxdepth: 1
+
+   CHANGES.rst
 
 .. _lsst.ctrl.mpexec-contributing:
 
