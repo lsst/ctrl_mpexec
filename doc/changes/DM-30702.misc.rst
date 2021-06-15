@@ -1,0 +1,1 @@
+Add some of the pipetask command line options to QuantumGraph metadata
