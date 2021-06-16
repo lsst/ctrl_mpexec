@@ -29,7 +29,9 @@ __all__ = ['CmdLineFwk']
 # -------------------------------
 import argparse
 import copy
+import datetime
 import fnmatch
+import getpass
 import logging
 import re
 import sys
@@ -539,7 +541,12 @@ class CmdLineFwk:
             # make execution plan (a.k.a. DAG) for pipeline
             graphBuilder = GraphBuilder(registry,
                                         skipExisting=args.skip_existing)
-            qgraph = graphBuilder.makeGraph(pipeline, collections, run, args.data_query)
+            # accumulate metadata
+            metadata = {"input": args.input, "output": args.output, "butler_argument": args.butler_config,
+                        "output_run": args.output_run, "extend_run": args.extend_run,
+                        "skip_existing": args.skip_existing, "data_query": args.data_query,
+                        "user": getpass.getuser(), "time": f"{datetime.datetime.now()}"}
+            qgraph = graphBuilder.makeGraph(pipeline, collections, run, args.data_query, metadata=metadata)
 
         # count quanta in graph and give a warning if it's empty and return None
         nQuanta = len(qgraph)
