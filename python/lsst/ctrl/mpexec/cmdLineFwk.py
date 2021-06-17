@@ -540,7 +540,8 @@ class CmdLineFwk:
 
             # make execution plan (a.k.a. DAG) for pipeline
             graphBuilder = GraphBuilder(registry,
-                                        skipExisting=args.skip_existing)
+                                        skipExisting=args.skip_existing,
+                                        clobberOutputs=args.clobber_outputs)
             # accumulate metadata
             metadata = {"input": args.input, "output": args.output, "butler_argument": args.butler_config,
                         "output_run": args.output_run, "extend_run": args.extend_run,
@@ -629,8 +630,9 @@ class CmdLineFwk:
             graphFixup = self._importGraphFixup(args)
             quantumExecutor = SingleQuantumExecutor(taskFactory,
                                                     skipExisting=args.skip_existing,
-                                                    clobberPartialOutputs=args.clobber_partial_outputs,
-                                                    enableLsstDebug=args.enableLsstDebug)
+                                                    clobberOutputs=args.clobber_outputs,
+                                                    enableLsstDebug=args.enableLsstDebug,
+                                                    exitOnKnownError=args.fail_fast)
             timeout = self.MP_TIMEOUT if args.timeout is None else args.timeout
             executor = MPGraphExecutor(numProc=args.processes, timeout=timeout,
                                        startMethod=args.start_method,

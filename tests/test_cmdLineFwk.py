@@ -430,7 +430,7 @@ class CmdLineFwkTestCaseWithButler(unittest.TestCase):
         fwk.runPipeline(qgraph, taskFactory, args, butler=butler)
         self.assertEqual(taskFactory.countExec, nQuanta)
 
-    def testSimpleQGraphPartialOutputsFail(self):
+    def testSimpleQGraphOutputsFail(self):
         """Test continuing execution of trivial quantum graph with partial
         outputs.
         """
@@ -451,9 +451,12 @@ class CmdLineFwkTestCaseWithButler(unittest.TestCase):
         self.assertEqual(taskFactory.countExec, 3)
 
         # drop one of the two outputs from one task
-        ref = butler._findDatasetRef("add2_dataset2", instrument="INSTR", detector=0)
-        self.assertIsNotNone(ref)
-        butler.pruneDatasets([ref], disassociate=True, unstore=True, purge=True)
+        ref1 = butler.registry.findDataset("add2_dataset2", instrument="INSTR", detector=0)
+        self.assertIsNotNone([ref1])
+        # also drop the metadata output
+        ref2 = butler.registry.findDataset("task1_metadata", instrument="INSTR", detector=0)
+        self.assertIsNotNone(ref2)
+        butler.pruneDatasets([ref1, ref2], disassociate=True, unstore=True, purge=True)
 
         taskFactory.stopAt = -1
         args.skip_existing = True
@@ -463,9 +466,9 @@ class CmdLineFwkTestCaseWithButler(unittest.TestCase):
         with self.assertRaisesRegex(RuntimeError, excRe):
             fwk.runPipeline(qgraph, taskFactory, args, butler=butler)
 
-    def testSimpleQGraphClobberPartialOutputs(self):
+    def testSimpleQGraphClobberOutputs(self):
         """Test continuing execution of trivial quantum graph with
-        --clobber-partial-outputs.
+        --clobber-outputs.
         """
 
         nQuanta = 5
@@ -484,14 +487,17 @@ class CmdLineFwkTestCaseWithButler(unittest.TestCase):
         self.assertEqual(taskFactory.countExec, 3)
 
         # drop one of the two outputs from one task
-        ref = butler._findDatasetRef("add2_dataset2", instrument="INSTR", detector=0)
-        self.assertIsNotNone(ref)
-        butler.pruneDatasets([ref], disassociate=True, unstore=True, purge=True)
+        ref1 = butler.registry.findDataset("add2_dataset2", instrument="INSTR", detector=0)
+        self.assertIsNotNone(ref1)
+        # also drop the metadata output
+        ref2 = butler.registry.findDataset("task1_metadata", instrument="INSTR", detector=0)
+        self.assertIsNotNone(ref2)
+        butler.pruneDatasets([ref1, ref2], disassociate=True, unstore=True, purge=True)
 
         taskFactory.stopAt = -1
         args.skip_existing = True
         args.extend_run = True
-        args.clobber_partial_outputs = True
+        args.clobber_outputs = True
         args.no_versions = True
         fwk.runPipeline(qgraph, taskFactory, args, butler=butler)
         # number of executed quanta is incremented

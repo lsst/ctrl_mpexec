@@ -27,6 +27,7 @@ __all__ = ['SingleQuantumExecutor']
 from collections import defaultdict
 import logging
 from itertools import chain
+import sys
 import time
 
 # -----------------------------
@@ -34,8 +35,16 @@ import time
 # -----------------------------
 from .quantumGraphExecutor import QuantumExecutor
 from lsst.log import Log
+from lsst.daf.base import PropertyList, PropertySet
 from lsst.obs.base import Instrument
-from lsst.pipe.base import ButlerQuantumContext
+from lsst.pipe.base import (
+    AdjustQuantumHelper,
+    ButlerQuantumContext,
+    InvalidQuantumError,
+    NoWorkFound,
+    RepeatableQuantumError,
+    logInfo,
+)
 from lsst.daf.butler import Quantum
 
 # ----------------------------------
@@ -55,23 +64,34 @@ class SingleQuantumExecutor(QuantumExecutor):
     taskFactory : `~lsst.pipe.base.TaskFactory`
         Instance of a task factory.
     skipExisting : `bool`, optional
-        If True then quanta with all existing outputs are not executed.
-    clobberPartialOutputs : `bool`, optional
-        If True then delete any partial outputs from quantum execution. If
-        complete outputs exists then exception is raise if ``skipExisting`` is
-        False.
+        If `True`, then quanta that succeeded will not be rerun.
+    clobberOutputs : `bool`, optional
+        If `True`, then existing outputs will be overwritten.  If
+        `skipExisting` is also `True`, only outputs from failed quanta will
+        be overwritten.
     enableLsstDebug : `bool`, optional
         Enable debugging with ``lsstDebug`` facility for a task.
+    exitOnKnownError : `bool`, optional
+        If `True`, call `sys.exit` with the appropriate exit code for special
+        known exceptions, after printing a traceback, instead of letting the
+        exception propagate up to calling.  This is always the behavior for
+        InvalidQuantumError.
     """
-    def __init__(self, taskFactory, skipExisting=False, clobberPartialOutputs=False, enableLsstDebug=False):
+    def __init__(self, taskFactory, skipExisting=False, clobberOutputs=False, enableLsstDebug=False,
+                 exitOnKnownError=False):
         self.taskFactory = taskFactory
         self.skipExisting = skipExisting
         self.enableLsstDebug = enableLsstDebug
-        self.clobberPartialOutputs = clobberPartialOutputs
+        self.clobberOutputs = clobberOutputs
+        self.exitOnKnownError = exitOnKnownError
 
     def execute(self, taskDef, quantum, butler):
 
         startTime = time.time()
+
+        # Save detailed resource usage before task start to metadata.
+        quantumMetadata = PropertyList()
+        logInfo(None, "prep", metadata=quantumMetadata)
 
         # Docstring inherited from QuantumExecutor.execute
         self.setupLogging(taskDef, quantum)
@@ -79,11 +99,24 @@ class SingleQuantumExecutor(QuantumExecutor):
 
         # check whether to skip or delete old outputs
         if self.checkExistingOutputs(quantum, butler, taskDef):
-            _LOG.info("Quantum execution skipped due to existing outputs, "
-                      f"task={taskClass.__name__} dataId={quantum.dataId}.")
+            _LOG.info("Skipping already-successful quantum for label=%s dataId=%s.", label, quantum.dataId)
             return
-
-        quantum = self.updatedQuantumInputs(quantum, butler)
+        try:
+            quantum = self.updatedQuantumInputs(quantum, butler, taskDef)
+        except NoWorkFound as exc:
+            _LOG.info("Nothing to do for task '%s' on quantum %s; saving metadata and skipping: %s",
+                      taskDef.label, quantum.dataId, str(exc))
+            # Make empty metadata that looks something like what a do-nothing
+            # task would write (but we don't bother with empty nested
+            # PropertySets for subtasks).  This is slightly duplicative with
+            # logic in pipe_base that we can't easily call from here; we'll fix
+            # this on DM-29761.
+            logInfo(None, "end", metadata=quantumMetadata)
+            fullMetadata = PropertySet()
+            fullMetadata[taskDef.label] = PropertyList()
+            fullMetadata["quantum"] = quantumMetadata
+            self.writeMetadata(quantum, fullMetadata, taskDef, butler)
+            return
 
         # enable lsstDebug debugging
         if self.enableLsstDebug:
@@ -98,10 +131,14 @@ class SingleQuantumExecutor(QuantumExecutor):
 
         # Ensure that we are executing a frozen config
         config.freeze()
-
+        logInfo(None, "init", metadata=quantumMetadata)
         task = self.makeTask(taskClass, label, config, butler)
+        logInfo(None, "start", metadata=quantumMetadata)
         self.runQuantum(task, quantum, taskDef, butler)
-
+        logInfo(None, "end", metadata=quantumMetadata)
+        fullMetadata = task.getFullMetadata()
+        fullMetadata["quantum"] = quantumMetadata
+        self.writeMetadata(quantum, fullMetadata, taskDef, butler)
         stopTime = time.time()
         _LOG.info("Execution of task '%s' on quantum %s took %.3f seconds",
                   taskDef.label, quantum.dataId, stopTime - startTime)
@@ -130,7 +167,7 @@ class SingleQuantumExecutor(QuantumExecutor):
         """Decide whether this quantum needs to be executed.
 
         If only partial outputs exist then they are removed if
-        ``clobberPartialOutputs`` is True, otherwise an exception is raised.
+        ``clobberOutputs`` is True, otherwise an exception is raised.
 
         Parameters
         ----------
@@ -144,8 +181,10 @@ class SingleQuantumExecutor(QuantumExecutor):
         Returns
         -------
         exist : `bool`
-            True if all quantum's outputs exist in a collection and
-            ``skipExisting`` is True, False otherwise.
+            `True` if ``self.skipExisting`` is `True`, and a previous execution
+            of this quanta appears to have completed successfully (either
+            because metadata was written or all datasets were written).
+            `False` otherwise.
 
         Raises
         ------
@@ -154,6 +193,13 @@ class SingleQuantumExecutor(QuantumExecutor):
         """
         collection = butler.run
         registry = butler.registry
+
+        if self.skipExisting and taskDef.metadataDatasetName is not None:
+            # Metadata output exists; this is sufficient to assume the previous
+            # run was successful and should be skipped.
+            if (ref := butler.registry.findDataset(taskDef.metadataDatasetName, quantum.dataId)) is not None:
+                if butler.datastore.exists(ref):
+                    return True
 
         existingRefs = []
         missingRefs = []
@@ -164,13 +210,16 @@ class SingleQuantumExecutor(QuantumExecutor):
                 if ref is None:
                     missingRefs.append(datasetRef)
                 else:
-                    existingRefs.append(ref)
+                    if butler.datastore.exists(ref):
+                        existingRefs.append(ref)
+                    else:
+                        missingRefs.append(datasetRef)
         if existingRefs and missingRefs:
             # some outputs exist and some don't, either delete existing ones or complain
             _LOG.debug("Partial outputs exist for task %s dataId=%s collection=%s "
                        "existingRefs=%s missingRefs=%s",
                        taskDef, quantum.dataId, collection, existingRefs, missingRefs)
-            if self.clobberPartialOutputs:
+            if self.clobberOutputs:
                 _LOG.info("Removing partial outputs for task %s: %s", taskDef, existingRefs)
                 butler.pruneDatasets(existingRefs, disassociate=True, unstore=True, purge=True)
                 return False
@@ -207,7 +256,7 @@ class SingleQuantumExecutor(QuantumExecutor):
         # call task factory for that
         return self.taskFactory.makeTask(taskClass, name, config, None, butler)
 
-    def updatedQuantumInputs(self, quantum, butler):
+    def updatedQuantumInputs(self, quantum, butler, taskDef):
         """Update quantum with extra information, returns a new updated Quantum.
 
         Some methods may require input DatasetRefs to have non-None
@@ -221,12 +270,15 @@ class SingleQuantumExecutor(QuantumExecutor):
             Single Quantum instance.
         butler : `~lsst.daf.butler.Butler`
             Data butler.
+        taskDef : `~lsst.pipe.base.TaskDef`
+            Task definition structure.
 
         Returns
         -------
         update : `~lsst.daf.butler.Quantum`
             Updated Quantum instance
         """
+        anyChanges = False
         updatedInputs = defaultdict(list)
         for key, refsForDatasetType in quantum.inputs.items():
             newRefsForDatasetType = updatedInputs[key]
@@ -235,20 +287,36 @@ class SingleQuantumExecutor(QuantumExecutor):
                     resolvedRef = butler.registry.findDataset(ref.datasetType, ref.dataId,
                                                               collections=butler.collections)
                     if resolvedRef is None:
-                        raise ValueError(
-                            f"Cannot find {ref.datasetType.name} with id {ref.dataId} "
-                            f"in collections {butler.collections}."
-                        )
-                    newRefsForDatasetType.append(resolvedRef)
-                    _LOG.debug("Updating dataset ID for %s", ref)
+                        _LOG.debug("No dataset found for %s", ref)
+                        continue
+                    else:
+                        _LOG.debug("Updated dataset ID for %s", ref)
                 else:
-                    newRefsForDatasetType.append(ref)
+                    resolvedRef = ref
+                # We need to ask datastore if the dataset actually exists
+                # because the Registry of a local "execution butler" cannot
+                # know this (because we prepopulate it with all of the datasets
+                # that might be created).
+                if butler.datastore.exists(resolvedRef):
+                    newRefsForDatasetType.append(resolvedRef)
+            if len(newRefsForDatasetType) != len(refsForDatasetType):
+                anyChanges = True
+        # If we removed any input datasets, let the task check if it has enough
+        # to proceed and/or prune related datasets that it also doesn't
+        # need/produce anymore.  It will raise NoWorkFound if it can't run,
+        # which we'll let propagate up.  This is exactly what we run during QG
+        # generation, because a task shouldn't care whether an input is missing
+        # because some previous task didn't produce it, or because it just
+        # wasn't there during QG generation.
+        helper = AdjustQuantumHelper(updatedInputs, quantum.outputs)
+        if anyChanges:
+            helper.adjust_in_place(taskDef.connections, label=taskDef.label, data_id=quantum.dataId)
         return Quantum(taskName=quantum.taskName,
                        taskClass=quantum.taskClass,
                        dataId=quantum.dataId,
                        initInputs=quantum.initInputs,
-                       inputs=updatedInputs,
-                       outputs=quantum.outputs
+                       inputs=helper.inputs,
+                       outputs=helper.outputs
                        )
 
     def runQuantum(self, task, quantum, taskDef, butler):
@@ -271,20 +339,38 @@ class SingleQuantumExecutor(QuantumExecutor):
         # Get the input and output references for the task
         inputRefs, outputRefs = taskDef.connections.buildDatasetRefs(quantum)
 
-        # Call task runQuantum() method. Any exception thrown by the task
-        # propagates to caller.
-        task.runQuantum(butlerQC, inputRefs, outputRefs)
+        # Call task runQuantum() method.  Catch a few known failure modes and
+        # translate them into specific
+        try:
+            task.runQuantum(butlerQC, inputRefs, outputRefs)
+        except NoWorkFound as err:
+            # Not an error, just an early exit.
+            _LOG.info("Task '%s' on quantum %s exited early: %s",
+                      taskDef.label, quantum.dataId, str(err))
+            pass
+        except RepeatableQuantumError as err:
+            if self.exitOnKnownError:
+                _LOG.warning("Caught repeatable quantum error for %s (%s):", taskDef, quantum.dataId)
+                _LOG.warning(err, exc_info=True)
+                sys.exit(err.EXIT_CODE)
+            else:
+                raise
+        except InvalidQuantumError as err:
+            _LOG.fatal("Invalid quantum error for %s (%s): %s", taskDef, quantum.dataId)
+            _LOG.fatal(err, exc_info=True)
+            sys.exit(err.EXIT_CODE)
 
+    def writeMetadata(self, quantum, metadata, taskDef, butler):
         if taskDef.metadataDatasetName is not None:
             # DatasetRef has to be in the Quantum outputs, can lookup by name
             try:
                 ref = quantum.outputs[taskDef.metadataDatasetName]
             except LookupError as exc:
-                raise LookupError(
-                    f"Quantum outputs is missing metadata dataset type {taskDef.metadataDatasetName},"
-                    f" it could happen due to inconsistent options between Quantum generation"
+                raise InvalidQuantumError(
+                    f"Quantum outputs is missing metadata dataset type {taskDef.metadataDatasetName};"
+                    f" this could happen due to inconsistent options between QuantumGraph generation"
                     f" and execution") from exc
-            butlerQC.put(task.getFullMetadata(), ref[0])
+            butler.put(metadata, ref[0])
 
     def initGlobals(self, quantum, butler):
         """Initialize global state needed for task execution.

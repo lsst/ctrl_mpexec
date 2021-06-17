@@ -68,6 +68,7 @@ class qgraph_options(OptionGroup):  # noqa: N801
             ctrlMpExecOpts.qgraph_id_option(),
             ctrlMpExecOpts.qgraph_node_id_option(),
             ctrlMpExecOpts.skip_existing_option(),
+            ctrlMpExecOpts.clobber_outputs_option(),
             ctrlMpExecOpts.save_qgraph_option(),
             ctrlMpExecOpts.save_single_quanta_option(),
             ctrlMpExecOpts.qgraph_dot_option(),
@@ -99,7 +100,7 @@ class execution_options(OptionGroup):  # noqa: N801
     def __init__(self):
         self.decorators = [
             option_section(sectionText="Execution options:"),
-            ctrlMpExecOpts.clobber_partial_outputs_option(),
+            ctrlMpExecOpts.clobber_outputs_option(),
             ctrlMpExecOpts.do_raise_option(),
             ctrlMpExecOpts.profile_option(),
             dafButlerOpts.processes_option(),

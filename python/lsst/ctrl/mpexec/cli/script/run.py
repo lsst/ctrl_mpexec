@@ -49,7 +49,7 @@ def run(do_raise,
         skip_existing,
         debug,
         fail_fast,
-        clobber_partial_outputs,
+        clobber_outputs,
         **kwargs):
     """Implements the command line interface `pipetask run` subcommand, should
     only be called by command line tools and unit test code that test this
@@ -131,9 +131,10 @@ def run(do_raise,
     fail_fast : `bool`
         If true then stop processing at first error, otherwise process as many
         tasks as possible.
-    clobber_partial_outputs : `bool`
-        Remove incomplete outputs from previous execution of the same quantum
-        before new execution.
+    clobber_outputs : `bool`
+        Remove outputs from previous execution of the same quantum before new
+        execution.  Only applies to failed quanta if skip_existing is also
+        given.
     kwargs : `dict` [`str`, `str`]
         Ignored; click commands may accept options for more than one script
         function and pass all the option kwargs to each of the script functions
@@ -160,7 +161,7 @@ def run(do_raise,
                            skip_existing=skip_existing,
                            enableLsstDebug=debug,
                            fail_fast=fail_fast,
-                           clobber_partial_outputs=clobber_partial_outputs)
+                           clobber_outputs=clobber_outputs)
 
     f = CmdLineFwk()
     taskFactory = TaskFactory()
