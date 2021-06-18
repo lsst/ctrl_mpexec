@@ -121,22 +121,10 @@ class PreExecInit:
             does not exist in registry.
         """
         pipeline = graph.taskGraph
-
-        # Make dataset types for configurations
-        configDatasetTypes = [DatasetType(taskDef.configDatasetName, {},
-                                          storageClass="Config",
-                                          universe=self.butler.registry.dimensions)
-                              for taskDef in pipeline]
-
-        # And one dataset type for package versions
-        packagesDatasetType = DatasetType("packages", {},
-                                          storageClass="Packages",
-                                          universe=self.butler.registry.dimensions)
-
-        datasetTypes = PipelineDatasetTypes.fromPipeline(pipeline, registry=self.butler.registry)
+        datasetTypes = PipelineDatasetTypes.fromPipeline(pipeline, registry=self.butler.registry,
+                                                         include_configs=True, include_packages=True)
         for datasetType in itertools.chain(datasetTypes.initIntermediates, datasetTypes.initOutputs,
-                                           datasetTypes.intermediates, datasetTypes.outputs,
-                                           configDatasetTypes, [packagesDatasetType]):
+                                           datasetTypes.intermediates, datasetTypes.outputs):
             # Only composites are registered, no components, and by this point
             # the composite should already exist.
             if registerDatasetTypes and not datasetType.isComponent():
