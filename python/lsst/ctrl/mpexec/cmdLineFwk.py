@@ -98,7 +98,7 @@ class _OutputChainedCollectionInfo:
     """
 
     chain: Tuple[str, ...]
-    """The definition of the collection, if it already exists (`tuple` [`str`]).
+    """The definition of the collection, if it already exists (`tuple`[`str`]).
 
     Empty if the collection does not already exist.
     """
@@ -549,7 +549,8 @@ class CmdLineFwk:
                         "user": getpass.getuser(), "time": f"{datetime.datetime.now()}"}
             qgraph = graphBuilder.makeGraph(pipeline, collections, run, args.data_query, metadata=metadata)
 
-        # count quanta in graph and give a warning if it's empty and return None
+        # Count quanta in graph and give a warning if it's empty and return
+        # None.
         nQuanta = len(qgraph)
         if nQuanta == 0:
             warnings.warn("QuantumGraph is empty", stacklevel=2)

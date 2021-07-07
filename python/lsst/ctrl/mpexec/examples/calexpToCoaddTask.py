@@ -47,8 +47,8 @@ class CalexpToCoaddTask(PipelineTask):
         # To test lsstDebug function make a debug.py file with this contents
         # somewhere in PYTHONPATH and run `pipetask` with --debug option:
         #
-        #    import lsstDebug
-        #    lsstDebug.Info('lsst.ctrl.mpexec.examples.calexpToCoaddTask').display = True
+        #     import lsstDebug
+        #     lsstDebug.Info('lsst.ctrl.mpexec.examples.calexpToCoaddTask').display = True  # noqa: W505
         #
         if lsstDebug.Info(__name__).display:
             _LOG.info("%s: display enabled", __name__)

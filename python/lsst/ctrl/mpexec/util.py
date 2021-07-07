@@ -45,21 +45,38 @@ import lsst.pex.config as pexConfig
 
 @contextlib.contextmanager
 def profile(filename, log=None):
-    """!Context manager for profiling with cProfile
+    """Context manager for profiling with cProfile
 
-    @param filename     filename to which to write profile (profiling disabled if None or empty)
-    @param log          log object for logging the profile operations
+    Parameters
+    ----------
+    filename :
+        Filename to which to write profile (profiling disabled if `None`
+        or empty).
+    log :
+        Log object for logging the profile operations.
 
-    If profiling is enabled, the context manager returns the cProfile.Profile object (otherwise
-    it returns None), which allows additional control over profiling.  You can obtain this using
-    the "as" clause, e.g.:
+    Yields
+    ------
+    profile : `cProfile.Profile` or `None`
+        If profiling is enabled, the context manager returns the
+        `cProfile.Profile` object (otherwise it returns `None`)
+
+    Notes
+    -----
+    The returned profile object allows additional control
+    over profiling.  You can obtain this using the ``as`` clause, e.g.:
+
+    .. code-block:: py
 
         with profile(filename) as prof:
             runYourCodeHere()
 
     The output cumulative profile can be printed with a command-line like:
 
-        python -c 'import pstats; pstats.Stats("<filename>").sort_stats("cumtime").print_stats(30)'
+    .. code-block:: bash
+
+        python -c 'import pstats; pstats.Stats("<filename>").\
+                   sort_stats("cumtime").print_stats(30)'
     """
     if not filename:
         # Nothing to do

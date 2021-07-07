@@ -271,8 +271,9 @@ class PreExecInit:
                 except LookupError:
                     pass
             if oldPackages is not None:
-                # Note that because we can only detect python modules that have been imported, the stored
-                # list of products may be more or less complete than what we have now.  What's important is
+                # Note that because we can only detect python modules that have
+                # been imported, the stored list of products may be more or
+                # less complete than what we have now.  What's important is
                 # that the products that are in common have the same version.
                 diff = packages.difference(oldPackages)
                 if diff:
@@ -280,12 +281,14 @@ class PreExecInit:
                     raise TypeError(f"Package versions mismatch: ({versions_str})")
                 else:
                     _LOG.debug("new packages are consistent with old")
-                # Update the old set of packages in case we have more packages that haven't been persisted.
+                # Update the old set of packages in case we have more packages
+                # that haven't been persisted.
                 extra = packages.extra(oldPackages)
                 if extra:
                     _LOG.debug("extra packages: %s", extra)
                     oldPackages.update(packages)
-                    # have to remove existing dataset first, butler nas no replace option
+                    # have to remove existing dataset first, butler has no
+                    # replace option.
                     ref = self.butler.registry.findDataset(datasetType, dataId, collections=[self.butler.run])
                     self.butler.pruneDatasets([ref], unstore=True, purge=True)
                     self.butler.put(oldPackages, datasetType, dataId)

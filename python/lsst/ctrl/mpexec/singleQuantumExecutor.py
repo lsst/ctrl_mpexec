@@ -215,7 +215,8 @@ class SingleQuantumExecutor(QuantumExecutor):
                     else:
                         missingRefs.append(datasetRef)
         if existingRefs and missingRefs:
-            # some outputs exist and some don't, either delete existing ones or complain
+            # Some outputs exist and some don't, either delete existing ones
+            # or complain.
             _LOG.debug("Partial outputs exist for task %s dataId=%s collection=%s "
                        "existingRefs=%s missingRefs=%s",
                        taskDef, quantum.dataId, collection, existingRefs, missingRefs)
@@ -257,7 +258,8 @@ class SingleQuantumExecutor(QuantumExecutor):
         return self.taskFactory.makeTask(taskClass, name, config, None, butler)
 
     def updatedQuantumInputs(self, quantum, butler, taskDef):
-        """Update quantum with extra information, returns a new updated Quantum.
+        """Update quantum with extra information, returns a new updated
+        Quantum.
 
         Some methods may require input DatasetRefs to have non-None
         ``dataset_id``, but in case of intermediate dataset it may not be

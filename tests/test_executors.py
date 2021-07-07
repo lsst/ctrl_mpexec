@@ -226,7 +226,8 @@ class MPGraphExecutorTestCase(unittest.TestCase):
 
         for method in methods:
             with self.subTest(startMethod=method):
-                # run in multi-process mode, the order of results is not defined
+                # Run in multi-process mode, the order of results is not
+                # defined.
                 qexec = QuantumExecutorMock(mp=True)
                 mpexec = MPGraphExecutor(numProc=3, timeout=100, quantumExecutor=qexec, startMethod=method)
                 mpexec.execute(qgraph, butler=None)
@@ -248,7 +249,8 @@ class MPGraphExecutorTestCase(unittest.TestCase):
             mpexec.execute(qgraph, butler=None)
 
     def test_mpexec_fixup(self):
-        """Make simple graph and execute, add dependencies by executing fixup code
+        """Make simple graph and execute, add dependencies by executing fixup
+        code.
         """
 
         taskDef = TaskDefMock()

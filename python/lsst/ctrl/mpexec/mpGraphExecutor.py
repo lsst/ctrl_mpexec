@@ -444,7 +444,8 @@ class MPGraphExecutor(QuantumGraphExecutor):
                             _LOG.debug("Submitting %s", job)
                             jobs.submit(job, butler, self.quantumExecutor, self.startMethod)
                         if len(jobs.running) >= self.numProc:
-                            # cannot start any more jobs, wait until something finishes
+                            # Cannot start any more jobs, wait until something
+                            # finishes.
                             break
 
             # Do cleanup for timed out jobs if necessary.

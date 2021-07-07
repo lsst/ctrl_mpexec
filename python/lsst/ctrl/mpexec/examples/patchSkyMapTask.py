@@ -59,7 +59,8 @@ class PatchSkyMapTask(PipelineTask):
         _LOG.info("executing %s: coadd=%s inputCatalog=%s",
                   self.getName(), coadd, type(inputCatalog))
 
-        # output data, scalar in this case, just return input catalog without change
+        # Output data, scalar in this case, just return input catalog without
+        # change.
         data = inputCatalog
 
         # attribute name of struct is the same as a config field name

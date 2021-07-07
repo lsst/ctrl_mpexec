@@ -113,7 +113,8 @@ class PreExecInitTestCase(unittest.TestCase):
                     preExecInit = PreExecInit(butler=butler, taskFactory=None, skipExisting=skipExisting)
                     preExecInit.savePackageVersions(qgraph)
                     if skipExisting:
-                        # if this is the same packages then it should not attempt to save
+                        # If this is the same packages then it should not
+                        # attempt to save.
                         preExecInit.savePackageVersions(qgraph)
                     else:
                         # second time it will fail

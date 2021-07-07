@@ -60,7 +60,8 @@ def qgraph(pipelineObj, qgraph, qgraph_id, qgraph_node_id, skip_existing, save_q
         definition (pickle files). The curly brace {} in the input string will
         be replaced by a quantum number.
     qgraph_dot : `str` or `None`
-        Path location for storing GraphViz DOT representation of a quantum graph.
+        Path location for storing GraphViz DOT representation of a quantum
+        graph.
     butler_config : `str`, `dict`, or `lsst.daf.butler.Config`
         If `str`, `butler_config` is the path location of the gen3
         butler/registry config file. If `dict`, `butler_config` is key value

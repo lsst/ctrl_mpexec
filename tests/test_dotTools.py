@@ -127,8 +127,8 @@ class DotToolsTestCase(unittest.TestCase):
         file = io.StringIO()
         pipeline2dot(pipeline, file)
 
-        # it's hard to validate complete output, just checking few basic things,
-        # even that is not terribly stable
+        # It's hard to validate complete output, just checking few basic
+        # things, even that is not terribly stable.
         lines = file.getvalue().strip().split('\n')
         ndatasets = 6
         ntasks = 4
