@@ -34,7 +34,6 @@ import time
 #  Imports for other modules --
 # -----------------------------
 from .quantumGraphExecutor import QuantumExecutor
-from lsst.log import Log
 from lsst.daf.base import PropertyList, PropertySet
 from lsst.obs.base import Instrument
 from lsst.pipe.base import (
@@ -45,7 +44,7 @@ from lsst.pipe.base import (
     RepeatableQuantumError,
     logInfo,
 )
-from lsst.daf.butler import Quantum
+from lsst.daf.butler import Quantum, ButlerMDC
 
 # ----------------------------------
 #  Local non-exported definitions --
@@ -161,7 +160,8 @@ class SingleQuantumExecutor(QuantumExecutor):
         label = taskDef.label
         if quantum.dataId:
             label += f":{quantum.dataId}"
-        Log.MDC("LABEL", label)
+
+        ButlerMDC.MDC("LABEL", label)
 
     def checkExistingOutputs(self, quantum, butler, taskDef):
         """Decide whether this quantum needs to be executed.
