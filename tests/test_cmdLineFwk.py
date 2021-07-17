@@ -216,7 +216,8 @@ def _makeQGraph():
     qgraph : `~lsst.pipe.base.QuantumGraph`
     """
 
-    # The task name in TaskDef needs to be a real importable name, use one that is sure to exist
+    # The task name in TaskDef needs to be a real importable name, use one
+    # that is sure to exist.
     taskDef = TaskDef(taskName="lsst.pipe.base.Struct", config=SimpleConfig())
     quanta = [Quantum(taskName="lsst.pipe.base.Struct",
                       inputs={FakeTaskDef("A"): FakeDSRef("A", (1, 2))})]  # type: ignore
@@ -296,7 +297,8 @@ class CmdLineFwkTestCase(unittest.TestCase):
             self.assertEqual(len(taskDefs), 1)
             self.assertEqual(taskDefs[0].config.addend, 1000)
 
-        # Check --instrument option, for now it only checks that it does not crash
+        # Check --instrument option, for now it only checks that it does not
+        # crash.
         actions = [
             _ACTION_ADD_TASK("lsst.pipe.base.tests.simpleQGraph.AddTask:task"),
             _ACTION_ADD_INSTRUMENT("Instrument")
@@ -404,7 +406,8 @@ class CmdLineFwkTestCaseWithButler(unittest.TestCase):
         self.assertEqual(taskFactory.countExec, nQuanta)
 
     def testSimpleQGraphSkipExisting(self):
-        """Test continuing execution of trivial quantum graph with --skip-existing.
+        """Test continuing execution of trivial quantum graph with
+        ``--skip-existing``.
         """
 
         nQuanta = 5

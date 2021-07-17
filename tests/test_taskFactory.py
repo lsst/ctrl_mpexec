@@ -112,7 +112,8 @@ class TaskFactoryTestCase(unittest.TestCase):
                                             initInputs={'initInput': catalog},
                                             name="no-name")
 
-    # Can't test all 14 remaining combinations, but the 6 pairs should be enough coverage
+    # Can't test all 14 remaining combinations, but the 6 pairs should be
+    # enough coverage.
 
     def testNameConfig(self):
         self.factory.makeTask(taskClass=self.constructor, label="no-name", config=self._alteredConfig(),
