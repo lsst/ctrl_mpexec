@@ -542,7 +542,8 @@ class CmdLineFwkTestCaseWithButler(unittest.TestCase):
         #  - packages (single dataset)
         #  - nQuanta * two output datasets
         #  - nQuanta of metadata
-        n_outputs = nQuanta * 5 + 1
+        #  - nQuanta of log output
+        n_outputs = nQuanta * 6 + 1
         refs = butler.registry.queryDatasets(..., collections="output/run1")
         self.assertEqual(len(list(refs)), n_outputs)
 

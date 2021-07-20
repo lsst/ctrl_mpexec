@@ -45,7 +45,7 @@ from lsst.pipe.base import (
     RepeatableQuantumError,
     logInfo,
 )
-from lsst.daf.butler import Quantum, ButlerMDC, NamedKeyDict, DatasetRef, DatasetType
+from lsst.daf.butler import Quantum, ButlerMDC, NamedKeyDict, DatasetRef, DatasetType, ButlerLogRecordHandler
 
 # ----------------------------------
 #  Local non-exported definitions --
@@ -84,6 +84,7 @@ class SingleQuantumExecutor(QuantumExecutor):
         self.enableLsstDebug = enableLsstDebug
         self.clobberOutputs = clobberOutputs
         self.exitOnKnownError = exitOnKnownError
+        self.log_handler = ButlerLogRecordHandler()
 
     def execute(self, taskDef, quantum, butler):
 
@@ -116,6 +117,7 @@ class SingleQuantumExecutor(QuantumExecutor):
             fullMetadata[taskDef.label] = PropertyList()
             fullMetadata["quantum"] = quantumMetadata
             self.writeMetadata(quantum, fullMetadata, taskDef, butler)
+            self.writeLogRecords(quantum, taskDef, butler)
             return
 
         # enable lsstDebug debugging
@@ -143,6 +145,8 @@ class SingleQuantumExecutor(QuantumExecutor):
         _LOG.info("Execution of task '%s' on quantum %s took %.3f seconds",
                   taskDef.label, quantum.dataId, stopTime - startTime)
 
+        self.writeLogRecords(quantum, taskDef, butler)
+
     def setupLogging(self, taskDef, quantum):
         """Configure logging system for execution of this task.
 
@@ -163,6 +167,13 @@ class SingleQuantumExecutor(QuantumExecutor):
             label += f":{quantum.dataId}"
 
         ButlerMDC.MDC("LABEL", label)
+
+        # Add the handler to the root logger.
+        # How does it get removed reliably?
+        if taskDef.logOutputDatasetName is not None:
+            # Clear the records in the handler first.
+            self.log_handler.records.clear()
+            logging.getLogger().addHandler(self.log_handler)
 
     def checkExistingOutputs(self, quantum, butler, taskDef):
         """Decide whether this quantum needs to be executed.
@@ -375,6 +386,22 @@ class SingleQuantumExecutor(QuantumExecutor):
                     f" this could happen due to inconsistent options between QuantumGraph generation"
                     f" and execution") from exc
             butler.put(metadata, ref[0])
+
+    def writeLogRecords(self, quantum, taskDef, butler):
+        if taskDef.logOutputDatasetName is not None and self.log_handler is not None:
+            # DatasetRef has to be in the Quantum outputs, can lookup by name
+            try:
+                ref = quantum.outputs[taskDef.logOutputDatasetName]
+            except LookupError as exc:
+                raise InvalidQuantumError(
+                    f"Quantum outputs is missing log output dataset type {taskDef.logOutputDatasetName};"
+                    f" this could happen due to inconsistent options between QuantumGraph generation"
+                    f" and execution") from exc
+            butler.put(self.log_handler.records, ref[0])
+
+            # Clear the records and remove the handler.
+            self.log_handler.records.clear()
+            logging.getLogger().removeHandler(self.log_handler)
 
     def initGlobals(self, quantum, butler):
         """Initialize global state needed for task execution.
