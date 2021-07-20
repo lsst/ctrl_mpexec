@@ -29,6 +29,7 @@ import logging
 from itertools import chain
 import sys
 import time
+from typing import List
 
 # -----------------------------
 #  Imports for other modules --
@@ -44,7 +45,7 @@ from lsst.pipe.base import (
     RepeatableQuantumError,
     logInfo,
 )
-from lsst.daf.butler import Quantum, ButlerMDC
+from lsst.daf.butler import Quantum, ButlerMDC, NamedKeyDict, DatasetRef, DatasetType
 
 # ----------------------------------
 #  Local non-exported definitions --
@@ -289,7 +290,7 @@ class SingleQuantumExecutor(QuantumExecutor):
                     resolvedRef = butler.registry.findDataset(ref.datasetType, ref.dataId,
                                                               collections=butler.collections)
                     if resolvedRef is None:
-                        _LOG.debug("No dataset found for %s", ref)
+                        _LOG.info("No dataset found for %s", ref)
                         continue
                     else:
                         _LOG.debug("Updated dataset ID for %s", ref)
@@ -310,6 +311,7 @@ class SingleQuantumExecutor(QuantumExecutor):
         # generation, because a task shouldn't care whether an input is missing
         # because some previous task didn't produce it, or because it just
         # wasn't there during QG generation.
+        updatedInputs = NamedKeyDict[DatasetType, List[DatasetRef]](updatedInputs.items())
         helper = AdjustQuantumHelper(updatedInputs, quantum.outputs)
         if anyChanges:
             helper.adjust_in_place(taskDef.connections, label=taskDef.label, data_id=quantum.dataId)
