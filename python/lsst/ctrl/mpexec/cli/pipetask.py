@@ -22,7 +22,7 @@
 import click
 
 from lsst.daf.butler.cli.butler import LoaderCLI
-from lsst.daf.butler.cli.opt import log_level_option, long_log_option
+from lsst.daf.butler.cli.opt import log_level_option, long_log_option, log_file_option
 
 
 class PipetaskCLI(LoaderCLI):
@@ -33,7 +33,8 @@ class PipetaskCLI(LoaderCLI):
 @click.command(cls=PipetaskCLI, context_settings=dict(help_option_names=["-h", "--help"]))
 @log_level_option()
 @long_log_option()
-def cli(log_level, long_log):
+@log_file_option()
+def cli(log_level, long_log, log_file):
     # log_level is handled by get_command and list_commands, and is called in
     # one of those functions before this is called.
     pass
