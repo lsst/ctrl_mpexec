@@ -49,14 +49,16 @@ from lsst.pipe.base import (
     logInfo,
 )
 from lsst.daf.butler import (
-    ButlerLogRecordHandler,
-    ButlerMDC,
     DatasetRef,
     DatasetType,
     FileDataset,
-    JsonFormatter,
     NamedKeyDict,
     Quantum,
+)
+from lsst.daf.butler.core.logging import (
+    ButlerLogRecordHandler,
+    ButlerMDC,
+    JsonLogFormatter,
 )
 # ----------------------------------
 #  Local non-exported definitions --
@@ -213,7 +215,7 @@ class SingleQuantumExecutor(QuantumExecutor):
                                                   delete=False)
                 self.log_handler = FileHandler(tmp.name)
                 tmp.close()
-                self.log_handler.setFormatter(JsonFormatter())
+                self.log_handler.setFormatter(JsonLogFormatter())
             else:
                 self.log_handler = ButlerLogRecordHandler()
 
