@@ -24,11 +24,14 @@ __all__ = ['SingleQuantumExecutor']
 # -------------------------------
 #  Imports of standard modules --
 # -------------------------------
-from collections import defaultdict
 import logging
-from itertools import chain
 import sys
+import tempfile
 import time
+from contextlib import contextmanager
+from collections import defaultdict
+from itertools import chain
+from logging import FileHandler
 from typing import List
 
 # -----------------------------
@@ -45,8 +48,18 @@ from lsst.pipe.base import (
     RepeatableQuantumError,
     logInfo,
 )
-from lsst.daf.butler import Quantum, ButlerMDC, NamedKeyDict, DatasetRef, DatasetType
-
+from lsst.daf.butler import (
+    DatasetRef,
+    DatasetType,
+    FileDataset,
+    NamedKeyDict,
+    Quantum,
+)
+from lsst.daf.butler.core.logging import (
+    ButlerLogRecordHandler,
+    ButlerMDC,
+    JsonLogFormatter,
+)
 # ----------------------------------
 #  Local non-exported definitions --
 # ----------------------------------
@@ -77,6 +90,12 @@ class SingleQuantumExecutor(QuantumExecutor):
         exception propagate up to calling.  This is always the behavior for
         InvalidQuantumError.
     """
+
+    stream_json_logs = True
+    """If True each log record is written to a temporary file and ingested
+    when quantum completes. If False the records are accumulated in memory
+    and stored in butler on quantum completion."""
+
     def __init__(self, taskFactory, skipExisting=False, clobberOutputs=False, enableLsstDebug=False,
                  exitOnKnownError=False):
         self.taskFactory = taskFactory
@@ -84,71 +103,74 @@ class SingleQuantumExecutor(QuantumExecutor):
         self.enableLsstDebug = enableLsstDebug
         self.clobberOutputs = clobberOutputs
         self.exitOnKnownError = exitOnKnownError
+        self.log_handler = None
 
     def execute(self, taskDef, quantum, butler):
-
+        # Docstring inherited from QuantumExecutor.execute
         startTime = time.time()
 
-        # Save detailed resource usage before task start to metadata.
-        quantumMetadata = PropertyList()
-        logInfo(None, "prep", metadata=quantumMetadata)
+        with self.captureLogging(taskDef, quantum, butler):
+            # Save detailed resource usage before task start to metadata.
+            quantumMetadata = PropertyList()
+            logInfo(None, "prep", metadata=quantumMetadata)
 
-        # Docstring inherited from QuantumExecutor.execute
-        self.setupLogging(taskDef, quantum)
-        taskClass, label, config = taskDef.taskClass, taskDef.label, taskDef.config
+            taskClass, label, config = taskDef.taskClass, taskDef.label, taskDef.config
 
-        # check whether to skip or delete old outputs
-        if self.checkExistingOutputs(quantum, butler, taskDef):
-            _LOG.info("Skipping already-successful quantum for label=%s dataId=%s.", label, quantum.dataId)
-            return
-        try:
-            quantum = self.updatedQuantumInputs(quantum, butler, taskDef)
-        except NoWorkFound as exc:
-            _LOG.info("Nothing to do for task '%s' on quantum %s; saving metadata and skipping: %s",
-                      taskDef.label, quantum.dataId, str(exc))
-            # Make empty metadata that looks something like what a do-nothing
-            # task would write (but we don't bother with empty nested
-            # PropertySets for subtasks).  This is slightly duplicative with
-            # logic in pipe_base that we can't easily call from here; we'll fix
-            # this on DM-29761.
+            # check whether to skip or delete old outputs
+            if self.checkExistingOutputs(quantum, butler, taskDef):
+                _LOG.info("Skipping already-successful quantum for label=%s dataId=%s.", label,
+                          quantum.dataId)
+                return
+            try:
+                quantum = self.updatedQuantumInputs(quantum, butler, taskDef)
+            except NoWorkFound as exc:
+                _LOG.info("Nothing to do for task '%s' on quantum %s; saving metadata and skipping: %s",
+                          taskDef.label, quantum.dataId, str(exc))
+                # Make empty metadata that looks something like what a
+                # do-nothing task would write (but we don't bother with empty
+                # nested PropertySets for subtasks).  This is slightly
+                # duplicative with logic in pipe_base that we can't easily call
+                # from here; we'll fix this on DM-29761.
+                logInfo(None, "end", metadata=quantumMetadata)
+                fullMetadata = PropertySet()
+                fullMetadata[taskDef.label] = PropertyList()
+                fullMetadata["quantum"] = quantumMetadata
+                self.writeMetadata(quantum, fullMetadata, taskDef, butler)
+                return
+
+            # enable lsstDebug debugging
+            if self.enableLsstDebug:
+                try:
+                    _LOG.debug("Will try to import debug.py")
+                    import debug  # noqa:F401
+                except ImportError:
+                    _LOG.warn("No 'debug' module found.")
+
+            # initialize global state
+            self.initGlobals(quantum, butler)
+
+            # Ensure that we are executing a frozen config
+            config.freeze()
+            logInfo(None, "init", metadata=quantumMetadata)
+            task = self.makeTask(taskClass, label, config, butler)
+            logInfo(None, "start", metadata=quantumMetadata)
+            try:
+                self.runQuantum(task, quantum, taskDef, butler)
+            except Exception:
+                _LOG.exception("Execution of task '%s' on quantum %s failed",
+                               taskDef.label, quantum.dataId)
+                raise
             logInfo(None, "end", metadata=quantumMetadata)
-            fullMetadata = PropertySet()
-            fullMetadata[taskDef.label] = PropertyList()
+            fullMetadata = task.getFullMetadata()
             fullMetadata["quantum"] = quantumMetadata
             self.writeMetadata(quantum, fullMetadata, taskDef, butler)
-            return
+            stopTime = time.time()
+            _LOG.info("Execution of task '%s' on quantum %s took %.3f seconds",
+                      taskDef.label, quantum.dataId, stopTime - startTime)
 
-        # enable lsstDebug debugging
-        if self.enableLsstDebug:
-            try:
-                _LOG.debug("Will try to import debug.py")
-                import debug  # noqa:F401
-            except ImportError:
-                _LOG.warn("No 'debug' module found.")
-
-        # initialize global state
-        self.initGlobals(quantum, butler)
-
-        # Ensure that we are executing a frozen config
-        config.freeze()
-        logInfo(None, "init", metadata=quantumMetadata)
-        task = self.makeTask(taskClass, label, config, butler)
-        logInfo(None, "start", metadata=quantumMetadata)
-        self.runQuantum(task, quantum, taskDef, butler)
-        logInfo(None, "end", metadata=quantumMetadata)
-        fullMetadata = task.getFullMetadata()
-        fullMetadata["quantum"] = quantumMetadata
-        self.writeMetadata(quantum, fullMetadata, taskDef, butler)
-        stopTime = time.time()
-        _LOG.info("Execution of task '%s' on quantum %s took %.3f seconds",
-                  taskDef.label, quantum.dataId, stopTime - startTime)
-
-    def setupLogging(self, taskDef, quantum):
-        """Configure logging system for execution of this task.
-
-        Ths method can setup logging to attach task- or
-        quantum-specific information to log messages. Potentially this can
-        take into account some info from task configuration as well.
+    @contextmanager
+    def captureLogging(self, taskDef, quantum, butler):
+        """Configure logging system to capture logs for execution of this task.
 
         Parameters
         ----------
@@ -156,13 +178,53 @@ class SingleQuantumExecutor(QuantumExecutor):
             The task definition.
         quantum : `~lsst.daf.butler.Quantum`
             Single Quantum instance.
+        butler : `~lsst.daf.butler.Butler`
+            Butler to write logs to.
+
+        Notes
+        -----
+        Expected to be used as a context manager to ensure that logging
+        records are inserted into the butler once the quantum has been
+        executed:
+
+        .. code-block:: py
+
+           with self.captureLogging(taskDef, quantum, butler):
+               # Run quantum and capture logs.
+
+        Ths method can also setup logging to attach task- or
+        quantum-specific information to log messages. Potentially this can
+        take into account some info from task configuration as well.
         """
+        # Add a handler to the root logger to capture execution log output.
+        # How does it get removed reliably?
+        if taskDef.logOutputDatasetName is not None:
+            # Either accumulate into ButlerLogRecords or stream
+            # JSON records to file and ingest that.
+            if self.stream_json_logs:
+                tmp = tempfile.NamedTemporaryFile(mode="w",
+                                                  suffix=".json",
+                                                  prefix=f"butler-log-{taskDef.label}-",
+                                                  delete=False)
+                self.log_handler = FileHandler(tmp.name)
+                tmp.close()
+                self.log_handler.setFormatter(JsonLogFormatter())
+            else:
+                self.log_handler = ButlerLogRecordHandler()
+
+            logging.getLogger().addHandler(self.log_handler)
+
         # include quantum dataId and task label into MDC
         label = taskDef.label
         if quantum.dataId:
             label += f":{quantum.dataId}"
 
-        ButlerMDC.MDC("LABEL", label)
+        try:
+            with ButlerMDC.set_mdc({"LABEL": label}):
+                yield
+        finally:
+            # Ensure that the logs are stored in butler.
+            self.writeLogRecords(quantum, taskDef, butler)
 
     def checkExistingOutputs(self, quantum, butler, taskDef):
         """Decide whether this quantum needs to be executed.
@@ -375,6 +437,49 @@ class SingleQuantumExecutor(QuantumExecutor):
                     f" this could happen due to inconsistent options between QuantumGraph generation"
                     f" and execution") from exc
             butler.put(metadata, ref[0])
+
+    def writeLogRecords(self, quantum, taskDef, butler):
+        # If we are logging to an external file we must always try to
+        # close it.
+        filename = None
+        if isinstance(self.log_handler, FileHandler):
+            filename = self.log_handler.stream.name
+            self.log_handler.close()
+
+        if self.log_handler is not None:
+            # Remove the handler so we stop accumulating log messages.
+            logging.getLogger().removeHandler(self.log_handler)
+
+        if taskDef.logOutputDatasetName is not None and self.log_handler is not None:
+            # DatasetRef has to be in the Quantum outputs, can lookup by name
+            try:
+                ref = quantum.outputs[taskDef.logOutputDatasetName]
+            except LookupError as exc:
+                raise InvalidQuantumError(
+                    f"Quantum outputs is missing log output dataset type {taskDef.logOutputDatasetName};"
+                    f" this could happen due to inconsistent options between QuantumGraph generation"
+                    f" and execution") from exc
+
+            if isinstance(self.log_handler, ButlerLogRecordHandler):
+                butler.put(self.log_handler.records, ref[0])
+
+                # Clear the records in case the handler is reused.
+                self.log_handler.records.clear()
+            else:
+                assert filename is not None, "Somehow unable to extract filename from file handler"
+
+                # Need to ingest this file directly into butler.
+                dataset = FileDataset(path=filename, refs=ref[0])
+                try:
+                    butler.ingest(dataset, transfer="move")
+                except NotImplementedError:
+                    # Some datastores can't receive files (e.g. in-memory
+                    # datastore when testing) so skip log storage for those.
+                    # Alternative is to read the file as a ButlerLogRecords
+                    # object and put it.
+                    _LOG.info("Log records could not be stored in this butler because the"
+                              " datastore can not ingest files.")
+                    pass
 
     def initGlobals(self, quantum, butler):
         """Initialize global state needed for task execution.
