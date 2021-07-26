@@ -196,14 +196,7 @@ class SingleQuantumExecutor(QuantumExecutor):
         quantum-specific information to log messages. Potentially this can
         take into account some info from task configuration as well.
         """
-        # include quantum dataId and task label into MDC
-        label = taskDef.label
-        if quantum.dataId:
-            label += f":{quantum.dataId}"
-
-        ButlerMDC.MDC("LABEL", label)
-
-        # Add the handler to the root logger.
+        # Add a handler to the root logger to capture execution log output.
         # How does it get removed reliably?
         if taskDef.logOutputDatasetName is not None:
             # Either accumulate into ButlerLogRecords or stream
@@ -221,8 +214,14 @@ class SingleQuantumExecutor(QuantumExecutor):
 
             logging.getLogger().addHandler(self.log_handler)
 
+        # include quantum dataId and task label into MDC
+        label = taskDef.label
+        if quantum.dataId:
+            label += f":{quantum.dataId}"
+
         try:
-            yield
+            with ButlerMDC.set_mdc({"LABEL": label}):
+                yield
         finally:
             # Ensure that the logs are stored in butler.
             self.writeLogRecords(quantum, taskDef, butler)
