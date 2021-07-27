@@ -48,16 +48,19 @@ from lsst.daf.butler import Config, Quantum, Registry
 from lsst.daf.butler.registry import RegistryConfig
 from lsst.obs.base import Instrument
 import lsst.pex.config as pexConfig
-from lsst.pipe.base import (Pipeline, PipelineTask, PipelineTaskConfig,
-                            QuantumGraph, TaskDef, TaskFactory,
-                            PipelineTaskConnections)
+from lsst.pipe.base import (Pipeline, PipelineTaskConfig, QuantumGraph, TaskDef, PipelineTaskConnections)
 import lsst.pipe.base.connectionTypes as cT
 import lsst.utils.tests
-from lsst.pipe.base.tests.simpleQGraph import (AddTaskFactoryMock, makeSimpleQGraph)
+from lsst.pipe.base.tests.simpleQGraph import (
+    AddTaskFactoryMock,
+    makeSimpleButler,
+    makeSimplePipeline,
+    makeSimpleQGraph,
+    populateButler)
 from lsst.utils.tests import temporaryDirectory
 
 
-logging.basicConfig(level=logging.INFO)
+logging.basicConfig(level=getattr(logging, os.environ.get("UNIT_TEST_LOGGING_LEVEL", "INFO"), logging.INFO))
 
 # Have to monkey-patch Instrument.fromName() to not retrieve non-existing
 # instrument from registry, these tests can run fine without actual instrument
@@ -117,31 +120,6 @@ class SimpleConfig(PipelineTaskConfig, pipelineConnections=SimpleConnections):
         PipelineTaskConfig.setDefaults(self)
 
 
-class TaskOne(PipelineTask):
-    ConfigClass = SimpleConfig
-    _DefaultName = "taskOne"
-
-
-class TaskTwo(PipelineTask):
-    ConfigClass = SimpleConfig
-    _DefaultName = "taskTwo"
-
-
-class TaskFactoryMock(TaskFactory):
-    def loadTaskClass(self, taskName):
-        if taskName == "TaskOne":
-            return TaskOne, "TaskOne"
-        elif taskName == "TaskTwo":
-            return TaskTwo, "TaskTwo"
-
-    def makeTask(self, taskClass, name, config, overrides, butler):
-        if config is None:
-            config = taskClass.ConfigClass()
-            if overrides:
-                overrides.applyTo(config)
-        return taskClass(config=config, butler=butler, name=name)
-
-
 def _makeArgs(registryConfig=None, **kwargs):
     """Return parsed command line arguments.
 
@@ -178,24 +156,27 @@ def _makeArgs(registryConfig=None, **kwargs):
     mock.assert_called_once()
     args = mock.call_args[1]
     args["enableLsstDebug"] = args.pop("debug")
+    args["execution_butler_location"] = args.pop("save_execution_butler")
     if "pipeline_actions" not in args:
         args["pipeline_actions"] = []
     args = SimpleNamespace(**args)
 
     # override butler_config with our defaults
-    args.butler_config = Config()
-    if registryConfig:
-        args.butler_config["registry"] = registryConfig
-    # The default datastore has a relocatable root, so we need to specify
-    # some root here for it to use
-    args.butler_config.configFile = "."
+    if "butler_config" not in kwargs:
+        args.butler_config = Config()
+        if registryConfig:
+            args.butler_config["registry"] = registryConfig
+        # The default datastore has a relocatable root, so we need to specify
+        # some root here for it to use
+        args.butler_config.configFile = "."
+
     # override arguments from keyword parameters
     for key, value in kwargs.items():
         setattr(args, key, value)
     return args
 
 
-class FakeTaskDef(NamedTuple):
+class FakeDSType(NamedTuple):
     name: str
 
 
@@ -203,6 +184,10 @@ class FakeTaskDef(NamedTuple):
 class FakeDSRef:
     datasetType: str
     dataId: tuple
+
+
+# Task class name used by tests, needs to be importable
+_TASK_CLASS = "lsst.pipe.base.tests.simpleQGraph.AddTask"
 
 
 def _makeQGraph():
@@ -215,12 +200,9 @@ def _makeQGraph():
     -------
     qgraph : `~lsst.pipe.base.QuantumGraph`
     """
-
-    # The task name in TaskDef needs to be a real importable name, use one
-    # that is sure to exist.
-    taskDef = TaskDef(taskName="lsst.pipe.base.Struct", config=SimpleConfig())
-    quanta = [Quantum(taskName="lsst.pipe.base.Struct",
-                      inputs={FakeTaskDef("A"): FakeDSRef("A", (1, 2))})]  # type: ignore
+    taskDef = TaskDef(taskName=_TASK_CLASS, config=SimpleConfig())
+    quanta = [Quantum(taskName=_TASK_CLASS,
+                      inputs={FakeDSType("A"): [FakeDSRef("A", (1, 2))]})]  # type: ignore
     qgraph = QuantumGraph({taskDef: set(quanta)})
     return qgraph
 
@@ -253,7 +235,7 @@ class CmdLineFwkTestCase(unittest.TestCase):
             self.assertIsInstance(pipeline, Pipeline)
             self.assertEqual(len(pipeline), 0)
 
-        # single task pipeline
+        # single task pipeline, task name can be anything here
         actions = [
             _ACTION_ADD_TASK("TaskOne:task1")
         ]
@@ -273,10 +255,9 @@ class CmdLineFwkTestCase(unittest.TestCase):
         self.assertIsInstance(pipeline, Pipeline)
         self.assertEqual(len(pipeline), 3)
 
-        # single task pipeline with config overrides, cannot use TaskOne, need
-        # something that can be imported with `doImport()`
+        # single task pipeline with config overrides, need real task class
         actions = [
-            _ACTION_ADD_TASK("lsst.pipe.base.tests.simpleQGraph.AddTask:task"),
+            _ACTION_ADD_TASK(f"{_TASK_CLASS}:task"),
             _ACTION_CONFIG("task:addend=100")
         ]
         args = _makeArgs(pipeline_actions=actions)
@@ -288,7 +269,7 @@ class CmdLineFwkTestCase(unittest.TestCase):
         overrides = b"config.addend = 1000\n"
         with makeTmpFile(overrides) as tmpname:
             actions = [
-                _ACTION_ADD_TASK("lsst.pipe.base.tests.simpleQGraph.AddTask:task"),
+                _ACTION_ADD_TASK(f"{_TASK_CLASS}:task"),
                 _ACTION_CONFIG_FILE("task:" + tmpname)
             ]
             args = _makeArgs(pipeline_actions=actions)
@@ -300,7 +281,7 @@ class CmdLineFwkTestCase(unittest.TestCase):
         # Check --instrument option, for now it only checks that it does not
         # crash.
         actions = [
-            _ACTION_ADD_TASK("lsst.pipe.base.tests.simpleQGraph.AddTask:task"),
+            _ACTION_ADD_TASK(f"{_TASK_CLASS}:task"),
             _ACTION_ADD_INSTRUMENT("Instrument")
         ]
         args = _makeArgs(pipeline_actions=actions)
@@ -359,7 +340,7 @@ class CmdLineFwkTestCase(unittest.TestCase):
         fwk = CmdLineFwk()
 
         actions = [
-            _ACTION_ADD_TASK("lsst.pipe.base.tests.simpleQGraph.AddTask:task"),
+            _ACTION_ADD_TASK(f"{_TASK_CLASS}:task"),
             _ACTION_CONFIG("task:addend=100")
         ]
         args = _makeArgs(pipeline_actions=actions)
@@ -382,6 +363,8 @@ class CmdLineFwkTestCaseWithButler(unittest.TestCase):
     def setUp(self):
         super().setUpClass()
         self.root = tempfile.mkdtemp()
+        self.nQuanta = 5
+        self.pipeline = makeSimplePipeline(nQuanta=self.nQuanta)
 
     def tearDown(self):
         shutil.rmtree(self.root, ignore_errors=True)
@@ -390,80 +373,163 @@ class CmdLineFwkTestCaseWithButler(unittest.TestCase):
     def testSimpleQGraph(self):
         """Test successfull execution of trivial quantum graph.
         """
+        args = _makeArgs(butler_config=self.root, input="test", output="output")
+        butler = makeSimpleButler(self.root, run=args.input, inMemory=False)
+        populateButler(self.pipeline, butler)
 
-        nQuanta = 5
-        butler, qgraph = makeSimpleQGraph(nQuanta, root=self.root)
-
-        self.assertEqual(len(qgraph.taskGraph), 5)
-        self.assertEqual(len(qgraph), nQuanta)
-
-        args = _makeArgs()
         fwk = CmdLineFwk()
         taskFactory = AddTaskFactoryMock()
 
+        qgraph = fwk.makeGraph(self.pipeline, args)
+        self.assertEqual(len(qgraph.taskGraph), self.nQuanta)
+        self.assertEqual(len(qgraph), self.nQuanta)
+
         # run whole thing
-        fwk.runPipeline(qgraph, taskFactory, args, butler=butler)
-        self.assertEqual(taskFactory.countExec, nQuanta)
+        fwk.runPipeline(qgraph, taskFactory, args)
+        self.assertEqual(taskFactory.countExec, self.nQuanta)
 
-    def testSimpleQGraphSkipExisting(self):
-        """Test continuing execution of trivial quantum graph with
-        ``--skip-existing``.
+    def testSimpleQGraphNoSkipExisting_inputs(self):
+        """Test for case when output data for one task already appears in
+        _input_ collection, but no ``--extend-run`` or ``-skip-existing``
+        option is present.
         """
+        args = _makeArgs(
+            butler_config=self.root,
+            input="test",
+            output="output",
+        )
+        butler = makeSimpleButler(self.root, run=args.input, inMemory=False)
+        populateButler(
+            self.pipeline, butler,
+            datasetTypes={args.input: [
+                "add_dataset0",
+                "add_dataset1", "add2_dataset1",
+                "add_init_output1",
+                "task0_config",
+                "task0_metadata",
+                "task0_log",
+            ]}
+        )
 
-        nQuanta = 5
-        butler, qgraph = makeSimpleQGraph(nQuanta, root=self.root, inMemory=False)
-
-        self.assertEqual(len(qgraph.taskGraph), 5)
-        self.assertEqual(len(qgraph), nQuanta)
-
-        args = _makeArgs()
         fwk = CmdLineFwk()
-        taskFactory = AddTaskFactoryMock(stopAt=3)
+        taskFactory = AddTaskFactoryMock()
 
-        # run first three quanta
-        with self.assertRaises(RuntimeError):
-            fwk.runPipeline(qgraph, taskFactory, args, butler=butler)
-        self.assertEqual(taskFactory.countExec, 3)
+        qgraph = fwk.makeGraph(self.pipeline, args)
+        self.assertEqual(len(qgraph.taskGraph), self.nQuanta)
+        # With current implementation graph has all nQuanta quanta, but when
+        # executing one quantum is skipped.
+        self.assertEqual(len(qgraph), self.nQuanta)
 
-        # Failed task still makes _log dataset, have to delete this before
-        # retry if not using clobber-outputs.
-        ref = butler.registry.findDataset("task3_log", instrument="INSTR", detector=0)
-        self.assertIsNotNone(ref)
-        butler.pruneDatasets([ref], disassociate=True, unstore=True, purge=True)
+        # run whole thing
+        fwk.runPipeline(qgraph, taskFactory, args)
+        self.assertEqual(taskFactory.countExec, self.nQuanta)
 
-        # run remaining ones
-        taskFactory.stopAt = -1
-        args.skip_existing = True
+    def testSimpleQGraphSkipExisting_inputs(self):
+        """Test for ``--skip-existing`` with output data for one task already
+        appears in _input_ collection. No ``--extend-run`` option is needed
+        for this case.
+        """
+        args = _makeArgs(
+            butler_config=self.root,
+            input="test",
+            output="output",
+            skip_existing=True,
+        )
+        butler = makeSimpleButler(self.root, run=args.input, inMemory=False)
+        populateButler(
+            self.pipeline, butler,
+            datasetTypes={args.input: [
+                "add_dataset0",
+                "add_dataset1", "add2_dataset1",
+                "add_init_output1",
+                "task0_config",
+                "task0_metadata",
+                "task0_log",
+            ]}
+        )
+
+        fwk = CmdLineFwk()
+        taskFactory = AddTaskFactoryMock()
+
+        qgraph = fwk.makeGraph(self.pipeline, args)
+        self.assertEqual(len(qgraph.taskGraph), self.nQuanta)
+        self.assertEqual(len(qgraph), self.nQuanta - 1)
+
+        # run whole thing
+        fwk.runPipeline(qgraph, taskFactory, args)
+        self.assertEqual(taskFactory.countExec, self.nQuanta - 1)
+
+    def testSimpleQGraphSkipExisting_outputs(self):
+        """Test for ``--skip-existing`` with output data for one task already
+        appears in _output_ collection. The ``--extend-run`` option is needed
+        for this case.
+        """
+        args = _makeArgs(
+            butler_config=self.root,
+            input="test",
+            output_run="output/run",
+            skip_existing=True,
+        )
+        butler = makeSimpleButler(self.root, run=args.input, inMemory=False)
+        populateButler(
+            self.pipeline, butler, datasetTypes={
+                args.input: ["add_dataset0"],
+                args.output_run: [
+                    "add_dataset1", "add2_dataset1",
+                    "add_init_output1",
+                    "task0_metadata",
+                    "task0_log",
+                ]
+            }
+        )
+
+        fwk = CmdLineFwk()
+        taskFactory = AddTaskFactoryMock()
+
+        # fails without --extend-run
+        with self.assertRaisesRegex(ValueError, "--extend-run was not given"):
+            qgraph = fwk.makeGraph(self.pipeline, args)
+
+        # retry with --extend-run
         args.extend_run = True
-        args.no_versions = True
-        fwk.runPipeline(qgraph, taskFactory, args, butler=butler)
-        self.assertEqual(taskFactory.countExec, nQuanta)
+        qgraph = fwk.makeGraph(self.pipeline, args)
+
+        self.assertEqual(len(qgraph.taskGraph), self.nQuanta)
+        # Graph does not include quantum for first task
+        self.assertEqual(len(qgraph), self.nQuanta - 1)
+
+        # run whole thing
+        fwk.runPipeline(qgraph, taskFactory, args)
+        self.assertEqual(taskFactory.countExec, self.nQuanta - 1)
 
     def testSimpleQGraphOutputsFail(self):
         """Test continuing execution of trivial quantum graph with partial
         outputs.
         """
+        args = _makeArgs(butler_config=self.root, input="test", output="output")
+        butler = makeSimpleButler(self.root, run=args.input, inMemory=False)
+        populateButler(self.pipeline, butler)
 
-        nQuanta = 5
-        butler, qgraph = makeSimpleQGraph(nQuanta, root=self.root, inMemory=False)
-
-        # should have one task and number of quanta
-        self.assertEqual(len(qgraph), nQuanta)
-
-        args = _makeArgs()
         fwk = CmdLineFwk()
         taskFactory = AddTaskFactoryMock(stopAt=3)
 
+        qgraph = fwk.makeGraph(self.pipeline, args)
+        self.assertEqual(len(qgraph), self.nQuanta)
+
         # run first three quanta
         with self.assertRaises(RuntimeError):
-            fwk.runPipeline(qgraph, taskFactory, args, butler=butler)
+            fwk.runPipeline(qgraph, taskFactory, args)
         self.assertEqual(taskFactory.countExec, 3)
 
+        butler.registry.refresh()
+
         # drop one of the two outputs from one task
-        ref1 = butler.registry.findDataset("add2_dataset2", instrument="INSTR", detector=0)
+        ref1 = butler.registry.findDataset("add2_dataset2", collections=args.output,
+                                           instrument="INSTR", detector=0)
         self.assertIsNotNone(ref1)
         # also drop the metadata output
-        ref2 = butler.registry.findDataset("task1_metadata", instrument="INSTR", detector=0)
+        ref2 = butler.registry.findDataset("task1_metadata", collections=args.output,
+                                           instrument="INSTR", detector=0)
         self.assertIsNotNone(ref2)
         butler.pruneDatasets([ref1, ref2], disassociate=True, unstore=True, purge=True)
 
@@ -473,33 +539,38 @@ class CmdLineFwkTestCaseWithButler(unittest.TestCase):
         args.no_versions = True
         excRe = "Registry inconsistency while checking for existing outputs.*"
         with self.assertRaisesRegex(RuntimeError, excRe):
-            fwk.runPipeline(qgraph, taskFactory, args, butler=butler)
+            fwk.runPipeline(qgraph, taskFactory, args)
 
     def testSimpleQGraphClobberOutputs(self):
         """Test continuing execution of trivial quantum graph with
         --clobber-outputs.
         """
+        args = _makeArgs(butler_config=self.root, input="test", output="output")
+        butler = makeSimpleButler(self.root, run=args.input, inMemory=False)
+        populateButler(self.pipeline, butler)
 
-        nQuanta = 5
-        butler, qgraph = makeSimpleQGraph(nQuanta, root=self.root, inMemory=False)
-
-        # should have one task and number of quanta
-        self.assertEqual(len(qgraph), nQuanta)
-
-        args = _makeArgs()
         fwk = CmdLineFwk()
         taskFactory = AddTaskFactoryMock(stopAt=3)
 
+        qgraph = fwk.makeGraph(self.pipeline, args)
+
+        # should have one task and number of quanta
+        self.assertEqual(len(qgraph), self.nQuanta)
+
         # run first three quanta
         with self.assertRaises(RuntimeError):
-            fwk.runPipeline(qgraph, taskFactory, args, butler=butler)
+            fwk.runPipeline(qgraph, taskFactory, args)
         self.assertEqual(taskFactory.countExec, 3)
 
+        butler.registry.refresh()
+
         # drop one of the two outputs from one task
-        ref1 = butler.registry.findDataset("add2_dataset2", instrument="INSTR", detector=0)
+        ref1 = butler.registry.findDataset("add2_dataset2", collections=args.output,
+                                           dataId=dict(instrument="INSTR", detector=0))
         self.assertIsNotNone(ref1)
         # also drop the metadata output
-        ref2 = butler.registry.findDataset("task1_metadata", instrument="INSTR", detector=0)
+        ref2 = butler.registry.findDataset("task1_metadata", collections=args.output,
+                                           dataId=dict(instrument="INSTR", detector=0))
         self.assertIsNotNone(ref2)
         butler.pruneDatasets([ref1, ref2], disassociate=True, unstore=True, purge=True)
 
@@ -508,34 +579,33 @@ class CmdLineFwkTestCaseWithButler(unittest.TestCase):
         args.extend_run = True
         args.clobber_outputs = True
         args.no_versions = True
-        fwk.runPipeline(qgraph, taskFactory, args, butler=butler)
+        fwk.runPipeline(qgraph, taskFactory, args)
         # number of executed quanta is incremented
-        self.assertEqual(taskFactory.countExec, nQuanta + 1)
+        self.assertEqual(taskFactory.countExec, self.nQuanta + 1)
 
     def testSimpleQGraphReplaceRun(self):
         """Test repeated execution of trivial quantum graph with
         --replace-run.
         """
-
-        # need non-memory registry in this case
-        nQuanta = 5
-        butler, qgraph = makeSimpleQGraph(nQuanta, root=self.root, inMemory=False)
-
-        # should have one task and number of quanta
-        self.assertEqual(len(qgraph), nQuanta)
-
-        fwk = CmdLineFwk()
-        taskFactory = AddTaskFactoryMock()
-
-        # run whole thing
         args = _makeArgs(
             butler_config=self.root,
             input="test",
             output="output",
             output_run="output/run1")
+        butler = makeSimpleButler(self.root, run=args.input, inMemory=False)
+        populateButler(self.pipeline, butler)
+
+        fwk = CmdLineFwk()
+        taskFactory = AddTaskFactoryMock()
+
+        qgraph = fwk.makeGraph(self.pipeline, args)
+
+        # should have one task and number of quanta
+        self.assertEqual(len(qgraph), self.nQuanta)
+
         # deep copy is needed because quanta are updated in place
         fwk.runPipeline(copy.deepcopy(qgraph), taskFactory, args)
-        self.assertEqual(taskFactory.countExec, nQuanta)
+        self.assertEqual(taskFactory.countExec, self.nQuanta)
 
         # need to refresh collections explicitly (or make new butler/registry)
         butler.registry.refresh()
@@ -549,7 +619,7 @@ class CmdLineFwkTestCaseWithButler(unittest.TestCase):
         #  - nQuanta * two output datasets
         #  - nQuanta of metadata
         #  - nQuanta of log output
-        n_outputs = nQuanta * 6 + 1
+        n_outputs = self.nQuanta * 6 + 1
         refs = butler.registry.queryDatasets(..., collections="output/run1")
         self.assertEqual(len(list(refs)), n_outputs)
 
@@ -635,17 +705,21 @@ class CmdLineFwkTestCaseWithButler(unittest.TestCase):
     def testSubgraph(self):
         """Test successfull execution of trivial quantum graph.
         """
-        nQuanta = 5
-        nNodes = 2
-        butler, qgraph = makeSimpleQGraph(nQuanta, root=self.root)
+        args = _makeArgs(butler_config=self.root, input="test", output="output")
+        butler = makeSimpleButler(self.root, run=args.input, inMemory=False)
+        populateButler(self.pipeline, butler)
+
+        fwk = CmdLineFwk()
+        qgraph = fwk.makeGraph(self.pipeline, args)
 
         # Select first two nodes for execution. This depends on node ordering
         # which I assume is the same as execution order.
+        nNodes = 2
         nodeIds = [node.nodeId.number for node in qgraph]
         nodeIds = nodeIds[:nNodes]
 
-        self.assertEqual(len(qgraph.taskGraph), 5)
-        self.assertEqual(len(qgraph), nQuanta)
+        self.assertEqual(len(qgraph.taskGraph), self.nQuanta)
+        self.assertEqual(len(qgraph), self.nQuanta)
 
         with makeTmpFile(suffix=".qgraph") as tmpname, makeSQLiteRegistry() as registryConfig:
             with open(tmpname, "wb") as saveFile:
