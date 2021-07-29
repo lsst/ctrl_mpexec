@@ -465,51 +465,47 @@ class SingleQuantumExecutor(QuantumExecutor):
             # Remove the handler so we stop accumulating log messages.
             logging.getLogger().removeHandler(self.log_handler)
 
-        if not store:
-            # do not store anything but remove file
+        try:
+            if store and taskDef.logOutputDatasetName is not None and self.log_handler is not None:
+                # DatasetRef has to be in the Quantum outputs, can lookup by
+                # name
+                try:
+                    ref = quantum.outputs[taskDef.logOutputDatasetName]
+                except LookupError as exc:
+                    raise InvalidQuantumError(
+                        f"Quantum outputs is missing log output dataset type {taskDef.logOutputDatasetName};"
+                        f" this could happen due to inconsistent options between QuantumGraph generation"
+                        f" and execution") from exc
+
+                if isinstance(self.log_handler, ButlerLogRecordHandler):
+                    butler.put(self.log_handler.records, ref[0])
+
+                    # Clear the records in case the handler is reused.
+                    self.log_handler.records.clear()
+                else:
+                    assert filename is not None, "Somehow unable to extract filename from file handler"
+
+                    # Need to ingest this file directly into butler.
+                    dataset = FileDataset(path=filename, refs=ref[0])
+                    try:
+                        butler.ingest(dataset, transfer="move")
+                        filename = None
+                    except NotImplementedError:
+                        # Some datastores can't receive files (e.g. in-memory
+                        # datastore when testing), we store empty list for
+                        # those just to have a dataset. Alternative is to read
+                        # the file as a ButlerLogRecords object and put it.
+                        _LOG.info("Log records could not be stored in this butler because the"
+                                  " datastore can not ingest files, empty record list is stored instead.")
+                        records = ButlerLogRecords.from_records([])
+                        butler.put(records, ref[0])
+        finally:
+            # remove file if it is not ingested
             if filename is not None:
                 try:
                     os.remove(filename)
                 except OSError:
                     pass
-            return
-
-        if taskDef.logOutputDatasetName is not None and self.log_handler is not None:
-            # DatasetRef has to be in the Quantum outputs, can lookup by name
-            try:
-                ref = quantum.outputs[taskDef.logOutputDatasetName]
-            except LookupError as exc:
-                raise InvalidQuantumError(
-                    f"Quantum outputs is missing log output dataset type {taskDef.logOutputDatasetName};"
-                    f" this could happen due to inconsistent options between QuantumGraph generation"
-                    f" and execution") from exc
-
-            if isinstance(self.log_handler, ButlerLogRecordHandler):
-                butler.put(self.log_handler.records, ref[0])
-
-                # Clear the records in case the handler is reused.
-                self.log_handler.records.clear()
-            else:
-                assert filename is not None, "Somehow unable to extract filename from file handler"
-
-                # Need to ingest this file directly into butler.
-                dataset = FileDataset(path=filename, refs=ref[0])
-                try:
-                    butler.ingest(dataset, transfer="move")
-                except NotImplementedError:
-                    # Some datastores can't receive files (e.g. in-memory
-                    # datastore when testing), we store empty list for those
-                    # just to have a dataset. Alternative is to read the file
-                    # as a ButlerLogRecords object and put it.
-                    _LOG.info("Log records could not be stored in this butler because the"
-                              " datastore can not ingest files, empty record list is stored instead.")
-                    records = ButlerLogRecords.from_records([])
-                    butler.put(records, ref[0])
-                    # And remove the file, but ignore errors
-                    try:
-                        os.remove(filename)
-                    except OSError:
-                        pass
 
     def initGlobals(self, quantum, butler):
         """Initialize global state needed for task execution.
