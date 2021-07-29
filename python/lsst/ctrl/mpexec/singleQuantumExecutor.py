@@ -25,6 +25,7 @@ __all__ = ['SingleQuantumExecutor']
 #  Imports of standard modules --
 # -------------------------------
 import logging
+import os
 import sys
 import tempfile
 import time
@@ -57,6 +58,7 @@ from lsst.daf.butler import (
 )
 from lsst.daf.butler.core.logging import (
     ButlerLogRecordHandler,
+    ButlerLogRecords,
     ButlerMDC,
     JsonLogFormatter,
 )
@@ -65,6 +67,12 @@ from lsst.daf.butler.core.logging import (
 # ----------------------------------
 
 _LOG = logging.getLogger(__name__.partition(".")[2])
+
+
+class _LogCaptureFlag:
+    """Simple flag to enable/disable log-to-butler saving.
+    """
+    store: bool = True
 
 
 class SingleQuantumExecutor(QuantumExecutor):
@@ -109,18 +117,24 @@ class SingleQuantumExecutor(QuantumExecutor):
         # Docstring inherited from QuantumExecutor.execute
         startTime = time.time()
 
-        with self.captureLogging(taskDef, quantum, butler):
+        with self.captureLogging(taskDef, quantum, butler) as captureLog:
+
             # Save detailed resource usage before task start to metadata.
             quantumMetadata = PropertyList()
             logInfo(None, "prep", metadata=quantumMetadata)
 
             taskClass, label, config = taskDef.taskClass, taskDef.label, taskDef.config
 
-            # check whether to skip or delete old outputs
+            # check whether to skip or delete old outputs, if it returns True
+            # or raises an exception do not try to store logs, as they may be
+            # already in butler.
+            captureLog.store = False
             if self.checkExistingOutputs(quantum, butler, taskDef):
                 _LOG.info("Skipping already-successful quantum for label=%s dataId=%s.", label,
                           quantum.dataId)
                 return
+            captureLog.store = True
+
             try:
                 quantum = self.updatedQuantumInputs(quantum, butler, taskDef)
             except NoWorkFound as exc:
@@ -219,12 +233,13 @@ class SingleQuantumExecutor(QuantumExecutor):
         if quantum.dataId:
             label += f":{quantum.dataId}"
 
+        ctx = _LogCaptureFlag()
         try:
             with ButlerMDC.set_mdc({"LABEL": label}):
-                yield
+                yield ctx
         finally:
             # Ensure that the logs are stored in butler.
-            self.writeLogRecords(quantum, taskDef, butler)
+            self.writeLogRecords(quantum, taskDef, butler, ctx.store)
 
     def checkExistingOutputs(self, quantum, butler, taskDef):
         """Decide whether this quantum needs to be executed.
@@ -438,7 +453,7 @@ class SingleQuantumExecutor(QuantumExecutor):
                     f" and execution") from exc
             butler.put(metadata, ref[0])
 
-    def writeLogRecords(self, quantum, taskDef, butler):
+    def writeLogRecords(self, quantum, taskDef, butler, store):
         # If we are logging to an external file we must always try to
         # close it.
         filename = None
@@ -449,6 +464,15 @@ class SingleQuantumExecutor(QuantumExecutor):
         if self.log_handler is not None:
             # Remove the handler so we stop accumulating log messages.
             logging.getLogger().removeHandler(self.log_handler)
+
+        if not store:
+            # do not store anything but remove file
+            if filename is not None:
+                try:
+                    os.remove(filename)
+                except OSError:
+                    pass
+            return
 
         if taskDef.logOutputDatasetName is not None and self.log_handler is not None:
             # DatasetRef has to be in the Quantum outputs, can lookup by name
@@ -474,12 +498,18 @@ class SingleQuantumExecutor(QuantumExecutor):
                     butler.ingest(dataset, transfer="move")
                 except NotImplementedError:
                     # Some datastores can't receive files (e.g. in-memory
-                    # datastore when testing) so skip log storage for those.
-                    # Alternative is to read the file as a ButlerLogRecords
-                    # object and put it.
+                    # datastore when testing), we store empty list for those
+                    # just to have a dataset. Alternative is to read the file
+                    # as a ButlerLogRecords object and put it.
                     _LOG.info("Log records could not be stored in this butler because the"
-                              " datastore can not ingest files.")
-                    pass
+                              " datastore can not ingest files, empty record list is stored instead.")
+                    records = ButlerLogRecords.from_records([])
+                    butler.put(records, ref[0])
+                    # And remove the file, but ignore errors
+                    try:
+                        os.remove(filename)
+                    except OSError:
+                        pass
 
     def initGlobals(self, quantum, butler):
         """Initialize global state needed for task execution.
