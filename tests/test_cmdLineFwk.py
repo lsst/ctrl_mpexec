@@ -411,7 +411,7 @@ class CmdLineFwkTestCaseWithButler(unittest.TestCase):
         """
 
         nQuanta = 5
-        butler, qgraph = makeSimpleQGraph(nQuanta, root=self.root)
+        butler, qgraph = makeSimpleQGraph(nQuanta, root=self.root, inMemory=False)
 
         self.assertEqual(len(qgraph.taskGraph), 5)
         self.assertEqual(len(qgraph), nQuanta)
@@ -424,6 +424,12 @@ class CmdLineFwkTestCaseWithButler(unittest.TestCase):
         with self.assertRaises(RuntimeError):
             fwk.runPipeline(qgraph, taskFactory, args, butler=butler)
         self.assertEqual(taskFactory.countExec, 3)
+
+        # Failed task still makes _log dataset, have to delete this before
+        # retry if not using clobber-outputs.
+        ref = butler.registry.findDataset("task3_log", instrument="INSTR", detector=0)
+        self.assertIsNotNone(ref)
+        butler.pruneDatasets([ref], disassociate=True, unstore=True, purge=True)
 
         # run remaining ones
         taskFactory.stopAt = -1
@@ -439,7 +445,7 @@ class CmdLineFwkTestCaseWithButler(unittest.TestCase):
         """
 
         nQuanta = 5
-        butler, qgraph = makeSimpleQGraph(nQuanta, root=self.root)
+        butler, qgraph = makeSimpleQGraph(nQuanta, root=self.root, inMemory=False)
 
         # should have one task and number of quanta
         self.assertEqual(len(qgraph), nQuanta)
@@ -455,7 +461,7 @@ class CmdLineFwkTestCaseWithButler(unittest.TestCase):
 
         # drop one of the two outputs from one task
         ref1 = butler.registry.findDataset("add2_dataset2", instrument="INSTR", detector=0)
-        self.assertIsNotNone([ref1])
+        self.assertIsNotNone(ref1)
         # also drop the metadata output
         ref2 = butler.registry.findDataset("task1_metadata", instrument="INSTR", detector=0)
         self.assertIsNotNone(ref2)
@@ -475,7 +481,7 @@ class CmdLineFwkTestCaseWithButler(unittest.TestCase):
         """
 
         nQuanta = 5
-        butler, qgraph = makeSimpleQGraph(nQuanta, root=self.root)
+        butler, qgraph = makeSimpleQGraph(nQuanta, root=self.root, inMemory=False)
 
         # should have one task and number of quanta
         self.assertEqual(len(qgraph), nQuanta)
