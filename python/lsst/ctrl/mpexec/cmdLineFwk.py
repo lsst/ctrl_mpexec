@@ -524,6 +524,10 @@ class CmdLineFwk:
             If resulting graph is empty then `None` is returned.
         """
 
+        # make sure that --extend-run always enables --skip-existing
+        if args.extend_run:
+            args.skip_existing = True
+
         registry, collections, run = _ButlerFactory.makeRegistryAndCollections(args)
 
         if args.qgraph:
@@ -604,6 +608,10 @@ class CmdLineFwk:
             Data Butler instance, if not defined then new instance is made
             using command line options.
         """
+        # make sure that --extend-run always enables --skip-existing
+        if args.extend_run:
+            args.skip_existing = True
+
         # make butler instance
         if butler is None:
             butler = _ButlerFactory.makeWriteButler(args)
@@ -621,7 +629,7 @@ class CmdLineFwk:
 
         # --skip-existing should have no effect unless --extend-run is passed
         # so we make PreExecInit's skipExisting depend on the latter as well.
-        preExecInit = PreExecInit(butler, taskFactory, skipExisting=(args.skip_existing and args.extend_run))
+        preExecInit = PreExecInit(butler, taskFactory, skipExisting=args.extend_run)
         preExecInit.initialize(graph,
                                saveInitOutputs=not args.skip_init_writes,
                                registerDatasetTypes=args.register_dataset_types,

@@ -85,7 +85,7 @@ extend_run_option = MWOptionDecorator("--extend-run",
                                       help=unwrap("""Instead of creating a new RUN collection, insert datasets
                                                   into either the one given by --output-run (if provided) or
                                                   the first child collection of --output (which must be of
-                                                  type RUN)."""),
+                                                  type RUN). This also enables --skip-existing option."""),
                                       is_flag=True)
 
 
