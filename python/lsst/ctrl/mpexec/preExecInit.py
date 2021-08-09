@@ -265,7 +265,7 @@ class PreExecInit:
         """
         packages = Packages.fromSystem()
         _LOG.debug("want to save packages: %s", packages)
-        datasetType = "packages"
+        datasetType = PipelineDatasetTypes.packagesDatasetName
         dataId = {}
         oldPackages = None
         # start transaction to rollback any changes on exceptions

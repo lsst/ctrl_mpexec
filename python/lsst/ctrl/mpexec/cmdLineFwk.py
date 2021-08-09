@@ -35,7 +35,7 @@ import getpass
 import logging
 import re
 import sys
-from typing import Optional, Tuple
+from typing import Iterable, Optional, Tuple
 import warnings
 
 # -----------------------------
@@ -49,7 +49,8 @@ from lsst.daf.butler import (
 )
 from lsst.daf.butler.registry import MissingCollectionError, RegistryDefaults
 import lsst.pex.config as pexConfig
-from lsst.pipe.base import GraphBuilder, Pipeline, QuantumGraph, buildExecutionButler
+from lsst.pipe.base import (buildExecutionButler, GraphBuilder, Pipeline,
+                            PipelineDatasetTypes, QuantumGraph, TaskDef)
 from lsst.obs.base import Instrument
 from .dotTools import graph2dot, pipeline2dot
 from .executionGraphFixup import ExecutionGraphFixup
@@ -340,7 +341,8 @@ class _ButlerFactory:
         return butler.registry, inputs, run
 
     @classmethod
-    def makeWriteButler(cls, args: argparse.Namespace) -> Butler:
+    def makeWriteButler(cls, args: argparse.Namespace,
+                        taskDefs: Optional[Iterable[TaskDef]] = None) -> Butler:
         """Return a read-write butler initialized to write to and read from
         the collections specified by the given command-line arguments.
 
@@ -349,6 +351,10 @@ class _ButlerFactory:
         args : `types.SimpleNamespace`
             Parsed command-line arguments.  See class documentation for the
             construction parameter of the same name.
+        taskDefs : iterable of `TaskDef`, optional
+            Definitions for tasks in a pipeline. This argument is only needed
+            if ``args.replace_run`` is `True` and ``args.prune_replaced`` is
+            "unstore".
 
         Returns
         -------
@@ -366,6 +372,11 @@ class _ButlerFactory:
                     # Remove datasets from datastore
                     with butler.transaction():
                         refs = butler.registry.queryDatasets(..., collections=replaced)
+                        # we want to remove regular outputs but keep
+                        # initOutputs, configs, and versions.
+                        if taskDefs is not None:
+                            initDatasetNames = set(PipelineDatasetTypes.initOutputNames(taskDefs))
+                            refs = [ref for ref in refs if ref.datasetType.name not in initDatasetNames]
                         butler.pruneDatasets(refs, unstore=True, run=replaced, disassociate=False)
                 elif args.prune_replaced == "purge":
                     # Erase entire collection and all datasets, need to remove
@@ -618,7 +629,7 @@ class CmdLineFwk:
 
         # make butler instance
         if butler is None:
-            butler = _ButlerFactory.makeWriteButler(args)
+            butler = _ButlerFactory.makeWriteButler(args, graph.iterTaskGraph())
 
         if args.skip_existing:
             args.skip_existing_in += (butler.run, )

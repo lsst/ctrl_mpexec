@@ -30,6 +30,7 @@ from dataclasses import dataclass
 import logging
 import os
 import pickle
+import re
 import shutil
 import tempfile
 from typing import NamedTuple
@@ -656,12 +657,17 @@ class CmdLineFwkTestCaseWithButler(unittest.TestCase):
         self.assertEqual(len(list(refs)), n_outputs)
 
         # old output collection is still there, and it has all datasets but
-        # they are not in datastore
+        # non-InitOutputs are not in datastore
         refs = butler.registry.queryDatasets(..., collections="output/run2")
         refs = list(refs)
         self.assertEqual(len(refs), n_outputs)
-        with self.assertRaises(FileNotFoundError):
-            butler.get(refs[0], collections="output/run2")
+        initOutNameRe = re.compile("packages|task.*_config|add_init_output.*")
+        for ref in refs:
+            if initOutNameRe.fullmatch(ref.datasetType.name):
+                butler.get(ref, collections="output/run2")
+            else:
+                with self.assertRaises(FileNotFoundError):
+                    butler.get(ref, collections="output/run2")
 
         # re-run with --replace-run and --prune-replaced=purge
         # This time also remove --input; passing the same inputs that we
