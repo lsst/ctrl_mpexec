@@ -244,19 +244,37 @@ show_option = MWOptionDecorator("--show",
                                 multiple=True)
 
 
-skip_existing_option = MWOptionDecorator("--skip-existing",
-                                         help=unwrap("""If all Quantum outputs already exist in the output RUN
-                                                     collection then that Quantum will be excluded from the
-                                                     QuantumGraph. Requires the 'run` command's `--extend-run`
-                                                     flag to be set."""),
-                                         is_flag=True)
+skip_existing_in_option = MWOptionDecorator(
+    "--skip-existing-in",
+    callback=split_commas,
+    default=None,
+    metavar="COLLECTION",
+    multiple=True,
+    help=unwrap(
+        """If all Quantum outputs already exist in the specified list of
+        collections then that Quantum will be excluded from the QuantumGraph.
+        """
+    )
+)
+
+
+skip_existing_option = MWOptionDecorator(
+    "--skip-existing",
+    is_flag=True,
+    help=unwrap(
+        """This option is equivalent to --skip-existing-in with the name of
+        the output RUN collection. If both --skip-existing-in and
+        --skip-existing are given then output RUN collection is appended to
+        the list of collections."""
+    )
+)
 
 
 clobber_outputs_option = MWOptionDecorator("--clobber-outputs",
                                            help=unwrap("""Remove outputs from previous execution of the same
-                                                       quantum before new execution.  If `--skip-existing`
+                                                       quantum before new execution.  If --skip-existing
                                                        is also passed, then only failed quanta will be
-                                                       clobbered. Requires the 'run` command's `--extend-run`
+                                                       clobbered. Requires the 'run' command's --extend-run
                                                        flag to be set."""),
                                            is_flag=True)
 

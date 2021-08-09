@@ -143,7 +143,7 @@ class _ButlerFactory:
     registry : `lsst.daf.butler.Registry`
         Butler registry that collections will be added to and/or queried from.
 
-    args : `argparse.Namespace`
+    args : `types.SimpleNamespace`
         Parsed command-line arguments.  The following attributes are used,
         either at construction or in later methods.
 
@@ -214,7 +214,7 @@ class _ButlerFactory:
 
         Parameters
         ----------
-        args : `argparse.Namespace`
+        args : `types.SimpleNamespace`
             Parsed command-line arguments.  See class documentation for the
             construction parameter of the same name.
         """
@@ -257,7 +257,7 @@ class _ButlerFactory:
 
         Parameters
         ----------
-        args : `argparse.Namespace`
+        args : `types.SimpleNamespace`
             Parsed command-line arguments.  See class documentation for the
             construction parameter of the same name.
 
@@ -297,7 +297,7 @@ class _ButlerFactory:
 
         Parameters
         ----------
-        args : `argparse.Namespace`
+        args : `types.SimpleNamespace`
             Parsed command-line arguments.  See class documentation for the
             construction parameter of the same name.
 
@@ -319,7 +319,7 @@ class _ButlerFactory:
 
         Parameters
         ----------
-        args : `argparse.Namespace`
+        args : `types.SimpleNamespace`
             Parsed command-line arguments.  See class documentation for the
             construction parameter of the same name.
 
@@ -346,7 +346,7 @@ class _ButlerFactory:
 
         Parameters
         ----------
-        args : `argparse.Namespace`
+        args : `types.SimpleNamespace`
             Parsed command-line arguments.  See class documentation for the
             construction parameter of the same name.
 
@@ -460,7 +460,7 @@ class CmdLineFwk:
 
         Parameters
         ----------
-        args : `argparse.Namespace`
+        args : `types.SimpleNamespace`
             Parsed command line
 
         Returns
@@ -515,7 +515,7 @@ class CmdLineFwk:
         ----------
         pipeline : `~lsst.pipe.base.Pipeline`
             Pipeline, can be empty or ``None`` if graph is read from a file.
-        args : `argparse.Namespace`
+        args : `types.SimpleNamespace`
             Parsed command line
 
         Returns
@@ -529,6 +529,9 @@ class CmdLineFwk:
             args.skip_existing = True
 
         registry, collections, run = _ButlerFactory.makeRegistryAndCollections(args)
+
+        if args.skip_existing and run:
+            args.skip_existing_in += (run,)
 
         if args.qgraph:
             # click passes empty tuple as default value for qgraph_node_id
@@ -544,13 +547,14 @@ class CmdLineFwk:
 
             # make execution plan (a.k.a. DAG) for pipeline
             graphBuilder = GraphBuilder(registry,
-                                        skipExisting=args.skip_existing,
+                                        skipExistingIn=args.skip_existing_in,
                                         clobberOutputs=args.clobber_outputs)
             # accumulate metadata
             metadata = {"input": args.input, "output": args.output, "butler_argument": args.butler_config,
                         "output_run": args.output_run, "extend_run": args.extend_run,
-                        "skip_existing": args.skip_existing, "data_query": args.data_query,
-                        "user": getpass.getuser(), "time": f"{datetime.datetime.now()}"}
+                        "skip_existing_in": args.skip_existing_in, "skip_existing": args.skip_existing,
+                        "data_query": args.data_query, "user": getpass.getuser(),
+                        "time": f"{datetime.datetime.now()}"}
             qgraph = graphBuilder.makeGraph(pipeline, collections, run, args.data_query, metadata=metadata)
 
         # Count quanta in graph and give a warning if it's empty and return
@@ -602,7 +606,7 @@ class CmdLineFwk:
             Execution graph.
         taskFactory : `~lsst.pipe.base.TaskFactory`
             Task factory
-        args : `argparse.Namespace`
+        args : `types.SimpleNamespace`
             Parsed command line
         butler : `~lsst.daf.butler.Butler`, optional
             Data Butler instance, if not defined then new instance is made
@@ -615,6 +619,9 @@ class CmdLineFwk:
         # make butler instance
         if butler is None:
             butler = _ButlerFactory.makeWriteButler(args)
+
+        if args.skip_existing:
+            args.skip_existing_in += (butler.run, )
 
         # Enable lsstDebug debugging. Note that this is done once in the
         # main process before PreExecInit and it is also repeated before
@@ -637,7 +644,7 @@ class CmdLineFwk:
         if not args.init_only:
             graphFixup = self._importGraphFixup(args)
             quantumExecutor = SingleQuantumExecutor(taskFactory,
-                                                    skipExisting=args.skip_existing,
+                                                    skipExistingIn=args.skip_existing_in,
                                                     clobberOutputs=args.clobber_outputs,
                                                     enableLsstDebug=args.enableLsstDebug,
                                                     exitOnKnownError=args.fail_fast)
@@ -655,7 +662,7 @@ class CmdLineFwk:
 
         Parameters
         ----------
-        args : `argparse.Namespace`
+        args : `types.SimpleNamespace`
             Parsed command line
         pipeline : `Pipeline`
             Pipeline definition
@@ -835,7 +842,7 @@ class CmdLineFwk:
         ----------
         graph : `QuantumGraph`
             Execution graph.
-        args : `argparse.Namespace`
+        args : `types.SimpleNamespace`
             Parsed command line
         """
         for node in graph:
@@ -850,7 +857,7 @@ class CmdLineFwk:
         ----------
         graph : `QuantumGraph`
             Execution graph
-        args : `argparse.Namespace`
+        args : `types.SimpleNamespace`
             Parsed command line
         """
         def dumpURIs(thisRef):
@@ -879,7 +886,7 @@ class CmdLineFwk:
 
         Parameters
         ----------
-        args : `argparse.Namespace`
+        args : `types.SimpleNamespace`
             Parsed command line.
 
         Returns

@@ -433,7 +433,7 @@ class CmdLineFwkTestCaseWithButler(unittest.TestCase):
             butler_config=self.root,
             input="test",
             output="output",
-            skip_existing=True,
+            skip_existing_in=("test", ),
         )
         butler = makeSimpleButler(self.root, run=args.input, inMemory=False)
         populateButler(
@@ -468,7 +468,7 @@ class CmdLineFwkTestCaseWithButler(unittest.TestCase):
             butler_config=self.root,
             input="test",
             output_run="output/run",
-            skip_existing=True,
+            skip_existing_in=("output/run", ),
         )
         butler = makeSimpleButler(self.root, run=args.input, inMemory=False)
         populateButler(
@@ -534,7 +534,7 @@ class CmdLineFwkTestCaseWithButler(unittest.TestCase):
         butler.pruneDatasets([ref1, ref2], disassociate=True, unstore=True, purge=True)
 
         taskFactory.stopAt = -1
-        args.skip_existing = True
+        args.skip_existing_in = (args.output, )
         args.extend_run = True
         args.no_versions = True
         excRe = "Registry inconsistency while checking for existing outputs.*"

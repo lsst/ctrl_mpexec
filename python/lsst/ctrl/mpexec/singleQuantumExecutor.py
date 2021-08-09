@@ -84,12 +84,13 @@ class SingleQuantumExecutor(QuantumExecutor):
         Data butler.
     taskFactory : `~lsst.pipe.base.TaskFactory`
         Instance of a task factory.
-    skipExisting : `bool`, optional
-        If `True`, then quanta that succeeded will not be rerun.
+    skipExistingIn : `list` [ `str` ], optional
+        Accepts list of collections, if all Quantum outputs already exist in
+        the specified list of collections then that Quantum will not be rerun.
     clobberOutputs : `bool`, optional
-        If `True`, then existing outputs will be overwritten.  If
-        `skipExisting` is also `True`, only outputs from failed quanta will
-        be overwritten.
+        If `True`, then existing outputs in output run collection will be
+        overwritten.  If ``skipExistingIn`` is defined, only outputs from
+        failed quanta will be overwritten.
     enableLsstDebug : `bool`, optional
         Enable debugging with ``lsstDebug`` facility for a task.
     exitOnKnownError : `bool`, optional
@@ -104,10 +105,10 @@ class SingleQuantumExecutor(QuantumExecutor):
     when quantum completes. If False the records are accumulated in memory
     and stored in butler on quantum completion."""
 
-    def __init__(self, taskFactory, skipExisting=False, clobberOutputs=False, enableLsstDebug=False,
+    def __init__(self, taskFactory, skipExistingIn=None, clobberOutputs=False, enableLsstDebug=False,
                  exitOnKnownError=False):
         self.taskFactory = taskFactory
-        self.skipExisting = skipExisting
+        self.skipExistingIn = skipExistingIn
         self.enableLsstDebug = enableLsstDebug
         self.clobberOutputs = clobberOutputs
         self.exitOnKnownError = exitOnKnownError
@@ -259,9 +260,9 @@ class SingleQuantumExecutor(QuantumExecutor):
         Returns
         -------
         exist : `bool`
-            `True` if ``self.skipExisting`` is `True`, and a previous execution
-            of this quanta appears to have completed successfully (either
-            because metadata was written or all datasets were written).
+            `True` if ``self.skipExistingIn`` is defined, and a previous
+            execution of this quanta appears to have completed successfully
+            (either because metadata was written or all datasets were written).
             `False` otherwise.
 
         Raises
@@ -269,49 +270,61 @@ class SingleQuantumExecutor(QuantumExecutor):
         RuntimeError
             Raised if some outputs exist and some not.
         """
-        collection = butler.run
-        registry = butler.registry
-
-        if self.skipExisting and taskDef.metadataDatasetName is not None:
+        if self.skipExistingIn and taskDef.metadataDatasetName is not None:
             # Metadata output exists; this is sufficient to assume the previous
             # run was successful and should be skipped.
-            if (ref := butler.registry.findDataset(taskDef.metadataDatasetName, quantum.dataId)) is not None:
+            ref = butler.registry.findDataset(taskDef.metadataDatasetName, quantum.dataId,
+                                              collections=self.skipExistingIn)
+            if ref is not None:
                 if butler.datastore.exists(ref):
                     return True
 
-        existingRefs = []
-        missingRefs = []
-        for datasetRefs in quantum.outputs.values():
-            for datasetRef in datasetRefs:
-                ref = registry.findDataset(datasetRef.datasetType, datasetRef.dataId,
-                                           collections=butler.run)
-                if ref is None:
-                    missingRefs.append(datasetRef)
-                else:
-                    if butler.datastore.exists(ref):
+        # Previously we always checked for existing outputs in `butler.run`,
+        # now logic gets more complicated as we only want to skip quantum
+        # whose outputs exist in `self.skipExistingIn` but pruning should only
+        # be done for outputs existing in `butler.run`.
+
+        def findOutputs(collections):
+            """Find quantum outputs in specified collections.
+            """
+            existingRefs = []
+            missingRefs = []
+            for datasetRefs in quantum.outputs.values():
+                for datasetRef in datasetRefs:
+                    ref = butler.registry.findDataset(datasetRef.datasetType, datasetRef.dataId,
+                                                      collections=collections)
+                    if ref is not None and butler.datastore.exists(ref):
                         existingRefs.append(ref)
                     else:
                         missingRefs.append(datasetRef)
-        if existingRefs and missingRefs:
-            # Some outputs exist and some don't, either delete existing ones
-            # or complain.
-            _LOG.debug("Partial outputs exist for task %s dataId=%s collection=%s "
-                       "existingRefs=%s missingRefs=%s",
-                       taskDef, quantum.dataId, collection, existingRefs, missingRefs)
-            if self.clobberOutputs:
-                _LOG.info("Removing partial outputs for task %s: %s", taskDef, existingRefs)
-                butler.pruneDatasets(existingRefs, disassociate=True, unstore=True, purge=True)
-                return False
-            else:
-                raise RuntimeError(f"Registry inconsistency while checking for existing outputs:"
-                                   f" collection={collection} existingRefs={existingRefs}"
-                                   f" missingRefs={missingRefs}")
-        elif existingRefs:
-            # complete outputs exist, this is fine only if skipExisting is set
-            return self.skipExisting
-        else:
-            # no outputs exist
-            return False
+            return existingRefs, missingRefs
+
+        existingRefs, missingRefs = findOutputs(self.skipExistingIn)
+        if self.skipExistingIn:
+            if existingRefs and not missingRefs:
+                # everything is already there
+                return True
+
+        # If we are to re-run quantum then prune datasets that exists in
+        # output run collection, only if `self.clobberOutputs` is set.
+        if existingRefs:
+            existingRefs, missingRefs = findOutputs(butler.run)
+            if existingRefs and missingRefs:
+                _LOG.debug("Partial outputs exist for task %s dataId=%s collection=%s "
+                           "existingRefs=%s missingRefs=%s",
+                           taskDef, quantum.dataId, butler.run, existingRefs, missingRefs)
+                if self.clobberOutputs:
+                    # only prune
+                    _LOG.info("Removing partial outputs for task %s: %s", taskDef, existingRefs)
+                    butler.pruneDatasets(existingRefs, disassociate=True, unstore=True, purge=True)
+                    return False
+                else:
+                    raise RuntimeError(f"Registry inconsistency while checking for existing outputs:"
+                                       f" collection={butler.run} existingRefs={existingRefs}"
+                                       f" missingRefs={missingRefs}")
+
+        # need to re-run
+        return False
 
     def makeTask(self, taskClass, name, config, butler):
         """Make new task instance.

@@ -27,9 +27,10 @@ from ... import CmdLineFwk
 _log = logging.getLogger(__name__.partition(".")[2])
 
 
-def qgraph(pipelineObj, qgraph, qgraph_id, qgraph_node_id, skip_existing, save_qgraph, save_single_quanta,
-           qgraph_dot, butler_config, input, output, output_run, extend_run, replace_run, prune_replaced,
-           data_query, show, save_execution_butler, clobber_execution_butler, clobber_outputs, **kwargs):
+def qgraph(pipelineObj, qgraph, qgraph_id, qgraph_node_id, skip_existing_in, skip_existing, save_qgraph,
+           save_single_quanta, qgraph_dot, butler_config, input, output, output_run, extend_run,
+           replace_run, prune_replaced, data_query, show, save_execution_butler, clobber_execution_butler,
+           clobber_outputs, **kwargs):
     """Implements the command line interface `pipetask qgraph` subcommand,
     should only be called by command line tools and unit test code that test
     this function.
@@ -48,10 +49,12 @@ def qgraph(pipelineObj, qgraph, qgraph_id, qgraph_node_id, skip_existing, save_q
     qgraph_node_id : `list` of `int`, optional
         Only load a specified set of nodes if graph is loaded from a file,
         nodes are identified by integer IDs.
+    skip_existing_in : `list` [ `str` ]
+        Accepts list of collections, if all Quantum outputs already exist in
+        the specified list of collections then that Quantum will be excluded
+        from the QuantumGraph.
     skip_existing : `bool`
-        If all Quantum outputs already exist in the output RUN collection then
-        that Quantum will be excluded from the QuantumGraph. Will only be used
-        if `extend_run` flag is set.
+        Appends output RUN collection to the ``skip_existing_in`` list.
     save_qgraph : `str` or `None`
         URI location for storing a serialized quantum graph definition as a
         pickle file.
@@ -67,10 +70,8 @@ def qgraph(pipelineObj, qgraph, qgraph_id, qgraph_node_id, skip_existing, save_q
         butler/registry config file. If `dict`, `butler_config` is key value
         pairs used to init or update the `lsst.daf.butler.Config` instance. If
         `Config`, it is the object used to configure a Butler.
-    input : `str`
-        Comma-separated names of the input collection(s). Entries may include a
-        colon (:), the first string is a dataset type name that restricts the
-        search in that collection.
+    input : `list` [ `str` ]
+        List of names of the input collection(s).
     output : `str`
         Name of the output CHAINED collection. This may either be an existing
         CHAINED collection to use as both input and output (if `input` is
@@ -136,6 +137,7 @@ def qgraph(pipelineObj, qgraph, qgraph_id, qgraph_node_id, skip_existing, save_q
                            prune_replaced=prune_replaced,
                            data_query=data_query,
                            show=show,
+                           skip_existing_in=skip_existing_in,
                            skip_existing=skip_existing,
                            execution_butler_location=save_execution_butler,
                            clobber_execution_butler=clobber_execution_butler,
