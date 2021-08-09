@@ -627,9 +627,8 @@ class CmdLineFwk:
             except ImportError:
                 _LOG.warn("No 'debug' module found.")
 
-        # --skip-existing should have no effect unless --extend-run is passed
-        # so we make PreExecInit's skipExisting depend on the latter as well.
-        preExecInit = PreExecInit(butler, taskFactory, skipExisting=args.extend_run)
+        # Save all InitOutputs, configs, etc.
+        preExecInit = PreExecInit(butler, taskFactory, extendRun=args.extend_run)
         preExecInit.initialize(graph,
                                saveInitOutputs=not args.skip_init_writes,
                                registerDatasetTypes=args.register_dataset_types,
