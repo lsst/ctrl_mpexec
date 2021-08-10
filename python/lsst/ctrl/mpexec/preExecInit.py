@@ -197,7 +197,9 @@ class PreExecInit:
                             raise TypeError(f"Stored initOutput object type {type(objFromStore)} "
                                             f"is different  from task-generated type "
                                             f"{type(initOutputVar)} for task {taskDef}")
-                    except LookupError:
+                    except (LookupError, FileNotFoundError):
+                        # FileNotFoundError likely means execution butler
+                        # where refs do exist but datastore artifacts do not.
                         pass
                 if objFromStore is None:
                     # butler will raise exception if dataset is already there
@@ -242,7 +244,9 @@ class PreExecInit:
                             raise TypeError(
                                 f"Config does not match existing task config {configName!r} in butler; "
                                 "tasks configurations must be consistent within the same run collection")
-                    except LookupError:
+                    except (LookupError, FileNotFoundError):
+                        # FileNotFoundError likely means execution butler
+                        # where refs do exist but datastore artifacts do not.
                         pass
                 if oldConfig is None:
                     # butler will raise exception if dataset is already there
@@ -274,7 +278,9 @@ class PreExecInit:
                 try:
                     oldPackages = self.butler.get(datasetType, dataId, collections=[self.butler.run])
                     _LOG.debug("old packages: %s", oldPackages)
-                except LookupError:
+                except (LookupError, FileNotFoundError):
+                    # FileNotFoundError likely means execution butler where
+                    # refs do exist but datastore artifacts do not.
                     pass
             if oldPackages is not None:
                 # Note that because we can only detect python modules that have
