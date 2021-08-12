@@ -49,24 +49,24 @@ class PreExecInitTestCase(unittest.TestCase):
 
     def test_saveInitOutputs(self):
         taskFactory = AddTaskFactoryMock()
-        for skipExisting in (False, True):
-            with self.subTest(skipExisting=skipExisting):
+        for extendRun in (False, True):
+            with self.subTest(extendRun=extendRun):
                 with temporaryDirectory() as tmpdir:
                     butler, qgraph = makeSimpleQGraph(root=tmpdir)
                     preExecInit = PreExecInit(butler=butler, taskFactory=taskFactory,
-                                              skipExisting=skipExisting)
+                                              extendRun=extendRun)
                     preExecInit.saveInitOutputs(qgraph)
 
     def test_saveInitOutputs_twice(self):
         taskFactory = AddTaskFactoryMock()
-        for skipExisting in (False, True):
-            with self.subTest(skipExisting=skipExisting):
+        for extendRun in (False, True):
+            with self.subTest(extendRun=extendRun):
                 with temporaryDirectory() as tmpdir:
                     butler, qgraph = makeSimpleQGraph(root=tmpdir)
                     preExecInit = PreExecInit(butler=butler, taskFactory=taskFactory,
-                                              skipExisting=skipExisting)
+                                              extendRun=extendRun)
                     preExecInit.saveInitOutputs(qgraph)
-                    if skipExisting:
+                    if extendRun:
                         # will ignore this
                         preExecInit.saveInitOutputs(qgraph)
                     else:
@@ -75,21 +75,21 @@ class PreExecInitTestCase(unittest.TestCase):
                             preExecInit.saveInitOutputs(qgraph)
 
     def test_saveConfigs(self):
-        for skipExisting in (False, True):
-            with self.subTest(skipExisting=skipExisting):
+        for extendRun in (False, True):
+            with self.subTest(extendRun=extendRun):
                 with temporaryDirectory() as tmpdir:
                     butler, qgraph = makeSimpleQGraph(root=tmpdir)
-                    preExecInit = PreExecInit(butler=butler, taskFactory=None, skipExisting=skipExisting)
+                    preExecInit = PreExecInit(butler=butler, taskFactory=None, extendRun=extendRun)
                     preExecInit.saveConfigs(qgraph)
 
     def test_saveConfigs_twice(self):
-        for skipExisting in (False, True):
-            with self.subTest(skipExisting=skipExisting):
+        for extendRun in (False, True):
+            with self.subTest(extendRun=extendRun):
                 with temporaryDirectory() as tmpdir:
                     butler, qgraph = makeSimpleQGraph(root=tmpdir)
-                    preExecInit = PreExecInit(butler=butler, taskFactory=None, skipExisting=skipExisting)
+                    preExecInit = PreExecInit(butler=butler, taskFactory=None, extendRun=extendRun)
                     preExecInit.saveConfigs(qgraph)
-                    if skipExisting:
+                    if extendRun:
                         # will ignore this
                         preExecInit.saveConfigs(qgraph)
                     else:
@@ -98,21 +98,21 @@ class PreExecInitTestCase(unittest.TestCase):
                             preExecInit.saveConfigs(qgraph)
 
     def test_savePackageVersions(self):
-        for skipExisting in (False, True):
-            with self.subTest(skipExisting=skipExisting):
+        for extendRun in (False, True):
+            with self.subTest(extendRun=extendRun):
                 with temporaryDirectory() as tmpdir:
                     butler, qgraph = makeSimpleQGraph(root=tmpdir)
-                    preExecInit = PreExecInit(butler=butler, taskFactory=None, skipExisting=skipExisting)
+                    preExecInit = PreExecInit(butler=butler, taskFactory=None, extendRun=extendRun)
                     preExecInit.savePackageVersions(qgraph)
 
     def test_savePackageVersions_twice(self):
-        for skipExisting in (False, True):
-            with self.subTest(skipExisting=skipExisting):
+        for extendRun in (False, True):
+            with self.subTest(extendRun=extendRun):
                 with temporaryDirectory() as tmpdir:
                     butler, qgraph = makeSimpleQGraph(root=tmpdir)
-                    preExecInit = PreExecInit(butler=butler, taskFactory=None, skipExisting=skipExisting)
+                    preExecInit = PreExecInit(butler=butler, taskFactory=None, extendRun=extendRun)
                     preExecInit.savePackageVersions(qgraph)
-                    if skipExisting:
+                    if extendRun:
                         # If this is the same packages then it should not
                         # attempt to save.
                         preExecInit.savePackageVersions(qgraph)

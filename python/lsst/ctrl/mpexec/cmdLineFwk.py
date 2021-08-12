@@ -35,7 +35,7 @@ import getpass
 import logging
 import re
 import sys
-from typing import Optional, Tuple
+from typing import Iterable, Optional, Tuple
 import warnings
 
 # -----------------------------
@@ -49,7 +49,8 @@ from lsst.daf.butler import (
 )
 from lsst.daf.butler.registry import MissingCollectionError, RegistryDefaults
 import lsst.pex.config as pexConfig
-from lsst.pipe.base import GraphBuilder, Pipeline, QuantumGraph, buildExecutionButler
+from lsst.pipe.base import (buildExecutionButler, GraphBuilder, Pipeline,
+                            PipelineDatasetTypes, QuantumGraph, TaskDef)
 from lsst.obs.base import Instrument
 from .dotTools import graph2dot, pipeline2dot
 from .executionGraphFixup import ExecutionGraphFixup
@@ -143,7 +144,7 @@ class _ButlerFactory:
     registry : `lsst.daf.butler.Registry`
         Butler registry that collections will be added to and/or queried from.
 
-    args : `argparse.Namespace`
+    args : `types.SimpleNamespace`
         Parsed command-line arguments.  The following attributes are used,
         either at construction or in later methods.
 
@@ -214,7 +215,7 @@ class _ButlerFactory:
 
         Parameters
         ----------
-        args : `argparse.Namespace`
+        args : `types.SimpleNamespace`
             Parsed command-line arguments.  See class documentation for the
             construction parameter of the same name.
         """
@@ -257,7 +258,7 @@ class _ButlerFactory:
 
         Parameters
         ----------
-        args : `argparse.Namespace`
+        args : `types.SimpleNamespace`
             Parsed command-line arguments.  See class documentation for the
             construction parameter of the same name.
 
@@ -297,7 +298,7 @@ class _ButlerFactory:
 
         Parameters
         ----------
-        args : `argparse.Namespace`
+        args : `types.SimpleNamespace`
             Parsed command-line arguments.  See class documentation for the
             construction parameter of the same name.
 
@@ -319,7 +320,7 @@ class _ButlerFactory:
 
         Parameters
         ----------
-        args : `argparse.Namespace`
+        args : `types.SimpleNamespace`
             Parsed command-line arguments.  See class documentation for the
             construction parameter of the same name.
 
@@ -340,15 +341,20 @@ class _ButlerFactory:
         return butler.registry, inputs, run
 
     @classmethod
-    def makeWriteButler(cls, args: argparse.Namespace) -> Butler:
+    def makeWriteButler(cls, args: argparse.Namespace,
+                        taskDefs: Optional[Iterable[TaskDef]] = None) -> Butler:
         """Return a read-write butler initialized to write to and read from
         the collections specified by the given command-line arguments.
 
         Parameters
         ----------
-        args : `argparse.Namespace`
+        args : `types.SimpleNamespace`
             Parsed command-line arguments.  See class documentation for the
             construction parameter of the same name.
+        taskDefs : iterable of `TaskDef`, optional
+            Definitions for tasks in a pipeline. This argument is only needed
+            if ``args.replace_run`` is `True` and ``args.prune_replaced`` is
+            "unstore".
 
         Returns
         -------
@@ -366,6 +372,11 @@ class _ButlerFactory:
                     # Remove datasets from datastore
                     with butler.transaction():
                         refs = butler.registry.queryDatasets(..., collections=replaced)
+                        # we want to remove regular outputs but keep
+                        # initOutputs, configs, and versions.
+                        if taskDefs is not None:
+                            initDatasetNames = set(PipelineDatasetTypes.initOutputNames(taskDefs))
+                            refs = [ref for ref in refs if ref.datasetType.name not in initDatasetNames]
                         butler.pruneDatasets(refs, unstore=True, run=replaced, disassociate=False)
                 elif args.prune_replaced == "purge":
                     # Erase entire collection and all datasets, need to remove
@@ -460,7 +471,7 @@ class CmdLineFwk:
 
         Parameters
         ----------
-        args : `argparse.Namespace`
+        args : `types.SimpleNamespace`
             Parsed command line
 
         Returns
@@ -515,7 +526,7 @@ class CmdLineFwk:
         ----------
         pipeline : `~lsst.pipe.base.Pipeline`
             Pipeline, can be empty or ``None`` if graph is read from a file.
-        args : `argparse.Namespace`
+        args : `types.SimpleNamespace`
             Parsed command line
 
         Returns
@@ -524,7 +535,14 @@ class CmdLineFwk:
             If resulting graph is empty then `None` is returned.
         """
 
+        # make sure that --extend-run always enables --skip-existing
+        if args.extend_run:
+            args.skip_existing = True
+
         registry, collections, run = _ButlerFactory.makeRegistryAndCollections(args)
+
+        if args.skip_existing and run:
+            args.skip_existing_in += (run,)
 
         if args.qgraph:
             # click passes empty tuple as default value for qgraph_node_id
@@ -540,13 +558,14 @@ class CmdLineFwk:
 
             # make execution plan (a.k.a. DAG) for pipeline
             graphBuilder = GraphBuilder(registry,
-                                        skipExisting=args.skip_existing,
+                                        skipExistingIn=args.skip_existing_in,
                                         clobberOutputs=args.clobber_outputs)
             # accumulate metadata
             metadata = {"input": args.input, "output": args.output, "butler_argument": args.butler_config,
                         "output_run": args.output_run, "extend_run": args.extend_run,
-                        "skip_existing": args.skip_existing, "data_query": args.data_query,
-                        "user": getpass.getuser(), "time": f"{datetime.datetime.now()}"}
+                        "skip_existing_in": args.skip_existing_in, "skip_existing": args.skip_existing,
+                        "data_query": args.data_query, "user": getpass.getuser(),
+                        "time": f"{datetime.datetime.now()}"}
             qgraph = graphBuilder.makeGraph(pipeline, collections, run, args.data_query, metadata=metadata)
 
         # Count quanta in graph and give a warning if it's empty and return
@@ -598,15 +617,22 @@ class CmdLineFwk:
             Execution graph.
         taskFactory : `~lsst.pipe.base.TaskFactory`
             Task factory
-        args : `argparse.Namespace`
+        args : `types.SimpleNamespace`
             Parsed command line
         butler : `~lsst.daf.butler.Butler`, optional
             Data Butler instance, if not defined then new instance is made
             using command line options.
         """
+        # make sure that --extend-run always enables --skip-existing
+        if args.extend_run:
+            args.skip_existing = True
+
         # make butler instance
         if butler is None:
-            butler = _ButlerFactory.makeWriteButler(args)
+            butler = _ButlerFactory.makeWriteButler(args, graph.iterTaskGraph())
+
+        if args.skip_existing:
+            args.skip_existing_in += (butler.run, )
 
         # Enable lsstDebug debugging. Note that this is done once in the
         # main process before PreExecInit and it is also repeated before
@@ -619,9 +645,8 @@ class CmdLineFwk:
             except ImportError:
                 _LOG.warn("No 'debug' module found.")
 
-        # --skip-existing should have no effect unless --extend-run is passed
-        # so we make PreExecInit's skipExisting depend on the latter as well.
-        preExecInit = PreExecInit(butler, taskFactory, skipExisting=(args.skip_existing and args.extend_run))
+        # Save all InitOutputs, configs, etc.
+        preExecInit = PreExecInit(butler, taskFactory, extendRun=args.extend_run)
         preExecInit.initialize(graph,
                                saveInitOutputs=not args.skip_init_writes,
                                registerDatasetTypes=args.register_dataset_types,
@@ -630,7 +655,7 @@ class CmdLineFwk:
         if not args.init_only:
             graphFixup = self._importGraphFixup(args)
             quantumExecutor = SingleQuantumExecutor(taskFactory,
-                                                    skipExisting=args.skip_existing,
+                                                    skipExistingIn=args.skip_existing_in,
                                                     clobberOutputs=args.clobber_outputs,
                                                     enableLsstDebug=args.enableLsstDebug,
                                                     exitOnKnownError=args.fail_fast)
@@ -648,7 +673,7 @@ class CmdLineFwk:
 
         Parameters
         ----------
-        args : `argparse.Namespace`
+        args : `types.SimpleNamespace`
             Parsed command line
         pipeline : `Pipeline`
             Pipeline definition
@@ -828,7 +853,7 @@ class CmdLineFwk:
         ----------
         graph : `QuantumGraph`
             Execution graph.
-        args : `argparse.Namespace`
+        args : `types.SimpleNamespace`
             Parsed command line
         """
         for node in graph:
@@ -843,7 +868,7 @@ class CmdLineFwk:
         ----------
         graph : `QuantumGraph`
             Execution graph
-        args : `argparse.Namespace`
+        args : `types.SimpleNamespace`
             Parsed command line
         """
         def dumpURIs(thisRef):
@@ -872,7 +897,7 @@ class CmdLineFwk:
 
         Parameters
         ----------
-        args : `argparse.Namespace`
+        args : `types.SimpleNamespace`
             Parsed command line.
 
         Returns

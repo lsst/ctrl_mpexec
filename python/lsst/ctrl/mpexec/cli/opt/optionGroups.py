@@ -67,6 +67,7 @@ class qgraph_options(OptionGroup):  # noqa: N801
             ctrlMpExecOpts.qgraph_option(),
             ctrlMpExecOpts.qgraph_id_option(),
             ctrlMpExecOpts.qgraph_node_id_option(),
+            ctrlMpExecOpts.skip_existing_in_option(),
             ctrlMpExecOpts.skip_existing_option(),
             ctrlMpExecOpts.clobber_outputs_option(),
             ctrlMpExecOpts.save_qgraph_option(),

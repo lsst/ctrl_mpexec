@@ -46,6 +46,7 @@ def run(do_raise,
         replace_run,
         prune_replaced,
         data_query,
+        skip_existing_in,
         skip_existing,
         debug,
         fail_fast,
@@ -89,10 +90,8 @@ def run(do_raise,
         butler/registry config file. If `dict`, `butler_config` is key value
         pairs used to init or update the `lsst.daf.butler.Config` instance. If
         `Config`, it is the object used to configure a Butler.
-    input : `str`
-        Comma-separated names of the input collection(s). Entries may include a
-        colon (:), the first string is a dataset type name that restricts the
-        search in that collection.
+    input : `list` [ `str` ]
+        List of names of the input collection(s).
     output : `str`
         Name of the output CHAINED collection. This may either be an existing
         CHAINED collection to use as both input and output (if `input` is
@@ -122,10 +121,12 @@ def run(do_raise,
         removing them and the RUN completely ("purge"). Requires `replace_run`.
     data_query : `str`
         User query selection expression.
+    skip_existing_in : `list` [ `str` ]
+        Accepts list of collections, if all Quantum outputs already exist in
+        the specified list of collections then that Quantum will be excluded
+        from the QuantumGraph.
     skip_existing : `bool`
-        If all Quantum outputs already exist in the output RUN collection then
-        that Quantum will be excluded from the QuantumGraph. Requires the 'run`
-        command's `--extend-run` flag to be set.
+        Appends output RUN collection to the ``skip_existing_in`` list.
     debug : `bool`
         If true, enable debugging output using lsstDebug facility (imports
         debug.py).
@@ -159,6 +160,7 @@ def run(do_raise,
                            replace_run=replace_run,
                            prune_replaced=prune_replaced,
                            data_query=data_query,
+                           skip_existing_in=skip_existing_in,
                            skip_existing=skip_existing,
                            enableLsstDebug=debug,
                            fail_fast=fail_fast,

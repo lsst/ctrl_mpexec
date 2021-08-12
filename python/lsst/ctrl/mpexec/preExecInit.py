@@ -49,19 +49,19 @@ class PreExecInit:
         Data butler instance.
     taskFactory : `~lsst.pipe.base.TaskFactory`
         Task factory.
-    skipExisting : `bool`, optional
+    extendRun : `bool`, optional
         If `True` then do not try to overwrite any datasets that might exist
         in ``butler.run``; instead compare them when appropriate/possible.  If
         `False`, then any existing conflicting dataset will cause a butler
         exception to be raised.
     """
-    def __init__(self, butler, taskFactory, skipExisting=False):
+    def __init__(self, butler, taskFactory, extendRun=False):
         self.butler = butler
         self.taskFactory = taskFactory
-        self.skipExisting = skipExisting
-        if self.skipExisting and self.butler.run is None:
+        self.extendRun = extendRun
+        if self.extendRun and self.butler.run is None:
             raise RuntimeError(
-                "Cannot perform skipExisting logic unless butler is initialized "
+                "Cannot perform extendRun logic unless butler is initialized "
                 "with a default output RUN collection."
             )
 
@@ -154,14 +154,17 @@ class PreExecInit:
 
         Raises
         ------
+        TypeError
+            Raised if ``extendRun`` is `True` but type of existing object in
+            butler is different from new data.
         Exception
-            Raised if ``skipExisting`` is `False` and datasets already
+            Raised if ``extendRun`` is `False` and datasets already
             exists. Content of a butler collection may be changed if
             exception is raised.
 
         Notes
         -----
-        If ``skipExisting`` is `True` then existing datasets are not
+        If ``extendRun`` is `True` then existing datasets are not
         overwritten, instead we should check that their stored object is
         exactly the same as what we would save at this time. Comparing
         arbitrary types of object is, of course, non-trivial. Current
@@ -182,7 +185,7 @@ class PreExecInit:
                 attribute = getattr(taskDef.connections, name)
                 initOutputVar = getattr(task, name)
                 objFromStore = None
-                if self.skipExisting:
+                if self.extendRun:
                     # check if it is there already
                     _LOG.debug("Retrieving InitOutputs for task=%s key=%s dsTypeName=%s",
                                task, name, attribute.name)
@@ -194,7 +197,9 @@ class PreExecInit:
                             raise TypeError(f"Stored initOutput object type {type(objFromStore)} "
                                             f"is different  from task-generated type "
                                             f"{type(initOutputVar)} for task {taskDef}")
-                    except LookupError:
+                    except (LookupError, FileNotFoundError):
+                        # FileNotFoundError likely means execution butler
+                        # where refs do exist but datastore artifacts do not.
                         pass
                 if objFromStore is None:
                     # butler will raise exception if dataset is already there
@@ -212,8 +217,11 @@ class PreExecInit:
 
         Raises
         ------
+        TypeError
+            Raised if ``extendRun`` is `True` but existing object in butler is
+            different from new data.
         Exception
-            Raised if ``skipExisting`` is `False` and datasets already exists.
+            Raised if ``extendRun`` is `False` and datasets already exists.
             Content of a butler collection should not be changed if exception
             is raised.
         """
@@ -229,14 +237,16 @@ class PreExecInit:
                 configName = taskDef.configDatasetName
 
                 oldConfig = None
-                if self.skipExisting:
+                if self.extendRun:
                     try:
                         oldConfig = self.butler.get(configName, {}, collections=[self.butler.run])
                         if not taskDef.config.compare(oldConfig, shortcut=False, output=logConfigMismatch):
                             raise TypeError(
                                 f"Config does not match existing task config {configName!r} in butler; "
                                 "tasks configurations must be consistent within the same run collection")
-                    except LookupError:
+                    except (LookupError, FileNotFoundError):
+                        # FileNotFoundError likely means execution butler
+                        # where refs do exist but datastore artifacts do not.
                         pass
                 if oldConfig is None:
                     # butler will raise exception if dataset is already there
@@ -253,22 +263,24 @@ class PreExecInit:
 
         Raises
         ------
-        Exception
-            Raised if ``checkExisting`` is ``True`` but versions are not
-            compatible.
+        TypeError
+            Raised if ``extendRun`` is `True` but existing object in butler is
+            different from new data.
         """
         packages = Packages.fromSystem()
         _LOG.debug("want to save packages: %s", packages)
-        datasetType = "packages"
+        datasetType = PipelineDatasetTypes.packagesDatasetName
         dataId = {}
         oldPackages = None
         # start transaction to rollback any changes on exceptions
         with self.butler.transaction():
-            if self.skipExisting:
+            if self.extendRun:
                 try:
                     oldPackages = self.butler.get(datasetType, dataId, collections=[self.butler.run])
                     _LOG.debug("old packages: %s", oldPackages)
-                except LookupError:
+                except (LookupError, FileNotFoundError):
+                    # FileNotFoundError likely means execution butler where
+                    # refs do exist but datastore artifacts do not.
                     pass
             if oldPackages is not None:
                 # Note that because we can only detect python modules that have
