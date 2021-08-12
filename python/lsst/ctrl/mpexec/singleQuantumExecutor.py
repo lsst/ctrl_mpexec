@@ -236,7 +236,7 @@ class SingleQuantumExecutor(QuantumExecutor):
 
         ctx = _LogCaptureFlag()
         try:
-            with ButlerMDC.set_mdc({"LABEL": label}):
+            with ButlerMDC.set_mdc({"LABEL": label, "RUN": butler.run}):
                 yield ctx
         finally:
             # Ensure that the logs are stored in butler.
