@@ -25,6 +25,7 @@ __all__ = ["MPGraphExecutor", "MPGraphExecutorError", "MPTimeoutError"]
 #  Imports of standard modules --
 # -------------------------------
 from enum import Enum
+import gc
 import logging
 import multiprocessing
 import pickle
@@ -348,7 +349,13 @@ class MPGraphExecutor(QuantumGraphExecutor):
         count, totalCount = 0, len(graph)
         for qnode in graph:
             _LOG.debug("Executing %s", qnode)
-            self.quantumExecutor.execute(qnode.taskDef, qnode.quantum, butler)
+            try:
+                self.quantumExecutor.execute(qnode.taskDef, qnode.quantum, butler)
+            finally:
+                # sqlalchemy has some objects that can last until a garbage
+                # collection cycle is run, which can happen at unpredictable
+                # times, run a collection loop here explicitly.
+                gc.collect()
             count += 1
             _LOG.info("Executed %d quanta, %d remain out of total %d quanta.",
                       count, totalCount - count, totalCount)
