@@ -223,6 +223,21 @@ class SingleQuantumExecutor(QuantumExecutor):
                                                   delete=False)
                 self.log_handler = FileHandler(tmp.name)
                 tmp.close()
+
+                # Want to ensure that this temp file has same permissions
+                # as a standard file since at the end this file will be
+                # ingested to datastore. Do this by reading umask
+                # (which requires we set umask and then set it again).
+                # Changing umask is process wide so pick something that
+                # is least dangerous. Other alternatives are to fork a process
+                # that prints the umask. Using transfer=copy does not help
+                # because shutil.copy always copies file permissions.
+                # Alternatively, create a temporary directory and then open
+                # the file inside that directory without using tempfile.
+                umask = os.umask(0o666)
+                os.umask(umask)
+                os.chmod(tmp.name, 0o666 & ~umask)
+
                 self.log_handler.setFormatter(JsonLogFormatter())
             else:
                 self.log_handler = ButlerLogRecordHandler()
