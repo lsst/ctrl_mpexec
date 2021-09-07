@@ -26,6 +26,7 @@ __all__ = ['SingleQuantumExecutor']
 # -------------------------------
 import logging
 import os
+import shutil
 import sys
 import tempfile
 import time
@@ -216,13 +217,21 @@ class SingleQuantumExecutor(QuantumExecutor):
         if taskDef.logOutputDatasetName is not None:
             # Either accumulate into ButlerLogRecords or stream
             # JSON records to file and ingest that.
+            tmpdir = None
             if self.stream_json_logs:
-                tmp = tempfile.NamedTemporaryFile(mode="w",
-                                                  suffix=".json",
-                                                  prefix=f"butler-log-{taskDef.label}-",
-                                                  delete=False)
-                self.log_handler = FileHandler(tmp.name)
-                tmp.close()
+                # Create the log file in a temporary directory rather than
+                # creating a temporary file. This is necessary because
+                # temporary files are created with restrictive permissions
+                # and during file ingest these permissions persist in the
+                # datastore. Using a temp directory allows us to create
+                # a file with umask default permissions.
+                tmpdir = tempfile.mkdtemp(prefix="butler-temp-logs-")
+
+                # Construct a file to receive the log records and "touch" it.
+                log_file = os.path.join(tmpdir, f"butler-log-{taskDef.label}.json")
+                with open(log_file, "w"):
+                    pass
+                self.log_handler = FileHandler(log_file)
                 self.log_handler.setFormatter(JsonLogFormatter())
             else:
                 self.log_handler = ButlerLogRecordHandler()
@@ -241,6 +250,8 @@ class SingleQuantumExecutor(QuantumExecutor):
         finally:
             # Ensure that the logs are stored in butler.
             self.writeLogRecords(quantum, taskDef, butler, ctx.store)
+            if tmpdir:
+                shutil.rmtree(tmpdir, ignore_errors=True)
 
     def checkExistingOutputs(self, quantum, butler, taskDef):
         """Decide whether this quantum needs to be executed.
