@@ -209,7 +209,7 @@ class PreExecInit:
                         pass
                 if objFromStore is None:
                     # butler will raise exception if dataset is already there
-                    _LOG.debug("Saving InitOutputs for task=%s key=%s", task, name)
+                    _LOG.debug("Saving InitOutputs for task=%s key=%s", taskDef.label, name)
                     self.butler.put(initOutputVar, attribute.name, {})
 
     def saveConfigs(self, graph):
