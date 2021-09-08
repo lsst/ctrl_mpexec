@@ -587,7 +587,7 @@ class CmdLineFwk:
         if args.save_single_quanta:
             for quantumNode in qgraph:
                 sqgraph = qgraph.subset(quantumNode)
-                uri = args.save_single_quanta.format(quantumNode.nodeId.number)
+                uri = args.save_single_quanta.format(quantumNode)
                 sqgraph.saveUri(uri)
 
         if args.qgraph_dot:
@@ -870,9 +870,9 @@ class CmdLineFwk:
             Parsed command line
         """
         for node in graph:
-            print(f"Quantum {node.nodeId.number}: {node.taskDef.taskName}")
+            print(f"Quantum {node.nodeId}: {node.taskDef.taskName}")
             for parent in graph.determineInputsToQuantumNode(node):
-                print(f"Parent Quantum {parent.nodeId.number} - Child Quantum {node.nodeId.number}")
+                print(f"Parent Quantum {parent.nodeId} - Child Quantum {node.nodeId}")
 
     def _showUri(self, graph, args):
         """Print input and predicted output URIs to stdout
@@ -895,7 +895,7 @@ class CmdLineFwk:
 
         butler = _ButlerFactory.makeReadButler(args)
         for node in graph:
-            print(f"Quantum {node.nodeId.number}: {node.taskDef.taskName}")
+            print(f"Quantum {node.nodeId}: {node.taskDef.taskName}")
             print("  inputs:")
             for key, refs in node.quantum.inputs.items():
                 for ref in refs:
