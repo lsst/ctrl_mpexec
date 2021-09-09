@@ -603,7 +603,7 @@ class CmdLineFwk:
                 return newButler
 
             buildExecutionButler(butler, qgraph, args.execution_butler_location, run,
-                                 butlerModifier=builderShim, collections=args.input,
+                                 butlerModifier=builderShim, collections=collections,
                                  clobber=args.clobber_execution_butler)
 
         return qgraph
