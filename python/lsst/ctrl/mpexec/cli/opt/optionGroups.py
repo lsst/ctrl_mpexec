@@ -75,7 +75,8 @@ class qgraph_options(OptionGroup):  # noqa: N801
             ctrlMpExecOpts.qgraph_dot_option(),
             ctrlMpExecOpts.save_execution_butler_option(),
             ctrlMpExecOpts.clobber_execution_butler_option(),
-            ctrlMpExecOpts.dataset_query_constraint()]
+            ctrlMpExecOpts.dataset_query_constraint(),
+            ctrlMpExecOpts.qgraph_header_data_option()]
 
 
 class butler_options(OptionGroup):  # noqa: N801

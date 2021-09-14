@@ -555,9 +555,9 @@ class CmdLineFwk:
             # pipeline can not be provided in this case
             if pipeline:
                 raise ValueError("Pipeline must not be given when quantum graph is read from file.")
-
+            if args.show_qgraph_header:
+                print(QuantumGraph.readHeader(args.qgraph))
         else:
-
             # make execution plan (a.k.a. DAG) for pipeline
             graphBuilder = GraphBuilder(registry,
                                         skipExistingIn=args.skip_existing_in,
@@ -570,6 +570,8 @@ class CmdLineFwk:
                         "time": f"{datetime.datetime.now()}"}
             qgraph = graphBuilder.makeGraph(pipeline, collections, run, args.data_query, metadata=metadata,
                                             datasetQueryConstraint=args.dataset_query_constraint)
+            if args.show_qgraph_header:
+                print(qgraph.buildAndPrintHeader())
 
         # Count quanta in graph and give a warning if it's empty and return
         # None.
