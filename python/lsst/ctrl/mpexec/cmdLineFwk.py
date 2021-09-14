@@ -602,8 +602,18 @@ class CmdLineFwk:
                 newButler = _ButlerFactory.makeWriteButler(newArgs)
                 return newButler
 
+            # Include output collection in collections for input
+            # files if it exists in the repo.
+            all_inputs = args.input
+            if args.output is not None:
+                try:
+                    all_inputs += (next(iter(butler.registry.queryCollections(args.output))), )
+                except MissingCollectionError:
+                    pass
+
+            _LOG.debug("Calling buildExecutionButler with collections=%s", all_inputs)
             buildExecutionButler(butler, qgraph, args.execution_butler_location, run,
-                                 butlerModifier=builderShim, collections=collections,
+                                 butlerModifier=builderShim, collections=all_inputs,
                                  clobber=args.clobber_execution_butler)
 
         return qgraph
