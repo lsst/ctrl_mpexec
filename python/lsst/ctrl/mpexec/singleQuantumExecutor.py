@@ -118,7 +118,7 @@ class SingleQuantumExecutor(QuantumExecutor):
     def execute(self, taskDef, quantum, butler):
         # Docstring inherited from QuantumExecutor.execute
         startTime = time.time()
-
+        butler.registry.refresh()
         with self.captureLogging(taskDef, quantum, butler) as captureLog:
 
             # Save detailed resource usage before task start to metadata.
@@ -391,7 +391,7 @@ class SingleQuantumExecutor(QuantumExecutor):
                     resolvedRef = butler.registry.findDataset(ref.datasetType, ref.dataId,
                                                               collections=butler.collections)
                     if resolvedRef is None:
-                        _LOG.info("No dataset found for %s", ref)
+                        _LOG.info("No dataset found for %s in collections %s", ref, butler.collections)
                         continue
                     else:
                         _LOG.debug("Updated dataset ID for %s", ref)

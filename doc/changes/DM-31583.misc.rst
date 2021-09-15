@@ -1,0 +1,3 @@
+Refresh butler caches before executing each quantum.
+
+This may increase contention for database connections when running many jobs against a shared database, but it is needed to avoid lookup failures due stale caches in butler.
