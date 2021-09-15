@@ -194,6 +194,8 @@ class _ButlerFactory:
             self.outputRun = _OutputRunCollectionInfo(registry, args.output_run)
         elif self.output is not None:
             if args.extend_run:
+                if not self.output.chain:
+                    raise ValueError("Cannot use --extend-run option with non-existing or empty output chain")
                 runName = self.output.chain[0]
             else:
                 runName = "{}/{}".format(self.output, Instrument.makeCollectionTimestamp())

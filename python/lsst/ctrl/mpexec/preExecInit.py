@@ -134,7 +134,13 @@ class PreExecInit:
                 self.butler.registry.registerDatasetType(datasetType)
             else:
                 _LOG.debug("Checking DatasetType %s against registry", datasetType)
-                expected = self.butler.registry.getDatasetType(datasetType.name)
+                try:
+                    expected = self.butler.registry.getDatasetType(datasetType.name)
+                except KeyError:
+                    # Likely means that --register-dataset-types is forgotten.
+                    raise KeyError(f"Dataset type with name '{datasetType.name}' not found. Dataset types "
+                                   "have to be registered with either `butler register-dataset-type` or "
+                                   "passing `--register-dataset-types` option to `pipetask run`.") from None
                 if datasetType.isComponent() \
                         and datasetType.parentStorageClass == DatasetType.PlaceholderParentStorageClass:
                     # Force the parent storage classes to match since we
@@ -203,7 +209,7 @@ class PreExecInit:
                         pass
                 if objFromStore is None:
                     # butler will raise exception if dataset is already there
-                    _LOG.debug("Saving InitOutputs for task=%s key=%s", task, name)
+                    _LOG.debug("Saving InitOutputs for task=%s key=%s", taskDef.label, name)
                     self.butler.put(initOutputVar, attribute.name, {})
 
     def saveConfigs(self, graph):

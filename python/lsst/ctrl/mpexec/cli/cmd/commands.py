@@ -25,6 +25,7 @@ from lsst.daf.butler.cli.opt import (config_file_option,
                                      config_option,
                                      options_file_option)
 from lsst.daf.butler.cli.utils import (MWCtxObj,
+                                       catch_and_exit,
                                        option_section,
                                        unwrap)
 import lsst.obs.base.cli.opt as obsBaseOpts
@@ -70,6 +71,7 @@ def _doBuild(ctx, **kwargs):
 @ctrlMpExecOpts.pipeline_build_options()
 @option_section(sectionText="")
 @options_file_option()
+@catch_and_exit
 def build(ctx, **kwargs):
     """Build and optionally save pipeline definition.
 
@@ -86,6 +88,7 @@ def build(ctx, **kwargs):
 @ctrlMpExecOpts.butler_options()
 @option_section(sectionText="")
 @options_file_option()
+@catch_and_exit
 def qgraph(ctx, **kwargs):
     """Build and optionally save quantum graph.
     """
@@ -95,6 +98,7 @@ def qgraph(ctx, **kwargs):
 
 @click.command(cls=PipetaskCommand, epilog=epilog)
 @ctrlMpExecOpts.run_options()
+@catch_and_exit
 def run(ctx, **kwargs):
     """Build and execute pipeline and quantum graph.
     """

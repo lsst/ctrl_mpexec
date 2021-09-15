@@ -84,7 +84,7 @@ class butler_options(OptionGroup):  # noqa: N801
     def __init__(self):
         self.decorators = [
             option_section(sectionText="Data repository and selection options:"),
-            ctrlMpExecOpts.butler_config_option(),
+            ctrlMpExecOpts.butler_config_option(required=True),
             ctrlMpExecOpts.input_option(),
             ctrlMpExecOpts.output_option(),
             ctrlMpExecOpts.output_run_option(),

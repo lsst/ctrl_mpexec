@@ -151,7 +151,8 @@ def _makeArgs(registryConfig=None, **kwargs):
         mock(**kwargs)
 
     runner = click.testing.CliRunner()
-    result = runner.invoke(fake_run)
+    # --butler-config is the only required option
+    result = runner.invoke(fake_run, "--butler-config /")
     if result.exit_code != 0:
         raise RuntimeError(f"Failure getting default args from 'fake_run': {result}")
     mock.assert_called_once()
