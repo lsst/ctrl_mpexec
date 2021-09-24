@@ -50,6 +50,7 @@ from lsst.daf.butler.registry import RegistryConfig
 from lsst.obs.base import Instrument
 import lsst.pex.config as pexConfig
 from lsst.pipe.base import (Pipeline, PipelineTaskConfig, QuantumGraph, TaskDef, PipelineTaskConnections)
+from lsst.pipe.base.graphBuilder import DatasetQueryConstraintVariant as DQCVariant
 import lsst.pipe.base.connectionTypes as cT
 import lsst.utils.tests
 from lsst.pipe.base.tests.simpleQGraph import (
@@ -175,6 +176,7 @@ def _makeArgs(registryConfig=None, **kwargs):
     # override arguments from keyword parameters
     for key, value in kwargs.items():
         setattr(args, key, value)
+    args.dataset_query_constraint = DQCVariant.fromExpression(args.dataset_query_constraint)
     return args
 
 
@@ -186,6 +188,9 @@ class FakeDSType(NamedTuple):
 class FakeDSRef:
     datasetType: str
     dataId: tuple
+
+    def isComponent(self):
+        return False
 
 
 # Task class name used by tests, needs to be importable

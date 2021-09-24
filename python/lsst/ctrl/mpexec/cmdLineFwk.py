@@ -568,7 +568,8 @@ class CmdLineFwk:
                         "skip_existing_in": args.skip_existing_in, "skip_existing": args.skip_existing,
                         "data_query": args.data_query, "user": getpass.getuser(),
                         "time": f"{datetime.datetime.now()}"}
-            qgraph = graphBuilder.makeGraph(pipeline, collections, run, args.data_query, metadata=metadata)
+            qgraph = graphBuilder.makeGraph(pipeline, collections, run, args.data_query, metadata=metadata,
+                                            datasetQueryConstraint=args.dataset_query_constraint)
 
         # Count quanta in graph and give a warning if it's empty and return
         # None.
