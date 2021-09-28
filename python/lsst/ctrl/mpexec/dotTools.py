@@ -62,6 +62,10 @@ def _renderTaskNode(nodeName, taskDef, file, idx=None):
         labels += [f"index: {idx}"]
     if taskDef.label:
         labels += [f"label: {taskDef.label}"]
+    if taskDef.connections:
+        # don't print collectin of str directly to avoid visual noise of quotes
+        dimensions_str = ', '.join(taskDef.connections.dimensions)
+        labels += [f"dimensions: {dimensions_str}"]
     _renderNode(file, nodeName, "task", labels)
 
 
