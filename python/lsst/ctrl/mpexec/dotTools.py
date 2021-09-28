@@ -42,6 +42,7 @@ from lsst.pipe.base import iterConnections, Pipeline
 # Node styles indexed by node type.
 _STYLES = dict(
     task=dict(shape="box", style="filled,bold", fillcolor="gray70"),
+    quantum=dict(shape="box", style="filled,bold", fillcolor="gray70"),
     dsType=dict(shape="box", style="rounded,filled", fillcolor="gray90"),
     dataset=dict(shape="box", style="rounded,filled", fillcolor="gray90"),
 )
@@ -61,10 +62,18 @@ def _renderTaskNode(nodeName, taskDef, file, idx=None):
     if idx is not None:
         labels.append(f"index: {idx}")
     if taskDef.connections:
-        # don't print collectin of str directly to avoid visual noise of quotes
+        # don't print collection of str directly to avoid visually noisy quotes
         dimensions_str = ', '.join(taskDef.connections.dimensions)
         labels.append(f"dimensions: {dimensions_str}")
     _renderNode(file, nodeName, "task", labels)
+
+
+def _renderQuantumNode(nodeName, taskDef, quantumNode, file):
+    """Render GV node for a quantum"""
+    labels = [f"{quantumNode.nodeId}", taskDef.label]
+    dataId = quantumNode.quantum.dataId
+    labels.extend(f"{key} = {dataId[key]}" for key in sorted(dataId.keys()))
+    _renderNode(file, nodeName, "quantum", labels)
 
 
 def _renderDSTypeNode(name, dimensions, file):
@@ -146,21 +155,21 @@ def graph2dot(qgraph, file):
     allDatasetRefs = {}
     for taskId, taskDef in enumerate(qgraph.taskGraph):
 
-        quanta = qgraph.getQuantaForTask(taskDef)
-        for qId, quantum in enumerate(quanta):
+        quanta = qgraph.getNodesForTask(taskDef)
+        for qId, quantumNode in enumerate(quanta):
 
             # node for a task
             taskNodeName = "task_{}_{}".format(taskId, qId)
-            _renderTaskNode(taskNodeName, taskDef, file)
+            _renderQuantumNode(taskNodeName, taskDef, quantumNode, file)
 
             # quantum inputs
-            for dsRefs in quantum.inputs.values():
+            for dsRefs in quantumNode.quantum.inputs.values():
                 for dsRef in dsRefs:
                     nodeName = _makeDSNode(dsRef, allDatasetRefs, file)
                     _renderEdge(nodeName, taskNodeName, file)
 
             # quantum outputs
-            for dsRefs in quantum.outputs.values():
+            for dsRefs in quantumNode.quantum.outputs.values():
                 for dsRef in dsRefs:
                     nodeName = _makeDSNode(dsRef, allDatasetRefs, file)
                     _renderEdge(taskNodeName, nodeName, file)
