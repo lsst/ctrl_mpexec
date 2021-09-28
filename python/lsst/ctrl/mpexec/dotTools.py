@@ -59,11 +59,11 @@ def _renderTaskNode(nodeName, taskDef, file, idx=None):
     """Render GV node for a task"""
     labels = [taskDef.label, taskDef.taskName]
     if idx is not None:
-        labels += [f"index: {idx}"]
+        labels.append(f"index: {idx}")
     if taskDef.connections:
         # don't print collectin of str directly to avoid visual noise of quotes
         dimensions_str = ', '.join(taskDef.connections.dimensions)
-        labels += [f"dimensions: {dimensions_str}"]
+        labels.append(f"dimensions: {dimensions_str}")
     _renderNode(file, nodeName, "task", labels)
 
 
@@ -71,14 +71,14 @@ def _renderDSTypeNode(name, dimensions, file):
     """Render GV node for a dataset type"""
     labels = [name]
     if dimensions:
-        labels += ["Dimensions: " + ", ".join(dimensions)]
+        labels.append("Dimensions: " + ", ".join(dimensions))
     _renderNode(file, name, "dsType", labels)
 
 
 def _renderDSNode(nodeName, dsRef, file):
     """Render GV node for a dataset"""
     labels = [dsRef.datasetType.name, f"run: {dsRef.run!r}"]
-    labels += [f"{key} = {dsRef.dataId[key]}" for key in sorted(dsRef.dataId.keys())]
+    labels.extend(f"{key} = {dsRef.dataId[key]}" for key in sorted(dsRef.dataId.keys()))
     _renderNode(file, nodeName, "dataset", labels)
 
 
@@ -94,7 +94,7 @@ def _renderEdge(fromName, toName, file, **kwargs):
 def _datasetRefId(dsRef):
     """Make an identifying string for given ref"""
     dsId = [dsRef.datasetType.name]
-    dsId += [f"{key} = {dsRef.dataId[key]}" for key in sorted(dsRef.dataId.keys())]
+    dsId.extend(f"{key} = {dsRef.dataId[key]}" for key in sorted(dsRef.dataId.keys()))
     return ":".join(dsId)
 
 
