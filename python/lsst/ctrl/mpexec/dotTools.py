@@ -79,7 +79,7 @@ def _renderDSTypeNode(name, dimensions, file):
 
 def _renderDSNode(nodeName, dsRef, file):
     """Render GV node for a dataset"""
-    labels = [dsRef.datasetType.name]
+    labels = [dsRef.datasetType.name, f"run: {dsRef.run!r}"]
     labels += [f"{key} = {dsRef.dataId[key]}" for key in sorted(dsRef.dataId.keys())]
     _renderNode(file, nodeName, "dataset", labels)
 
