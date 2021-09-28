@@ -57,11 +57,9 @@ def _renderNode(file, nodeName, style, labels):
 
 def _renderTaskNode(nodeName, taskDef, file, idx=None):
     """Render GV node for a task"""
-    labels = [taskDef.taskName.rpartition('.')[-1]]
+    labels = [taskDef.label, taskDef.taskName]
     if idx is not None:
         labels += [f"index: {idx}"]
-    if taskDef.label:
-        labels += [f"label: {taskDef.label}"]
     if taskDef.connections:
         # don't print collectin of str directly to avoid visual noise of quotes
         dimensions_str = ', '.join(taskDef.connections.dimensions)
