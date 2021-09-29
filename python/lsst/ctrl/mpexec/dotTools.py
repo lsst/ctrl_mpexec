@@ -42,6 +42,7 @@ from lsst.pipe.base import iterConnections, Pipeline
 # Node styles indexed by node type.
 _STYLES = dict(
     task=dict(shape="box", style="filled,bold", fillcolor="gray70"),
+    quantum=dict(shape="box", style="filled,bold", fillcolor="gray70"),
     dsType=dict(shape="box", style="rounded,filled", fillcolor="gray90"),
     dataset=dict(shape="box", style="rounded,filled", fillcolor="gray90"),
 )
@@ -57,26 +58,36 @@ def _renderNode(file, nodeName, style, labels):
 
 def _renderTaskNode(nodeName, taskDef, file, idx=None):
     """Render GV node for a task"""
-    labels = [taskDef.taskName.rpartition('.')[-1]]
+    labels = [taskDef.label, taskDef.taskName]
     if idx is not None:
-        labels += [f"index: {idx}"]
-    if taskDef.label:
-        labels += [f"label: {taskDef.label}"]
+        labels.append(f"index: {idx}")
+    if taskDef.connections:
+        # don't print collection of str directly to avoid visually noisy quotes
+        dimensions_str = ', '.join(taskDef.connections.dimensions)
+        labels.append(f"dimensions: {dimensions_str}")
     _renderNode(file, nodeName, "task", labels)
+
+
+def _renderQuantumNode(nodeName, taskDef, quantumNode, file):
+    """Render GV node for a quantum"""
+    labels = [f"{quantumNode.nodeId}", taskDef.label]
+    dataId = quantumNode.quantum.dataId
+    labels.extend(f"{key} = {dataId[key]}" for key in sorted(dataId.keys()))
+    _renderNode(file, nodeName, "quantum", labels)
 
 
 def _renderDSTypeNode(name, dimensions, file):
     """Render GV node for a dataset type"""
     labels = [name]
     if dimensions:
-        labels += ["Dimensions: " + ", ".join(dimensions)]
+        labels.append("Dimensions: " + ", ".join(dimensions))
     _renderNode(file, name, "dsType", labels)
 
 
 def _renderDSNode(nodeName, dsRef, file):
     """Render GV node for a dataset"""
-    labels = [dsRef.datasetType.name]
-    labels += [f"{key} = {dsRef.dataId[key]}" for key in sorted(dsRef.dataId.keys())]
+    labels = [dsRef.datasetType.name, f"run: {dsRef.run!r}"]
+    labels.extend(f"{key} = {dsRef.dataId[key]}" for key in sorted(dsRef.dataId.keys()))
     _renderNode(file, nodeName, "dataset", labels)
 
 
@@ -92,7 +103,7 @@ def _renderEdge(fromName, toName, file, **kwargs):
 def _datasetRefId(dsRef):
     """Make an identifying string for given ref"""
     dsId = [dsRef.datasetType.name]
-    dsId += [f"{key} = {dsRef.dataId[key]}" for key in sorted(dsRef.dataId.keys())]
+    dsId.extend(f"{key} = {dsRef.dataId[key]}" for key in sorted(dsRef.dataId.keys()))
     return ":".join(dsId)
 
 
@@ -144,21 +155,21 @@ def graph2dot(qgraph, file):
     allDatasetRefs = {}
     for taskId, taskDef in enumerate(qgraph.taskGraph):
 
-        quanta = qgraph.getQuantaForTask(taskDef)
-        for qId, quantum in enumerate(quanta):
+        quanta = qgraph.getNodesForTask(taskDef)
+        for qId, quantumNode in enumerate(quanta):
 
             # node for a task
             taskNodeName = "task_{}_{}".format(taskId, qId)
-            _renderTaskNode(taskNodeName, taskDef, file)
+            _renderQuantumNode(taskNodeName, taskDef, quantumNode, file)
 
             # quantum inputs
-            for dsRefs in quantum.inputs.values():
+            for dsRefs in quantumNode.quantum.inputs.values():
                 for dsRef in dsRefs:
                     nodeName = _makeDSNode(dsRef, allDatasetRefs, file)
                     _renderEdge(nodeName, taskNodeName, file)
 
             # quantum outputs
-            for dsRefs in quantum.outputs.values():
+            for dsRefs in quantumNode.quantum.outputs.values():
                 for dsRef in dsRefs:
                     nodeName = _makeDSNode(dsRef, allDatasetRefs, file)
                     _renderEdge(taskNodeName, nodeName, file)
