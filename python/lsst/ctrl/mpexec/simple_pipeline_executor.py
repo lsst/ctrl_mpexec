@@ -69,8 +69,11 @@ class SimplePipelineExecutor:
 
     @classmethod
     def prep_butler(
-        cls, root: str, inputs: Iterable[str], output: str, output_run: Optional[str] = None,
-        writeable: Optional[bool] = False
+        cls,
+        root: str,
+        inputs: Iterable[str],
+        output: str,
+        output_run: Optional[str] = None,
     ) -> Butler:
         """Helper method for creating `Butler` instances with collections
         appropriate for processing.
@@ -97,12 +100,13 @@ class SimplePipelineExecutor:
         -------
         butler : `Butler`
             Butler client instance compatible with all `classmethod` factories.
+            Always writeable.
         """
         if output_run is None:
             output_run = f"{output}/{Instrument.makeCollectionTimestamp()}"
         # Make initial butler with no collections, since we haven't created
         # them yet.
-        butler = Butler(root, writeable=writeable)
+        butler = Butler(root, writeable=True)
         butler.registry.registerCollection(output_run, CollectionType.RUN)
         butler.registry.registerCollection(output, CollectionType.CHAINED)
         collections = list(inputs)

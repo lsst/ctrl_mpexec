@@ -59,7 +59,7 @@ class SimplePipelineExecutorTests(lsst.utils.tests.TestCase):
     def setUp(self):
         self.path = tempfile.mkdtemp()
         lsst.daf.butler.Butler.makeRepo(self.path)
-        self.butler = SimplePipelineExecutor.prep_butler(self.path, [], "fake", writeable=True)
+        self.butler = SimplePipelineExecutor.prep_butler(self.path, [], "fake")
 
     def tearDown(self):
         shutil.rmtree(self.path, ignore_errors=True)
