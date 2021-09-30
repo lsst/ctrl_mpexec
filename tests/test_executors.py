@@ -57,6 +57,7 @@ class QuantumExecutorMock(QuantumExecutor):
             # only works for TaskMockMP class below
             taskDef.taskClass().runQuantum()
         self.quanta.append(quantum)
+        return quantum
 
     def getDataIds(self, field):
         """Returns values for dataId field for each visited quanta"""

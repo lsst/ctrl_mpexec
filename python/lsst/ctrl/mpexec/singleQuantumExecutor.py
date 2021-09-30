@@ -183,6 +183,7 @@ class SingleQuantumExecutor(QuantumExecutor):
             stopTime = time.time()
             _LOG.info("Execution of task '%s' on quantum %s took %.3f seconds",
                       taskDef.label, quantum.dataId, stopTime - startTime)
+        return quantum
 
     @contextmanager
     def captureLogging(self, taskDef, quantum, butler):

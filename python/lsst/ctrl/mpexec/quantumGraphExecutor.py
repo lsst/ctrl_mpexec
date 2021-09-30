@@ -53,6 +53,16 @@ class QuantumExecutor(ABC):
         butler : `~lsst.daf.butler.Butler`
             Data butler instance
 
+        Returns
+        -------
+        quantum : `Quantum`
+            The quantum actually executed.  At present this quantum will
+            contain only unresolved `DatasetRef` instances for output datasets,
+            reflecting the state of the quantum just before it was run (but
+            after any adjustments for predicted but now missing inputs).  This
+            may change in the future to include resolved output `DatasetRef`
+            objects.
+
         Notes
         -----
         Any exception raised by the task or code that wraps task execution is
