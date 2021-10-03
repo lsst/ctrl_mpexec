@@ -31,9 +31,12 @@ import lsst.utils.tests
 
 
 class FakeConnections(PipelineTaskConnections, dimensions=set()):
-    output = connectionTypes.Output(name="fakeOutput",
-                                    doc="some list-y data for testing",
-                                    storageClass="StructuredDataList")
+    input = connectionTypes.Input(
+        name="fakeInput", doc="some dict-y input data for testing", storageClass="StructuredDataDict"
+    )
+    output = connectionTypes.Output(
+        name="fakeOutput", doc="some dict-y input data for testing", storageClass="StructuredDataDict"
+    )
 
 
 class FakeConfig(PipelineTaskConfig, pipelineConnections=FakeConnections):
@@ -45,13 +48,14 @@ class FakeTask(PipelineTask):
     _DefaultName = "fakeTask"
 
     def run(self, input):
-        result = [1, 2, 3, 4]
-        return Struct(output=result,
-                      other=['a', 'b', 'c'])
+        result = {1: "one", 2: "two"}
+        result.update(input)
+        return Struct(output=result, other=["a", "b", "c"])
 
 
 class SimplePipelineExecutorTests(lsst.utils.tests.TestCase):
     """Test the SimplePipelineExecutor API with a trivial task."""
+
     def setUp(self):
         self.path = tempfile.mkdtemp()
         lsst.daf.butler.Butler.makeRepo(self.path)
@@ -61,9 +65,18 @@ class SimplePipelineExecutorTests(lsst.utils.tests.TestCase):
         shutil.rmtree(self.path, ignore_errors=True)
 
     def test_from_task_class(self):
-        result = SimplePipelineExecutor.from_task_class(FakeTask, butler=self.butler)
-        # TODO: do something with result? What does it look like?
-        self.assertEqual(self.butler.get('fakeOutput'), [1, 2, 3, 4])
+        self.butler.registry.registerDatasetType(
+            lsst.daf.butler.DatasetType(
+                "fakeInput",
+                dimensions=self.butler.registry.dimensions.empty,
+                storageClass="StructuredDataDict",
+            )
+        )
+        self.butler.put({3: "three", 4: "four"}, "fakeInput")
+        executor = SimplePipelineExecutor.from_task_class(FakeTask, butler=self.butler)
+        quanta = list(executor.run(register_dataset_types=True))
+        self.assertEqual(len(quanta), 1)
+        self.assertEqual(self.butler.get("fakeOutput"), {1: "one", 2: "two", 3: "three", 4: "four"})
 
 
 class MemoryTester(lsst.utils.tests.MemoryTestCase):
