@@ -23,7 +23,7 @@ from __future__ import annotations
 
 __all__ = ("SimplePipelineExecutor",)
 
-from typing import Any, Iterable, Iterator, Optional, Type, Union
+from typing import Any, Iterable, Iterator, Optional, Type, Union, List
 
 from lsst.daf.butler import Butler, CollectionType, Quantum
 from lsst.obs.base import Instrument
@@ -227,8 +227,41 @@ class SimplePipelineExecutor:
         )
         return cls(quantum_graph=quantum_graph, butler=butler)
 
-    def run(self, register_dataset_types: bool = False) -> Iterator[Quantum]:
-        """Run and yield quanta in the `QuantumGraph` in topological order.
+    def run(self, register_dataset_types: bool = False) -> List[Quantum]:
+        """Run all the quanta in the `QuantumGraph` in topological order.
+
+        Use this method to run all quanta in the graph.  Use
+        `as_generator` to get a generator to run the quanta one at
+        a time.
+
+        Parameters
+        ----------
+        register_dataset_types : `bool`, optional
+            If `True`, register all output dataset types before executing any
+            quanta.
+
+        Returns
+        -------
+        quanta : `List` [ `Quantum` ]
+            Executed quanta.  At present, these will contain only unresolved
+            `DatasetRef` instances for output datasets, reflecting the state of
+            the quantum just before it was run (but after any adjustments for
+            predicted but now missing inputs).  This may change in the future
+            to include resolved output `DatasetRef` objects.
+
+        Notes
+        -----
+        A topological ordering is not in general unique, but no other
+        guarantees are made about the order in which quanta are processed.
+        """
+        return list(self.as_generator(register_dataset_types=register_dataset_types))
+
+    def as_generator(self, register_dataset_types: bool = False) -> Iterator[Quantum]:
+        """Yield quanta in the `QuantumGraph` in topological order.
+
+        These quanta will be run as the returned generator is iterated
+        over.  Use this method to run the quanta one at a time.
+        Use `run` to run all quanta in the graph.
 
         Parameters
         ----------

@@ -74,7 +74,21 @@ class SimplePipelineExecutorTests(lsst.utils.tests.TestCase):
         )
         self.butler.put({3: "three", 4: "four"}, "fakeInput")
         executor = SimplePipelineExecutor.from_task_class(FakeTask, butler=self.butler)
-        quanta = list(executor.run(register_dataset_types=True))
+        quanta = executor.run(register_dataset_types=True)
+        self.assertEqual(len(quanta), 1)
+        self.assertEqual(self.butler.get("fakeOutput"), {1: "one", 2: "two", 3: "three", 4: "four"})
+
+    def test_generator_from_task_class(self):
+        self.butler.registry.registerDatasetType(
+            lsst.daf.butler.DatasetType(
+                "fakeInput",
+                dimensions=self.butler.registry.dimensions.empty,
+                storageClass="StructuredDataDict",
+            )
+        )
+        self.butler.put({3: "three", 4: "four"}, "fakeInput")
+        executor = SimplePipelineExecutor.from_task_class(FakeTask, butler=self.butler)
+        quanta = list(executor.as_generator(register_dataset_types=True))
         self.assertEqual(len(quanta), 1)
         self.assertEqual(self.butler.get("fakeOutput"), {1: "one", 2: "two", 3: "three", 4: "four"})
 
