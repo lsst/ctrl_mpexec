@@ -92,9 +92,6 @@ class SimplePipelineExecutor:
             Name of the output `~CollectionType.RUN` that will directly hold
             all output datasets.  If not provided, a name will be created from
             ``output`` and a timestamp.
-        writeable: `bool`, optional
-            Make the butler a read/write butler; we can't make this automatic,
-            because the output collection(s) don't exist yet.
 
         Returns
         -------
@@ -118,7 +115,7 @@ class SimplePipelineExecutor:
 
     @classmethod
     def from_pipeline_filename(
-        cls, pipeline_filename: str, *, where: str = "", butler: Optional[Butler] = None, **kwargs: Any
+        cls, pipeline_filename: str, *, where: str = "", butler: Butler
     ) -> SimplePipelineExecutor:
         """Create an executor by building a QuantumGraph from an on-disk
         pipeline YAML file.
@@ -129,9 +126,9 @@ class SimplePipelineExecutor:
             Name of the YAML file to load the pipeline definition from.
         where : `str`, optional
             Data ID query expression that constraints the quanta generated.
-        butler : `Butler`, optional
-            Butler that manages all I/O.  If not provided, ``**kwargs`` for
-            `prep_butler` must be.
+        butler : `Butler`
+            Butler that manages all I/O.  `prep_butler` can be used to create
+            one.
 
         Returns
         -------
@@ -140,7 +137,7 @@ class SimplePipelineExecutor:
             `Butler`, ready for `run` to be called.
         """
         pipeline = Pipeline.fromFile(pipeline_filename)
-        return cls.from_pipeline(pipeline, butler=butler, where=where, **kwargs)
+        return cls.from_pipeline(pipeline, butler=butler, where=where)
 
     @classmethod
     def from_task_class(
@@ -150,8 +147,7 @@ class SimplePipelineExecutor:
         label: Optional[str] = None,
         *,
         where: str = "",
-        butler: Optional[Butler] = None,
-        **kwargs: Any,
+        butler: Butler,
     ) -> SimplePipelineExecutor:
         """Create an executor by building a QuantumGraph from a pipeline
         containing a single task.
@@ -168,9 +164,9 @@ class SimplePipelineExecutor:
             ``task_class._DefaultName``.
         where : `str`, optional
             Data ID query expression that constraints the quanta generated.
-        butler : `Butler`, optional
-            Butler that manages all I/O.  If not provided, ``**kwargs`` for
-            `prep_butler` must be.
+        butler : `Butler`
+            Butler that manages all I/O.  `prep_butler` can be used to create
+            one.
 
         Returns
         -------
@@ -188,7 +184,7 @@ class SimplePipelineExecutor:
                 f"got {type(config).__name__}."
             )
         task_def = TaskDef(taskName=task_class.__name__, config=config, label=label, taskClass=task_class)
-        return cls.from_pipeline([task_def], butler=butler, where=where, **kwargs)
+        return cls.from_pipeline([task_def], butler=butler, where=where)
 
     @classmethod
     def from_pipeline(
@@ -196,7 +192,7 @@ class SimplePipelineExecutor:
         pipeline: Union[Pipeline, Iterable[TaskDef]],
         *,
         where: str = "",
-        butler: Optional[Butler] = None,
+        butler: Butler,
         **kwargs: Any,
     ) -> SimplePipelineExecutor:
         """Create an executor by building a QuantumGraph from an in-memory
@@ -209,9 +205,9 @@ class SimplePipelineExecutor:
             labels and configuration.
         where : `str`, optional
             Data ID query expression that constraints the quanta generated.
-        butler : `Butler`, optional
-            Butler that manages all I/O.  If not provided, ``**kwargs`` for
-            `prep_butler` must be.
+        butler : `Butler`
+            Butler that manages all I/O.  `prep_butler` can be used to create
+            one.
 
         Returns
         -------
@@ -223,8 +219,6 @@ class SimplePipelineExecutor:
             pipeline = list(pipeline.toExpandedPipeline())
         else:
             pipeline = list(pipeline)
-        if butler is None:
-            butler = cls.prep_butler(**kwargs)
         graph_builder = GraphBuilder(butler.registry)
         quantum_graph = graph_builder.makeGraph(
             pipeline, collections=butler.collections, run=butler.run, userQuery=where
