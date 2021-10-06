@@ -19,38 +19,16 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+import os
 import shutil
 import tempfile
 import unittest
 
 import lsst.daf.butler
-from lsst.ctrl.mpexec import SimplePipelineExecutor
-from lsst.pipe.base import PipelineTask, PipelineTaskConfig, PipelineTaskConnections, connectionTypes, Struct
-
 import lsst.utils.tests
-
-
-class FakeConnections(PipelineTaskConnections, dimensions=set()):
-    input = connectionTypes.Input(
-        name="fakeInput", doc="some dict-y input data for testing", storageClass="StructuredDataDict"
-    )
-    output = connectionTypes.Output(
-        name="fakeOutput", doc="some dict-y input data for testing", storageClass="StructuredDataDict"
-    )
-
-
-class FakeConfig(PipelineTaskConfig, pipelineConnections=FakeConnections):
-    pass
-
-
-class FakeTask(PipelineTask):
-    ConfigClass = FakeConfig
-    _DefaultName = "fakeTask"
-
-    def run(self, input):
-        result = {1: "one", 2: "two"}
-        result.update(input)
-        return Struct(output=result, other=["a", "b", "c"])
+from lsst.ctrl.mpexec import SimplePipelineExecutor
+from lsst.pipe.base import TaskDef
+from lsst.pipe.base.tests.no_dimensions import NoDimensionsTestTask
 
 
 class SimplePipelineExecutorTests(lsst.utils.tests.TestCase):
@@ -60,37 +38,76 @@ class SimplePipelineExecutorTests(lsst.utils.tests.TestCase):
         self.path = tempfile.mkdtemp()
         lsst.daf.butler.Butler.makeRepo(self.path)
         self.butler = SimplePipelineExecutor.prep_butler(self.path, [], "fake")
+        self.butler.registry.registerDatasetType(
+            lsst.daf.butler.DatasetType(
+                "input",
+                dimensions=self.butler.registry.dimensions.empty,
+                storageClass="StructuredDataDict",
+            )
+        )
+        self.butler.put({"zero": 0}, "input")
 
     def tearDown(self):
         shutil.rmtree(self.path, ignore_errors=True)
 
     def test_from_task_class(self):
-        self.butler.registry.registerDatasetType(
-            lsst.daf.butler.DatasetType(
-                "fakeInput",
-                dimensions=self.butler.registry.dimensions.empty,
-                storageClass="StructuredDataDict",
-            )
-        )
-        self.butler.put({3: "three", 4: "four"}, "fakeInput")
-        executor = SimplePipelineExecutor.from_task_class(FakeTask, butler=self.butler)
-        quanta = executor.run(register_dataset_types=True)
-        self.assertEqual(len(quanta), 1)
-        self.assertEqual(self.butler.get("fakeOutput"), {1: "one", 2: "two", 3: "three", 4: "four"})
+        """Test executing a single quantum with an executor created by the
+        `from_task_class` factory method, and the
+        `SimplePipelineExecutor.as_generator` method.
+        """
+        executor = SimplePipelineExecutor.from_task_class(NoDimensionsTestTask, butler=self.butler)
+        (quantum,) = executor.as_generator(register_dataset_types=True)
+        self.assertEqual(self.butler.get("output"), {"zero": 0, "one": 1})
 
-    def test_generator_from_task_class(self):
-        self.butler.registry.registerDatasetType(
-            lsst.daf.butler.DatasetType(
-                "fakeInput",
-                dimensions=self.butler.registry.dimensions.empty,
-                storageClass="StructuredDataDict",
+    def test_from_pipeline(self):
+        """Test executing a two quanta from different configurations of the
+        same task, with an executor created by the `from_pipeline` factory
+        method, and the `SimplePipelineExecutor.run` method.
+        """
+        config_a = NoDimensionsTestTask.ConfigClass()
+        config_a.connections.output = "intermediate"
+        config_b = NoDimensionsTestTask.ConfigClass()
+        config_b.connections.input = "intermediate"
+        config_b.key = "two"
+        config_b.value = 2
+        task_defs = [
+            TaskDef(label="a", taskClass=NoDimensionsTestTask, config=config_a),
+            TaskDef(label="b", taskClass=NoDimensionsTestTask, config=config_b),
+        ]
+        executor = SimplePipelineExecutor.from_pipeline(task_defs, butler=self.butler)
+        quanta = executor.run(register_dataset_types=True)
+        self.assertEqual(len(quanta), 2)
+        self.assertEqual(self.butler.get("intermediate"), {"zero": 0, "one": 1})
+        self.assertEqual(self.butler.get("output"), {"zero": 0, "one": 1, "two": 2})
+
+    def test_from_pipeline_file(self):
+        """Test executing a two quanta from different configurations of the
+        same task, with an executor created by the `from_pipeline_filename`
+        factory method, and the `SimplePipelineExecutor.run` method.
+        """
+        filename = os.path.join(self.path, "pipeline.yaml")
+        with open(filename, "w") as f:
+            f.write(
+                """
+                description: test
+                tasks:
+                    a:
+                        class: "lsst.pipe.base.tests.no_dimensions.NoDimensionsTestTask"
+                        config:
+                            connections.output: "intermediate"
+                    b:
+                        class: "lsst.pipe.base.tests.no_dimensions.NoDimensionsTestTask"
+                        config:
+                            connections.input: "intermediate"
+                            key: "two"
+                            value: 2
+                """
             )
-        )
-        self.butler.put({3: "three", 4: "four"}, "fakeInput")
-        executor = SimplePipelineExecutor.from_task_class(FakeTask, butler=self.butler)
-        quanta = list(executor.as_generator(register_dataset_types=True))
-        self.assertEqual(len(quanta), 1)
-        self.assertEqual(self.butler.get("fakeOutput"), {1: "one", 2: "two", 3: "three", 4: "four"})
+        executor = SimplePipelineExecutor.from_pipeline_filename(filename, butler=self.butler)
+        quanta = executor.run(register_dataset_types=True)
+        self.assertEqual(len(quanta), 2)
+        self.assertEqual(self.butler.get("intermediate"), {"zero": 0, "one": 1})
+        self.assertEqual(self.butler.get("output"), {"zero": 0, "one": 1, "two": 2})
 
 
 class MemoryTester(lsst.utils.tests.MemoryTestCase):

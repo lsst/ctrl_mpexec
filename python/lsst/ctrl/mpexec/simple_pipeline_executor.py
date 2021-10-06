@@ -139,7 +139,7 @@ class SimplePipelineExecutor:
             An executor instance containing the constructed `QuantumGraph` and
             `Butler`, ready for `run` to be called.
         """
-        pipeline = Pipeline.fromfile(pipeline_filename)
+        pipeline = Pipeline.fromFile(pipeline_filename)
         return cls.from_pipeline(pipeline, butler=butler, where=where, **kwargs)
 
     @classmethod
