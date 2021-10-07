@@ -120,7 +120,7 @@ class meta_info_options(OptionGroup):  # noqa: N801
             option_section(sectionText="Meta-information output options:"),
             ctrlMpExecOpts.skip_init_writes_option(),
             ctrlMpExecOpts.init_only_option(),
-            ctrlMpExecOpts.register_dataset_types_option(),
+            dafButlerOpts.register_dataset_types_option(),
             ctrlMpExecOpts.no_versions_option()]
 
 
