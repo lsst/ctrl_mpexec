@@ -202,7 +202,7 @@ def _makeQGraph():
     -------
     qgraph : `~lsst.pipe.base.QuantumGraph`
     """
-    taskDef = TaskDef(taskName=_TASK_CLASS, config=SimpleConfig())
+    taskDef = TaskDef(taskName=_TASK_CLASS, config=SimpleConfig(), label="test")
     quanta = [Quantum(taskName=_TASK_CLASS,
                       inputs={FakeDSType("A"): [FakeDSRef("A", (1, 2))]})]  # type: ignore
     qgraph = QuantumGraph({taskDef: set(quanta)})
