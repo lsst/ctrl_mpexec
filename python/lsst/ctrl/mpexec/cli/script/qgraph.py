@@ -26,7 +26,7 @@ from ... import CmdLineFwk
 
 from lsst.pipe.base.graphBuilder import DatasetQueryConstraintVariant
 
-_log = logging.getLogger(__name__.partition(".")[2])
+_log = logging.getLogger(__name__)
 
 
 def qgraph(pipelineObj, qgraph, qgraph_id, qgraph_node_id, skip_existing_in, skip_existing, save_qgraph,
