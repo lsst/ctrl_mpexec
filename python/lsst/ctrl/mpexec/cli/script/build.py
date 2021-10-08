@@ -67,7 +67,7 @@ def build(order_pipeline, pipeline, pipeline_actions, pipeline_dot, save_pipelin
     """
     # If pipeline_actions is a single instance, not a list, then put it in
     # a list. _PipelineAction is a namedtuple, so we can't use
-    # `lsst.daf.butler.core.utils.iterable` because a namedtuple *is* iterable,
+    # `lsst.utils.iteration.iterable` because a namedtuple *is* iterable,
     # but we need a list of _PipelineAction.
     if isinstance(pipeline_actions, _PipelineAction):
         pipeline_actions = (pipeline_actions,)

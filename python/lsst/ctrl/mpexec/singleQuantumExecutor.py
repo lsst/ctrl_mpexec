@@ -40,6 +40,7 @@ from typing import List
 #  Imports for other modules --
 # -----------------------------
 from .quantumGraphExecutor import QuantumExecutor
+from lsst.utils.timer import logInfo
 from lsst.daf.base import PropertyList, PropertySet
 from lsst.obs.base import Instrument
 from lsst.pipe.base import (
@@ -48,7 +49,6 @@ from lsst.pipe.base import (
     InvalidQuantumError,
     NoWorkFound,
     RepeatableQuantumError,
-    logInfo,
 )
 from lsst.daf.butler import (
     DatasetRef,
