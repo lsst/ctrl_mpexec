@@ -116,7 +116,7 @@ def qgraph(pipelineObj, qgraph, qgraph_id, qgraph_node_id, skip_existing_in, ski
         quanta will be clobbered.
     dataset_query_constraint : `str`
         Control constraining graph building using pre-existing dataset types.
-        Valid values are off, all, or a comma seperated list of dataset type
+        Valid values are off, all, or a comma separated list of dataset type
         names.
     kwargs : `dict` [`str`, `str`]
         Ignored; click commands may accept options for more than one script
