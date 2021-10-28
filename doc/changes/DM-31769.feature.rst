@@ -1,0 +1,2 @@
+Added --dataset-query-constraint option to QuantumGraph command (and thus downstream commands) that allows a
+user to control how QuantumGraph creation is constrained by dataset existence.

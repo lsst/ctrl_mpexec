@@ -314,3 +314,11 @@ clobber_execution_butler_option = MWOptionDecorator("--clobber-execution-butler"
                                                     help=unwrap("""When creating execution butler overwrite
                                                                    any existing products"""),
                                                     is_flag=True)
+dataset_query_constraint = MWOptionDecorator("--dataset-query-constraint",
+                                             help=unwrap("""When constructing a quantum graph constrain by
+                                                          pre-existence of specified dataset types. Valid
+                                                          values are `all` for all inputs dataset types in
+                                                          pipeline, `off` to not consider dataset type
+                                                          existance as a constraint, single or comma
+                                                          separated list of dataset type names"""),
+                                             default='all')

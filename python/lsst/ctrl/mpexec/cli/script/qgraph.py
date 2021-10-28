@@ -24,13 +24,15 @@ from types import SimpleNamespace
 
 from ... import CmdLineFwk
 
+from lsst.pipe.base.graphBuilder import DatasetQueryConstraintVariant
+
 _log = logging.getLogger(__name__.partition(".")[2])
 
 
 def qgraph(pipelineObj, qgraph, qgraph_id, qgraph_node_id, skip_existing_in, skip_existing, save_qgraph,
            save_single_quanta, qgraph_dot, butler_config, input, output, output_run, extend_run,
            replace_run, prune_replaced, data_query, show, save_execution_butler, clobber_execution_butler,
-           clobber_outputs, **kwargs):
+           clobber_outputs, dataset_query_constraint, **kwargs):
     """Implements the command line interface `pipetask qgraph` subcommand,
     should only be called by command line tools and unit test code that test
     this function.
@@ -112,6 +114,10 @@ def qgraph(pipelineObj, qgraph, qgraph_id, qgraph_node_id, skip_existing_in, ski
         Remove outputs from previous execution of the same quantum before new
         execution.  If ``skip_existing`` is also passed, then only failed
         quanta will be clobbered.
+    dataset_query_constraint : `str`
+        Control constraining graph building using pre-existing dataset types.
+        Valid values are off, all, or a comma separated list of dataset type
+        names.
     kwargs : `dict` [`str`, `str`]
         Ignored; click commands may accept options for more than one script
         function and pass all the option kwargs to each of the script functions
@@ -122,6 +128,7 @@ def qgraph(pipelineObj, qgraph, qgraph_id, qgraph_node_id, skip_existing_in, ski
     qgraph : `lsst.pipe.base.QuantumGraph`
         The qgraph object that was created.
     """
+    dataset_query_constraint = DatasetQueryConstraintVariant.fromExpression(dataset_query_constraint)
     args = SimpleNamespace(qgraph=qgraph,
                            qgraph_id=qgraph_id,
                            qgraph_node_id=qgraph_node_id,
@@ -142,6 +149,7 @@ def qgraph(pipelineObj, qgraph, qgraph_id, qgraph_node_id, skip_existing_in, ski
                            execution_butler_location=save_execution_butler,
                            clobber_execution_butler=clobber_execution_butler,
                            clobber_outputs=clobber_outputs,
+                           dataset_query_constraint=dataset_query_constraint,
                            )
 
     f = CmdLineFwk()

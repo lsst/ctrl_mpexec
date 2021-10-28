@@ -31,7 +31,6 @@ import itertools
 #  Imports for other modules --
 # -----------------------------
 from lsst.base import Packages
-from lsst.daf.butler import DatasetType
 from lsst.pipe.base import PipelineDatasetTypes
 
 _LOG = logging.getLogger(__name__.partition(".")[2])
@@ -141,11 +140,6 @@ class PreExecInit:
                     raise KeyError(f"Dataset type with name '{datasetType.name}' not found. Dataset types "
                                    "have to be registered with either `butler register-dataset-type` or "
                                    "passing `--register-dataset-types` option to `pipetask run`.") from None
-                if datasetType.isComponent() \
-                        and datasetType.parentStorageClass == DatasetType.PlaceholderParentStorageClass:
-                    # Force the parent storage classes to match since we
-                    # are using a placeholder
-                    datasetType.finalizeParentStorageClass(expected.parentStorageClass)
                 if expected != datasetType:
                     raise ValueError(f"DatasetType configuration does not match Registry: "
                                      f"{datasetType} != {expected}")
