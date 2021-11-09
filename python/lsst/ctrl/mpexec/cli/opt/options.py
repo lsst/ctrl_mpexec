@@ -192,12 +192,6 @@ qgraph_dot_option = MWOptionDecorator("--qgraph-dot",
                                       type=MWPath(writable=True, file_okay=True, dir_okay=False))
 
 
-register_dataset_types_option = MWOptionDecorator("--register-dataset-types",
-                                                  help=unwrap("""Register DatasetTypes that do not already
-                                                              exist in the Registry."""),
-                                                  is_flag=True)
-
-
 replace_run_option = MWOptionDecorator("--replace-run",
                                        help=unwrap("""Before creating a new RUN collection in an existing
                                                    CHAINED collection, remove the first child collection
