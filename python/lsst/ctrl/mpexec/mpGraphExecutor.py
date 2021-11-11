@@ -42,7 +42,7 @@ from .quantumGraphExecutor import QuantumGraphExecutor
 from lsst.base import disableImplicitThreading
 from lsst.daf.butler.cli.cliLog import CliLog
 
-_LOG = logging.getLogger(__name__.partition(".")[2])
+_LOG = logging.getLogger(__name__)
 
 
 # Possible states for the executing task:

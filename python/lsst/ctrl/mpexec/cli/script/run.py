@@ -24,7 +24,7 @@ from types import SimpleNamespace
 
 from ... import CmdLineFwk, TaskFactory
 
-_log = logging.getLogger(__name__.partition(".")[2])
+_log = logging.getLogger(__name__)
 
 
 def run(do_raise,

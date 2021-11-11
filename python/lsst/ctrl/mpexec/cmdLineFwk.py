@@ -64,7 +64,7 @@ from lsst.utils import doImport
 #  Local non-exported definitions --
 # ----------------------------------
 
-_LOG = logging.getLogger(__name__.partition(".")[2])
+_LOG = logging.getLogger(__name__)
 
 
 class _OutputChainedCollectionInfo:

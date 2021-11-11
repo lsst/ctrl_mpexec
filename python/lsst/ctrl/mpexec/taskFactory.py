@@ -29,7 +29,7 @@ import logging
 from lsst.pipe.base import TaskFactory as BaseTaskFactory
 from lsst.daf.butler import DatasetType
 
-_LOG = logging.getLogger(__name__.partition(".")[2])
+_LOG = logging.getLogger(__name__)
 
 
 class TaskFactory(BaseTaskFactory):

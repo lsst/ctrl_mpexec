@@ -33,7 +33,7 @@ import itertools
 from lsst.base import Packages
 from lsst.pipe.base import PipelineDatasetTypes
 
-_LOG = logging.getLogger(__name__.partition(".")[2])
+_LOG = logging.getLogger(__name__)
 
 
 class PreExecInit:

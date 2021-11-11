@@ -10,7 +10,7 @@ from lsst.pipe.base import (Struct, PipelineTask, PipelineTaskConfig,
                             PipelineTaskConnections)
 from lsst.pipe.base import connectionTypes as cT
 
-_LOG = logging.getLogger(__name__.partition(".")[2])
+_LOG = logging.getLogger(__name__)
 
 
 class Test1Connections(PipelineTaskConnections,

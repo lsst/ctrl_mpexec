@@ -67,7 +67,7 @@ from lsst.daf.butler.core.logging import (
 #  Local non-exported definitions --
 # ----------------------------------
 
-_LOG = logging.getLogger(__name__.partition(".")[2])
+_LOG = logging.getLogger(__name__)
 
 
 class _LogCaptureFlag:
