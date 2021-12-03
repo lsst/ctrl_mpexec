@@ -25,7 +25,9 @@ from ... import CmdLineFwk
 from ..utils import _PipelineAction
 
 
-def build(order_pipeline, pipeline, pipeline_actions, pipeline_dot, save_pipeline, show, **kwargs):
+def build(
+    order_pipeline, pipeline, pipeline_actions, pipeline_dot, save_pipeline, expand_pipeline, show, **kwargs
+):
     """Implements the command line interface `pipetask build` subcommand,
     should only be called by command line tools and unit test code that tests
     this function.
@@ -48,6 +50,10 @@ def build(order_pipeline, pipeline, pipeline_actions, pipeline_dot, save_pipelin
         Path location of a pipeline definition file in YAML format.
     save_pipeline : `str`
         Path location for storing resulting pipeline definition in YAML format.
+    expand_pipeline : `str`
+        Directory path location for storing the expanded pipeline definition,
+        with all references to other files resolved and written to config files
+        in the directory.
     show : `list` [`str`]
         Descriptions of what to dump to stdout.
     kwargs : `dict` [`str`, `str`]
@@ -77,6 +83,7 @@ def build(order_pipeline, pipeline, pipeline_actions, pipeline_dot, save_pipelin
         pipeline_actions=pipeline_actions,
         pipeline_dot=pipeline_dot,
         save_pipeline=save_pipeline,
+        expand_pipeline=expand_pipeline,
     )
 
     f = CmdLineFwk()

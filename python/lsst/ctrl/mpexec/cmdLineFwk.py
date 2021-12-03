@@ -533,6 +533,9 @@ class CmdLineFwk:
         if args.save_pipeline:
             pipeline.write_to_uri(args.save_pipeline)
 
+        if args.expand_pipeline:
+            pipeline.write_to_uri(args.expand_pipeline, expand=True)
+
         if args.pipeline_dot:
             pipeline2dot(pipeline, args.pipeline_dot)
 
