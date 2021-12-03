@@ -582,6 +582,9 @@ class CmdLineFwk:
         if args.save_pipeline:
             pipeline.write_to_uri(args.save_pipeline)
 
+        if args.expand_pipeline:
+            pipeline.write_to_uri(args.expand_pipeline, expand=True)
+
         return pipeline
 
     def makeGraph(self, pipeline: Pipeline, args: SimpleNamespace) -> QuantumGraph | None:
