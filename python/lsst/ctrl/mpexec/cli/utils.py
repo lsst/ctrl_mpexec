@@ -96,7 +96,7 @@ def makePipelineActions(
     configFileFlags: list[str] = config_file_option.opts(),
     instrumentFlags: list[str] = instrument_option.opts(),
 ) -> list[_PipelineAction]:
-    """Make a list of pipline actions from a list of option flags and
+    """Make a list of pipeline actions from a list of option flags and
     values.
 
     Parameters
@@ -105,19 +105,19 @@ def makePipelineActions(
         The arguments, option flags, and option values in the order they were
         passed in on the command line.
     taskFlags : `list` [`str`], optional
-        The option flags to use to recoginze a task action, by default
+        The option flags to use to recognize a task action, by default
         task_option.opts()
     deleteFlags : `list` [`str`], optional
-        The option flags to use to recoginze a delete action, by default
+        The option flags to use to recognize a delete action, by default
         delete_option.opts()
     configFlags : `list` [`str`], optional
-        The option flags to use to recoginze a config action, by default
+        The option flags to use to recognize a config action, by default
         config_option.opts()
     configFileFlags : `list` [`str`], optional
-        The option flags to use to recoginze a config-file action, by default
+        The option flags to use to recognize a config-file action, by default
         config_file_option.opts()
     instrumentFlags : `list` [`str`], optional
-        The option flags to use to recoginze an instrument action, by default
+        The option flags to use to recognize an instrument action, by default
         instrument_option.opts()
 
     Returns
