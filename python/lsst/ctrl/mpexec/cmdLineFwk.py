@@ -68,6 +68,7 @@ from lsst.pipe.base import (
     QuantumGraph,
     TaskFactory,
     buildExecutionButler,
+    graph2dot,
 )
 from lsst.pipe.base.all_dimensions_quantum_graph_builder import AllDimensionsQuantumGraphBuilder
 from lsst.pipe.base.pipeline_graph import NodeType
@@ -75,7 +76,6 @@ from lsst.utils import doImportType
 from lsst.utils.logging import getLogger
 from lsst.utils.threads import disable_implicit_threading
 
-from .dotTools import graph2dot
 from .executionGraphFixup import ExecutionGraphFixup
 from .mpGraphExecutor import MPGraphExecutor
 from .preExecInit import PreExecInit, PreExecInitLimited
@@ -583,7 +583,10 @@ class CmdLineFwk:
             pipeline.write_to_uri(args.save_pipeline)
 
         if args.expand_pipeline:
-            pipeline.write_to_uri(args.expand_pipeline, expand=True)
+            task_defs = list(pipeline)
+            pipeline.write_to_uri(args.expand_pipeline, expand=True, task_defs=task_defs)
+        else:
+            task_defs = None
 
         return pipeline
 
