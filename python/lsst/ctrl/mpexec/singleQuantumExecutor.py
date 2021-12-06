@@ -41,7 +41,6 @@ from typing import List
 # -----------------------------
 from .quantumGraphExecutor import QuantumExecutor
 from lsst.utils.timer import logInfo
-from lsst.daf.base import PropertyList, PropertySet
 from lsst.obs.base import Instrument
 from lsst.pipe.base import (
     AdjustQuantumHelper,
@@ -63,6 +62,11 @@ from lsst.daf.butler.core.logging import (
     ButlerMDC,
     JsonLogFormatter,
 )
+
+# During metadata transition phase, determine metadata class by
+# asking pipe_base
+from lsst.pipe.base.task import _TASK_METADATA_TYPE, _TASK_FULL_METADATA_TYPE
+
 # ----------------------------------
 #  Local non-exported definitions --
 # ----------------------------------
@@ -122,7 +126,7 @@ class SingleQuantumExecutor(QuantumExecutor):
         with self.captureLogging(taskDef, quantum, butler) as captureLog:
 
             # Save detailed resource usage before task start to metadata.
-            quantumMetadata = PropertyList()
+            quantumMetadata = _TASK_METADATA_TYPE()
             logInfo(None, "prep", metadata=quantumMetadata)
 
             taskClass, label, config = taskDef.taskClass, taskDef.label, taskDef.config
@@ -148,8 +152,8 @@ class SingleQuantumExecutor(QuantumExecutor):
                 # duplicative with logic in pipe_base that we can't easily call
                 # from here; we'll fix this on DM-29761.
                 logInfo(None, "end", metadata=quantumMetadata)
-                fullMetadata = PropertySet()
-                fullMetadata[taskDef.label] = PropertyList()
+                fullMetadata = _TASK_FULL_METADATA_TYPE()
+                fullMetadata[taskDef.label] = _TASK_METADATA_TYPE()
                 fullMetadata["quantum"] = quantumMetadata
                 self.writeMetadata(quantum, fullMetadata, taskDef, butler)
                 return
