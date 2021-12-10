@@ -1,2 +1,0 @@
-* Log messages issued during quantum execution are now collected and stored in butler as ``tasklabel_log`` dataset types.
-* New command line options for logging have been added to ``pipetask``. These include ``--log-file`` to write log messages to a file and ``--no-log-tty`` to disable log output to the terminal.

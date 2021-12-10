@@ -1,2 +1,0 @@
-* Add the output run to the log record.
-* Add ``--log-label`` option to ``pipetask`` command to allow extra information to be injected into the log record.
