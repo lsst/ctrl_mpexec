@@ -177,14 +177,19 @@ qgraph_id_option = MWOptionDecorator("--qgraph-id",
 # I wanted to use default=None here to match Python API but click silently
 # replaces None with an empty tuple when multiple=True.
 qgraph_node_id_option = MWOptionDecorator("--qgraph-node-id",
-                                          callback=_split_commas_int,
+                                          callback=split_commas,
                                           multiple=True,
                                           help=unwrap("""Only load a specified set of nodes when graph is
-                                                      loaded from a file, nodes are identified by integer
-                                                      IDs. One or more comma-separated integers are accepted.
-                                                      By default all nodes are loaded. Ignored if graph is
-                                                      not loaded from a file."""))
+                                                      loaded from a file, nodes are identified by UUID
+                                                      values. One or more comma-separated integers are
+                                                      accepted. By default all nodes are loaded. Ignored if
+                                                      graph is not loaded from a file."""))
 
+qgraph_header_data_option = MWOptionDecorator("--show-qgraph-header",
+                                              is_flag=True,
+                                              default=False,
+                                              help=unwrap("""Print the headerData for Quantum Graph to the
+                                                           console"""))
 
 qgraph_dot_option = MWOptionDecorator("--qgraph-dot",
                                       help=unwrap("""Location for storing GraphViz DOT representation of a

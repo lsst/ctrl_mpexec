@@ -45,7 +45,8 @@ from lsst.ctrl.mpexec.cli.utils import (
     _ACTION_ADD_INSTRUMENT,
     PipetaskCommand,
 )
-from lsst.daf.butler import Config, Quantum, Registry
+from lsst.daf.butler import (Config, Quantum, Registry, DimensionUniverse, DatasetRef, DataCoordinate)
+from lsst.daf.butler.core.datasets.type import DatasetType
 from lsst.daf.butler.registry import RegistryConfig
 from lsst.obs.base import Instrument
 import lsst.pex.config as pexConfig
@@ -58,7 +59,8 @@ from lsst.pipe.base.tests.simpleQGraph import (
     makeSimpleButler,
     makeSimplePipeline,
     makeSimpleQGraph,
-    populateButler)
+    populateButler,
+    AddTask)
 from lsst.utils.tests import temporaryDirectory
 
 
@@ -207,9 +209,45 @@ def _makeQGraph():
     -------
     qgraph : `~lsst.pipe.base.QuantumGraph`
     """
-    taskDef = TaskDef(taskName=_TASK_CLASS, config=SimpleConfig(), label="test")
+    config = Config({
+        "version": 1,
+        "skypix": {
+            "common": "htm7",
+            "htm": {
+                "class": "lsst.sphgeom.HtmPixelization",
+                "max_level": 24,
+            }
+        },
+        "elements": {
+            "A": {
+                "keys": [{
+                    "name": "id",
+                    "type": "int",
+                }],
+                "storage": {
+                    "cls": "lsst.daf.butler.registry.dimensions.table.TableDimensionRecordStorage",
+                },
+            },
+            "B": {
+                "keys": [{
+                    "name": "id",
+                    "type": "int",
+                }],
+                "storage": {
+                    "cls": "lsst.daf.butler.registry.dimensions.table.TableDimensionRecordStorage",
+                },
+            }
+        },
+        "packers": {}
+    })
+    universe = DimensionUniverse(config=config)
+    fakeDSType = DatasetType("A", tuple(), storageClass="ExposureF", universe=universe)
+    taskDef = TaskDef(taskName=_TASK_CLASS, config=AddTask.ConfigClass(), taskClass=AddTask)
     quanta = [Quantum(taskName=_TASK_CLASS,
-                      inputs={FakeDSType("A"): [FakeDSRef("A", (1, 2))]})]  # type: ignore
+                      inputs={fakeDSType:
+                              [DatasetRef(fakeDSType,
+                                          DataCoordinate.standardize({"A": 1, "B": 2},
+                                                                     universe=universe))]})]  # type: ignore
     qgraph = QuantumGraph({taskDef: set(quanta)})
     return qgraph
 
@@ -727,7 +765,7 @@ class CmdLineFwkTestCaseWithButler(unittest.TestCase):
         # Select first two nodes for execution. This depends on node ordering
         # which I assume is the same as execution order.
         nNodes = 2
-        nodeIds = [node.nodeId.number for node in qgraph]
+        nodeIds = [node.nodeId for node in qgraph]
         nodeIds = nodeIds[:nNodes]
 
         self.assertEqual(len(qgraph.taskGraph), self.nQuanta)

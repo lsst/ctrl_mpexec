@@ -95,7 +95,7 @@ class _Job:
         self.process = mp_ctx.Process(
             target=_Job._executeJob,
             args=(quantumExecutor, taskDef, quantum_pickle, butler, logConfigState),
-            name=f"task-{self.qnode.nodeId.number}"
+            name=f"task-{self.qnode.quantum.dataId}"
         )
         self.process.start()
         self.started = time.time()
