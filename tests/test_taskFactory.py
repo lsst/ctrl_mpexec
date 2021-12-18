@@ -26,11 +26,9 @@ import unittest
 import lsst.afw.table as afwTable
 import lsst.daf.butler.tests as butlerTests
 import lsst.pex.config as pexConfig
-from lsst.pipe.base import PipelineTaskConfig, PipelineTaskConnections
-from lsst.pipe.base.configOverrides import ConfigOverrides
-from lsst.pipe.base import connectionTypes
-
 from lsst.ctrl.mpexec import TaskFactory
+from lsst.pipe.base import PipelineTaskConfig, PipelineTaskConnections, connectionTypes
+from lsst.pipe.base.configOverrides import ConfigOverrides
 
 
 class FakeConnections(PipelineTaskConnections, dimensions=set()):
@@ -45,14 +43,12 @@ class FakeConfig(PipelineTaskConfig, pipelineConnections=FakeConnections):
 
 
 def mockTaskClass():
-    """A class placeholder that records calls to __call__.
-    """
+    """A class placeholder that records calls to __call__."""
     mock = unittest.mock.Mock(__name__="_TaskMock", _DefaultName="FakeTask", ConfigClass=FakeConfig)
     return mock
 
 
 class TaskFactoryTestCase(unittest.TestCase):
-
     @classmethod
     def setUpClass(cls):
         super().setUpClass()
@@ -98,66 +94,88 @@ class TaskFactoryTestCase(unittest.TestCase):
         return butler
 
     def testOnlyMandatoryArg(self):
-        self.factory.makeTask(taskClass=self.constructor, label=None, config=None,
-                              overrides=None, butler=None)
+        self.factory.makeTask(
+            taskClass=self.constructor, label=None, config=None, overrides=None, butler=None
+        )
         self.constructor.assert_called_with(config=FakeConfig(), initInputs=None, name=None)
 
     def testAllArgs(self):
         butler = self._tempButler()
-        self.factory.makeTask(taskClass=self.constructor, label="no-name", config=self._alteredConfig(),
-                              overrides=self._overrides(), butler=butler)
+        self.factory.makeTask(
+            taskClass=self.constructor,
+            label="no-name",
+            config=self._alteredConfig(),
+            overrides=self._overrides(),
+            butler=butler,
+        )
         catalog = butler.get("fakeInitInput")  # Copies of _dummyCatalog are identical but not equal
         # When config passed in, overrides ignored
-        self.constructor.assert_called_with(config=self._alteredConfig(),
-                                            initInputs={'initInput': catalog},
-                                            name="no-name")
+        self.constructor.assert_called_with(
+            config=self._alteredConfig(), initInputs={"initInput": catalog}, name="no-name"
+        )
 
     # Can't test all 14 remaining combinations, but the 6 pairs should be
     # enough coverage.
 
     def testNameConfig(self):
-        self.factory.makeTask(taskClass=self.constructor, label="no-name", config=self._alteredConfig(),
-                              overrides=None, butler=None)
+        self.factory.makeTask(
+            taskClass=self.constructor,
+            label="no-name",
+            config=self._alteredConfig(),
+            overrides=None,
+            butler=None,
+        )
         self.constructor.assert_called_with(config=self._alteredConfig(), initInputs=None, name="no-name")
 
     def testNameOverrides(self):
-        self.factory.makeTask(taskClass=self.constructor, label="no-name", config=None,
-                              overrides=self._overrides(), butler=None)
+        self.factory.makeTask(
+            taskClass=self.constructor, label="no-name", config=None, overrides=self._overrides(), butler=None
+        )
         config = FakeConfig()
         self._overrides().applyTo(config)
         self.constructor.assert_called_with(config=config, initInputs=None, name="no-name")
 
     def testNameButler(self):
         butler = self._tempButler()
-        self.factory.makeTask(taskClass=self.constructor, label="no-name", config=None,
-                              overrides=None, butler=butler)
+        self.factory.makeTask(
+            taskClass=self.constructor, label="no-name", config=None, overrides=None, butler=butler
+        )
         catalog = butler.get("fakeInitInput")  # Copies of _dummyCatalog are identical but not equal
-        self.constructor.assert_called_with(config=FakeConfig(),
-                                            initInputs={'initInput': catalog},
-                                            name="no-name")
+        self.constructor.assert_called_with(
+            config=FakeConfig(), initInputs={"initInput": catalog}, name="no-name"
+        )
 
     def testConfigOverrides(self):
-        self.factory.makeTask(taskClass=self.constructor, label=None, config=self._alteredConfig(),
-                              overrides=self._overrides(), butler=None)
+        self.factory.makeTask(
+            taskClass=self.constructor,
+            label=None,
+            config=self._alteredConfig(),
+            overrides=self._overrides(),
+            butler=None,
+        )
         # When config passed in, overrides ignored
         self.constructor.assert_called_with(config=self._alteredConfig(), initInputs=None, name=None)
 
     def testConfigButler(self):
         butler = self._tempButler()
-        self.factory.makeTask(taskClass=self.constructor, label=None, config=self._alteredConfig(),
-                              overrides=None, butler=butler)
+        self.factory.makeTask(
+            taskClass=self.constructor,
+            label=None,
+            config=self._alteredConfig(),
+            overrides=None,
+            butler=butler,
+        )
         catalog = butler.get("fakeInitInput")  # Copies of _dummyCatalog are identical but not equal
-        self.constructor.assert_called_with(config=self._alteredConfig(),
-                                            initInputs={'initInput': catalog},
-                                            name=None)
+        self.constructor.assert_called_with(
+            config=self._alteredConfig(), initInputs={"initInput": catalog}, name=None
+        )
 
     def testOverridesButler(self):
         butler = self._tempButler()
-        self.factory.makeTask(taskClass=self.constructor, label=None, config=None,
-                              overrides=self._overrides(), butler=butler)
+        self.factory.makeTask(
+            taskClass=self.constructor, label=None, config=None, overrides=self._overrides(), butler=butler
+        )
         config = FakeConfig()
         self._overrides().applyTo(config)
         catalog = butler.get("fakeInitInput")  # Copies of _dummyCatalog are identical but not equal
-        self.constructor.assert_called_with(config=config,
-                                            initInputs={'initInput': catalog},
-                                            name=None)
+        self.constructor.assert_called_with(config=config, initInputs={"initInput": catalog}, name=None)

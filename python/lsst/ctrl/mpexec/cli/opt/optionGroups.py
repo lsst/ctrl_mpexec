@@ -20,25 +20,31 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 
-__all__ = ("butler_options", "execution_options", "meta_info_options", "pipeline_build_options",
-           "qgraph_options", "run_options")
+__all__ = (
+    "butler_options",
+    "execution_options",
+    "meta_info_options",
+    "pipeline_build_options",
+    "qgraph_options",
+    "run_options",
+)
 
 
 import click
-
-from lsst.daf.butler.cli.utils import option_section, unwrap
-import lsst.obs.base.cli.opt as obsBaseOpts
 import lsst.daf.butler.cli.opt as dafButlerOpts
-from lsst.daf.butler.cli.utils import OptionGroup
+import lsst.obs.base.cli.opt as obsBaseOpts
+from lsst.daf.butler.cli.utils import OptionGroup, option_section, unwrap
+
 from . import options as ctrlMpExecOpts
 
-instrumentOptionHelp = ("Add an instrument which will be used to load config overrides when defining a "
-                        "pipeline. This must be the fully qualified class name.")
+instrumentOptionHelp = (
+    "Add an instrument which will be used to load config overrides when defining a "
+    "pipeline. This must be the fully qualified class name."
+)
 
 
 class pipeline_build_options(OptionGroup):  # noqa: N801
-    """Decorator to add options to a command function for building a pipeline.
-    """
+    """Decorator to add options to a command function for building a pipeline."""
 
     def __init__(self):
         self.decorators = [
@@ -47,14 +53,19 @@ class pipeline_build_options(OptionGroup):  # noqa: N801
             ctrlMpExecOpts.task_option(),
             ctrlMpExecOpts.delete_option(metavar="LABEL"),
             dafButlerOpts.config_option(metavar="LABEL:NAME=VALUE", multiple=True),
-            dafButlerOpts.config_file_option(help=unwrap("""Configuration override file(s), applies to a task
-                                                         with a given label."""),
-                                             metavar="LABEL:FILE",
-                                             multiple=True),
+            dafButlerOpts.config_file_option(
+                help=unwrap(
+                    """Configuration override file(s), applies to a task
+                                                         with a given label."""
+                ),
+                metavar="LABEL:FILE",
+                multiple=True,
+            ),
             ctrlMpExecOpts.order_pipeline_option(),
             ctrlMpExecOpts.save_pipeline_option(),
             ctrlMpExecOpts.pipeline_dot_option(),
-            obsBaseOpts.instrument_option(help=instrumentOptionHelp, metavar="instrument", multiple=True)]
+            obsBaseOpts.instrument_option(help=instrumentOptionHelp, metavar="instrument", multiple=True),
+        ]
 
 
 class qgraph_options(OptionGroup):  # noqa: N801
@@ -76,12 +87,12 @@ class qgraph_options(OptionGroup):  # noqa: N801
             ctrlMpExecOpts.save_execution_butler_option(),
             ctrlMpExecOpts.clobber_execution_butler_option(),
             ctrlMpExecOpts.dataset_query_constraint(),
-            ctrlMpExecOpts.qgraph_header_data_option()]
+            ctrlMpExecOpts.qgraph_header_data_option(),
+        ]
 
 
 class butler_options(OptionGroup):  # noqa: N801
-    """Decorator to add options to a command function for configuring a butler.
-    """
+    """Decorator to add options to a command function for configuring a butler."""
 
     def __init__(self):
         self.decorators = [
@@ -93,12 +104,12 @@ class butler_options(OptionGroup):  # noqa: N801
             ctrlMpExecOpts.extend_run_option(),
             ctrlMpExecOpts.replace_run_option(),
             ctrlMpExecOpts.prune_replaced_option(),
-            ctrlMpExecOpts.data_query_option()]
+            ctrlMpExecOpts.data_query_option(),
+        ]
 
 
 class execution_options(OptionGroup):  # noqa: N801
-    """Decorator to add options to a command function for executing a pipeline.
-    """
+    """Decorator to add options to a command function for executing a pipeline."""
 
     def __init__(self):
         self.decorators = [
@@ -110,7 +121,8 @@ class execution_options(OptionGroup):  # noqa: N801
             ctrlMpExecOpts.start_method_option(),
             ctrlMpExecOpts.timeout_option(),
             ctrlMpExecOpts.fail_fast_option(),
-            ctrlMpExecOpts.graph_fixup_option()]
+            ctrlMpExecOpts.graph_fixup_option(),
+        ]
 
 
 class meta_info_options(OptionGroup):  # noqa: N801
@@ -123,7 +135,8 @@ class meta_info_options(OptionGroup):  # noqa: N801
             ctrlMpExecOpts.skip_init_writes_option(),
             ctrlMpExecOpts.init_only_option(),
             dafButlerOpts.register_dataset_types_option(),
-            ctrlMpExecOpts.no_versions_option()]
+            ctrlMpExecOpts.no_versions_option(),
+        ]
 
 
 class run_options(OptionGroup):  # noqa: N801

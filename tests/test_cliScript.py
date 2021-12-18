@@ -19,16 +19,16 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-import click
 import os
 import tempfile
 import unittest
 
-from lsst.ctrl.mpexec.cli import script, opt
-from lsst.ctrl.mpexec.cli.pipetask import cli as pipetaskCli
-from lsst.daf.butler.cli.utils import clickResultMsg, LogCliRunner
-from lsst.pipe.base import Pipeline
+import click
 import lsst.utils.tests
+from lsst.ctrl.mpexec.cli import opt, script
+from lsst.ctrl.mpexec.cli.pipetask import cli as pipetaskCli
+from lsst.daf.butler.cli.utils import LogCliRunner, clickResultMsg
+from lsst.pipe.base import Pipeline
 
 
 class BuildTestCase(unittest.TestCase):
@@ -37,19 +37,20 @@ class BuildTestCase(unittest.TestCase):
 
     @staticmethod
     def buildArgs(**kwargs):
-        defaultArgs = dict(log_level=(),
-                           order_pipeline=False,
-                           pipeline=None,
-                           pipeline_actions=(),
-                           pipeline_dot=None,
-                           save_pipeline=None,
-                           show=())
+        defaultArgs = dict(
+            log_level=(),
+            order_pipeline=False,
+            pipeline=None,
+            pipeline_actions=(),
+            pipeline_dot=None,
+            save_pipeline=None,
+            show=(),
+        )
         defaultArgs.update(kwargs)
         return defaultArgs
 
     def testMakeEmptyPipeline(self):
-        """Test building a pipeline with default arguments.
-        """
+        """Test building a pipeline with default arguments."""
         pipeline = script.build(**self.buildArgs())
         self.assertIsInstance(pipeline, Pipeline)
         self.assertEqual(len(pipeline), 0)
@@ -70,6 +71,7 @@ class BuildTestCase(unittest.TestCase):
 
     def testShowPipeline(self):
         """Test showing the pipeline."""
+
         class ShowInfo:
             def __init__(self, show, expectedOutput):
                 self.show = show
@@ -79,13 +81,18 @@ class BuildTestCase(unittest.TestCase):
                 return f"ShowInfo({self.show}, {self.expectedOutput}"
 
         testdata = [
-            ShowInfo("pipeline", """description: anonymous
+            ShowInfo(
+                "pipeline",
+                """description: anonymous
 tasks:
   task:
     class: lsst.pipe.base.tests.simpleQGraph.AddTask
     config:
-    - addend: '100'"""),
-            ShowInfo("config", """### Configuration for task `task'
+    - addend: '100'""",
+            ),
+            ShowInfo(
+                "config",
+                """### Configuration for task `task'
 # Flag to enable/disable metadata saving for a task, enabled by default.
 config.saveMetadata=True
 
@@ -111,26 +118,33 @@ config.connections.initout='add_init_output{out_tmpl}'
 config.connections.in_tmpl='_in'
 
 # Template parameter used to format corresponding field template parameter
-config.connections.out_tmpl='_out'"""),
-
+config.connections.out_tmpl='_out'""",
+            ),
             # history will contain machine-specific paths, TBD how to verify
             ShowInfo("history=task::addend", None),
-            ShowInfo("tasks", "### Subtasks for task `AddTask'")
+            ShowInfo("tasks", "### Subtasks for task `AddTask'"),
         ]
 
         for showInfo in testdata:
             runner = LogCliRunner()
-            result = runner.invoke(pipetaskCli, ["build",
-                                                 "--task", "lsst.pipe.base.tests.simpleQGraph.AddTask:task",
-                                                 "--config", "task:addend=100",
-                                                 "--show", showInfo.show])
+            result = runner.invoke(
+                pipetaskCli,
+                [
+                    "build",
+                    "--task",
+                    "lsst.pipe.base.tests.simpleQGraph.AddTask:task",
+                    "--config",
+                    "task:addend=100",
+                    "--show",
+                    showInfo.show,
+                ],
+            )
             self.assertEqual(result.exit_code, 0, clickResultMsg(result))
             if showInfo.expectedOutput is not None:
                 self.assertIn(showInfo.expectedOutput, result.output, msg=f"for {showInfo}")
 
     def testMissingOption(self):
-        """Test that if options for the build script are missing that it fails.
-        """
+        """Test that if options for the build script are missing that it fails."""
 
         @click.command()
         @opt.pipeline_build_options()
@@ -145,7 +159,6 @@ config.connections.out_tmpl='_out'"""),
 
 
 class QgraphTestCase(unittest.TestCase):
-
     def testMissingOption(self):
         """Test that if options for the qgraph script are missing that it
         fails."""
@@ -163,7 +176,6 @@ class QgraphTestCase(unittest.TestCase):
 
 
 class RunTestCase(unittest.TestCase):
-
     def testMissingOption(self):
         """Test that if options for the run script are missing that it
         fails."""

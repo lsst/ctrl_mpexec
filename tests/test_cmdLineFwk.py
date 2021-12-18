@@ -22,47 +22,47 @@
 """Simple unit test for cmdLineFwk module.
 """
 
-import click
-from types import SimpleNamespace
 import contextlib
 import copy
-from dataclasses import dataclass
 import logging
 import os
 import pickle
 import re
 import shutil
 import tempfile
-from typing import NamedTuple
 import unittest
+from dataclasses import dataclass
+from types import SimpleNamespace
+from typing import NamedTuple
 
-from lsst.ctrl.mpexec.cmdLineFwk import CmdLineFwk
+import click
+import lsst.pex.config as pexConfig
+import lsst.pipe.base.connectionTypes as cT
+import lsst.utils.tests
 from lsst.ctrl.mpexec.cli.opt import run_options
 from lsst.ctrl.mpexec.cli.utils import (
+    _ACTION_ADD_INSTRUMENT,
     _ACTION_ADD_TASK,
     _ACTION_CONFIG,
     _ACTION_CONFIG_FILE,
-    _ACTION_ADD_INSTRUMENT,
     PipetaskCommand,
 )
-from lsst.daf.butler import (Config, Quantum, Registry, DimensionUniverse, DatasetRef, DataCoordinate)
+from lsst.ctrl.mpexec.cmdLineFwk import CmdLineFwk
+from lsst.daf.butler import Config, DataCoordinate, DatasetRef, DimensionUniverse, Quantum, Registry
 from lsst.daf.butler.core.datasets.type import DatasetType
 from lsst.daf.butler.registry import RegistryConfig
 from lsst.obs.base import Instrument
-import lsst.pex.config as pexConfig
-from lsst.pipe.base import (Pipeline, PipelineTaskConfig, QuantumGraph, TaskDef, PipelineTaskConnections)
+from lsst.pipe.base import Pipeline, PipelineTaskConfig, PipelineTaskConnections, QuantumGraph, TaskDef
 from lsst.pipe.base.graphBuilder import DatasetQueryConstraintVariant as DQCVariant
-import lsst.pipe.base.connectionTypes as cT
-import lsst.utils.tests
 from lsst.pipe.base.tests.simpleQGraph import (
+    AddTask,
     AddTaskFactoryMock,
     makeSimpleButler,
     makeSimplePipeline,
     makeSimpleQGraph,
     populateButler,
-    AddTask)
+)
 from lsst.utils.tests import temporaryDirectory
-
 
 logging.basicConfig(level=getattr(logging, os.environ.get("UNIT_TEST_LOGGING_LEVEL", "INFO"), logging.INFO))
 
@@ -110,11 +110,8 @@ def makeSQLiteRegistry(create=True):
         yield config
 
 
-class SimpleConnections(PipelineTaskConnections, dimensions=(),
-                        defaultTemplates={"template": "simple"}):
-    schema = cT.InitInput(doc="Schema",
-                          name="{template}schema",
-                          storageClass="SourceCatalog")
+class SimpleConnections(PipelineTaskConnections, dimensions=(), defaultTemplates={"template": "simple"}):
+    schema = cT.InitInput(doc="Schema", name="{template}schema", storageClass="SourceCatalog")
 
 
 class SimpleConfig(PipelineTaskConfig, pipelineConnections=SimpleConnections):
@@ -209,56 +206,65 @@ def _makeQGraph():
     -------
     qgraph : `~lsst.pipe.base.QuantumGraph`
     """
-    config = Config({
-        "version": 1,
-        "skypix": {
-            "common": "htm7",
-            "htm": {
-                "class": "lsst.sphgeom.HtmPixelization",
-                "max_level": 24,
-            }
-        },
-        "elements": {
-            "A": {
-                "keys": [{
-                    "name": "id",
-                    "type": "int",
-                }],
-                "storage": {
-                    "cls": "lsst.daf.butler.registry.dimensions.table.TableDimensionRecordStorage",
+    config = Config(
+        {
+            "version": 1,
+            "skypix": {
+                "common": "htm7",
+                "htm": {
+                    "class": "lsst.sphgeom.HtmPixelization",
+                    "max_level": 24,
                 },
             },
-            "B": {
-                "keys": [{
-                    "name": "id",
-                    "type": "int",
-                }],
-                "storage": {
-                    "cls": "lsst.daf.butler.registry.dimensions.table.TableDimensionRecordStorage",
+            "elements": {
+                "A": {
+                    "keys": [
+                        {
+                            "name": "id",
+                            "type": "int",
+                        }
+                    ],
+                    "storage": {
+                        "cls": "lsst.daf.butler.registry.dimensions.table.TableDimensionRecordStorage",
+                    },
                 },
-            }
-        },
-        "packers": {}
-    })
+                "B": {
+                    "keys": [
+                        {
+                            "name": "id",
+                            "type": "int",
+                        }
+                    ],
+                    "storage": {
+                        "cls": "lsst.daf.butler.registry.dimensions.table.TableDimensionRecordStorage",
+                    },
+                },
+            },
+            "packers": {},
+        }
+    )
     universe = DimensionUniverse(config=config)
     fakeDSType = DatasetType("A", tuple(), storageClass="ExposureF", universe=universe)
     taskDef = TaskDef(taskName=_TASK_CLASS, config=AddTask.ConfigClass(), taskClass=AddTask)
-    quanta = [Quantum(taskName=_TASK_CLASS,
-                      inputs={fakeDSType:
-                              [DatasetRef(fakeDSType,
-                                          DataCoordinate.standardize({"A": 1, "B": 2},
-                                                                     universe=universe))]})]  # type: ignore
+    quanta = [
+        Quantum(
+            taskName=_TASK_CLASS,
+            inputs={
+                fakeDSType: [
+                    DatasetRef(fakeDSType, DataCoordinate.standardize({"A": 1, "B": 2}, universe=universe))
+                ]
+            },
+        )
+    ]  # type: ignore
     qgraph = QuantumGraph({taskDef: set(quanta)})
     return qgraph
 
 
 class CmdLineFwkTestCase(unittest.TestCase):
-    """A test case for CmdLineFwk
-    """
+    """A test case for CmdLineFwk"""
 
     def testMakePipeline(self):
-        """Tests for CmdLineFwk.makePipeline method
-        """
+        """Tests for CmdLineFwk.makePipeline method"""
         fwk = CmdLineFwk()
 
         # make empty pipeline
@@ -281,9 +287,7 @@ class CmdLineFwkTestCase(unittest.TestCase):
             self.assertEqual(len(pipeline), 0)
 
         # single task pipeline, task name can be anything here
-        actions = [
-            _ACTION_ADD_TASK("TaskOne:task1")
-        ]
+        actions = [_ACTION_ADD_TASK("TaskOne:task1")]
         args = _makeArgs(pipeline_actions=actions)
         pipeline = fwk.makePipeline(args)
         self.assertIsInstance(pipeline, Pipeline)
@@ -293,7 +297,7 @@ class CmdLineFwkTestCase(unittest.TestCase):
         actions = [
             _ACTION_ADD_TASK("TaskOne:task1a"),
             _ACTION_ADD_TASK("TaskTwo:task2"),
-            _ACTION_ADD_TASK("TaskOne:task1b")
+            _ACTION_ADD_TASK("TaskOne:task1b"),
         ]
         args = _makeArgs(pipeline_actions=actions)
         pipeline = fwk.makePipeline(args)
@@ -301,10 +305,7 @@ class CmdLineFwkTestCase(unittest.TestCase):
         self.assertEqual(len(pipeline), 3)
 
         # single task pipeline with config overrides, need real task class
-        actions = [
-            _ACTION_ADD_TASK(f"{_TASK_CLASS}:task"),
-            _ACTION_CONFIG("task:addend=100")
-        ]
+        actions = [_ACTION_ADD_TASK(f"{_TASK_CLASS}:task"), _ACTION_CONFIG("task:addend=100")]
         args = _makeArgs(pipeline_actions=actions)
         pipeline = fwk.makePipeline(args)
         taskDefs = list(pipeline.toExpandedPipeline())
@@ -313,10 +314,7 @@ class CmdLineFwkTestCase(unittest.TestCase):
 
         overrides = b"config.addend = 1000\n"
         with makeTmpFile(overrides) as tmpname:
-            actions = [
-                _ACTION_ADD_TASK(f"{_TASK_CLASS}:task"),
-                _ACTION_CONFIG_FILE("task:" + tmpname)
-            ]
+            actions = [_ACTION_ADD_TASK(f"{_TASK_CLASS}:task"), _ACTION_CONFIG_FILE("task:" + tmpname)]
             args = _makeArgs(pipeline_actions=actions)
             pipeline = fwk.makePipeline(args)
             taskDefs = list(pipeline.toExpandedPipeline())
@@ -325,10 +323,7 @@ class CmdLineFwkTestCase(unittest.TestCase):
 
         # Check --instrument option, for now it only checks that it does not
         # crash.
-        actions = [
-            _ACTION_ADD_TASK(f"{_TASK_CLASS}:task"),
-            _ACTION_ADD_INSTRUMENT("Instrument")
-        ]
+        actions = [_ACTION_ADD_TASK(f"{_TASK_CLASS}:task"), _ACTION_ADD_INSTRUMENT("Instrument")]
         args = _makeArgs(pipeline_actions=actions)
         pipeline = fwk.makePipeline(args)
 
@@ -356,7 +351,7 @@ class CmdLineFwkTestCase(unittest.TestCase):
                 qgraph=tmpname,
                 qgraph_id="R2-D2 is that you?",
                 registryConfig=registryConfig,
-                execution_butler_location=None
+                execution_butler_location=None,
             )
             with self.assertRaisesRegex(ValueError, "graphID does not match"):
                 fwk.makeGraph(None, args)
@@ -380,14 +375,10 @@ class CmdLineFwkTestCase(unittest.TestCase):
             self.assertIs(qgraph, None)
 
     def testShowPipeline(self):
-        """Test for --show options for pipeline.
-        """
+        """Test for --show options for pipeline."""
         fwk = CmdLineFwk()
 
-        actions = [
-            _ACTION_ADD_TASK(f"{_TASK_CLASS}:task"),
-            _ACTION_CONFIG("task:addend=100")
-        ]
+        actions = [_ACTION_ADD_TASK(f"{_TASK_CLASS}:task"), _ACTION_CONFIG("task:addend=100")]
         args = _makeArgs(pipeline_actions=actions)
         pipeline = fwk.makePipeline(args)
 
@@ -402,8 +393,7 @@ class CmdLineFwkTestCase(unittest.TestCase):
 
 
 class CmdLineFwkTestCaseWithButler(unittest.TestCase):
-    """A test case for CmdLineFwk
-    """
+    """A test case for CmdLineFwk"""
 
     def setUp(self):
         super().setUpClass()
@@ -416,8 +406,7 @@ class CmdLineFwkTestCaseWithButler(unittest.TestCase):
         super().tearDownClass()
 
     def testSimpleQGraph(self):
-        """Test successfull execution of trivial quantum graph.
-        """
+        """Test successfull execution of trivial quantum graph."""
         args = _makeArgs(butler_config=self.root, input="test", output="output")
         butler = makeSimpleButler(self.root, run=args.input, inMemory=False)
         populateButler(self.pipeline, butler)
@@ -445,15 +434,19 @@ class CmdLineFwkTestCaseWithButler(unittest.TestCase):
         )
         butler = makeSimpleButler(self.root, run=args.input, inMemory=False)
         populateButler(
-            self.pipeline, butler,
-            datasetTypes={args.input: [
-                "add_dataset0",
-                "add_dataset1", "add2_dataset1",
-                "add_init_output1",
-                "task0_config",
-                "task0_metadata",
-                "task0_log",
-            ]}
+            self.pipeline,
+            butler,
+            datasetTypes={
+                args.input: [
+                    "add_dataset0",
+                    "add_dataset1",
+                    "add2_dataset1",
+                    "add_init_output1",
+                    "task0_config",
+                    "task0_metadata",
+                    "task0_log",
+                ]
+            },
         )
 
         fwk = CmdLineFwk()
@@ -478,19 +471,23 @@ class CmdLineFwkTestCaseWithButler(unittest.TestCase):
             butler_config=self.root,
             input="test",
             output="output",
-            skip_existing_in=("test", ),
+            skip_existing_in=("test",),
         )
         butler = makeSimpleButler(self.root, run=args.input, inMemory=False)
         populateButler(
-            self.pipeline, butler,
-            datasetTypes={args.input: [
-                "add_dataset0",
-                "add_dataset1", "add2_dataset1",
-                "add_init_output1",
-                "task0_config",
-                "task0_metadata",
-                "task0_log",
-            ]}
+            self.pipeline,
+            butler,
+            datasetTypes={
+                args.input: [
+                    "add_dataset0",
+                    "add_dataset1",
+                    "add2_dataset1",
+                    "add_init_output1",
+                    "task0_config",
+                    "task0_metadata",
+                    "task0_log",
+                ]
+            },
         )
 
         fwk = CmdLineFwk()
@@ -513,19 +510,22 @@ class CmdLineFwkTestCaseWithButler(unittest.TestCase):
             butler_config=self.root,
             input="test",
             output_run="output/run",
-            skip_existing_in=("output/run", ),
+            skip_existing_in=("output/run",),
         )
         butler = makeSimpleButler(self.root, run=args.input, inMemory=False)
         populateButler(
-            self.pipeline, butler, datasetTypes={
+            self.pipeline,
+            butler,
+            datasetTypes={
                 args.input: ["add_dataset0"],
                 args.output_run: [
-                    "add_dataset1", "add2_dataset1",
+                    "add_dataset1",
+                    "add2_dataset1",
                     "add_init_output1",
                     "task0_metadata",
                     "task0_log",
-                ]
-            }
+                ],
+            },
         )
 
         fwk = CmdLineFwk()
@@ -569,17 +569,19 @@ class CmdLineFwkTestCaseWithButler(unittest.TestCase):
         butler.registry.refresh()
 
         # drop one of the two outputs from one task
-        ref1 = butler.registry.findDataset("add2_dataset2", collections=args.output,
-                                           instrument="INSTR", detector=0)
+        ref1 = butler.registry.findDataset(
+            "add2_dataset2", collections=args.output, instrument="INSTR", detector=0
+        )
         self.assertIsNotNone(ref1)
         # also drop the metadata output
-        ref2 = butler.registry.findDataset("task1_metadata", collections=args.output,
-                                           instrument="INSTR", detector=0)
+        ref2 = butler.registry.findDataset(
+            "task1_metadata", collections=args.output, instrument="INSTR", detector=0
+        )
         self.assertIsNotNone(ref2)
         butler.pruneDatasets([ref1, ref2], disassociate=True, unstore=True, purge=True)
 
         taskFactory.stopAt = -1
-        args.skip_existing_in = (args.output, )
+        args.skip_existing_in = (args.output,)
         args.extend_run = True
         args.no_versions = True
         excRe = "Registry inconsistency while checking for existing outputs.*"
@@ -610,12 +612,14 @@ class CmdLineFwkTestCaseWithButler(unittest.TestCase):
         butler.registry.refresh()
 
         # drop one of the two outputs from one task
-        ref1 = butler.registry.findDataset("add2_dataset2", collections=args.output,
-                                           dataId=dict(instrument="INSTR", detector=0))
+        ref1 = butler.registry.findDataset(
+            "add2_dataset2", collections=args.output, dataId=dict(instrument="INSTR", detector=0)
+        )
         self.assertIsNotNone(ref1)
         # also drop the metadata output
-        ref2 = butler.registry.findDataset("task1_metadata", collections=args.output,
-                                           dataId=dict(instrument="INSTR", detector=0))
+        ref2 = butler.registry.findDataset(
+            "task1_metadata", collections=args.output, dataId=dict(instrument="INSTR", detector=0)
+        )
         self.assertIsNotNone(ref2)
         butler.pruneDatasets([ref1, ref2], disassociate=True, unstore=True, purge=True)
 
@@ -632,11 +636,7 @@ class CmdLineFwkTestCaseWithButler(unittest.TestCase):
         """Test repeated execution of trivial quantum graph with
         --replace-run.
         """
-        args = _makeArgs(
-            butler_config=self.root,
-            input="test",
-            output="output",
-            output_run="output/run1")
+        args = _makeArgs(butler_config=self.root, input="test", output="output", output_run="output/run1")
         butler = makeSimpleButler(self.root, run=args.input, inMemory=False)
         populateButler(self.pipeline, butler)
 
@@ -753,8 +753,7 @@ class CmdLineFwkTestCaseWithButler(unittest.TestCase):
         self.assertEqual(collections, {"test", "output", "output/run1", "output/run2", "output/run4"})
 
     def testSubgraph(self):
-        """Test successfull execution of trivial quantum graph.
-        """
+        """Test successfull execution of trivial quantum graph."""
         args = _makeArgs(butler_config=self.root, input="test", output="output")
         butler = makeSimpleButler(self.root, run=args.input, inMemory=False)
         populateButler(self.pipeline, butler)
@@ -775,8 +774,12 @@ class CmdLineFwkTestCaseWithButler(unittest.TestCase):
             with open(tmpname, "wb") as saveFile:
                 qgraph.save(saveFile)
 
-            args = _makeArgs(qgraph=tmpname, qgraph_node_id=nodeIds, registryConfig=registryConfig,
-                             execution_butler_location=None)
+            args = _makeArgs(
+                qgraph=tmpname,
+                qgraph_node_id=nodeIds,
+                registryConfig=registryConfig,
+                execution_butler_location=None,
+            )
             fwk = CmdLineFwk()
 
             # load graph, should only read a subset
@@ -784,8 +787,7 @@ class CmdLineFwkTestCaseWithButler(unittest.TestCase):
             self.assertEqual(len(qgraph), nNodes)
 
     def testShowGraph(self):
-        """Test for --show options for quantum graph.
-        """
+        """Test for --show options for quantum graph."""
         fwk = CmdLineFwk()
 
         nQuanta = 2

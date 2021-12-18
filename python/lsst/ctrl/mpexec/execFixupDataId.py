@@ -19,13 +19,14 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-__all__ = ['ExecutionGraphFixup']
+__all__ = ["ExecutionGraphFixup"]
 
 from collections import defaultdict
-import networkx as nx
-from typing import Sequence, Union, Tuple, Any
+from typing import Any, Sequence, Tuple, Union
 
+import networkx as nx
 from lsst.pipe.base import QuantumGraph, QuantumNode
+
 from .executionGraphFixup import ExecutionGraphFixup
 
 
@@ -73,7 +74,7 @@ class ExecFixupDataId(ExecutionGraphFixup):
         self.dimensions = dimensions
         self.reverse = reverse
         if isinstance(self.dimensions, str):
-            self.dimensions = (self.dimensions, )
+            self.dimensions = (self.dimensions,)
         else:
             self.dimensions = tuple(self.dimensions)
 

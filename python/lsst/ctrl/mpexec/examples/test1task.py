@@ -6,23 +6,25 @@ building Pipeline or QuantumGraph.
 
 import logging
 
-from lsst.pipe.base import (Struct, PipelineTask, PipelineTaskConfig,
-                            PipelineTaskConnections)
+from lsst.pipe.base import PipelineTask, PipelineTaskConfig, PipelineTaskConnections, Struct
 from lsst.pipe.base import connectionTypes as cT
 
 _LOG = logging.getLogger(__name__)
 
 
-class Test1Connections(PipelineTaskConnections,
-                       dimensions=("instrument", "visit")):
-    input = cT.Input(name="input",
-                     dimensions=["instrument", "visit"],
-                     storageClass="example",
-                     doc="Input dataset type for this task")
-    output = cT.Output(name="output",
-                       dimensions=["instrument", "visit"],
-                       storageClass="example",
-                       doc="Output dataset type for this task")
+class Test1Connections(PipelineTaskConnections, dimensions=("instrument", "visit")):
+    input = cT.Input(
+        name="input",
+        dimensions=["instrument", "visit"],
+        storageClass="example",
+        doc="Input dataset type for this task",
+    )
+    output = cT.Output(
+        name="output",
+        dimensions=["instrument", "visit"],
+        storageClass="example",
+        doc="Output dataset type for this task",
+    )
 
 
 class Test1Config(PipelineTaskConfig, pipelineConnections=Test1Connections):
@@ -35,8 +37,9 @@ class Test1Task(PipelineTask):
     It reads input data that is expected to be a number, performs
     simple arithmetic on that and stores in output dataset.
     """
+
     ConfigClass = Test1Config
-    _DefaultName = 'Test1'
+    _DefaultName = "Test1"
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -59,7 +62,7 @@ class Test1Task(PipelineTask):
 
         _LOG.info("executing %s: input=%s", self.getName(), input)
 
-        data = input**2
+        data = input ** 2
 
         # attribute name of struct is the same as a config field name
         return Struct(output=data)

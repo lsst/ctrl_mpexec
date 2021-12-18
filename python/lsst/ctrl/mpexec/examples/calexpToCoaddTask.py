@@ -3,26 +3,28 @@
 
 import logging
 
-from lsst.afw.image import ExposureF
-from lsst.pipe.base import (Struct, PipelineTask, PipelineTaskConfig,
-                            PipelineTaskConnections)
-from lsst.pipe.base import connectionTypes as cT
 import lsstDebug
+from lsst.afw.image import ExposureF
+from lsst.pipe.base import PipelineTask, PipelineTaskConfig, PipelineTaskConnections, Struct
+from lsst.pipe.base import connectionTypes as cT
 
 _LOG = logging.getLogger(__name__)
 
 
-class CalexpToCoaddTaskConnections(PipelineTaskConnections,
-                                   dimensions=("skymap", "tract", "patch", "band")):
-    calexp = cT.Input(name="calexp",
-                      dimensions=["instrument", "visit", "detector"],
-                      multiple=True,
-                      storageClass="ExposureF",
-                      doc="DatasetType for the input image")
-    coadd = cT.Output(name="deepCoadd_calexp",
-                      dimensions=["skymap", "tract", "patch", "band"],
-                      storageClass="ExposureF",
-                      doc="DatasetType for the output image")
+class CalexpToCoaddTaskConnections(PipelineTaskConnections, dimensions=("skymap", "tract", "patch", "band")):
+    calexp = cT.Input(
+        name="calexp",
+        dimensions=["instrument", "visit", "detector"],
+        multiple=True,
+        storageClass="ExposureF",
+        doc="DatasetType for the input image",
+    )
+    coadd = cT.Output(
+        name="deepCoadd_calexp",
+        dimensions=["skymap", "tract", "patch", "band"],
+        storageClass="ExposureF",
+        doc="DatasetType for the output image",
+    )
 
 
 class CalexpToCoaddTaskConfig(PipelineTaskConfig, pipelineConnections=CalexpToCoaddTaskConnections):
@@ -30,10 +32,10 @@ class CalexpToCoaddTaskConfig(PipelineTaskConfig, pipelineConnections=CalexpToCo
 
 
 class CalexpToCoaddTask(PipelineTask):
-    """Simple example PipelineTask.
-    """
+    """Simple example PipelineTask."""
+
     ConfigClass = CalexpToCoaddTaskConfig
-    _DefaultName = 'calexpToCoaddTask'
+    _DefaultName = "calexpToCoaddTask"
 
     def run(self, calexp):
         """Operate on in-memory data.

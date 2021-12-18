@@ -72,10 +72,12 @@ def build(order_pipeline, pipeline, pipeline_actions, pipeline_dot, save_pipelin
     if isinstance(pipeline_actions, _PipelineAction):
         pipeline_actions = (pipeline_actions,)
 
-    args = SimpleNamespace(pipeline=pipeline,
-                           pipeline_actions=pipeline_actions,
-                           pipeline_dot=pipeline_dot,
-                           save_pipeline=save_pipeline)
+    args = SimpleNamespace(
+        pipeline=pipeline,
+        pipeline_actions=pipeline_actions,
+        pipeline_dot=pipeline_dot,
+        save_pipeline=save_pipeline,
+    )
 
     f = CmdLineFwk()
 

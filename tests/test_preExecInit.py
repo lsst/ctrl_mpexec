@@ -28,7 +28,7 @@ import tempfile
 import unittest
 
 from lsst.ctrl.mpexec import PreExecInit
-from lsst.pipe.base.tests.simpleQGraph import makeSimpleQGraph, AddTaskFactoryMock
+from lsst.pipe.base.tests.simpleQGraph import AddTaskFactoryMock, makeSimpleQGraph
 
 
 @contextlib.contextmanager
@@ -44,8 +44,7 @@ def temporaryDirectory():
 
 
 class PreExecInitTestCase(unittest.TestCase):
-    """A test case for PreExecInit
-    """
+    """A test case for PreExecInit"""
 
     def test_saveInitOutputs(self):
         taskFactory = AddTaskFactoryMock()
@@ -53,8 +52,7 @@ class PreExecInitTestCase(unittest.TestCase):
             with self.subTest(extendRun=extendRun):
                 with temporaryDirectory() as tmpdir:
                     butler, qgraph = makeSimpleQGraph(root=tmpdir)
-                    preExecInit = PreExecInit(butler=butler, taskFactory=taskFactory,
-                                              extendRun=extendRun)
+                    preExecInit = PreExecInit(butler=butler, taskFactory=taskFactory, extendRun=extendRun)
                     preExecInit.saveInitOutputs(qgraph)
 
     def test_saveInitOutputs_twice(self):
@@ -63,8 +61,7 @@ class PreExecInitTestCase(unittest.TestCase):
             with self.subTest(extendRun=extendRun):
                 with temporaryDirectory() as tmpdir:
                     butler, qgraph = makeSimpleQGraph(root=tmpdir)
-                    preExecInit = PreExecInit(butler=butler, taskFactory=taskFactory,
-                                              extendRun=extendRun)
+                    preExecInit = PreExecInit(butler=butler, taskFactory=taskFactory, extendRun=extendRun)
                     preExecInit.saveInitOutputs(qgraph)
                     if extendRun:
                         # will ignore this

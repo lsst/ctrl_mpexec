@@ -20,14 +20,13 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 import click
-
 from lsst.daf.butler.cli.butler import LoaderCLI
 from lsst.daf.butler.cli.opt import (
-    log_level_option,
-    long_log_option,
     log_file_option,
-    log_tty_option,
     log_label_option,
+    log_level_option,
+    log_tty_option,
+    long_log_option,
 )
 
 

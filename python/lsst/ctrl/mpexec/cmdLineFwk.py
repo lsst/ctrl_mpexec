@@ -22,7 +22,7 @@
 """Module defining CmdLineFwk class and related methods.
 """
 
-__all__ = ['CmdLineFwk']
+__all__ = ["CmdLineFwk"]
 
 # -------------------------------
 #  Imports of standard modules --
@@ -35,30 +35,33 @@ import getpass
 import logging
 import re
 import sys
-from typing import Iterable, Optional, Tuple
 import warnings
+from typing import Iterable, Optional, Tuple
+
+import lsst.pex.config as pexConfig
 
 # -----------------------------
 #  Imports for other modules --
 # -----------------------------
-from lsst.daf.butler import (
-    Butler,
-    CollectionSearch,
-    CollectionType,
-    Registry,
-)
+from lsst.daf.butler import Butler, CollectionSearch, CollectionType, Registry
 from lsst.daf.butler.registry import MissingCollectionError, RegistryDefaults
-import lsst.pex.config as pexConfig
-from lsst.pipe.base import (buildExecutionButler, GraphBuilder, Pipeline,
-                            PipelineDatasetTypes, QuantumGraph, TaskDef)
 from lsst.obs.base import Instrument
+from lsst.pipe.base import (
+    GraphBuilder,
+    Pipeline,
+    PipelineDatasetTypes,
+    QuantumGraph,
+    TaskDef,
+    buildExecutionButler,
+)
+from lsst.utils import doImport
+
+from . import util
 from .dotTools import graph2dot, pipeline2dot
 from .executionGraphFixup import ExecutionGraphFixup
 from .mpGraphExecutor import MPGraphExecutor
 from .preExecInit import PreExecInit
 from .singleQuantumExecutor import SingleQuantumExecutor
-from . import util
-from lsst.utils import doImport
 
 # ----------------------------------
 #  Local non-exported definitions --
@@ -78,6 +81,7 @@ class _OutputChainedCollectionInfo:
     name : `str`
         Name of the collection given on the command line.
     """
+
     def __init__(self, registry: Registry, name: str):
         self.name = name
         try:
@@ -116,6 +120,7 @@ class _OutputRunCollectionInfo:
     name : `str`
         Name of the collection given on the command line.
     """
+
     def __init__(self, registry: Registry, name: str):
         self.name = name
         try:
@@ -185,6 +190,7 @@ class _ButlerFactory:
     ValueError
         Raised if ``writeable is True`` but there are no output collections.
     """
+
     def __init__(self, registry: Registry, args: argparse.Namespace, writeable: bool):
         if args.output is not None:
             self.output = _OutputChainedCollectionInfo(registry, args.output)
@@ -243,11 +249,13 @@ class _ButlerFactory:
         if args.extend_run and self.outputRun is None:
             raise ValueError("Cannot --extend-run when no output collection is given.")
         if args.extend_run and not self.outputRun.exists:
-            raise ValueError(f"Cannot --extend-run; output collection "
-                             f"'{self.outputRun.name}' does not exist.")
+            raise ValueError(
+                f"Cannot --extend-run; output collection " f"'{self.outputRun.name}' does not exist."
+            )
         if not args.extend_run and self.outputRun is not None and self.outputRun.exists:
-            raise ValueError(f"Output run '{self.outputRun.name}' already exists, but "
-                             f"--extend-run was not given.")
+            raise ValueError(
+                f"Output run '{self.outputRun.name}' already exists, but " f"--extend-run was not given."
+            )
         if args.prune_replaced and not args.replace_run:
             raise ValueError("--prune-replaced requires --replace-run.")
         if args.replace_run and (self.output is None or not self.output.exists):
@@ -282,8 +290,9 @@ class _ButlerFactory:
             if args.replace_run:
                 replaced = self.output.chain[0]
                 inputs = self.output.chain[1:]
-                _LOG.debug("Simulating collection search in '%s' after removing '%s'.",
-                           self.output.name, replaced)
+                _LOG.debug(
+                    "Simulating collection search in '%s' after removing '%s'.", self.output.name, replaced
+                )
             else:
                 inputs = [self.output.name]
         else:
@@ -315,8 +324,9 @@ class _ButlerFactory:
         return Butler(butler=butler, collections=inputs)
 
     @classmethod
-    def makeRegistryAndCollections(cls, args: argparse.Namespace) -> \
-            Tuple[Registry, CollectionSearch, Optional[str]]:
+    def makeRegistryAndCollections(
+        cls, args: argparse.Namespace
+    ) -> Tuple[Registry, CollectionSearch, Optional[str]]:
         """Return a read-only registry, a collection search path, and the name
         of the run to be used for future writes.
 
@@ -343,8 +353,9 @@ class _ButlerFactory:
         return butler.registry, inputs, run
 
     @classmethod
-    def makeWriteButler(cls, args: argparse.Namespace,
-                        taskDefs: Optional[Iterable[TaskDef]] = None) -> Butler:
+    def makeWriteButler(
+        cls, args: argparse.Namespace, taskDefs: Optional[Iterable[TaskDef]] = None
+    ) -> Butler:
         """Return a read-write butler initialized to write to and read from
         the collections specified by the given command-line arguments.
 
@@ -387,17 +398,19 @@ class _ButlerFactory:
                         butler.registry.setCollectionChain(self.output.name, chainDefinition, flatten=True)
                         butler.pruneCollection(replaced, purge=True, unstore=True)
                 elif args.prune_replaced is not None:
-                    raise NotImplementedError(
-                        f"Unsupported --prune-replaced option '{args.prune_replaced}'."
-                    )
+                    raise NotImplementedError(f"Unsupported --prune-replaced option '{args.prune_replaced}'.")
             if not self.output.exists:
                 butler.registry.registerCollection(self.output.name, CollectionType.CHAINED)
             if not args.extend_run:
                 butler.registry.registerCollection(self.outputRun.name, CollectionType.RUN)
                 chainDefinition.insert(0, self.outputRun.name)
                 butler.registry.setCollectionChain(self.output.name, chainDefinition, flatten=True)
-            _LOG.debug("Preparing butler to write to '%s' and read from '%s'=%s",
-                       self.outputRun.name, self.output.name, chainDefinition)
+            _LOG.debug(
+                "Preparing butler to write to '%s' and read from '%s'=%s",
+                self.outputRun.name,
+                self.output.name,
+                chainDefinition,
+            )
             butler.registry.defaults = RegistryDefaults(run=self.outputRun.name, collections=self.output.name)
         else:
             inputs = CollectionSearch.fromExpression((self.outputRun.name,) + self.inputs)
@@ -432,6 +445,7 @@ class _FilteredStream:
     This class will not work reliably on the "import" strings, so imports
     should be disabled by passing ``skipImports=True`` to ``saveToStream()``.
     """
+
     def __init__(self, pattern):
         # obey case if pattern isn't lowercase or requests NOIGNORECASE
         mat = re.search(r"(.*):NOIGNORECASE$", pattern)
@@ -441,8 +455,10 @@ class _FilteredStream:
             self._pattern = re.compile(fnmatch.translate(pattern))
         else:
             if pattern != pattern.lower():
-                print(f"Matching \"{pattern}\" without regard to case "
-                      "(append :NOIGNORECASE to prevent this)", file=sys.stdout)
+                print(
+                    f'Matching "{pattern}" without regard to case ' "(append :NOIGNORECASE to prevent this)",
+                    file=sys.stdout,
+                )
             self._pattern = re.compile(fnmatch.translate(pattern), re.IGNORECASE)
 
     def write(self, showStr):
@@ -450,6 +466,7 @@ class _FilteredStream:
         matchStr = showStr.rstrip().split("\n")[-1].split("=")[0]
         if self._pattern.search(matchStr):
             sys.stdout.write(showStr)
+
 
 # ------------------------
 #  Exported definitions --
@@ -549,8 +566,9 @@ class CmdLineFwk:
         if args.qgraph:
             # click passes empty tuple as default value for qgraph_node_id
             nodes = args.qgraph_node_id or None
-            qgraph = QuantumGraph.loadUri(args.qgraph, registry.dimensions,
-                                          nodes=nodes, graphID=args.qgraph_id)
+            qgraph = QuantumGraph.loadUri(
+                args.qgraph, registry.dimensions, nodes=nodes, graphID=args.qgraph_id
+            )
 
             # pipeline can not be provided in this case
             if pipeline:
@@ -559,17 +577,30 @@ class CmdLineFwk:
                 print(QuantumGraph.readHeader(args.qgraph))
         else:
             # make execution plan (a.k.a. DAG) for pipeline
-            graphBuilder = GraphBuilder(registry,
-                                        skipExistingIn=args.skip_existing_in,
-                                        clobberOutputs=args.clobber_outputs)
+            graphBuilder = GraphBuilder(
+                registry, skipExistingIn=args.skip_existing_in, clobberOutputs=args.clobber_outputs
+            )
             # accumulate metadata
-            metadata = {"input": args.input, "output": args.output, "butler_argument": args.butler_config,
-                        "output_run": args.output_run, "extend_run": args.extend_run,
-                        "skip_existing_in": args.skip_existing_in, "skip_existing": args.skip_existing,
-                        "data_query": args.data_query, "user": getpass.getuser(),
-                        "time": f"{datetime.datetime.now()}"}
-            qgraph = graphBuilder.makeGraph(pipeline, collections, run, args.data_query, metadata=metadata,
-                                            datasetQueryConstraint=args.dataset_query_constraint)
+            metadata = {
+                "input": args.input,
+                "output": args.output,
+                "butler_argument": args.butler_config,
+                "output_run": args.output_run,
+                "extend_run": args.extend_run,
+                "skip_existing_in": args.skip_existing_in,
+                "skip_existing": args.skip_existing,
+                "data_query": args.data_query,
+                "user": getpass.getuser(),
+                "time": f"{datetime.datetime.now()}",
+            }
+            qgraph = graphBuilder.makeGraph(
+                pipeline,
+                collections,
+                run,
+                args.data_query,
+                metadata=metadata,
+                datasetQueryConstraint=args.dataset_query_constraint,
+            )
             if args.show_qgraph_header:
                 print(qgraph.buildAndPrintHeader())
 
@@ -580,8 +611,12 @@ class CmdLineFwk:
             warnings.warn("QuantumGraph is empty", stacklevel=2)
             return None
         else:
-            _LOG.info("QuantumGraph contains %d quanta for %d tasks, graph ID: %r",
-                      nQuanta, len(qgraph.taskGraph), qgraph.graphID)
+            _LOG.info(
+                "QuantumGraph contains %d quanta for %d tasks, graph ID: %r",
+                nQuanta,
+                len(qgraph.taskGraph),
+                qgraph.graphID,
+            )
 
         if args.save_qgraph:
             qgraph.saveUri(args.save_qgraph)
@@ -612,14 +647,20 @@ class CmdLineFwk:
             all_inputs = args.input
             if args.output is not None:
                 try:
-                    all_inputs += (next(iter(butler.registry.queryCollections(args.output))), )
+                    all_inputs += (next(iter(butler.registry.queryCollections(args.output))),)
                 except MissingCollectionError:
                     pass
 
             _LOG.debug("Calling buildExecutionButler with collections=%s", all_inputs)
-            buildExecutionButler(butler, qgraph, args.execution_butler_location, run,
-                                 butlerModifier=builderShim, collections=all_inputs,
-                                 clobber=args.clobber_execution_butler)
+            buildExecutionButler(
+                butler,
+                qgraph,
+                args.execution_butler_location,
+                run,
+                butlerModifier=builderShim,
+                collections=all_inputs,
+                clobber=args.clobber_execution_butler,
+            )
 
         return qgraph
 
@@ -647,7 +688,7 @@ class CmdLineFwk:
             butler = _ButlerFactory.makeWriteButler(args, graph.iterTaskGraph())
 
         if args.skip_existing:
-            args.skip_existing_in += (butler.run, )
+            args.skip_existing_in += (butler.run,)
 
         # Enable lsstDebug debugging. Note that this is done once in the
         # main process before PreExecInit and it is also repeated before
@@ -662,24 +703,31 @@ class CmdLineFwk:
 
         # Save all InitOutputs, configs, etc.
         preExecInit = PreExecInit(butler, taskFactory, extendRun=args.extend_run)
-        preExecInit.initialize(graph,
-                               saveInitOutputs=not args.skip_init_writes,
-                               registerDatasetTypes=args.register_dataset_types,
-                               saveVersions=not args.no_versions)
+        preExecInit.initialize(
+            graph,
+            saveInitOutputs=not args.skip_init_writes,
+            registerDatasetTypes=args.register_dataset_types,
+            saveVersions=not args.no_versions,
+        )
 
         if not args.init_only:
             graphFixup = self._importGraphFixup(args)
-            quantumExecutor = SingleQuantumExecutor(taskFactory,
-                                                    skipExistingIn=args.skip_existing_in,
-                                                    clobberOutputs=args.clobber_outputs,
-                                                    enableLsstDebug=args.enableLsstDebug,
-                                                    exitOnKnownError=args.fail_fast)
+            quantumExecutor = SingleQuantumExecutor(
+                taskFactory,
+                skipExistingIn=args.skip_existing_in,
+                clobberOutputs=args.clobber_outputs,
+                enableLsstDebug=args.enableLsstDebug,
+                exitOnKnownError=args.fail_fast,
+            )
             timeout = self.MP_TIMEOUT if args.timeout is None else args.timeout
-            executor = MPGraphExecutor(numProc=args.processes, timeout=timeout,
-                                       startMethod=args.start_method,
-                                       quantumExecutor=quantumExecutor,
-                                       failFast=args.fail_fast,
-                                       executionGraphFixup=graphFixup)
+            executor = MPGraphExecutor(
+                numProc=args.processes,
+                timeout=timeout,
+                startMethod=args.start_method,
+                quantumExecutor=quantumExecutor,
+                failFast=args.fail_fast,
+                executionGraphFixup=graphFixup,
+            )
             with util.profile(args.profile, _LOG):
                 executor.execute(graph, butler)
 
@@ -729,9 +777,11 @@ class CmdLineFwk:
                 if graph:
                     self._showWorkflow(graph, args)
             else:
-                print("Unknown value for show: %s (choose from '%s')" %
-                      (what, "', '".join("pipeline config[=XXX] history=XXX tasks graph".split())),
-                      file=sys.stderr)
+                print(
+                    "Unknown value for show: %s (choose from '%s')"
+                    % (what, "', '".join("pipeline config[=XXX] history=XXX tasks graph".split())),
+                    file=sys.stderr,
+                )
                 sys.exit(1)
 
     def _showConfig(self, pipeline, showArgs, dumpFullConfig):
@@ -811,13 +861,16 @@ class CmdLineFwk:
                     else:
                         hconfig = eval("config." + cpath, {}, {"config": config})
                 except AttributeError:
-                    print(f"Error: Unable to extract attribute {cpath} from task {taskDef.label}",
-                          file=sys.stderr)
+                    print(
+                        f"Error: Unable to extract attribute {cpath} from task {taskDef.label}",
+                        file=sys.stderr,
+                    )
                     hconfig = None
 
                 # Sometimes we end up with a non-Config so skip those
-                if isinstance(hconfig, (pexConfig.Config, pexConfig.ConfigurableInstance)) and \
-                        hasattr(hconfig, cname):
+                if isinstance(hconfig, (pexConfig.Config, pexConfig.ConfigurableInstance)) and hasattr(
+                    hconfig, cname
+                ):
                     print(f"### Configuration field for task `{taskDef.label}'")
                     print(pexConfig.history.format(hconfig, cname))
                     found = True
@@ -886,6 +939,7 @@ class CmdLineFwk:
         args : `types.SimpleNamespace`
             Parsed command line
         """
+
         def dumpURIs(thisRef):
             primary, components = butler.getURIs(thisRef, predict=True, run="TBD")
             if primary:

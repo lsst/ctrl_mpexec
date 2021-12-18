@@ -26,30 +26,25 @@ import io
 import re
 import unittest
 
-from lsst.pipe.base import (PipelineTask, PipelineTaskConfig,
-                            Pipeline, PipelineTaskConnections)
 import lsst.pipe.base.connectionTypes as cT
-from lsst.ctrl.mpexec.dotTools import pipeline2dot
 import lsst.utils.tests
+from lsst.ctrl.mpexec.dotTools import pipeline2dot
+from lsst.pipe.base import Pipeline, PipelineTask, PipelineTaskConfig, PipelineTaskConnections
 
 
 class ExamplePipelineTaskConnections(PipelineTaskConnections, dimensions=()):
-    input1 = cT.Input(name="",
-                      dimensions=["visit", "detector"],
-                      storageClass="example",
-                      doc="Input for this task")
-    input2 = cT.Input(name="",
-                      dimensions=["visit", "detector"],
-                      storageClass="example",
-                      doc="Input for this task")
-    output1 = cT.Output(name="",
-                        dimensions=["visit", "detector"],
-                        storageClass="example",
-                        doc="Output for this task")
-    output2 = cT.Output(name="",
-                        dimensions=["visit", "detector"],
-                        storageClass="example",
-                        doc="Output for this task")
+    input1 = cT.Input(
+        name="", dimensions=["visit", "detector"], storageClass="example", doc="Input for this task"
+    )
+    input2 = cT.Input(
+        name="", dimensions=["visit", "detector"], storageClass="example", doc="Input for this task"
+    )
+    output1 = cT.Output(
+        name="", dimensions=["visit", "detector"], storageClass="example", doc="Output for this task"
+    )
+    output2 = cT.Output(
+        name="", dimensions=["visit", "detector"], storageClass="example", doc="Output for this task"
+    )
 
     def __init__(self, *, config=None):
         super().__init__(config=config)
@@ -114,22 +109,19 @@ def _makePipeline(tasks):
 
 
 class DotToolsTestCase(unittest.TestCase):
-    """A test case for dotTools
-    """
+    """A test case for dotTools"""
 
     def testPipeline2dot(self):
-        """Tests for dotTools.pipeline2dot method
-        """
-        pipeline = _makePipeline([("A", ("B", "C"), "task1"),
-                                  ("C", "E", "task2"),
-                                  ("B", "D", "task3"),
-                                  (("D", "E"), "F", "task4")])
+        """Tests for dotTools.pipeline2dot method"""
+        pipeline = _makePipeline(
+            [("A", ("B", "C"), "task1"), ("C", "E", "task2"), ("B", "D", "task3"), (("D", "E"), "F", "task4")]
+        )
         file = io.StringIO()
         pipeline2dot(pipeline, file)
 
         # It's hard to validate complete output, just checking few basic
         # things, even that is not terribly stable.
-        lines = file.getvalue().strip().split('\n')
+        lines = file.getvalue().strip().split("\n")
         ndatasets = 6
         ntasks = 4
         nedges = 10

@@ -4,36 +4,37 @@
 import logging
 
 from lsst.afw.image import ExposureF
-from lsst.pipe.base import (Struct, PipelineTask, PipelineTaskConfig,
-                            PipelineTaskConnections)
+from lsst.pipe.base import PipelineTask, PipelineTaskConfig, PipelineTaskConnections, Struct
 from lsst.pipe.base import connectionTypes as cT
 
 _LOG = logging.getLogger(__name__)
 
 
-class RawToCalexpTaskConnections(PipelineTaskConnections,
-                                 dimensions=("instrument", "visit", "detector")):
-    input = cT.Input(name="raw",
-                     dimensions=["instrument", "exposure", "detector"],
-                     multiple=True,
-                     storageClass="Exposure",
-                     doc="Input dataset type for this task")
-    output = cT.Output(name="calexp",
-                       dimensions=["instrument", "visit", "detector"],
-                       storageClass="ExposureF",
-                       doc="Output dataset type for this task")
+class RawToCalexpTaskConnections(PipelineTaskConnections, dimensions=("instrument", "visit", "detector")):
+    input = cT.Input(
+        name="raw",
+        dimensions=["instrument", "exposure", "detector"],
+        multiple=True,
+        storageClass="Exposure",
+        doc="Input dataset type for this task",
+    )
+    output = cT.Output(
+        name="calexp",
+        dimensions=["instrument", "visit", "detector"],
+        storageClass="ExposureF",
+        doc="Output dataset type for this task",
+    )
 
 
-class RawToCalexpTaskConfig(PipelineTaskConfig,
-                            pipelineConnections=RawToCalexpTaskConnections):
+class RawToCalexpTaskConfig(PipelineTaskConfig, pipelineConnections=RawToCalexpTaskConnections):
     pass
 
 
 class RawToCalexpTask(PipelineTask):
-    """Simple example PipelineTask.
-    """
+    """Simple example PipelineTask."""
+
     ConfigClass = RawToCalexpTaskConfig
-    _DefaultName = 'RawToCalexpTask'
+    _DefaultName = "RawToCalexpTask"
 
     def run(self, input):
         """Operate on in-memory data.
