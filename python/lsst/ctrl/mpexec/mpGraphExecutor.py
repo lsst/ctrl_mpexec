@@ -382,7 +382,7 @@ class MPGraphExecutor(QuantumGraphExecutor):
             taskDef = job.qnode.taskDef
             if not taskDef.taskClass.canMultiprocess:
                 raise MPGraphExecutorError(
-                    f"Task {taskDef.taskName} does not support multiprocessing;" " use single process"
+                    f"Task {taskDef.taskName} does not support multiprocessing; use single process"
                 )
 
         finishedCount, failedCount = 0, 0

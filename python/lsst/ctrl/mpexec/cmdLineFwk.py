@@ -250,11 +250,11 @@ class _ButlerFactory:
             raise ValueError("Cannot --extend-run when no output collection is given.")
         if args.extend_run and not self.outputRun.exists:
             raise ValueError(
-                f"Cannot --extend-run; output collection " f"'{self.outputRun.name}' does not exist."
+                f"Cannot --extend-run; output collection '{self.outputRun.name}' does not exist."
             )
         if not args.extend_run and self.outputRun is not None and self.outputRun.exists:
             raise ValueError(
-                f"Output run '{self.outputRun.name}' already exists, but " f"--extend-run was not given."
+                f"Output run '{self.outputRun.name}' already exists, but --extend-run was not given."
             )
         if args.prune_replaced and not args.replace_run:
             raise ValueError("--prune-replaced requires --replace-run.")

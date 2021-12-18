@@ -26,7 +26,7 @@ class PatchSkyMapTaskConnections(PipelineTaskConnections, dimensions=("skymap", 
         name="deepCoadd_meas",
         dimensions=["skymap", "tract", "patch", "band"],
         storageClass="SourceCatalog",
-        doc=("DatasetType for the output catalog " "(deblended per-band measurements)"),
+        doc="DatasetType for the output catalog (deblended per-band measurements)",
     )
 
 

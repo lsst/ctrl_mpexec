@@ -151,7 +151,7 @@ class PreExecInit:
                     ) from None
                 if expected != datasetType:
                     raise ValueError(
-                        f"DatasetType configuration does not match Registry: " f"{datasetType} != {expected}"
+                        f"DatasetType configuration does not match Registry: {datasetType} != {expected}"
                     )
 
     def saveInitOutputs(self, graph):
