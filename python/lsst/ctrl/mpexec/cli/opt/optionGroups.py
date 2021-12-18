@@ -38,13 +38,14 @@ from lsst.daf.butler.cli.utils import OptionGroup, option_section, unwrap
 from . import options as ctrlMpExecOpts
 
 instrumentOptionHelp = (
-    "Add an instrument which will be used to load config overrides when defining a "
-    "pipeline. This must be the fully qualified class name."
+    "Add an instrument which will be used to load config overrides when "
+    "defining a pipeline. This must be the fully qualified class name."
 )
 
 
 class pipeline_build_options(OptionGroup):  # noqa: N801
-    """Decorator to add options to a command function for building a pipeline."""
+    """Decorator to add options to the command function for building a
+    pipeline."""
 
     def __init__(self):
         self.decorators = [
@@ -92,7 +93,8 @@ class qgraph_options(OptionGroup):  # noqa: N801
 
 
 class butler_options(OptionGroup):  # noqa: N801
-    """Decorator to add options to a command function for configuring a butler."""
+    """Decorator to add options to a command function for configuring a
+    butler."""
 
     def __init__(self):
         self.decorators = [
@@ -109,7 +111,8 @@ class butler_options(OptionGroup):  # noqa: N801
 
 
 class execution_options(OptionGroup):  # noqa: N801
-    """Decorator to add options to a command function for executing a pipeline."""
+    """Decorator to add options to a command function for executing a
+    pipeline."""
 
     def __init__(self):
         self.decorators = [

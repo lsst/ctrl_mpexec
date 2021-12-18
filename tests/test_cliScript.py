@@ -144,7 +144,7 @@ config.connections.out_tmpl='_out'""",
                 self.assertIn(showInfo.expectedOutput, result.output, msg=f"for {showInfo}")
 
     def testMissingOption(self):
-        """Test that if options for the build script are missing that it fails."""
+        """Test that the build script fails if options are missing."""
 
         @click.command()
         @opt.pipeline_build_options()
