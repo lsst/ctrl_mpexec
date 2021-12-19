@@ -19,13 +19,14 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-__all__ = ['PreExecInit']
+__all__ = ["PreExecInit"]
+
+import itertools
 
 # -------------------------------
 #  Imports of standard modules --
 # -------------------------------
 import logging
-import itertools
 
 # -----------------------------
 #  Imports for other modules --
@@ -54,6 +55,7 @@ class PreExecInit:
         `False`, then any existing conflicting dataset will cause a butler
         exception to be raised.
     """
+
     def __init__(self, butler, taskFactory, extendRun=False):
         self.butler = butler
         self.taskFactory = taskFactory
@@ -120,10 +122,15 @@ class PreExecInit:
             does not exist in registry.
         """
         pipeline = graph.taskGraph
-        datasetTypes = PipelineDatasetTypes.fromPipeline(pipeline, registry=self.butler.registry,
-                                                         include_configs=True, include_packages=True)
-        for datasetType in itertools.chain(datasetTypes.initIntermediates, datasetTypes.initOutputs,
-                                           datasetTypes.intermediates, datasetTypes.outputs):
+        datasetTypes = PipelineDatasetTypes.fromPipeline(
+            pipeline, registry=self.butler.registry, include_configs=True, include_packages=True
+        )
+        for datasetType in itertools.chain(
+            datasetTypes.initIntermediates,
+            datasetTypes.initOutputs,
+            datasetTypes.intermediates,
+            datasetTypes.outputs,
+        ):
             # Only composites are registered, no components, and by this point
             # the composite should already exist.
             if registerDatasetTypes and not datasetType.isComponent():
@@ -137,12 +144,15 @@ class PreExecInit:
                     expected = self.butler.registry.getDatasetType(datasetType.name)
                 except KeyError:
                     # Likely means that --register-dataset-types is forgotten.
-                    raise KeyError(f"Dataset type with name '{datasetType.name}' not found. Dataset types "
-                                   "have to be registered with either `butler register-dataset-type` or "
-                                   "passing `--register-dataset-types` option to `pipetask run`.") from None
+                    raise KeyError(
+                        f"Dataset type with name '{datasetType.name}' not found. Dataset types "
+                        "have to be registered with either `butler register-dataset-type` or "
+                        "passing `--register-dataset-types` option to `pipetask run`."
+                    ) from None
                 if expected != datasetType:
-                    raise ValueError(f"DatasetType configuration does not match Registry: "
-                                     f"{datasetType} != {expected}")
+                    raise ValueError(
+                        f"DatasetType configuration does not match Registry: {datasetType} != {expected}"
+                    )
 
     def saveInitOutputs(self, graph):
         """Write any datasets produced by initializing tasks in a graph.
@@ -176,27 +186,28 @@ class PreExecInit:
         """
         _LOG.debug("Will save InitOutputs for all tasks")
         for taskDef in graph.iterTaskGraph():
-            task = self.taskFactory.makeTask(taskDef.taskClass,
-                                             taskDef.label,
-                                             taskDef.config,
-                                             None,
-                                             self.butler)
+            task = self.taskFactory.makeTask(
+                taskDef.taskClass, taskDef.label, taskDef.config, None, self.butler
+            )
             for name in taskDef.connections.initOutputs:
                 attribute = getattr(taskDef.connections, name)
                 initOutputVar = getattr(task, name)
                 objFromStore = None
                 if self.extendRun:
                     # check if it is there already
-                    _LOG.debug("Retrieving InitOutputs for task=%s key=%s dsTypeName=%s",
-                               task, name, attribute.name)
+                    _LOG.debug(
+                        "Retrieving InitOutputs for task=%s key=%s dsTypeName=%s", task, name, attribute.name
+                    )
                     try:
                         objFromStore = self.butler.get(attribute.name, {}, collections=[self.butler.run])
                         # Types are supposed to be identical.
                         # TODO: Check that object contents is identical too.
                         if type(objFromStore) is not type(initOutputVar):
-                            raise TypeError(f"Stored initOutput object type {type(objFromStore)} "
-                                            f"is different  from task-generated type "
-                                            f"{type(initOutputVar)} for task {taskDef}")
+                            raise TypeError(
+                                f"Stored initOutput object type {type(objFromStore)} "
+                                f"is different  from task-generated type "
+                                f"{type(initOutputVar)} for task {taskDef}"
+                            )
                     except (LookupError, FileNotFoundError):
                         # FileNotFoundError likely means execution butler
                         # where refs do exist but datastore artifacts do not.
@@ -225,9 +236,9 @@ class PreExecInit:
             Content of a butler collection should not be changed if exception
             is raised.
         """
+
         def logConfigMismatch(msg):
-            """Log messages about configuration mismatch.
-            """
+            """Log messages about configuration mismatch."""
             _LOG.fatal("Comparing configuration: %s", msg)
 
         _LOG.debug("Will save Configs for all tasks")
@@ -243,7 +254,8 @@ class PreExecInit:
                         if not taskDef.config.compare(oldConfig, shortcut=False, output=logConfigMismatch):
                             raise TypeError(
                                 f"Config does not match existing task config {configName!r} in butler; "
-                                "tasks configurations must be consistent within the same run collection")
+                                "tasks configurations must be consistent within the same run collection"
+                            )
                     except (LookupError, FileNotFoundError):
                         # FileNotFoundError likely means execution butler
                         # where refs do exist but datastore artifacts do not.

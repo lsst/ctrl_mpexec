@@ -24,51 +24,80 @@
 
 import unittest
 
-from lsst.ctrl.mpexec.cli.utils import makePipelineActions
-from lsst.ctrl.mpexec.cli.utils import _PipelineAction
+from lsst.ctrl.mpexec.cli.utils import _PipelineAction, makePipelineActions
 
 
 class PipelineActionTestCase(unittest.TestCase):
-
     def test_makePipelineActions(self):
         """Test converting each CLI option flag to its associated pipeline
         action type."""
-        self.assertEqual(makePipelineActions(["-t", "foo"]),
-                         [_PipelineAction(action="new_task", label=None, value="foo")])
-        self.assertEqual(makePipelineActions(["--task", "foo"]),
-                         [_PipelineAction(action="new_task", label=None, value="foo")])
-        self.assertEqual(makePipelineActions(["--delete", "foo"]),
-                         [_PipelineAction(action="delete_task", label="foo", value="")])
-        self.assertEqual(makePipelineActions(["-c", "task:addend=100"]),
-                         [_PipelineAction(action="config", label="task", value="addend=100")])
-        self.assertEqual(makePipelineActions(["--config", "task:addend=100"]),
-                         [_PipelineAction(action="config", label="task", value="addend=100")])
-        self.assertEqual(makePipelineActions(["-C", "task:filename"]),
-                         [_PipelineAction(action="configfile", label="task", value="filename")])
-        self.assertEqual(makePipelineActions(["--config-file", "task:filename"]),
-                         [_PipelineAction(action="configfile", label="task", value="filename")])
-        self.assertEqual(makePipelineActions(["--instrument", "foo"]),
-                         [_PipelineAction(action="add_instrument", label=None, value="foo")])
-        self.assertEqual(makePipelineActions(["--instrument", "foo"]),
-                         [_PipelineAction(action="add_instrument", label=None, value="foo")])
+        self.assertEqual(
+            makePipelineActions(["-t", "foo"]), [_PipelineAction(action="new_task", label=None, value="foo")]
+        )
+        self.assertEqual(
+            makePipelineActions(["--task", "foo"]),
+            [_PipelineAction(action="new_task", label=None, value="foo")],
+        )
+        self.assertEqual(
+            makePipelineActions(["--delete", "foo"]),
+            [_PipelineAction(action="delete_task", label="foo", value="")],
+        )
+        self.assertEqual(
+            makePipelineActions(["-c", "task:addend=100"]),
+            [_PipelineAction(action="config", label="task", value="addend=100")],
+        )
+        self.assertEqual(
+            makePipelineActions(["--config", "task:addend=100"]),
+            [_PipelineAction(action="config", label="task", value="addend=100")],
+        )
+        self.assertEqual(
+            makePipelineActions(["-C", "task:filename"]),
+            [_PipelineAction(action="configfile", label="task", value="filename")],
+        )
+        self.assertEqual(
+            makePipelineActions(["--config-file", "task:filename"]),
+            [_PipelineAction(action="configfile", label="task", value="filename")],
+        )
+        self.assertEqual(
+            makePipelineActions(["--instrument", "foo"]),
+            [_PipelineAction(action="add_instrument", label=None, value="foo")],
+        )
+        self.assertEqual(
+            makePipelineActions(["--instrument", "foo"]),
+            [_PipelineAction(action="add_instrument", label=None, value="foo")],
+        )
 
     def test_nonActions(self):
         """Test that args with a flag that does not represent an action works;
         that arg should be ignored."""
         self.assertEqual(makePipelineActions(["-n"]), [])
-        self.assertEqual(makePipelineActions(["-n", "-t", "foo"]),
-                         [_PipelineAction(action="new_task", label=None, value="foo")])
+        self.assertEqual(
+            makePipelineActions(["-n", "-t", "foo"]),
+            [_PipelineAction(action="new_task", label=None, value="foo")],
+        )
 
     def test_multipleActions(self):
         """Test args with multiple actions, with non-actions mixed in."""
-        self.assertEqual(makePipelineActions(["--foo", "bar",
-                                              "-C", "task:filename",
-                                              "-x",
-                                              "-c", "task:addend=100",
-                                              "--instrument", "instr"]),
-                         [_PipelineAction(action="configfile", label="task", value="filename"),
-                          _PipelineAction(action="config", label="task", value="addend=100"),
-                          _PipelineAction(action="add_instrument", label=None, value="instr")])
+        self.assertEqual(
+            makePipelineActions(
+                [
+                    "--foo",
+                    "bar",
+                    "-C",
+                    "task:filename",
+                    "-x",
+                    "-c",
+                    "task:addend=100",
+                    "--instrument",
+                    "instr",
+                ]
+            ),
+            [
+                _PipelineAction(action="configfile", label="task", value="filename"),
+                _PipelineAction(action="config", label="task", value="addend=100"),
+                _PipelineAction(action="add_instrument", label=None, value="instr"),
+            ],
+        )
 
 
 if __name__ == "__main__":

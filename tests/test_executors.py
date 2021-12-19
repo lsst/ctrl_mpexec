@@ -23,18 +23,17 @@
 """
 
 import logging
-import networkx as nx
-from multiprocessing import Manager
-import psutil
 import sys
 import time
 import unittest
 import warnings
+from multiprocessing import Manager
 
+import networkx as nx
+import psutil
 from lsst.ctrl.mpexec import MPGraphExecutor, MPGraphExecutorError, MPTimeoutError, QuantumExecutor
 from lsst.ctrl.mpexec.execFixupDataId import ExecFixupDataId
 from lsst.pipe.base import NodeId
-
 
 logging.basicConfig(level=logging.DEBUG)
 
@@ -42,8 +41,8 @@ _LOG = logging.getLogger(__name__)
 
 
 class QuantumExecutorMock(QuantumExecutor):
-    """Mock class for QuantumExecutor
-    """
+    """Mock class for QuantumExecutor"""
+
     def __init__(self, mp=False):
         self.quanta = []
         if mp:
@@ -77,8 +76,8 @@ class QuantumMock:
 
 
 class QuantumIterDataMock:
-    """Simple class to mock QuantumIterData.
-    """
+    """Simple class to mock QuantumIterData."""
+
     def __init__(self, index, taskDef, **dataId):
         self.index = index
         self.taskDef = taskDef
@@ -88,8 +87,8 @@ class QuantumIterDataMock:
 
 
 class QuantumGraphMock:
-    """Mock for quantum graph.
-    """
+    """Mock for quantum graph."""
+
     def __init__(self, qdata):
         self._graph = nx.DiGraph()
         previous = qdata[0]
@@ -136,8 +135,8 @@ class QuantumGraphMock:
 
 
 class TaskMockMP:
-    """Simple mock class for task supporting multiprocessing.
-    """
+    """Simple mock class for task supporting multiprocessing."""
+
     canMultiprocess = True
 
     def runQuantum(self):
@@ -146,8 +145,8 @@ class TaskMockMP:
 
 
 class TaskMockFail:
-    """Simple mock class for task which fails.
-    """
+    """Simple mock class for task which fails."""
+
     canMultiprocess = True
 
     def runQuantum(self):
@@ -156,34 +155,34 @@ class TaskMockFail:
 
 
 class TaskMockSleep:
-    """Simple mock class for task which "runs" for some time.
-    """
+    """Simple mock class for task which "runs" for some time."""
+
     canMultiprocess = True
 
     def runQuantum(self):
         _LOG.debug("TaskMockSleep.runQuantum")
-        time.sleep(5.)
+        time.sleep(5.0)
 
 
 class TaskMockLongSleep:
-    """Simple mock class for task which "runs" for very long time.
-    """
+    """Simple mock class for task which "runs" for very long time."""
+
     canMultiprocess = True
 
     def runQuantum(self):
         _LOG.debug("TaskMockLongSleep.runQuantum")
-        time.sleep(100.)
+        time.sleep(100.0)
 
 
 class TaskMockNoMP:
-    """Simple mock class for task not supporting multiprocessing.
-    """
+    """Simple mock class for task not supporting multiprocessing."""
+
     canMultiprocess = False
 
 
 class TaskDefMock:
-    """Simple mock class for task definition in a pipeline.
-    """
+    """Simple mock class for task definition in a pipeline."""
+
     def __init__(self, taskName="Task", config=None, taskClass=TaskMockMP, label="task1"):
         self.taskName = taskName
         self.config = config
@@ -195,16 +194,15 @@ class TaskDefMock:
 
 
 class MPGraphExecutorTestCase(unittest.TestCase):
-    """A test case for MPGraphExecutor class
-    """
+    """A test case for MPGraphExecutor class"""
 
     def test_mpexec_nomp(self):
         """Make simple graph and execute"""
 
         taskDef = TaskDefMock()
-        qgraph = QuantumGraphMock([
-            QuantumIterDataMock(index=i, taskDef=taskDef, detector=i) for i in range(3)
-        ])
+        qgraph = QuantumGraphMock(
+            [QuantumIterDataMock(index=i, taskDef=taskDef, detector=i) for i in range(3)]
+        )
 
         # run in single-process mode
         qexec = QuantumExecutorMock()
@@ -216,9 +214,9 @@ class MPGraphExecutorTestCase(unittest.TestCase):
         """Make simple graph and execute"""
 
         taskDef = TaskDefMock()
-        qgraph = QuantumGraphMock([
-            QuantumIterDataMock(index=i, taskDef=taskDef, detector=i) for i in range(3)
-        ])
+        qgraph = QuantumGraphMock(
+            [QuantumIterDataMock(index=i, taskDef=taskDef, detector=i) for i in range(3)]
+        )
 
         methods = ["spawn"]
         if sys.platform == "linux":
@@ -235,13 +233,12 @@ class MPGraphExecutorTestCase(unittest.TestCase):
                 self.assertCountEqual(qexec.getDataIds("detector"), [0, 1, 2])
 
     def test_mpexec_nompsupport(self):
-        """Try to run MP for task that has no MP support which should fail
-        """
+        """Try to run MP for task that has no MP support which should fail"""
 
         taskDef = TaskDefMock(taskClass=TaskMockNoMP)
-        qgraph = QuantumGraphMock([
-            QuantumIterDataMock(index=i, taskDef=taskDef, detector=i) for i in range(3)
-        ])
+        qgraph = QuantumGraphMock(
+            [QuantumIterDataMock(index=i, taskDef=taskDef, detector=i) for i in range(3)]
+        )
 
         # run in multi-process mode
         qexec = QuantumExecutorMock()
@@ -257,14 +254,13 @@ class MPGraphExecutorTestCase(unittest.TestCase):
         taskDef = TaskDefMock()
 
         for reverse in (False, True):
-            qgraph = QuantumGraphMock([
-                QuantumIterDataMock(index=i, taskDef=taskDef, detector=i) for i in range(3)
-            ])
+            qgraph = QuantumGraphMock(
+                [QuantumIterDataMock(index=i, taskDef=taskDef, detector=i) for i in range(3)]
+            )
 
             qexec = QuantumExecutorMock()
             fixup = ExecFixupDataId("task1", "detector", reverse=reverse)
-            mpexec = MPGraphExecutor(numProc=1, timeout=100, quantumExecutor=qexec,
-                                     executionGraphFixup=fixup)
+            mpexec = MPGraphExecutor(numProc=1, timeout=100, quantumExecutor=qexec, executionGraphFixup=fixup)
             mpexec.execute(qgraph, butler=None)
 
             expected = [0, 1, 2]
@@ -277,11 +273,13 @@ class MPGraphExecutorTestCase(unittest.TestCase):
 
         taskDef = TaskDefMock()
         taskDefSleep = TaskDefMock(taskClass=TaskMockSleep)
-        qgraph = QuantumGraphMock([
-            QuantumIterDataMock(index=0, taskDef=taskDef, detector=0),
-            QuantumIterDataMock(index=1, taskDef=taskDefSleep, detector=1),
-            QuantumIterDataMock(index=2, taskDef=taskDef, detector=2),
-        ])
+        qgraph = QuantumGraphMock(
+            [
+                QuantumIterDataMock(index=0, taskDef=taskDef, detector=0),
+                QuantumIterDataMock(index=1, taskDef=taskDefSleep, detector=1),
+                QuantumIterDataMock(index=2, taskDef=taskDef, detector=2),
+            ]
+        )
 
         # with failFast we'll get immediate MPTimeoutError
         qexec = QuantumExecutorMock(mp=True)
@@ -307,11 +305,13 @@ class MPGraphExecutorTestCase(unittest.TestCase):
 
         taskDef = TaskDefMock()
         taskDefFail = TaskDefMock(taskClass=TaskMockFail)
-        qgraph = QuantumGraphMock([
-            QuantumIterDataMock(index=0, taskDef=taskDef, detector=0),
-            QuantumIterDataMock(index=1, taskDef=taskDefFail, detector=1),
-            QuantumIterDataMock(index=2, taskDef=taskDef, detector=2),
-        ])
+        qgraph = QuantumGraphMock(
+            [
+                QuantumIterDataMock(index=0, taskDef=taskDef, detector=0),
+                QuantumIterDataMock(index=1, taskDef=taskDefFail, detector=1),
+                QuantumIterDataMock(index=2, taskDef=taskDef, detector=2),
+            ]
+        )
 
         qexec = QuantumExecutorMock(mp=True)
         mpexec = MPGraphExecutor(numProc=3, timeout=100, quantumExecutor=qexec)
@@ -374,13 +374,12 @@ class MPGraphExecutorTestCase(unittest.TestCase):
         self.assertCountEqual(qexec.getDataIds("detector"), [0])
 
     def test_mpexec_num_fd(self):
-        """Check that number of open files stays reasonable
-        """
+        """Check that number of open files stays reasonable"""
 
         taskDef = TaskDefMock()
-        qgraph = QuantumGraphMock([
-            QuantumIterDataMock(index=i, taskDef=taskDef, detector=i) for i in range(20)
-        ])
+        qgraph = QuantumGraphMock(
+            [QuantumIterDataMock(index=i, taskDef=taskDef, detector=i) for i in range(20)]
+        )
 
         this_proc = psutil.Process()
         num_fds_0 = this_proc.num_fds()

@@ -23,7 +23,7 @@ from __future__ import annotations
 
 __all__ = ("SimplePipelineExecutor",)
 
-from typing import Any, Iterable, Iterator, Optional, Type, Union, List
+from typing import Any, Iterable, Iterator, List, Optional, Type, Union
 
 from lsst.daf.butler import Butler, CollectionType, Quantum
 from lsst.obs.base import Instrument

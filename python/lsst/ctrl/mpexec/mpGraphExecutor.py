@@ -21,10 +21,6 @@
 
 __all__ = ["MPGraphExecutor", "MPGraphExecutorError", "MPTimeoutError"]
 
-# -------------------------------
-#  Imports of standard modules --
-# -------------------------------
-from enum import Enum
 import gc
 import logging
 import multiprocessing
@@ -32,15 +28,20 @@ import pickle
 import sys
 import time
 
-from lsst.pipe.base.graph.graph import QuantumGraph
+# -------------------------------
+#  Imports of standard modules --
+# -------------------------------
+from enum import Enum
+
+from lsst.base import disableImplicitThreading
+from lsst.daf.butler.cli.cliLog import CliLog
 from lsst.pipe.base import InvalidQuantumError
+from lsst.pipe.base.graph.graph import QuantumGraph
 
 # -----------------------------
 #  Imports for other modules --
 # -----------------------------
 from .quantumGraphExecutor import QuantumGraphExecutor
-from lsst.base import disableImplicitThreading
-from lsst.daf.butler.cli.cliLog import CliLog
 
 _LOG = logging.getLogger(__name__)
 
@@ -63,6 +64,7 @@ class _Job:
     qnode: `~lsst.pipe.base.QuantumNode`
         Quantum and some associated information.
     """
+
     def __init__(self, qnode):
         self.qnode = qnode
         self.process = None
@@ -95,7 +97,7 @@ class _Job:
         self.process = mp_ctx.Process(
             target=_Job._executeJob,
             args=(quantumExecutor, taskDef, quantum_pickle, butler, logConfigState),
-            name=f"task-{self.qnode.quantum.dataId}"
+            name=f"task-{self.qnode.quantum.dataId}",
         )
         self.process.start()
         self.started = time.time()
@@ -129,8 +131,7 @@ class _Job:
         quantumExecutor.execute(taskDef, quantum, butler)
 
     def stop(self):
-        """Stop the process.
-        """
+        """Stop the process."""
         self.process.terminate()
         # give it 1 second to finish or KILL
         for i in range(10):
@@ -162,6 +163,7 @@ class _JobList:
         Sequence if Quanta to execute. This has to be ordered according to
         task dependencies.
     """
+
     def __init__(self, iterable):
         self.jobs = [_Job(qnode) for qnode in iterable]
         self.pending = self.jobs[:]
@@ -200,12 +202,7 @@ class _JobList:
             New job state, note that only FINISHED, FAILED, TIMED_OUT, or
             FAILED_DEP state is acceptable.
         """
-        allowedStates = (
-            JobState.FINISHED,
-            JobState.FAILED,
-            JobState.TIMED_OUT,
-            JobState.FAILED_DEP
-        )
+        allowedStates = (JobState.FINISHED, JobState.FAILED, JobState.TIMED_OUT, JobState.FAILED_DEP)
         assert state in allowedStates, f"State {state} not allowed here"
 
         # remove job from pending/running lists
@@ -246,14 +243,14 @@ class _JobList:
 
 
 class MPGraphExecutorError(Exception):
-    """Exception class for errors raised by MPGraphExecutor.
-    """
+    """Exception class for errors raised by MPGraphExecutor."""
+
     pass
 
 
 class MPTimeoutError(MPGraphExecutorError):
-    """Exception raised when task execution times out.
-    """
+    """Exception raised when task execution times out."""
+
     pass
 
 
@@ -278,8 +275,10 @@ class MPGraphExecutor(QuantumGraphExecutor):
     executionGraphFixup : `ExecutionGraphFixup`, optional
         Instance used for modification of execution graph.
     """
-    def __init__(self, numProc, timeout, quantumExecutor, *,
-                 startMethod=None, failFast=False, executionGraphFixup=None):
+
+    def __init__(
+        self, numProc, timeout, quantumExecutor, *, startMethod=None, failFast=False, executionGraphFixup=None
+    ):
         self.numProc = numProc
         self.timeout = timeout
         self.quantumExecutor = quantumExecutor
@@ -328,8 +327,7 @@ class MPGraphExecutor(QuantumGraphExecutor):
 
         # Detect if there is now a cycle created within the graph
         if graph.findCycle():
-            raise MPGraphExecutorError(
-                "Updated execution graph has dependency cycle.")
+            raise MPGraphExecutorError("Updated execution graph has dependency cycle.")
 
         return graph
 
@@ -357,8 +355,9 @@ class MPGraphExecutor(QuantumGraphExecutor):
                 # times, run a collection loop here explicitly.
                 gc.collect()
             count += 1
-            _LOG.info("Executed %d quanta, %d remain out of total %d quanta.",
-                      count, totalCount - count, totalCount)
+            _LOG.info(
+                "Executed %d quanta, %d remain out of total %d quanta.", count, totalCount - count, totalCount
+            )
 
     def _executeQuantaMP(self, graph, butler):
         """Execute all Quanta in separate processes.
@@ -382,8 +381,9 @@ class MPGraphExecutor(QuantumGraphExecutor):
         for job in jobs.jobs:
             taskDef = job.qnode.taskDef
             if not taskDef.taskClass.canMultiprocess:
-                raise MPGraphExecutorError(f"Task {taskDef.taskName} does not support multiprocessing;"
-                                           " use single process")
+                raise MPGraphExecutorError(
+                    f"Task {taskDef.taskName} does not support multiprocessing; use single process"
+                )
 
         finishedCount, failedCount = 0, 0
         while jobs.pending or jobs.running:
@@ -409,13 +409,9 @@ class MPGraphExecutor(QuantumGraphExecutor):
                             for stopJob in jobs.running:
                                 if stopJob is not job:
                                     stopJob.stop()
-                            raise MPGraphExecutorError(
-                                f"Task {job} failed, exit code={exitcode}."
-                            )
+                            raise MPGraphExecutorError(f"Task {job} failed, exit code={exitcode}.")
                         else:
-                            _LOG.error(
-                                "Task %s failed; processing will continue for remaining tasks.", job
-                            )
+                            _LOG.error("Task %s failed; processing will continue for remaining tasks.", job)
                 else:
                     # check for timeout
                     now = time.time()
@@ -429,7 +425,9 @@ class MPGraphExecutor(QuantumGraphExecutor):
                         else:
                             _LOG.error(
                                 "Timeout (%s sec) for task %s; task is killed, processing continues "
-                                "for remaining tasks.", self.timeout, job
+                                "for remaining tasks.",
+                                self.timeout,
+                                job,
                             )
 
             # Fail jobs whose inputs failed, this may need several iterations
@@ -463,8 +461,13 @@ class MPGraphExecutor(QuantumGraphExecutor):
             if (finishedCount, failedCount) != (newFinished, newFailed):
                 finishedCount, failedCount = newFinished, newFailed
                 totalCount = len(jobs.jobs)
-                _LOG.info("Executed %d quanta successfully, %d failed and %d remain out of total %d quanta.",
-                          finishedCount, failedCount, totalCount - finishedCount - failedCount, totalCount)
+                _LOG.info(
+                    "Executed %d quanta successfully, %d failed and %d remain out of total %d quanta.",
+                    finishedCount,
+                    failedCount,
+                    totalCount - finishedCount - failedCount,
+                    totalCount,
+                )
 
             # Here we want to wait until one of the running jobs completes
             # but multiprocessing does not provide an API for that, for now

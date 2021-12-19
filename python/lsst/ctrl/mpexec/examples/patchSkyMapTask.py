@@ -3,40 +3,42 @@
 
 import logging
 
-from lsst.pipe.base import (Struct, PipelineTask, PipelineTaskConfig,
-                            PipelineTaskConnections)
+from lsst.pipe.base import PipelineTask, PipelineTaskConfig, PipelineTaskConnections, Struct
 from lsst.pipe.base import connectionTypes as cT
 
 _LOG = logging.getLogger(__name__)
 
 
-class PatchSkyMapTaskConnections(PipelineTaskConnections,
-                                 dimensions=("skymap", "tract", "patch", "band")):
-    coadd = cT.Input(name="deepCoadd_calexp",
-                     dimensions=["skymap", "tract", "patch", "band"],
-                     storageClass="ExposureF",
-                     doc="DatasetType for the input image")
-    inputCatalog = cT.Input(name="deepCoadd_mergeDet",
-                            dimensions=["skymap", "tract", "patch"],
-                            storageClass="SourceCatalog",
-                            doc="DatasetType for the input catalog (merged detections).")
-    outputCatalog = cT.Output(name="deepCoadd_meas",
-                              dimensions=["skymap", "tract", "patch", "band"],
-                              storageClass="SourceCatalog",
-                              doc=("DatasetType for the output catalog "
-                                   "(deblended per-band measurements)"))
+class PatchSkyMapTaskConnections(PipelineTaskConnections, dimensions=("skymap", "tract", "patch", "band")):
+    coadd = cT.Input(
+        name="deepCoadd_calexp",
+        dimensions=["skymap", "tract", "patch", "band"],
+        storageClass="ExposureF",
+        doc="DatasetType for the input image",
+    )
+    inputCatalog = cT.Input(
+        name="deepCoadd_mergeDet",
+        dimensions=["skymap", "tract", "patch"],
+        storageClass="SourceCatalog",
+        doc="DatasetType for the input catalog (merged detections).",
+    )
+    outputCatalog = cT.Output(
+        name="deepCoadd_meas",
+        dimensions=["skymap", "tract", "patch", "band"],
+        storageClass="SourceCatalog",
+        doc="DatasetType for the output catalog (deblended per-band measurements)",
+    )
 
 
-class PatchSkyMapTaskConfig(PipelineTaskConfig,
-                            pipelineConnections=PatchSkyMapTaskConnections):
+class PatchSkyMapTaskConfig(PipelineTaskConfig, pipelineConnections=PatchSkyMapTaskConnections):
     pass
 
 
 class PatchSkyMapTask(PipelineTask):
-    """Simple example PipelineTask.
-    """
+    """Simple example PipelineTask."""
+
     ConfigClass = PatchSkyMapTaskConfig
-    _DefaultName = 'patchSkyMapTask'
+    _DefaultName = "patchSkyMapTask"
 
     def run(self, coadd, inputCatalog):
         """Operate on in-memory data.
@@ -56,8 +58,7 @@ class PatchSkyMapTask(PipelineTask):
         `Struct` instance with produced result.
         """
 
-        _LOG.info("executing %s: coadd=%s inputCatalog=%s",
-                  self.getName(), coadd, type(inputCatalog))
+        _LOG.info("executing %s: coadd=%s inputCatalog=%s", self.getName(), coadd, type(inputCatalog))
 
         # Output data, scalar in this case, just return input catalog without
         # change.

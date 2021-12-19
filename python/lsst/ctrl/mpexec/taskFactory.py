@@ -26,15 +26,15 @@ __all__ = ["TaskFactory"]
 
 import logging
 
-from lsst.pipe.base import TaskFactory as BaseTaskFactory
 from lsst.daf.butler import DatasetType
+from lsst.pipe.base import TaskFactory as BaseTaskFactory
 
 _LOG = logging.getLogger(__name__)
 
 
 class TaskFactory(BaseTaskFactory):
-    """Class instantiating PipelineTasks.
-    """
+    """Class instantiating PipelineTasks."""
+
     def makeTask(self, taskClass, label, config, overrides, butler):
         """Create new PipelineTask instance from its class.
 
@@ -72,8 +72,10 @@ class TaskFactory(BaseTaskFactory):
             if overrides:
                 overrides.applyTo(config)
         elif overrides is not None:
-            _LOG.warning("Both config and overrides are specified for task %s, overrides are ignored",
-                         taskClass.__name__)
+            _LOG.warning(
+                "Both config and overrides are specified for task %s, overrides are ignored",
+                taskClass.__name__,
+            )
 
         # if we don't have a butler, try to construct without initInputs;
         # let PipelineTasks raise if that's impossible
@@ -84,8 +86,9 @@ class TaskFactory(BaseTaskFactory):
             descriptorMap = {}
             for name in connections.initInputs:
                 attribute = getattr(connections, name)
-                dsType = DatasetType(attribute.name, butler.registry.dimensions.extract(set()),
-                                     attribute.storageClass)
+                dsType = DatasetType(
+                    attribute.name, butler.registry.dimensions.extract(set()), attribute.storageClass
+                )
                 descriptorMap[name] = dsType
             initInputs = {k: butler.get(v) for k, v in descriptorMap.items()}
 

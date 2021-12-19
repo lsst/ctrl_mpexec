@@ -23,12 +23,11 @@
 import collections
 import re
 
-from lsst.daf.butler.cli.opt import (config_file_option, config_option)
+from lsst.daf.butler.cli.opt import config_file_option, config_option
 from lsst.daf.butler.cli.utils import MWCommand
 from lsst.obs.base.cli.opt import instrument_option
-from .opt import (delete_option,
-                  task_option)
 
+from .opt import delete_option, task_option
 
 # Class which determines an action that needs to be performed
 # when building pipeline, its attributes are:
@@ -52,7 +51,7 @@ class _PipelineActionType:
         returned instance.
     """
 
-    def __init__(self, action, regex='.*', valueType=str):
+    def __init__(self, action, regex=".*", valueType=str):
         self.action = action
         self.regex = re.compile(regex)
         self.valueType = valueType
@@ -75,8 +74,7 @@ class _PipelineActionType:
         return _PipelineAction(self.action, label, value)
 
     def __repr__(self):
-        """String representation of this class.
-        """
+        """String representation of this class."""
         return f"_PipelineActionType(action={self.action})"
 
 
@@ -87,12 +85,14 @@ _ACTION_CONFIG_FILE = _PipelineActionType("configfile", "(?P<label>.+):(?P<value
 _ACTION_ADD_INSTRUMENT = _PipelineActionType("add_instrument", "(?P<value>[^:]+)")
 
 
-def makePipelineActions(args,
-                        taskFlags=task_option.opts(),
-                        deleteFlags=delete_option.opts(),
-                        configFlags=config_option.opts(),
-                        configFileFlags=config_file_option.opts(),
-                        instrumentFlags=instrument_option.opts()):
+def makePipelineActions(
+    args,
+    taskFlags=task_option.opts(),
+    deleteFlags=delete_option.opts(),
+    configFlags=config_option.opts(),
+    configFileFlags=config_file_option.opts(),
+    instrumentFlags=instrument_option.opts(),
+):
     """Make a list of pipline actions from a list of option flags and
     values.
 
@@ -126,17 +126,17 @@ def makePipelineActions(args,
     pipelineActions = []
     # iterate up to the second-to-last element, if the second to last element
     # is a key we're looking for, the last item will be its value.
-    for i in range(len(args)-1):
+    for i in range(len(args) - 1):
         if args[i] in taskFlags:
-            pipelineActions.append(_ACTION_ADD_TASK(args[i+1]))
+            pipelineActions.append(_ACTION_ADD_TASK(args[i + 1]))
         elif args[i] in deleteFlags:
-            pipelineActions.append(_ACTION_DELETE_TASK(args[i+1]))
+            pipelineActions.append(_ACTION_DELETE_TASK(args[i + 1]))
         elif args[i] in configFlags:
-            pipelineActions.append(_ACTION_CONFIG(args[i+1]))
+            pipelineActions.append(_ACTION_CONFIG(args[i + 1]))
         elif args[i] in configFileFlags:
-            pipelineActions.append(_ACTION_CONFIG_FILE(args[i+1]))
+            pipelineActions.append(_ACTION_CONFIG_FILE(args[i + 1]))
         elif args[i] in instrumentFlags:
-            pipelineActions.append(_ACTION_ADD_INSTRUMENT(args[i+1]))
+            pipelineActions.append(_ACTION_ADD_INSTRUMENT(args[i + 1]))
     return pipelineActions
 
 

@@ -141,7 +141,7 @@ def filterTasks(pipeline, name):
         if taskDef.label:
             if taskDef.label == name:
                 tasks.append(taskDef)
-        elif taskDef.taskName.split('.')[-1] == name:
+        elif taskDef.taskName.split(".")[-1] == name:
             tasks.append(taskDef)
     return tasks
 
@@ -168,4 +168,4 @@ def subTaskIter(config):
                     taskName = repr(field.target)
                 yield fieldName, taskName
                 for subFieldName, taskName in subTaskIter(subConfig):
-                    yield fieldName + '.' + subFieldName, taskName
+                    yield fieldName + "." + subFieldName, taskName

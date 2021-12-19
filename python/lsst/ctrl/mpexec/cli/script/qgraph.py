@@ -22,17 +22,39 @@
 import logging
 from types import SimpleNamespace
 
-from ... import CmdLineFwk
-
 from lsst.pipe.base.graphBuilder import DatasetQueryConstraintVariant
+
+from ... import CmdLineFwk
 
 _log = logging.getLogger(__name__)
 
 
-def qgraph(pipelineObj, qgraph, qgraph_id, qgraph_node_id, skip_existing_in, skip_existing, save_qgraph,
-           save_single_quanta, qgraph_dot, butler_config, input, output, output_run, extend_run,
-           replace_run, prune_replaced, data_query, show, save_execution_butler, clobber_execution_butler,
-           clobber_outputs, dataset_query_constraint, show_qgraph_header=False, **kwargs):
+def qgraph(
+    pipelineObj,
+    qgraph,
+    qgraph_id,
+    qgraph_node_id,
+    skip_existing_in,
+    skip_existing,
+    save_qgraph,
+    save_single_quanta,
+    qgraph_dot,
+    butler_config,
+    input,
+    output,
+    output_run,
+    extend_run,
+    replace_run,
+    prune_replaced,
+    data_query,
+    show,
+    save_execution_butler,
+    clobber_execution_butler,
+    clobber_outputs,
+    dataset_query_constraint,
+    show_qgraph_header=False,
+    **kwargs,
+):
     """Implements the command line interface `pipetask qgraph` subcommand,
     should only be called by command line tools and unit test code that test
     this function.
@@ -132,29 +154,30 @@ def qgraph(pipelineObj, qgraph, qgraph_id, qgraph_node_id, skip_existing_in, ski
         The qgraph object that was created.
     """
     dataset_query_constraint = DatasetQueryConstraintVariant.fromExpression(dataset_query_constraint)
-    args = SimpleNamespace(qgraph=qgraph,
-                           qgraph_id=qgraph_id,
-                           qgraph_node_id=qgraph_node_id,
-                           save_qgraph=save_qgraph,
-                           save_single_quanta=save_single_quanta,
-                           qgraph_dot=qgraph_dot,
-                           butler_config=butler_config,
-                           input=input,
-                           output=output,
-                           output_run=output_run,
-                           extend_run=extend_run,
-                           replace_run=replace_run,
-                           prune_replaced=prune_replaced,
-                           data_query=data_query,
-                           show=show,
-                           skip_existing_in=skip_existing_in,
-                           skip_existing=skip_existing,
-                           execution_butler_location=save_execution_butler,
-                           clobber_execution_butler=clobber_execution_butler,
-                           clobber_outputs=clobber_outputs,
-                           dataset_query_constraint=dataset_query_constraint,
-                           show_qgraph_header=show_qgraph_header,
-                           )
+    args = SimpleNamespace(
+        qgraph=qgraph,
+        qgraph_id=qgraph_id,
+        qgraph_node_id=qgraph_node_id,
+        save_qgraph=save_qgraph,
+        save_single_quanta=save_single_quanta,
+        qgraph_dot=qgraph_dot,
+        butler_config=butler_config,
+        input=input,
+        output=output,
+        output_run=output_run,
+        extend_run=extend_run,
+        replace_run=replace_run,
+        prune_replaced=prune_replaced,
+        data_query=data_query,
+        show=show,
+        skip_existing_in=skip_existing_in,
+        skip_existing=skip_existing,
+        execution_butler_location=save_execution_butler,
+        clobber_execution_butler=clobber_execution_butler,
+        clobber_outputs=clobber_outputs,
+        dataset_query_constraint=dataset_query_constraint,
+        show_qgraph_header=show_qgraph_header,
+    )
 
     f = CmdLineFwk()
     qgraph = f.makeGraph(pipelineObj, args)

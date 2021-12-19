@@ -20,21 +20,16 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 import click
-
-from lsst.daf.butler.cli.opt import (config_file_option,
-                                     config_option,
-                                     options_file_option)
-from lsst.daf.butler.cli.utils import (MWCtxObj,
-                                       catch_and_exit,
-                                       option_section,
-                                       unwrap)
 import lsst.obs.base.cli.opt as obsBaseOpts
+from lsst.daf.butler.cli.opt import config_file_option, config_option, options_file_option
+from lsst.daf.butler.cli.utils import MWCtxObj, catch_and_exit, option_section, unwrap
+
 from .. import opt as ctrlMpExecOpts
 from .. import script
-from ..utils import makePipelineActions, PipetaskCommand
+from ..utils import PipetaskCommand, makePipelineActions
 
-
-epilog = unwrap("""Notes:
+epilog = unwrap(
+    """Notes:
 
 --task, --delete, --config, --config-file, and --instrument action options can
 appear multiple times; all values are used, in order left to right.
@@ -43,7 +38,8 @@ FILE reads command-line options from the specified file. Data may be
 distributed among multiple lines (e.g. one option per line). Data after # is
 treated as a comment and ignored. Blank lines and lines starting with # are
 ignored.)
-""")
+"""
+)
 
 
 def _doBuild(ctx, **kwargs):
@@ -57,11 +53,15 @@ def _doBuild(ctx, **kwargs):
     # pipeline actions from the CLI arguments and pass that list to the script
     # function using the `pipeline_actions` kwarg name, and remove the action
     # options from kwargs.
-    for pipelineAction in (ctrlMpExecOpts.task_option.name(), ctrlMpExecOpts.delete_option.name(),
-                           config_option.name(), config_file_option.name(),
-                           obsBaseOpts.instrument_option.name()):
+    for pipelineAction in (
+        ctrlMpExecOpts.task_option.name(),
+        ctrlMpExecOpts.delete_option.name(),
+        config_option.name(),
+        config_file_option.name(),
+        obsBaseOpts.instrument_option.name(),
+    ):
         kwargs.pop(pipelineAction)
-    kwargs['pipeline_actions'] = makePipelineActions(MWCtxObj.getFrom(ctx).args)
+    kwargs["pipeline_actions"] = makePipelineActions(MWCtxObj.getFrom(ctx).args)
     return script.build(**kwargs)
 
 
@@ -90,8 +90,7 @@ def build(ctx, **kwargs):
 @options_file_option()
 @catch_and_exit
 def qgraph(ctx, **kwargs):
-    """Build and optionally save quantum graph.
-    """
+    """Build and optionally save quantum graph."""
     pipeline = _doBuild(ctx, **kwargs)
     script.qgraph(pipelineObj=pipeline, **kwargs)
 
@@ -100,8 +99,7 @@ def qgraph(ctx, **kwargs):
 @ctrlMpExecOpts.run_options()
 @catch_and_exit
 def run(ctx, **kwargs):
-    """Build and execute pipeline and quantum graph.
-    """
+    """Build and execute pipeline and quantum graph."""
     pipeline = _doBuild(ctx, **kwargs)
     qgraph = script.qgraph(pipelineObj=pipeline, **kwargs)
     script.run(qgraphObj=qgraph, **kwargs)
