@@ -30,8 +30,11 @@ import logging
 #  Imports for other modules --
 # -----------------------------
 from lsst.base import Packages
+from lsst.daf.butler import DatasetType
 from lsst.daf.butler.registry import ConflictingDefinitionError
 from lsst.pipe.base import PipelineDatasetTypes
+
+from .mock_task import MockButlerQuantumContext
 
 _LOG = logging.getLogger(__name__)
 
@@ -53,12 +56,15 @@ class PreExecInit:
         in ``butler.run``; instead compare them when appropriate/possible.  If
         `False`, then any existing conflicting dataset will cause a butler
         exception to be raised.
+    mock : `bool`, optional
+        If `True` then also do initialization needed for pipeline mocking.
     """
 
-    def __init__(self, butler, taskFactory, extendRun=False):
+    def __init__(self, butler, taskFactory, extendRun=False, mock=False):
         self.butler = butler
         self.taskFactory = taskFactory
         self.extendRun = extendRun
+        self.mock = mock
         if self.extendRun and self.butler.run is None:
             raise RuntimeError(
                 "Cannot perform extendRun logic unless butler is initialized "
@@ -121,17 +127,38 @@ class PreExecInit:
             does not exist in registry.
         """
         pipeline = graph.taskGraph
-        datasetTypes = PipelineDatasetTypes.fromPipeline(
+        pipelineDatasetTypes = PipelineDatasetTypes.fromPipeline(
             pipeline, registry=self.butler.registry, include_configs=True, include_packages=True
         )
 
         for datasetTypes, is_input in (
-            (datasetTypes.initIntermediates, True),
-            (datasetTypes.initOutputs, False),
-            (datasetTypes.intermediates, True),
-            (datasetTypes.outputs, False),
+            (pipelineDatasetTypes.initIntermediates, True),
+            (pipelineDatasetTypes.initOutputs, False),
+            (pipelineDatasetTypes.intermediates, True),
+            (pipelineDatasetTypes.outputs, False),
         ):
             self._register_output_dataset_types(registerDatasetTypes, datasetTypes, is_input)
+
+        if self.mock:
+            # register special mock data types, skip logs and metadata
+            skipDatasetTypes = {taskDef.metadataDatasetName for taskDef in pipeline}
+            skipDatasetTypes |= {taskDef.logOutputDatasetName for taskDef in pipeline}
+            for datasetTypes, is_input in (
+                (pipelineDatasetTypes.intermediates, True),
+                (pipelineDatasetTypes.outputs, False),
+            ):
+                mockDatasetTypes = []
+                for datasetType in datasetTypes:
+                    if not (datasetType.name in skipDatasetTypes or datasetType.isComponent()):
+                        mockDatasetTypes.append(
+                            DatasetType(
+                                MockButlerQuantumContext.mockDatasetTypeName(datasetType.name),
+                                datasetType.dimensions,
+                                "StructuredDataDict",
+                            )
+                        )
+                if mockDatasetTypes:
+                    self._register_output_dataset_types(registerDatasetTypes, mockDatasetTypes, is_input)
 
     def _register_output_dataset_types(self, registerDatasetTypes, datasetTypes, is_input):
         def _check_compatibility(datasetType, expected, is_input) -> bool:

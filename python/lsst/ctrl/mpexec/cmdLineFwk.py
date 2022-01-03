@@ -702,7 +702,7 @@ class CmdLineFwk:
                 _LOG.warn("No 'debug' module found.")
 
         # Save all InitOutputs, configs, etc.
-        preExecInit = PreExecInit(butler, taskFactory, extendRun=args.extend_run)
+        preExecInit = PreExecInit(butler, taskFactory, extendRun=args.extend_run, mock=args.mock)
         preExecInit.initialize(
             graph,
             saveInitOutputs=not args.skip_init_writes,
@@ -718,6 +718,7 @@ class CmdLineFwk:
                 clobberOutputs=args.clobber_outputs,
                 enableLsstDebug=args.enableLsstDebug,
                 exitOnKnownError=args.fail_fast,
+                mock=args.mock,
             )
             timeout = self.MP_TIMEOUT if args.timeout is None else args.timeout
             executor = MPGraphExecutor(
