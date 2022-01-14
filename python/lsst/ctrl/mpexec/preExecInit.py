@@ -150,9 +150,17 @@ class PreExecInit:
                         "passing `--register-dataset-types` option to `pipetask run`."
                     ) from None
                 if expected != datasetType:
-                    raise ValueError(
-                        f"DatasetType configuration does not match Registry: {datasetType} != {expected}"
-                    )
+                    if expected.is_compatible_with(datasetType):
+                        _LOG.info(
+                            "The dataset type configurations differ (%s != %s from registry) "
+                            "but the storage classes are compatible. Can continue.",
+                            datasetType,
+                            expected,
+                        )
+                    else:
+                        raise ValueError(
+                            f"DatasetType configuration does not match Registry: {datasetType} != {expected}"
+                        )
 
     def saveInitOutputs(self, graph):
         """Write any datasets produced by initializing tasks in a graph.
