@@ -21,8 +21,6 @@
 
 __all__ = ["PreExecInit"]
 
-import itertools
-
 # -------------------------------
 #  Imports of standard modules --
 # -------------------------------
@@ -125,12 +123,17 @@ class PreExecInit:
         datasetTypes = PipelineDatasetTypes.fromPipeline(
             pipeline, registry=self.butler.registry, include_configs=True, include_packages=True
         )
-        for datasetType in itertools.chain(
-            datasetTypes.initIntermediates,
-            datasetTypes.initOutputs,
-            datasetTypes.intermediates,
-            datasetTypes.outputs,
+
+        for datasetTypes, is_input, is_output in (
+            (datasetTypes.initIntermediates, True, True),
+            (datasetTypes.initOutputs, False, True),
+            (datasetTypes.intermediates, True, True),
+            (datasetTypes.outputs, False, True),
         ):
+            self._register_dataset_types(registerDatasetTypes, datasetTypes, is_input, is_output)
+
+    def _register_dataset_types(self, registerDatasetTypes, datasetTypes, is_input, is_output):
+        for datasetType in datasetTypes:
             # Only composites are registered, no components, and by this point
             # the composite should already exist.
             if registerDatasetTypes and not datasetType.isComponent():
@@ -150,7 +153,19 @@ class PreExecInit:
                         "passing `--register-dataset-types` option to `pipetask run`."
                     ) from None
                 if expected != datasetType:
-                    if expected.is_compatible_with(datasetType):
+                    is_compatible = False
+                    if is_input:
+                        # This DatasetType must be compatible on get.
+                        is_compatible = datasetType.is_compatible_with(expected)
+                    if is_output:
+                        # Has to be able to be converted to expect type on put.
+                        put_is_compatible = expected.is_compatible_with(datasetType)
+                        if is_input:
+                            is_compatible = put_is_compatible and is_compatible
+                        else:
+                            is_compatible = put_is_compatible
+
+                    if is_compatible:
                         _LOG.info(
                             "The dataset type configurations differ (%s != %s from registry) "
                             "but the storage classes are compatible. Can continue.",
