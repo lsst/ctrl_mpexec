@@ -27,8 +27,26 @@ import unittest
 import lsst.daf.butler
 import lsst.utils.tests
 from lsst.ctrl.mpexec import SimplePipelineExecutor
-from lsst.pipe.base import TaskDef
+from lsst.pex.config import Field
+from lsst.pipe.base import PipelineTaskConfig, PipelineTaskConnections, TaskDef, connectionTypes
 from lsst.pipe.base.tests.no_dimensions import NoDimensionsTestTask
+
+TESTDIR = os.path.abspath(os.path.dirname(__file__))
+
+
+class NoDimensionsTestConnections2(PipelineTaskConnections, dimensions=set()):
+    input = connectionTypes.Input(
+        name="input", doc="some dict-y input data for testing", storageClass="TaskMetadataLike"
+    )
+    output = connectionTypes.Output(
+        name="output", doc="some dict-y output data for testing", storageClass="StructuredDataDict"
+    )
+
+
+class NoDimensionsTestConfig2(PipelineTaskConfig, pipelineConnections=NoDimensionsTestConnections2):
+    key = Field(dtype=str, doc="String key for the dict entry the task sets.", default="one")
+    value = Field(dtype=int, doc="Integer value for the dict entry the task sets.", default=1)
+    outputSC = Field(dtype=str, doc="Output storage class requested", default="dict")
 
 
 class SimplePipelineExecutorTests(lsst.utils.tests.TestCase):
@@ -36,8 +54,12 @@ class SimplePipelineExecutorTests(lsst.utils.tests.TestCase):
 
     def setUp(self):
         self.path = tempfile.mkdtemp()
-        lsst.daf.butler.Butler.makeRepo(self.path)
-        self.butler = SimplePipelineExecutor.prep_butler(self.path, [], "fake")
+        # standalone parameter forces the returned config to also include
+        # the information from the search paths.
+        config = lsst.daf.butler.Butler.makeRepo(
+            self.path, standalone=True, searchPaths=[os.path.join(TESTDIR, "config")]
+        )
+        self.butler = SimplePipelineExecutor.prep_butler(config, [], "fake")
         self.butler.registry.registerDatasetType(
             lsst.daf.butler.DatasetType(
                 "input",
@@ -59,15 +81,17 @@ class SimplePipelineExecutorTests(lsst.utils.tests.TestCase):
         (quantum,) = executor.as_generator(register_dataset_types=True)
         self.assertEqual(self.butler.get("output"), {"zero": 0, "one": 1})
 
-    def test_from_pipeline(self):
-        """Test executing a two quanta from different configurations of the
-        same task, with an executor created by the `from_pipeline` factory
-        method, and the `SimplePipelineExecutor.run` method.
-        """
-        config_a = NoDimensionsTestTask.ConfigClass()
+    def _configure_pipeline(self, config_a_cls, config_b_cls, storageClass_a=None, storageClass_b=None):
+        """Configure a pipeline with from_pipeline."""
+
+        config_a = config_a_cls()
         config_a.connections.output = "intermediate"
-        config_b = NoDimensionsTestTask.ConfigClass()
+        if storageClass_a:
+            config_a.outputSC = storageClass_a
+        config_b = config_b_cls()
         config_b.connections.input = "intermediate"
+        if storageClass_b:
+            config_b.outputSC = storageClass_b
         config_b.key = "two"
         config_b.value = 2
         task_defs = [
@@ -75,10 +99,132 @@ class SimplePipelineExecutorTests(lsst.utils.tests.TestCase):
             TaskDef(label="b", taskClass=NoDimensionsTestTask, config=config_b),
         ]
         executor = SimplePipelineExecutor.from_pipeline(task_defs, butler=self.butler)
-        quanta = executor.run(register_dataset_types=True)
+        return executor
+
+    def _test_logs(self, log_output, input_type_a, output_type_a, input_type_b, output_type_b):
+        """Check the expected input types received by tasks A and B"""
+        all_logs = "\n".join(log_output)
+        self.assertIn(f"lsst.a:Run method given data of type: {input_type_a}", all_logs)
+        self.assertIn(f"lsst.b:Run method given data of type: {input_type_b}", all_logs)
+        self.assertIn(f"lsst.a:Run method returns data of type: {output_type_a}", all_logs)
+        self.assertIn(f"lsst.b:Run method returns data of type: {output_type_b}", all_logs)
+
+    def test_from_pipeline(self):
+        """Test executing a two quanta from different configurations of the
+        same task, with an executor created by the `from_pipeline` factory
+        method, and the `SimplePipelineExecutor.run` method.
+        """
+        executor = self._configure_pipeline(
+            NoDimensionsTestTask.ConfigClass, NoDimensionsTestTask.ConfigClass
+        )
+
+        with self.assertLogs("lsst", level="INFO") as cm:
+            quanta = executor.run(register_dataset_types=True)
+        self._test_logs(cm.output, "dict", "dict", "dict", "dict")
+
         self.assertEqual(len(quanta), 2)
         self.assertEqual(self.butler.get("intermediate"), {"zero": 0, "one": 1})
         self.assertEqual(self.butler.get("output"), {"zero": 0, "one": 1, "two": 2})
+
+    def test_from_pipeline_intermediates_differ(self):
+        """Run pipeline but intermediates definition in registry differs."""
+        executor = self._configure_pipeline(
+            NoDimensionsTestTask.ConfigClass,
+            NoDimensionsTestTask.ConfigClass,
+            storageClass_b="TaskMetadataLike",
+        )
+
+        # Pre-define the "intermediate" storage class to be something that is
+        # like a dict but is not a dict. This will fail unless storage
+        # class conversion is supported in put and get.
+        self.butler.registry.registerDatasetType(
+            lsst.daf.butler.DatasetType(
+                "intermediate",
+                dimensions=self.butler.registry.dimensions.empty,
+                storageClass="TaskMetadataLike",
+            )
+        )
+
+        with self.assertLogs("lsst", level="INFO") as cm:
+            quanta = executor.run(register_dataset_types=True)
+        # A dict is given to task a without change.
+        # A returns a dict because it has not been told to do anything else.
+        # That does not match the storage class so it will be converted
+        # on put.
+        # b is given a TaskMetadata.
+        # b returns a TaskMetadata because that's how we configured it, but
+        # the butler expects a dict so it is converted on put.
+        self._test_logs(
+            cm.output, "dict", "dict", "lsst.pipe.base.TaskMetadata", "lsst.pipe.base.TaskMetadata"
+        )
+
+        self.assertEqual(len(quanta), 2)
+        self.assertEqual(self.butler.get("intermediate").to_dict(), {"zero": 0, "one": 1})
+        self.assertEqual(self.butler.get("output"), {"zero": 0, "one": 1, "two": 2})
+
+    def test_from_pipeline_output_differ(self):
+        """Run pipeline but output definition in registry differs."""
+        executor = self._configure_pipeline(
+            NoDimensionsTestTask.ConfigClass,
+            NoDimensionsTestTask.ConfigClass,
+            storageClass_a="TaskMetadataLike",
+        )
+
+        # Pre-define the "output" storage class to be something that is
+        # like a dict but is not a dict. This will fail unless storage
+        # class conversion is supported in put and get.
+        self.butler.registry.registerDatasetType(
+            lsst.daf.butler.DatasetType(
+                "output",
+                dimensions=self.butler.registry.dimensions.empty,
+                storageClass="TaskMetadataLike",
+            )
+        )
+
+        with self.assertLogs("lsst", level="INFO") as cm:
+            quanta = executor.run(register_dataset_types=True)
+        # a has been told to return a TaskMetadata but will convert to dict.
+        # b returns a dict and that is converted to TaskMetadata on put.
+        self._test_logs(cm.output, "dict", "lsst.pipe.base.TaskMetadata", "dict", "dict")
+
+        self.assertEqual(len(quanta), 2)
+        self.assertEqual(self.butler.get("intermediate"), {"zero": 0, "one": 1})
+        self.assertEqual(self.butler.get("output").to_dict(), {"zero": 0, "one": 1, "two": 2})
+
+    def test_from_pipeline_input_differ(self):
+        """Run pipeline but input definition in registry differs."""
+
+        # This config declares that the pipeline takes a TaskMetadata
+        # as input but registry already thinks it has a StructureDataDict.
+        executor = self._configure_pipeline(NoDimensionsTestConfig2, NoDimensionsTestTask.ConfigClass)
+
+        with self.assertLogs("lsst", level="INFO") as cm:
+            quanta = executor.run(register_dataset_types=True)
+        self._test_logs(cm.output, "lsst.pipe.base.TaskMetadata", "dict", "dict", "dict")
+
+        self.assertEqual(len(quanta), 2)
+        self.assertEqual(self.butler.get("intermediate"), {"zero": 0, "one": 1})
+        self.assertEqual(self.butler.get("output"), {"zero": 0, "one": 1, "two": 2})
+
+    def test_from_pipeline_incompatible(self):
+        """Run pipeline but definitions are not compatible."""
+        executor = self._configure_pipeline(
+            NoDimensionsTestTask.ConfigClass, NoDimensionsTestTask.ConfigClass
+        )
+
+        # Incompatible output dataset type.
+        self.butler.registry.registerDatasetType(
+            lsst.daf.butler.DatasetType(
+                "output",
+                dimensions=self.butler.registry.dimensions.empty,
+                storageClass="StructuredDataList",
+            )
+        )
+
+        with self.assertRaisesRegex(
+            ValueError, "StructuredDataDict.*inconsistent with registry definition.*StructuredDataList"
+        ):
+            executor.run(register_dataset_types=True)
 
     def test_from_pipeline_file(self):
         """Test executing a two quanta from different configurations of the

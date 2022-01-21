@@ -21,8 +21,6 @@
 
 __all__ = ["PreExecInit"]
 
-import itertools
-
 # -------------------------------
 #  Imports of standard modules --
 # -------------------------------
@@ -32,6 +30,7 @@ import logging
 #  Imports for other modules --
 # -----------------------------
 from lsst.base import Packages
+from lsst.daf.butler.registry import ConflictingDefinitionError
 from lsst.pipe.base import PipelineDatasetTypes
 
 _LOG = logging.getLogger(__name__)
@@ -125,19 +124,48 @@ class PreExecInit:
         datasetTypes = PipelineDatasetTypes.fromPipeline(
             pipeline, registry=self.butler.registry, include_configs=True, include_packages=True
         )
-        for datasetType in itertools.chain(
-            datasetTypes.initIntermediates,
-            datasetTypes.initOutputs,
-            datasetTypes.intermediates,
-            datasetTypes.outputs,
+
+        for datasetTypes, is_input in (
+            (datasetTypes.initIntermediates, True),
+            (datasetTypes.initOutputs, False),
+            (datasetTypes.intermediates, True),
+            (datasetTypes.outputs, False),
         ):
+            self._register_output_dataset_types(registerDatasetTypes, datasetTypes, is_input)
+
+    def _register_output_dataset_types(self, registerDatasetTypes, datasetTypes, is_input):
+        def _check_compatibility(datasetType, expected, is_input) -> bool:
+            # These are output dataset types so check for compatibility on put.
+            is_compatible = expected.is_compatible_with(datasetType)
+
+            if is_input:
+                # This dataset type is also used for input so must be
+                # compatible on get as ell.
+                is_compatible = is_compatible and datasetType.is_compatible_with(expected)
+
+            if is_compatible:
+                _LOG.debug(
+                    "The dataset type configurations differ (%s from task != %s from registry) "
+                    "but the storage classes are compatible. Can continue.",
+                    datasetType,
+                    expected,
+                )
+            return is_compatible
+
+        for datasetType in datasetTypes:
             # Only composites are registered, no components, and by this point
             # the composite should already exist.
             if registerDatasetTypes and not datasetType.isComponent():
                 _LOG.debug("Registering DatasetType %s with registry", datasetType)
                 # this is a no-op if it already exists and is consistent,
                 # and it raises if it is inconsistent.
-                self.butler.registry.registerDatasetType(datasetType)
+                try:
+                    self.butler.registry.registerDatasetType(datasetType)
+                except ConflictingDefinitionError:
+                    if not _check_compatibility(
+                        datasetType, self.butler.registry.getDatasetType(datasetType.name), is_input
+                    ):
+                        raise
             else:
                 _LOG.debug("Checking DatasetType %s against registry", datasetType)
                 try:
@@ -150,9 +178,10 @@ class PreExecInit:
                         "passing `--register-dataset-types` option to `pipetask run`."
                     ) from None
                 if expected != datasetType:
-                    raise ValueError(
-                        f"DatasetType configuration does not match Registry: {datasetType} != {expected}"
-                    )
+                    if not _check_compatibility(datasetType, expected, is_input):
+                        raise ValueError(
+                            f"DatasetType configuration does not match Registry: {datasetType} != {expected}"
+                        )
 
     def saveInitOutputs(self, graph):
         """Write any datasets produced by initializing tasks in a graph.
