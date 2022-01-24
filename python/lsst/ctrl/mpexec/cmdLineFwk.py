@@ -480,7 +480,7 @@ class CmdLineFwk:
     for task management like dumping configuration or execution chain.
     """
 
-    MP_TIMEOUT = 9999  # Default timeout (sec) for multiprocessing
+    MP_TIMEOUT = 3600 * 24 * 30  # Default timeout (sec) for multiprocessing
 
     def __init__(self):
         pass
