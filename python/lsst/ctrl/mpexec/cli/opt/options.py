@@ -423,7 +423,7 @@ save_execution_butler_option = MWOptionDecorator(
 mock_option = MWOptionDecorator(
     "--mock",
     help=unwrap("""Mock pipeline execution."""),
-    is_flag=True
+    is_flag=True,
 )
 
 clobber_execution_butler_option = MWOptionDecorator(

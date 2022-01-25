@@ -719,6 +719,7 @@ class CmdLineFwk:
                 enableLsstDebug=args.enableLsstDebug,
                 exitOnKnownError=args.fail_fast,
                 mock=args.mock,
+                mock_configs=args.mock_configs,
             )
             timeout = self.MP_TIMEOUT if args.timeout is None else args.timeout
             executor = MPGraphExecutor(

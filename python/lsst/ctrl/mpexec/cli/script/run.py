@@ -53,6 +53,7 @@ def run(
     fail_fast,
     clobber_outputs,
     mock,
+    mock_configs,
     **kwargs,
 ):
     """Implements the command line interface `pipetask run` subcommand, should
@@ -142,6 +143,8 @@ def run(
         given.
     mock : `bool`, optional
         If `True` then run mock pipeline instead of real one.
+    mock_configs : `list` [ `PipelineAction` ]
+        A list of config overrides for mock tasks.
     kwargs : `dict` [`str`, `str`]
         Ignored; click commands may accept options for more than one script
         function and pass all the option kwargs to each of the script functions
@@ -172,6 +175,7 @@ def run(
         fail_fast=fail_fast,
         clobber_outputs=clobber_outputs,
         mock=mock,
+        mock_configs=mock_configs,
     )
 
     f = CmdLineFwk()

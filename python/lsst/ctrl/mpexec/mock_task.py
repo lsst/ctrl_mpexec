@@ -20,9 +20,10 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 import logging
-from typing import Any, List, Union
+from typing import Any, List, Optional, Union
 
 from lsst.daf.butler import Butler, DatasetRef, Quantum
+from lsst.pex.config import Field
 from lsst.pipe.base import (
     ButlerQuantumContext,
     DeferredDatasetRef,
@@ -30,9 +31,12 @@ from lsst.pipe.base import (
     OutputQuantizedConnection,
     PipelineTask,
     PipelineTaskConfig,
+    PipelineTaskConnections,
 )
+from lsst.utils import doImport
 from lsst.utils.introspection import get_full_type_name
 
+from .dataid_match import DataIdMatch
 
 _LOG = logging.getLogger(__name__)
 
@@ -82,8 +86,9 @@ class MockButlerQuantumContext(ButlerQuantumContext):
             data = self.butler.get(ref)
         except KeyError:
             data = super()._get(ref)
-
-        if not isinstance(data, dict):
+            # If the input as an actual non-mock data then we want to replace
+            # it with a provenance data which will be stored as a part of
+            # output dataset.
             data = {
                 "ref": {
                     "dataId": {key.name: ref.dataId[key] for key in ref.dataId.keys()},
@@ -111,6 +116,32 @@ class MockButlerQuantumContext(ButlerQuantumContext):
         return
 
 
+class MockPipelineTaskConfig(PipelineTaskConfig, pipelineConnections=PipelineTaskConnections):
+
+    failCondition = Field(
+        dtype=str,
+        default="",
+        doc=(
+            "Condition on DataId to raise an exception. String expression which includes attributes of "
+            "quantum DataId using a syntax of daf_butler user expressions (e.g. 'visit = 123')."
+        ),
+    )
+
+    failException = Field(
+        dtype=str,
+        default="builtins.ValueError",
+        doc=(
+            "Class name of the exception to raise when fail condition is triggered. Can be "
+            "'lsst.pipe.base.NoWorkFound' to specify non-failure exception."
+        ),
+    )
+
+    def dataIdMatch(self) -> Optional[DataIdMatch]:
+        if not self.failCondition:
+            return None
+        return DataIdMatch(self.failCondition)
+
+
 class MockPipelineTask(PipelineTask):
     """Implementation of PipelineTask used for running a mock pipeline.
 
@@ -123,11 +154,20 @@ class MockPipelineTask(PipelineTask):
     to store the output dictionary data with special dataset types.
     """
 
-    ConfigClass = PipelineTaskConfig
+    ConfigClass = MockPipelineTaskConfig
+
+    def __init__(self, *, config=None, **kwargs):
+        super().__init__(config=config, **kwargs)
+
+        self.dataIdMatch = None if config is None else config.dataIdMatch()
+        if self.dataIdMatch:
+            self.failException = doImport(config.failException)
+        else:
+            self.failException = None
 
     def runQuantum(
         self,
-        butlerQC: ButlerQuantumContext,
+        butlerQC: MockButlerQuantumContext,
         inputRefs: InputQuantizedConnection,
         outputRefs: OutputQuantizedConnection,
     ):
@@ -135,6 +175,12 @@ class MockPipelineTask(PipelineTask):
         quantum = butlerQC.quantum
 
         _LOG.info("Mocking execution of task '%s' on quantum %s", self.getName(), quantum.dataId)
+
+        # Possibly raise an exception.
+        if self.dataIdMatch is not None and self.dataIdMatch.match(quantum.dataId):
+            _LOG.info("Simulating failure of task '%s' on quantum %s", self.getName(), quantum.dataId)
+            message = f"Simulated failure: task={self.getName()} dataId={quantum.dataId}"
+            raise self.failException(message)
 
         # read all inputs
         inputs = butlerQC.get(inputRefs)

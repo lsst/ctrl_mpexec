@@ -46,6 +46,7 @@ from lsst.pipe.base import (
     NoWorkFound,
     RepeatableQuantumError,
 )
+from lsst.pipe.base.configOverrides import ConfigOverrides
 
 # During metadata transition phase, determine metadata class by
 # asking pipe_base
@@ -96,6 +97,8 @@ class SingleQuantumExecutor(QuantumExecutor):
         InvalidQuantumError.
     mock : `bool`, optional
         If `True` then mock task execution.
+    mock_configs : `list` [ `_PipelineAction` ], optional
+        Optional config overrides for mock tasks.
     """
 
     stream_json_logs = True
@@ -111,6 +114,7 @@ class SingleQuantumExecutor(QuantumExecutor):
         enableLsstDebug=False,
         exitOnKnownError=False,
         mock=False,
+        mock_configs=None,
     ):
         self.taskFactory = taskFactory
         self.skipExistingIn = skipExistingIn
@@ -118,6 +122,7 @@ class SingleQuantumExecutor(QuantumExecutor):
         self.clobberOutputs = clobberOutputs
         self.exitOnKnownError = exitOnKnownError
         self.mock = mock
+        self.mock_configs = mock_configs
         self.log_handler = None
 
     def execute(self, taskDef, quantum, butler):
@@ -183,7 +188,7 @@ class SingleQuantumExecutor(QuantumExecutor):
             try:
                 if self.mock:
                     # Use mock task instance to execute method.
-                    runTask = MockPipelineTask(name=taskDef.label)
+                    runTask = self._makeMockTask(taskDef)
                 else:
                     runTask = task
                 self.runQuantum(runTask, quantum, taskDef, butler)
@@ -208,6 +213,25 @@ class SingleQuantumExecutor(QuantumExecutor):
                 stopTime - startTime,
             )
         return quantum
+
+    def _makeMockTask(self, taskDef):
+        """Make an instance of mock task for given TaskDef."""
+        # Make config instance and apply overrides
+        overrides = ConfigOverrides()
+        for action in self.mock_configs:
+            if action.label == taskDef.label + "-mock":
+                if action.action == "config":
+                    key, _, value = action.value.partition("=")
+                    overrides.addValueOverride(key, value)
+                elif action.action == "configfile":
+                    overrides.addFileOverride(os.path.expandvars(action.value))
+                else:
+                    raise ValueError(f"Unexpected action for mock task config overrides: {action}")
+        config = MockPipelineTask.ConfigClass()
+        overrides.applyTo(config)
+
+        task = MockPipelineTask(config=config, name=taskDef.label)
+        return task
 
     @contextmanager
     def captureLogging(self, taskDef, quantum, butler):

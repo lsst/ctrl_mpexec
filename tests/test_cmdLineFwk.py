@@ -161,6 +161,8 @@ def _makeArgs(registryConfig=None, **kwargs):
     args["execution_butler_location"] = args.pop("save_execution_butler")
     if "pipeline_actions" not in args:
         args["pipeline_actions"] = []
+    if "mock_configs" not in args:
+        args["mock_configs"] = []
     args = SimpleNamespace(**args)
 
     # override butler_config with our defaults
@@ -750,6 +752,60 @@ class CmdLineFwkTestCaseWithButler(unittest.TestCase):
         butler.registry.refresh()
         collections = set(butler.registry.queryCollections(...))
         self.assertEqual(collections, {"test", "output", "output/run1", "output/run2", "output/run4"})
+
+    def testMockTask(self):
+        """Test --mock option."""
+        args = _makeArgs(
+            butler_config=self.root, input="test", output="output", mock=True, register_dataset_types=True
+        )
+        butler = makeSimpleButler(self.root, run=args.input, inMemory=False)
+        populateButler(self.pipeline, butler)
+
+        fwk = CmdLineFwk()
+        taskFactory = AddTaskFactoryMock()
+
+        qgraph = fwk.makeGraph(self.pipeline, args)
+        self.assertEqual(len(qgraph.taskGraph), self.nQuanta)
+        self.assertEqual(len(qgraph), self.nQuanta)
+
+        # run whole thing
+        fwk.runPipeline(qgraph, taskFactory, args)
+        # None of the actual tasks is executed
+        self.assertEqual(taskFactory.countExec, 0)
+
+        # check dataset types
+        butler.registry.refresh()
+        datasetTypes = list(butler.registry.queryDatasetTypes(re.compile("^_mock_.*")))
+        self.assertEqual(len(datasetTypes), self.nQuanta * 2)
+
+    def testMockTaskFailure(self):
+        """Test --mock option and configure one of the tasks to fail."""
+        args = _makeArgs(
+            butler_config=self.root,
+            input="test",
+            output="output",
+            mock=True,
+            register_dataset_types=True,
+            mock_configs=[
+                _ACTION_CONFIG("task3-mock:failCondition='detector = 0'"),
+            ],
+            fail_fast=True,
+        )
+        butler = makeSimpleButler(self.root, run=args.input, inMemory=False)
+        populateButler(self.pipeline, butler)
+
+        fwk = CmdLineFwk()
+        taskFactory = AddTaskFactoryMock()
+
+        qgraph = fwk.makeGraph(self.pipeline, args)
+        self.assertEqual(len(qgraph.taskGraph), self.nQuanta)
+        self.assertEqual(len(qgraph), self.nQuanta)
+
+        with self.assertRaises(MPGraphExecutorError) as cm:
+            fwk.runPipeline(qgraph, taskFactory, args)
+
+        self.assertIsNotNone(cm.exception.__cause__)
+        self.assertRegex(str(cm.exception.__cause__), "Simulated failure: task=task3")
 
     def testSubgraph(self):
         """Test successfull execution of trivial quantum graph."""

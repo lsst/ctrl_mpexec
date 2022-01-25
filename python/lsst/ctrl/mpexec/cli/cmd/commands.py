@@ -26,7 +26,7 @@ from lsst.daf.butler.cli.utils import MWCtxObj, catch_and_exit, option_section, 
 
 from .. import opt as ctrlMpExecOpts
 from .. import script
-from ..utils import PipetaskCommand, makePipelineActions
+from ..utils import _ACTION_CONFIG, _ACTION_CONFIG_FILE, PipetaskCommand, makePipelineActions
 
 epilog = unwrap(
     """Notes:
@@ -42,17 +42,23 @@ ignored.)
 )
 
 
-def _doBuild(ctx, **kwargs):
-    # The pipeline actions (task, delete, config, config_file, and instrument)
-    # must be handled in the order they appear on the command line, but the CLI
-    # specification gives them all different option names. So, instead of using
-    # the individual action options as they appear in kwargs (because
-    # invocation order can't be known), we capture the CLI arguments by
-    # overriding `click.Command.parse_args` and save them in the Context's
-    # `obj` parameter. We use `makePipelineActions` to create a list of
-    # pipeline actions from the CLI arguments and pass that list to the script
-    # function using the `pipeline_actions` kwarg name, and remove the action
-    # options from kwargs.
+def _collectActions(ctx, **kwargs):
+    """Extract pipeline building options, replace them with PipelineActions,
+    return updated `kwargs`.
+
+    Notes
+    -----
+    The pipeline actions (task, delete, config, config_file, and instrument)
+    must be handled in the order they appear on the command line, but the CLI
+    specification gives them all different option names. So, instead of using
+    the individual action options as they appear in kwargs (because
+    invocation order can't be known), we capture the CLI arguments by
+    overriding `click.Command.parse_args` and save them in the Context's
+    `obj` parameter. We use `makePipelineActions` to create a list of
+    pipeline actions from the CLI arguments and pass that list to the script
+    function using the `pipeline_actions` kwarg name, and remove the action
+    options from kwargs.
+    """
     for pipelineAction in (
         ctrlMpExecOpts.task_option.name(),
         ctrlMpExecOpts.delete_option.name(),
@@ -61,8 +67,21 @@ def _doBuild(ctx, **kwargs):
         obsBaseOpts.instrument_option.name(),
     ):
         kwargs.pop(pipelineAction)
-    kwargs["pipeline_actions"] = makePipelineActions(MWCtxObj.getFrom(ctx).args)
-    return script.build(**kwargs)
+
+    actions = makePipelineActions(MWCtxObj.getFrom(ctx).args)
+    mock_configs = []
+    pipeline_actions = []
+    for action in actions:
+        if action.label and action.label.endswith("-mock"):
+            if action.action not in (_ACTION_CONFIG.action, _ACTION_CONFIG_FILE.action):
+                raise ValueError(f"Unexpected option for mock task config overrides: {action}")
+            mock_configs.append(action)
+        else:
+            pipeline_actions.append(action)
+
+    kwargs["mock_configs"] = mock_configs
+    kwargs["pipeline_actions"] = pipeline_actions
+    return kwargs
 
 
 @click.command(cls=PipetaskCommand, epilog=epilog, short_help="Build pipeline definition.")
@@ -77,7 +96,8 @@ def build(ctx, **kwargs):
 
     This does not require input data to be specified.
     """
-    _doBuild(ctx, **kwargs)
+    kwargs = _collectActions(ctx, **kwargs)
+    script.build(**kwargs)
 
 
 @click.command(cls=PipetaskCommand, epilog=epilog)
@@ -91,7 +111,8 @@ def build(ctx, **kwargs):
 @catch_and_exit
 def qgraph(ctx, **kwargs):
     """Build and optionally save quantum graph."""
-    pipeline = _doBuild(ctx, **kwargs)
+    kwargs = _collectActions(ctx, **kwargs)
+    pipeline = script.build(**kwargs)
     script.qgraph(pipelineObj=pipeline, **kwargs)
 
 
@@ -100,6 +121,7 @@ def qgraph(ctx, **kwargs):
 @catch_and_exit
 def run(ctx, **kwargs):
     """Build and execute pipeline and quantum graph."""
-    pipeline = _doBuild(ctx, **kwargs)
+    kwargs = _collectActions(ctx, **kwargs)
+    pipeline = script.build(**kwargs)
     qgraph = script.qgraph(pipelineObj=pipeline, **kwargs)
     script.run(qgraphObj=qgraph, **kwargs)
