@@ -178,7 +178,7 @@ class SingleQuantumExecutor(QuantumExecutor):
             try:
                 self.runQuantum(task, quantum, taskDef, butler)
             except Exception as e:
-                _LOG.exception(
+                _LOG.error(
                     "Execution of task '%s' on quantum %s failed. Exception %s: %s",
                     taskDef.label,
                     quantum.dataId,
