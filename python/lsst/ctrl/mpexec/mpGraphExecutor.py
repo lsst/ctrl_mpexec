@@ -159,8 +159,8 @@ class _JobList:
 
     Parameters
     ----------
-    iterable : iterable of `~lsst.pipe.base.QuantumIterData`
-        Sequence if Quanta to execute. This has to be ordered according to
+    iterable : iterable of `~lsst.pipe.base.QuantumNode`
+        Sequence of Quanta to execute. This has to be ordered according to
         task dependencies.
     """
 
@@ -341,23 +341,57 @@ class MPGraphExecutor(QuantumGraphExecutor):
         butler : `lsst.daf.butler.Butler`
             Data butler instance
         """
-        # Note that in non-MP case any failed task will generate an exception
-        # and kill the whole thing. In general we cannot guarantee exception
-        # safety so easiest and safest thing is to let it die.
-        count, totalCount = 0, len(graph)
+        successCount, totalCount = 0, len(graph)
+        failedNodes = set()
         for qnode in graph:
+
+            # Any failed inputs mean that the quantum has to be skipped.
+            inputNodes = graph.determineInputsToQuantumNode(qnode)
+            if inputNodes & failedNodes:
+                _LOG.error(
+                    "Upstream job failed for task <%s dataId=%s>, skipping this task.",
+                    qnode.taskDef,
+                    qnode.quantum.dataId,
+                )
+                failedNodes.add(qnode)
+                continue
+
             _LOG.debug("Executing %s", qnode)
             try:
                 self.quantumExecutor.execute(qnode.taskDef, qnode.quantum, butler)
+                successCount += 1
+            except Exception as exc:
+                failedNodes.add(qnode)
+                if self.failFast:
+                    raise MPGraphExecutorError(
+                        f"Task <{qnode.taskDef} dataId={qnode.quantum.dataId}> failed."
+                    ) from exc
+                else:
+                    # Note that there could be exception safety issues, which
+                    # we presently ignore.
+                    _LOG.error(
+                        "Task <%s dataId=%s> failed; processing will continue for remaining tasks.",
+                        qnode.taskDef,
+                        qnode.quantum.dataId,
+                        exc_info=exc,
+                    )
             finally:
                 # sqlalchemy has some objects that can last until a garbage
                 # collection cycle is run, which can happen at unpredictable
                 # times, run a collection loop here explicitly.
                 gc.collect()
-            count += 1
+
             _LOG.info(
-                "Executed %d quanta, %d remain out of total %d quanta.", count, totalCount - count, totalCount
+                "Executed %d quanta successfully, %d failed and %d remain out of total %d quanta.",
+                successCount,
+                len(failedNodes),
+                totalCount - successCount - len(failedNodes),
+                totalCount,
             )
+
+        # Raise an exception if there were any failures.
+        if failedNodes:
+            raise MPGraphExecutorError("One or more tasks failed during execution.")
 
     def _executeQuantaMP(self, graph, butler):
         """Execute all Quanta in separate processes.

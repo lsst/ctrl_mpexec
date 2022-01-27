@@ -39,6 +39,7 @@ import click
 import lsst.pex.config as pexConfig
 import lsst.pipe.base.connectionTypes as cT
 import lsst.utils.tests
+from lsst.ctrl.mpexec import CmdLineFwk, MPGraphExecutorError
 from lsst.ctrl.mpexec.cli.opt import run_options
 from lsst.ctrl.mpexec.cli.utils import (
     _ACTION_ADD_INSTRUMENT,
@@ -47,7 +48,6 @@ from lsst.ctrl.mpexec.cli.utils import (
     _ACTION_CONFIG_FILE,
     PipetaskCommand,
 )
-from lsst.ctrl.mpexec.cmdLineFwk import CmdLineFwk
 from lsst.daf.butler import Config, DataCoordinate, DatasetRef, DimensionUniverse, Quantum, Registry
 from lsst.daf.butler.core.datasets.type import DatasetType
 from lsst.daf.butler.registry import RegistryConfig
@@ -562,7 +562,7 @@ class CmdLineFwkTestCaseWithButler(unittest.TestCase):
         self.assertEqual(len(qgraph), self.nQuanta)
 
         # run first three quanta
-        with self.assertRaises(RuntimeError):
+        with self.assertRaises(MPGraphExecutorError):
             fwk.runPipeline(qgraph, taskFactory, args)
         self.assertEqual(taskFactory.countExec, 3)
 
@@ -584,8 +584,7 @@ class CmdLineFwkTestCaseWithButler(unittest.TestCase):
         args.skip_existing_in = (args.output,)
         args.extend_run = True
         args.no_versions = True
-        excRe = "Registry inconsistency while checking for existing outputs.*"
-        with self.assertRaisesRegex(RuntimeError, excRe):
+        with self.assertRaises(MPGraphExecutorError):
             fwk.runPipeline(qgraph, taskFactory, args)
 
     def testSimpleQGraphClobberOutputs(self):
@@ -605,7 +604,7 @@ class CmdLineFwkTestCaseWithButler(unittest.TestCase):
         self.assertEqual(len(qgraph), self.nQuanta)
 
         # run first three quanta
-        with self.assertRaises(RuntimeError):
+        with self.assertRaises(MPGraphExecutorError):
             fwk.runPipeline(qgraph, taskFactory, args)
         self.assertEqual(taskFactory.countExec, 3)
 
