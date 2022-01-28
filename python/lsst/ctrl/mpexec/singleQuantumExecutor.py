@@ -46,6 +46,7 @@ from lsst.pipe.base import (
     NoWorkFound,
     RepeatableQuantumError,
 )
+from lsst.pipe.base.configOverrides import ConfigOverrides
 
 # During metadata transition phase, determine metadata class by
 # asking pipe_base
@@ -55,6 +56,7 @@ from lsst.utils.timer import logInfo
 # -----------------------------
 #  Imports for other modules --
 # -----------------------------
+from .mock_task import MockButlerQuantumContext, MockPipelineTask
 from .quantumGraphExecutor import QuantumExecutor
 
 # ----------------------------------
@@ -93,6 +95,10 @@ class SingleQuantumExecutor(QuantumExecutor):
         known exceptions, after printing a traceback, instead of letting the
         exception propagate up to calling.  This is always the behavior for
         InvalidQuantumError.
+    mock : `bool`, optional
+        If `True` then mock task execution.
+    mock_configs : `list` [ `_PipelineAction` ], optional
+        Optional config overrides for mock tasks.
     """
 
     stream_json_logs = True
@@ -107,12 +113,16 @@ class SingleQuantumExecutor(QuantumExecutor):
         clobberOutputs=False,
         enableLsstDebug=False,
         exitOnKnownError=False,
+        mock=False,
+        mock_configs=None,
     ):
         self.taskFactory = taskFactory
         self.skipExistingIn = skipExistingIn
         self.enableLsstDebug = enableLsstDebug
         self.clobberOutputs = clobberOutputs
         self.exitOnKnownError = exitOnKnownError
+        self.mock = mock
+        self.mock_configs = mock_configs
         self.log_handler = None
 
     def execute(self, taskDef, quantum, butler):
@@ -176,7 +186,12 @@ class SingleQuantumExecutor(QuantumExecutor):
             task = self.makeTask(taskClass, label, config, butler)
             logInfo(None, "start", metadata=quantumMetadata)
             try:
-                self.runQuantum(task, quantum, taskDef, butler)
+                if self.mock:
+                    # Use mock task instance to execute method.
+                    runTask = self._makeMockTask(taskDef)
+                else:
+                    runTask = task
+                self.runQuantum(runTask, quantum, taskDef, butler)
             except Exception as e:
                 _LOG.error(
                     "Execution of task '%s' on quantum %s failed. Exception %s: %s",
@@ -198,6 +213,25 @@ class SingleQuantumExecutor(QuantumExecutor):
                 stopTime - startTime,
             )
         return quantum
+
+    def _makeMockTask(self, taskDef):
+        """Make an instance of mock task for given TaskDef."""
+        # Make config instance and apply overrides
+        overrides = ConfigOverrides()
+        for action in self.mock_configs:
+            if action.label == taskDef.label + "-mock":
+                if action.action == "config":
+                    key, _, value = action.value.partition("=")
+                    overrides.addValueOverride(key, value)
+                elif action.action == "configfile":
+                    overrides.addFileOverride(os.path.expandvars(action.value))
+                else:
+                    raise ValueError(f"Unexpected action for mock task config overrides: {action}")
+        config = MockPipelineTask.ConfigClass()
+        overrides.applyTo(config)
+
+        task = MockPipelineTask(config=config, name=taskDef.label)
+        return task
 
     @contextmanager
     def captureLogging(self, taskDef, quantum, butler):
@@ -434,9 +468,37 @@ class SingleQuantumExecutor(QuantumExecutor):
                 # We need to ask datastore if the dataset actually exists
                 # because the Registry of a local "execution butler" cannot
                 # know this (because we prepopulate it with all of the datasets
-                # that might be created).
-                if butler.datastore.exists(resolvedRef):
+                # that might be created). In case of mock execution we check
+                # that mock dataset exists instead.
+                if self.mock:
+                    try:
+                        typeName, component = ref.datasetType.nameAndComponent()
+                        if component is not None:
+                            mockDatasetTypeName = MockButlerQuantumContext.mockDatasetTypeName(typeName)
+                        else:
+                            mockDatasetTypeName = MockButlerQuantumContext.mockDatasetTypeName(
+                                ref.datasetType.name
+                            )
+
+                        mockDatasetType = butler.registry.getDatasetType(mockDatasetTypeName)
+                    except KeyError:
+                        # means that mock dataset type is not there and this
+                        # should be a pre-existing dataset
+                        _LOG.debug("No mock dataset type for %s", ref)
+                        if butler.datastore.exists(resolvedRef):
+                            newRefsForDatasetType.append(resolvedRef)
+                    else:
+                        mockRef = DatasetRef(mockDatasetType, ref.dataId)
+                        resolvedMockRef = butler.registry.findDataset(
+                            mockRef.datasetType, mockRef.dataId, collections=butler.collections
+                        )
+                        _LOG.debug("mockRef=%s resolvedMockRef=%s", mockRef, resolvedMockRef)
+                        if resolvedMockRef is not None and butler.datastore.exists(resolvedMockRef):
+                            _LOG.debug("resolvedMockRef dataset exists")
+                            newRefsForDatasetType.append(resolvedRef)
+                elif butler.datastore.exists(resolvedRef):
                     newRefsForDatasetType.append(resolvedRef)
+
             if len(newRefsForDatasetType) != len(refsForDatasetType):
                 anyChanges = True
         # If we removed any input datasets, let the task check if it has enough
@@ -474,7 +536,10 @@ class SingleQuantumExecutor(QuantumExecutor):
             Data butler.
         """
         # Create a butler that operates in the context of a quantum
-        butlerQC = ButlerQuantumContext(butler, quantum)
+        if self.mock:
+            butlerQC = MockButlerQuantumContext(butler, quantum)
+        else:
+            butlerQC = ButlerQuantumContext(butler, quantum)
 
         # Get the input and output references for the task
         inputRefs, outputRefs = taskDef.connections.buildDatasetRefs(quantum)
