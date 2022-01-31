@@ -29,10 +29,10 @@ import logging
 # -----------------------------
 #  Imports for other modules --
 # -----------------------------
-from lsst.base import Packages
 from lsst.daf.butler import DatasetType
 from lsst.daf.butler.registry import ConflictingDefinitionError
 from lsst.pipe.base import PipelineDatasetTypes
+from lsst.utils.packages import Packages
 
 from .mock_task import MockButlerQuantumContext
 

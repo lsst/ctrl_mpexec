@@ -62,7 +62,7 @@ class Test1Task(PipelineTask):
 
         _LOG.info("executing %s: input=%s", self.getName(), input)
 
-        data = input ** 2
+        data = input**2
 
         # attribute name of struct is the same as a config field name
         return Struct(output=data)
