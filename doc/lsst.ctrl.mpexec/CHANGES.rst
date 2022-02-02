@@ -1,3 +1,12 @@
+Multi-Processing Executor v23.0.1 2022-02-02
+============================================
+
+Miscellaneous Changes of Minor Interest
+---------------------------------------
+
+- Allow ``pipetask run`` execution to continue in single-process mode after failure of one or more tasks. Previously execution stopped on an exception from any task. (`DM-33339 <https://jira.lsstcorp.org/browse/DM-33339>`_)
+
+
 Multi-Processing Executor v23.0.0 2021-12-10
 ============================================
 
