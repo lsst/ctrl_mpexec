@@ -179,6 +179,7 @@ class PreExecInit:
                 )
             return is_compatible
 
+        missing_datasetTypes = set()
         for datasetType in datasetTypes:
             # Only composites are registered, no components, and by this point
             # the composite should already exist.
@@ -199,16 +200,21 @@ class PreExecInit:
                     expected = self.butler.registry.getDatasetType(datasetType.name)
                 except KeyError:
                     # Likely means that --register-dataset-types is forgotten.
-                    raise KeyError(
-                        f"Dataset type with name '{datasetType.name}' not found. Dataset types "
-                        "have to be registered with either `butler register-dataset-type` or "
-                        "passing `--register-dataset-types` option to `pipetask run`."
-                    ) from None
+                    missing_datasetTypes.add(datasetType.name)
+                    continue
                 if expected != datasetType:
                     if not _check_compatibility(datasetType, expected, is_input):
                         raise ValueError(
                             f"DatasetType configuration does not match Registry: {datasetType} != {expected}"
                         )
+
+        if missing_datasetTypes:
+            plural = "s" if len(missing_datasetTypes) != 1 else ""
+            raise KeyError(
+                f"Missing dataset type definition{plural}: {', '.join(missing_datasetTypes)}. "
+                "Dataset types have to be registered with either `butler register-dataset-type` or "
+                "passing `--register-dataset-types` option to `pipetask run`."
+            )
 
     def saveInitOutputs(self, graph):
         """Write any datasets produced by initializing tasks in a graph.
