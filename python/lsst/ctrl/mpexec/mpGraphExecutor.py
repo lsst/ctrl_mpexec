@@ -25,6 +25,7 @@ import gc
 import logging
 import multiprocessing
 import pickle
+import signal
 import sys
 import time
 
@@ -149,6 +150,25 @@ class _Job:
         if self.process and not self.process.is_alive():
             self.process.close()
             self.process = None
+
+    def failMessage(self):
+        """Return a message describing task failure"""
+        exitcode = self.process.exitcode
+        if exitcode < 0:
+            # Negative exit code means it is killed by signal
+            signum = -exitcode
+            msg = f"Task {self} failed, killed by signal {signum}"
+            # Just in case this is some very odd signal, expect ValueError
+            try:
+                strsignal = signal.strsignal(signum)
+                msg = f"{msg} ({strsignal})"
+            except ValueError:
+                pass
+        elif exitcode > 0:
+            msg = f"Task {self} failed, exit code={exitcode}"
+        else:
+            msg = None
+        return msg
 
     def __str__(self):
         return f"<{self.qnode.taskDef} dataId={self.qnode.quantum.dataId}>"
@@ -436,16 +456,19 @@ class MPGraphExecutor(QuantumGraphExecutor):
                         job.cleanup()
                         _LOG.debug("success: %s took %.3f seconds", job, time.time() - job.started)
                     else:
+                        # failMessage() has to be called before cleanup()
+                        message = job.failMessage()
                         jobs.setJobState(job, JobState.FAILED)
                         job.cleanup()
                         _LOG.debug("failed: %s", job)
                         if self.failFast or exitcode == InvalidQuantumError.EXIT_CODE:
+                            # stop all running jobs
                             for stopJob in jobs.running:
                                 if stopJob is not job:
                                     stopJob.stop()
-                            raise MPGraphExecutorError(f"Task {job} failed, exit code={exitcode}.")
+                            raise MPGraphExecutorError(message)
                         else:
-                            _LOG.error("Task %s failed; processing will continue for remaining tasks.", job)
+                            _LOG.error("%s; processing will continue for remaining tasks.", message)
                 else:
                     # check for timeout
                     now = time.time()

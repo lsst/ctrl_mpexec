@@ -23,6 +23,7 @@
 """
 
 import logging
+import signal
 import sys
 import time
 import unittest
@@ -154,6 +155,16 @@ class TaskMockFail:
         raise ValueError("expected failure")
 
 
+class TaskMockCrash:
+    """Simple mock class for task which fails."""
+
+    canMultiprocess = True
+
+    def runQuantum(self):
+        _LOG.debug("TaskMockCrash.runQuantum")
+        signal.raise_signal(signal.SIGILL)
+
+
 class TaskMockSleep:
     """Simple mock class for task which "runs" for some time."""
 
@@ -243,7 +254,7 @@ class MPGraphExecutorTestCase(unittest.TestCase):
         # run in multi-process mode
         qexec = QuantumExecutorMock()
         mpexec = MPGraphExecutor(numProc=3, timeout=100, quantumExecutor=qexec)
-        with self.assertRaises(MPGraphExecutorError):
+        with self.assertRaisesRegex(MPGraphExecutorError, "Task Task does not support multiprocessing"):
             mpexec.execute(qgraph, butler=None)
 
     def test_mpexec_fixup(self):
@@ -315,7 +326,7 @@ class MPGraphExecutorTestCase(unittest.TestCase):
 
         qexec = QuantumExecutorMock(mp=True)
         mpexec = MPGraphExecutor(numProc=3, timeout=100, quantumExecutor=qexec)
-        with self.assertRaises(MPGraphExecutorError):
+        with self.assertRaisesRegex(MPGraphExecutorError, "One or more tasks failed"):
             mpexec.execute(qgraph, butler=None)
         self.assertCountEqual(qexec.getDataIds("detector"), [0, 2])
 
@@ -339,7 +350,7 @@ class MPGraphExecutorTestCase(unittest.TestCase):
 
         qexec = QuantumExecutorMock(mp=True)
         mpexec = MPGraphExecutor(numProc=3, timeout=100, quantumExecutor=qexec)
-        with self.assertRaises(MPGraphExecutorError):
+        with self.assertRaisesRegex(MPGraphExecutorError, "One or more tasks failed"):
             mpexec.execute(qgraph, butler=None)
         self.assertCountEqual(qexec.getDataIds("detector"), [0, 3])
 
@@ -369,9 +380,45 @@ class MPGraphExecutorTestCase(unittest.TestCase):
 
         qexec = QuantumExecutorMock(mp=True)
         mpexec = MPGraphExecutor(numProc=3, timeout=100, quantumExecutor=qexec, failFast=True)
-        with self.assertRaises(MPGraphExecutorError):
+        with self.assertRaisesRegex(MPGraphExecutorError, "failed, exit code=1"):
             mpexec.execute(qgraph, butler=None)
         self.assertCountEqual(qexec.getDataIds("detector"), [0])
+
+    def test_mpexec_crash(self):
+        """Check task crash due to signal"""
+
+        taskDef = TaskDefMock()
+        taskDefCrash = TaskDefMock(taskClass=TaskMockCrash)
+        qgraph = QuantumGraphMock(
+            [
+                QuantumIterDataMock(index=0, taskDef=taskDef, detector=0),
+                QuantumIterDataMock(index=1, taskDef=taskDefCrash, detector=1),
+                QuantumIterDataMock(index=2, taskDef=taskDef, detector=2),
+            ]
+        )
+
+        qexec = QuantumExecutorMock(mp=True)
+        mpexec = MPGraphExecutor(numProc=3, timeout=100, quantumExecutor=qexec)
+        with self.assertRaisesRegex(MPGraphExecutorError, "One or more tasks failed"):
+            mpexec.execute(qgraph, butler=None)
+
+    def test_mpexec_crash_failfast(self):
+        """Check task crash due to signal with --fail-fast"""
+
+        taskDef = TaskDefMock()
+        taskDefCrash = TaskDefMock(taskClass=TaskMockCrash)
+        qgraph = QuantumGraphMock(
+            [
+                QuantumIterDataMock(index=0, taskDef=taskDef, detector=0),
+                QuantumIterDataMock(index=1, taskDef=taskDefCrash, detector=1),
+                QuantumIterDataMock(index=2, taskDef=taskDef, detector=2),
+            ]
+        )
+
+        qexec = QuantumExecutorMock(mp=True)
+        mpexec = MPGraphExecutor(numProc=3, timeout=100, quantumExecutor=qexec, failFast=True)
+        with self.assertRaisesRegex(MPGraphExecutorError, "failed, killed by signal 4 .Illegal instruction"):
+            mpexec.execute(qgraph, butler=None)
 
     def test_mpexec_num_fd(self):
         """Check that number of open files stays reasonable"""
