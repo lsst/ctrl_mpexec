@@ -34,7 +34,7 @@ from collections import defaultdict
 from contextlib import contextmanager
 from itertools import chain
 from logging import FileHandler
-from typing import Dict, List
+from typing import Dict, List, Optional
 
 from lsst.daf.butler import DatasetRef, DatasetType, FileDataset, NamedKeyDict, Quantum
 from lsst.daf.butler.core.logging import ButlerLogRecordHandler, ButlerLogRecords, ButlerMDC, JsonLogFormatter
@@ -58,6 +58,7 @@ from lsst.utils.timer import logInfo
 # -----------------------------
 from .mock_task import MockButlerQuantumContext, MockPipelineTask
 from .quantumGraphExecutor import QuantumExecutor
+from .reports import QuantumReport
 
 # ----------------------------------
 #  Local non-exported definitions --
@@ -124,9 +125,26 @@ class SingleQuantumExecutor(QuantumExecutor):
         self.mock = mock
         self.mock_configs = mock_configs
         self.log_handler = None
+        self.report: Optional[QuantumReport] = None
 
     def execute(self, taskDef, quantum, butler):
         # Docstring inherited from QuantumExecutor.execute
+
+        # Catch any exception and make a report based on that.
+        try:
+            result = self._execute(taskDef, quantum, butler)
+            self.report = QuantumReport(dataId=quantum.dataId, taskLabel=taskDef.label)
+            return result
+        except Exception as exc:
+            self.report = QuantumReport.from_exception(
+                exception=exc,
+                dataId=quantum.dataId,
+                taskLabel=taskDef.label,
+            )
+            raise
+
+    def _execute(self, taskDef, quantum, butler):
+        """Internal implementation of execute()"""
         startTime = time.time()
 
         with self.captureLogging(taskDef, quantum, butler) as captureLog:
@@ -679,3 +697,9 @@ class SingleQuantumExecutor(QuantumExecutor):
                     else:
                         oneInstrument = instrument
                         Instrument.fromName(instrument, butler.registry)
+
+    def getReport(self) -> Optional[QuantumReport]:
+        # Docstring inherited from base class
+        if self.report is None:
+            raise RuntimeError("getReport() called before execute()")
+        return self.report

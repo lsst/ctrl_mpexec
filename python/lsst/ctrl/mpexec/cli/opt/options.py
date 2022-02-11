@@ -446,3 +446,12 @@ dataset_query_constraint = MWOptionDecorator(
     ),
     default="all",
 )
+
+summary_option = MWOptionDecorator(
+    "--summary",
+    help=(
+        "Location for storing job summary (JSON file). Note that the"
+        " structure of this file may not be stable."
+    ),
+    type=MWPath(dir_okay=False, file_okay=True, writable=True),
+)

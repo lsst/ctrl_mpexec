@@ -52,6 +52,7 @@ def run(
     debug,
     fail_fast,
     clobber_outputs,
+    summary,
     mock,
     mock_configs,
     **kwargs,
@@ -141,6 +142,8 @@ def run(
         Remove outputs from previous execution of the same quantum before new
         execution.  Only applies to failed quanta if skip_existing is also
         given.
+    summary : `str`
+        File path to store job report in JSON format.
     mock : `bool`, optional
         If `True` then run mock pipeline instead of real one.
     mock_configs : `list` [ `PipelineAction` ]
@@ -174,6 +177,7 @@ def run(
         enableLsstDebug=debug,
         fail_fast=fail_fast,
         clobber_outputs=clobber_outputs,
+        summary=summary,
         mock=mock,
         mock_configs=mock_configs,
     )
