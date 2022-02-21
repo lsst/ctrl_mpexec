@@ -34,7 +34,7 @@ from collections import defaultdict
 from contextlib import contextmanager
 from itertools import chain
 from logging import FileHandler
-from typing import List
+from typing import Dict, List
 
 from lsst.daf.butler import DatasetRef, DatasetType, FileDataset, NamedKeyDict, Quantum
 from lsst.daf.butler.core.logging import ButlerLogRecordHandler, ButlerLogRecords, ButlerMDC, JsonLogFormatter
@@ -350,14 +350,26 @@ class SingleQuantumExecutor(QuantumExecutor):
             existingRefs = []
             missingRefs = []
             for datasetRefs in quantum.outputs.values():
+                checkRefs: List[DatasetRef] = []
+                registryRefToQuantumRef: Dict[DatasetRef, DatasetRef] = {}
                 for datasetRef in datasetRefs:
                     ref = butler.registry.findDataset(
                         datasetRef.datasetType, datasetRef.dataId, collections=collections
                     )
-                    if ref is not None and butler.datastore.exists(ref):
+                    if ref is None:
+                        missingRefs.append(datasetRef)
+                    else:
+                        checkRefs.append(ref)
+                        registryRefToQuantumRef[ref] = datasetRef
+
+                # More efficient to ask the datastore in bulk for ref
+                # existence rather than one at a time.
+                existence = butler.datastore.mexists(checkRefs)
+                for ref, exists in existence.items():
+                    if exists:
                         existingRefs.append(ref)
                     else:
-                        missingRefs.append(datasetRef)
+                        missingRefs.append(registryRefToQuantumRef[ref])
             return existingRefs, missingRefs
 
         existingRefs, missingRefs = findOutputs(self.skipExistingIn)
