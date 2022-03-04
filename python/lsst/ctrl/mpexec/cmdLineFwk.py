@@ -730,8 +730,16 @@ class CmdLineFwk:
                 failFast=args.fail_fast,
                 executionGraphFixup=graphFixup,
             )
-            with util.profile(args.profile, _LOG):
-                executor.execute(graph, butler)
+            try:
+                with util.profile(args.profile, _LOG):
+                    executor.execute(graph, butler)
+            finally:
+                if args.summary:
+                    report = executor.getReport()
+                    if report:
+                        with open(args.summary, "w") as out:
+                            # Do not save fields that are not set.
+                            out.write(report.json(exclude_none=True, indent=2))
 
     def showInfo(self, args, pipeline, graph=None):
         """Display useful info about pipeline and environment.

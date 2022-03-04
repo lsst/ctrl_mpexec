@@ -28,11 +28,8 @@ import pickle
 import signal
 import sys
 import time
-
-# -------------------------------
-#  Imports of standard modules --
-# -------------------------------
 from enum import Enum
+from typing import Optional
 
 from lsst.base import disableImplicitThreading
 from lsst.daf.butler.cli.cliLog import CliLog
@@ -43,6 +40,7 @@ from lsst.pipe.base.graph.graph import QuantumGraph
 #  Imports for other modules --
 # -----------------------------
 from .quantumGraphExecutor import QuantumGraphExecutor
+from .reports import ExecutionStatus, QuantumReport, Report
 
 _LOG = logging.getLogger(__name__)
 
@@ -71,6 +69,7 @@ class _Job:
         self.process = None
         self._state = JobState.PENDING
         self.started = None
+        self._rcv_conn = None
 
     @property
     def state(self):
@@ -93,11 +92,12 @@ class _Job:
         # it is pickled manually here.
         quantum_pickle = pickle.dumps(self.qnode.quantum)
         taskDef = self.qnode.taskDef
+        self._rcv_conn, snd_conn = multiprocessing.Pipe(False)
         logConfigState = CliLog.configState
         mp_ctx = multiprocessing.get_context(startMethod)
         self.process = mp_ctx.Process(
             target=_Job._executeJob,
-            args=(quantumExecutor, taskDef, quantum_pickle, butler, logConfigState),
+            args=(quantumExecutor, taskDef, quantum_pickle, butler, logConfigState, snd_conn),
             name=f"task-{self.qnode.quantum.dataId}",
         )
         self.process.start()
@@ -105,7 +105,7 @@ class _Job:
         self._state = JobState.RUNNING
 
     @staticmethod
-    def _executeJob(quantumExecutor, taskDef, quantum_pickle, butler, logConfigState):
+    def _executeJob(quantumExecutor, taskDef, quantum_pickle, butler, logConfigState, snd_conn):
         """Execute a job with arguments.
 
         Parameters
@@ -118,6 +118,8 @@ class _Job:
             Quantum for this task execution in pickled form.
         butler : `lss.daf.butler.Butler`
             Data butler instance.
+        snd_conn : `multiprocessing.Connection`
+            Connection to send job report to parent process.
         """
         if logConfigState and not CliLog.configState:
             # means that we are in a new spawned Python process and we have to
@@ -129,7 +131,15 @@ class _Job:
             butler.registry.resetConnectionPool()
 
         quantum = pickle.loads(quantum_pickle)
-        quantumExecutor.execute(taskDef, quantum, butler)
+        try:
+            quantumExecutor.execute(taskDef, quantum, butler)
+        finally:
+            # If sending fails we do not want this new exception to be exposed.
+            try:
+                report = quantumExecutor.getReport()
+                snd_conn.send(report)
+            except Exception:
+                pass
 
     def stop(self):
         """Stop the process."""
@@ -150,6 +160,23 @@ class _Job:
         if self.process and not self.process.is_alive():
             self.process.close()
             self.process = None
+            self._rcv_conn = None
+
+    def report(self) -> QuantumReport:
+        """Return task report, should be called after process finishes and
+        before cleanup().
+        """
+        try:
+            report = self._rcv_conn.recv()
+            report.exitCode = self.process.exitcode
+        except Exception:
+            # Likely due to the process killed, but there may be other reasons.
+            report = QuantumReport.from_exit_code(
+                exitCode=self.process.exitcode,
+                dataId=self.qnode.quantum.dataId,
+                taskLabel=self.qnode.taskDef.label,
+            )
+        return report
 
     def failMessage(self):
         """Return a message describing task failure"""
@@ -297,13 +324,21 @@ class MPGraphExecutor(QuantumGraphExecutor):
     """
 
     def __init__(
-        self, numProc, timeout, quantumExecutor, *, startMethod=None, failFast=False, executionGraphFixup=None
+        self,
+        numProc,
+        timeout,
+        quantumExecutor,
+        *,
+        startMethod=None,
+        failFast=False,
+        executionGraphFixup=None,
     ):
         self.numProc = numProc
         self.timeout = timeout
         self.quantumExecutor = quantumExecutor
         self.failFast = failFast
         self.executionGraphFixup = executionGraphFixup
+        self.report: Optional[Report] = None
 
         # We set default start method as spawn for MacOS and fork for Linux;
         # None for all other platforms to use multiprocessing default.
@@ -315,10 +350,15 @@ class MPGraphExecutor(QuantumGraphExecutor):
     def execute(self, graph, butler):
         # Docstring inherited from QuantumGraphExecutor.execute
         graph = self._fixupQuanta(graph)
-        if self.numProc > 1:
-            self._executeQuantaMP(graph, butler)
-        else:
-            self._executeQuantaInProcess(graph, butler)
+        self.report = Report()
+        try:
+            if self.numProc > 1:
+                self._executeQuantaMP(graph, butler)
+            else:
+                self._executeQuantaInProcess(graph, butler)
+        except Exception as exc:
+            self.report.set_exception(exc)
+            raise
 
     def _fixupQuanta(self, graph: QuantumGraph):
         """Call fixup code to modify execution graph.
@@ -374,6 +414,10 @@ class MPGraphExecutor(QuantumGraphExecutor):
                     qnode.quantum.dataId,
                 )
                 failedNodes.add(qnode)
+                quantum_report = QuantumReport(
+                    status=ExecutionStatus.SKIPPED, dataId=qnode.quantum.dataId, taskLabel=qnode.taskDef.label
+                )
+                self.report.quantaReports.append(quantum_report)
                 continue
 
             _LOG.debug("Executing %s", qnode)
@@ -382,6 +426,7 @@ class MPGraphExecutor(QuantumGraphExecutor):
                 successCount += 1
             except Exception as exc:
                 failedNodes.add(qnode)
+                self.report.status = ExecutionStatus.FAILURE
                 if self.failFast:
                     raise MPGraphExecutorError(
                         f"Task <{qnode.taskDef} dataId={qnode.quantum.dataId}> failed."
@@ -400,6 +445,10 @@ class MPGraphExecutor(QuantumGraphExecutor):
                 # collection cycle is run, which can happen at unpredictable
                 # times, run a collection loop here explicitly.
                 gc.collect()
+
+                quantum_report = self.quantumExecutor.getReport()
+                if quantum_report:
+                    self.report.quantaReports.append(quantum_report)
 
             _LOG.info(
                 "Executed %d quanta successfully, %d failed and %d remain out of total %d quanta.",
@@ -451,11 +500,15 @@ class MPGraphExecutor(QuantumGraphExecutor):
                     _LOG.debug("finished: %s", job)
                     # finished
                     exitcode = job.process.exitcode
+                    quantum_report = job.report()
+                    if quantum_report:
+                        self.report.quantaReports.append(quantum_report)
                     if exitcode == 0:
                         jobs.setJobState(job, JobState.FINISHED)
                         job.cleanup()
                         _LOG.debug("success: %s took %.3f seconds", job, time.time() - job.started)
                     else:
+                        self.report.status = ExecutionStatus.FAILURE
                         # failMessage() has to be called before cleanup()
                         message = job.failMessage()
                         jobs.setJobState(job, JobState.FAILED)
@@ -473,9 +526,16 @@ class MPGraphExecutor(QuantumGraphExecutor):
                     # check for timeout
                     now = time.time()
                     if now - job.started > self.timeout:
+                        # Do not override FAILURE status
+                        if self.report.status == ExecutionStatus.SUCCESS:
+                            self.report.status = ExecutionStatus.TIMEOUT
                         jobs.setJobState(job, JobState.TIMED_OUT)
                         _LOG.debug("Terminating job %s due to timeout", job)
                         job.stop()
+                        quantum_report = job.report()
+                        if quantum_report:
+                            quantum_report.status = ExecutionStatus.TIMEOUT
+                            self.report.quantaReports.append(quantum_report)
                         job.cleanup()
                         if self.failFast:
                             raise MPTimeoutError(f"Timeout ({self.timeout} sec) for task {job}.")
@@ -493,6 +553,12 @@ class MPGraphExecutor(QuantumGraphExecutor):
                 for job in jobs.pending:
                     jobInputNodes = graph.determineInputsToQuantumNode(job.qnode)
                     if jobInputNodes & jobs.failedNodes:
+                        quantum_report = QuantumReport(
+                            status=ExecutionStatus.SKIPPED,
+                            dataId=job.qnode.quantum.dataId,
+                            taskLabel=job.qnode.taskDef.label,
+                        )
+                        self.report.quantaReports.append(quantum_report)
                         jobs.setJobState(job, JobState.FAILED_DEP)
                         _LOG.error("Upstream job failed for task %s, skipping this task.", job)
 
@@ -544,3 +610,9 @@ class MPGraphExecutor(QuantumGraphExecutor):
                 raise MPTimeoutError("One or more tasks timed out during execution.")
             else:
                 raise MPGraphExecutorError("One or more tasks failed or timed out during execution.")
+
+    def getReport(self) -> Optional[Report]:
+        # Docstring inherited from base class
+        if self.report is None:
+            raise RuntimeError("getReport() called before execute()")
+        return self.report

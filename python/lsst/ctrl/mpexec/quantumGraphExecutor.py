@@ -21,14 +21,10 @@
 
 __all__ = ["QuantumExecutor", "QuantumGraphExecutor"]
 
-# -------------------------------
-#  Imports of standard modules --
-# -------------------------------
 from abc import ABC, abstractmethod
+from typing import Optional
 
-# -----------------------------
-#  Imports for other modules --
-# -----------------------------
+from .reports import QuantumReport, Report
 
 
 class QuantumExecutor(ABC):
@@ -68,7 +64,24 @@ class QuantumExecutor(ABC):
         Any exception raised by the task or code that wraps task execution is
         propagated to the caller of this method.
         """
-        raise NotImplementedError
+        raise NotImplementedError()
+
+    def getReport(self) -> Optional[QuantumReport]:
+        """Return execution report from last call to `execute`.
+
+        Returns
+        -------
+        report : `~lsst.ctrl.mpexec.QuantumReport`
+            Structure describing the status of the execution of a quantum.
+            `None` is returned if implementation does not support this
+            feature.
+
+        Raises
+        ------
+        RuntimeError
+            Raised if this method is called before `execute`.
+        """
+        return None
 
 
 class QuantumGraphExecutor(ABC):
@@ -94,4 +107,21 @@ class QuantumGraphExecutor(ABC):
         butler : `~lsst.daf.butler.Butler`
             Data butler instance
         """
-        raise NotImplementedError
+        raise NotImplementedError()
+
+    def getReport(self) -> Optional[Report]:
+        """Return execution report from last call to `execute`.
+
+        Returns
+        -------
+        report : `~lsst.ctrl.mpexec.Report`, optional
+            Structure describing the status of the execution of a quantum
+            graph. `None` is returned if implementation does not support
+            this feature.
+
+        Raises
+        ------
+        RuntimeError
+            Raised if this method is called before `execute`.
+        """
+        return None

@@ -126,6 +126,7 @@ class execution_options(OptionGroup):  # noqa: N801
             ctrlMpExecOpts.fail_fast_option(),
             ctrlMpExecOpts.graph_fixup_option(),
             ctrlMpExecOpts.mock_option(),
+            ctrlMpExecOpts.summary_option(),
         ]
 
 

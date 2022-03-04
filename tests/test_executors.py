@@ -32,7 +32,14 @@ from multiprocessing import Manager
 
 import networkx as nx
 import psutil
-from lsst.ctrl.mpexec import MPGraphExecutor, MPGraphExecutorError, MPTimeoutError, QuantumExecutor
+from lsst.ctrl.mpexec import (
+    ExecutionStatus,
+    MPGraphExecutor,
+    MPGraphExecutorError,
+    MPTimeoutError,
+    QuantumExecutor,
+    QuantumReport,
+)
 from lsst.ctrl.mpexec.execFixupDataId import ExecFixupDataId
 from lsst.pipe.base import NodeId
 
@@ -50,14 +57,31 @@ class QuantumExecutorMock(QuantumExecutor):
             # in multiprocess mode use shared list
             manager = Manager()
             self.quanta = manager.list()
+        self.report = None
+        self._execute_called = False
 
     def execute(self, taskDef, quantum, butler):
         _LOG.debug("QuantumExecutorMock.execute: taskDef=%s dataId=%s", taskDef, quantum.dataId)
+        self._execute_called = True
         if taskDef.taskClass:
-            # only works for TaskMockMP class below
-            taskDef.taskClass().runQuantum()
+            try:
+                # only works for one of the TaskMock classes below
+                taskDef.taskClass().runQuantum()
+                self.report = QuantumReport(dataId=quantum.dataId, taskLabel=taskDef.label)
+            except Exception as exc:
+                self.report = QuantumReport.from_exception(
+                    exception=exc,
+                    dataId=quantum.dataId,
+                    taskLabel=taskDef.label,
+                )
+                raise
         self.quanta.append(quantum)
         return quantum
+
+    def getReport(self):
+        if not self._execute_called:
+            raise RuntimeError("getReport called before execute")
+        return self.report
 
     def getDataIds(self, field):
         """Returns values for dataId field for each visited quanta"""
@@ -204,6 +228,11 @@ class TaskDefMock:
         return f"TaskDefMock(taskName={self.taskName}, taskClass={self.taskClass.__name__})"
 
 
+def _count_status(report, status):
+    """Count number of quanta witha a given status."""
+    return len([qrep for qrep in report.quantaReports if qrep.status is status])
+
+
 class MPGraphExecutorTestCase(unittest.TestCase):
     """A test case for MPGraphExecutor class"""
 
@@ -220,6 +249,15 @@ class MPGraphExecutorTestCase(unittest.TestCase):
         mpexec = MPGraphExecutor(numProc=1, timeout=100, quantumExecutor=qexec)
         mpexec.execute(qgraph, butler=None)
         self.assertEqual(qexec.getDataIds("detector"), [0, 1, 2])
+        report = mpexec.getReport()
+        self.assertEqual(report.status, ExecutionStatus.SUCCESS)
+        self.assertIsNone(report.exitCode)
+        self.assertIsNone(report.exceptionInfo)
+        self.assertEqual(len(report.quantaReports), 3)
+        self.assertTrue(all(qrep.status == ExecutionStatus.SUCCESS for qrep in report.quantaReports))
+        self.assertTrue(all(qrep.exitCode is None for qrep in report.quantaReports))
+        self.assertTrue(all(qrep.exceptionInfo is None for qrep in report.quantaReports))
+        self.assertTrue(all(qrep.taskLabel == "task1" for qrep in report.quantaReports))
 
     def test_mpexec_mp(self):
         """Make simple graph and execute"""
@@ -242,6 +280,15 @@ class MPGraphExecutorTestCase(unittest.TestCase):
                 mpexec = MPGraphExecutor(numProc=3, timeout=100, quantumExecutor=qexec, startMethod=method)
                 mpexec.execute(qgraph, butler=None)
                 self.assertCountEqual(qexec.getDataIds("detector"), [0, 1, 2])
+                report = mpexec.getReport()
+                self.assertEqual(report.status, ExecutionStatus.SUCCESS)
+                self.assertIsNone(report.exitCode)
+                self.assertIsNone(report.exceptionInfo)
+                self.assertEqual(len(report.quantaReports), 3)
+                self.assertTrue(all(qrep.status == ExecutionStatus.SUCCESS for qrep in report.quantaReports))
+                self.assertTrue(all(qrep.exitCode == 0 for qrep in report.quantaReports))
+                self.assertTrue(all(qrep.exceptionInfo is None for qrep in report.quantaReports))
+                self.assertTrue(all(qrep.taskLabel == "task1" for qrep in report.quantaReports))
 
     def test_mpexec_nompsupport(self):
         """Try to run MP for task that has no MP support which should fail"""
@@ -297,6 +344,13 @@ class MPGraphExecutorTestCase(unittest.TestCase):
         mpexec = MPGraphExecutor(numProc=3, timeout=1, quantumExecutor=qexec, failFast=True)
         with self.assertRaises(MPTimeoutError):
             mpexec.execute(qgraph, butler=None)
+        report = mpexec.getReport()
+        self.assertEqual(report.status, ExecutionStatus.TIMEOUT)
+        self.assertEqual(report.exceptionInfo.className, "lsst.ctrl.mpexec.mpGraphExecutor.MPTimeoutError")
+        self.assertGreater(len(report.quantaReports), 0)
+        self.assertEquals(_count_status(report, ExecutionStatus.TIMEOUT), 1)
+        self.assertTrue(any(qrep.exitCode < 0 for qrep in report.quantaReports))
+        self.assertTrue(all(qrep.exceptionInfo is None for qrep in report.quantaReports))
 
         # with failFast=False exception happens after last task finishes
         qexec = QuantumExecutorMock(mp=True)
@@ -310,6 +364,13 @@ class MPGraphExecutorTestCase(unittest.TestCase):
         self.assertLess(len(detectorIds), 3)
         if detectorIds != {0, 2}:
             warnings.warn(f"Possibly timed out tasks, expected [0, 2], received {detectorIds}")
+        report = mpexec.getReport()
+        self.assertEqual(report.status, ExecutionStatus.TIMEOUT)
+        self.assertEqual(report.exceptionInfo.className, "lsst.ctrl.mpexec.mpGraphExecutor.MPTimeoutError")
+        self.assertGreater(len(report.quantaReports), 0)
+        self.assertGreater(_count_status(report, ExecutionStatus.TIMEOUT), 0)
+        self.assertTrue(any(qrep.exitCode < 0 for qrep in report.quantaReports))
+        self.assertTrue(all(qrep.exceptionInfo is None for qrep in report.quantaReports))
 
     def test_mpexec_failure(self):
         """Failure in one task should not stop other tasks"""
@@ -329,6 +390,16 @@ class MPGraphExecutorTestCase(unittest.TestCase):
         with self.assertRaisesRegex(MPGraphExecutorError, "One or more tasks failed"):
             mpexec.execute(qgraph, butler=None)
         self.assertCountEqual(qexec.getDataIds("detector"), [0, 2])
+        report = mpexec.getReport()
+        self.assertEqual(report.status, ExecutionStatus.FAILURE)
+        self.assertEqual(
+            report.exceptionInfo.className, "lsst.ctrl.mpexec.mpGraphExecutor.MPGraphExecutorError"
+        )
+        self.assertGreater(len(report.quantaReports), 0)
+        self.assertEquals(_count_status(report, ExecutionStatus.FAILURE), 1)
+        self.assertEquals(_count_status(report, ExecutionStatus.SUCCESS), 2)
+        self.assertTrue(any(qrep.exitCode > 0 for qrep in report.quantaReports))
+        self.assertTrue(any(qrep.exceptionInfo is not None for qrep in report.quantaReports))
 
     def test_mpexec_failure_dep(self):
         """Failure in one task should skip dependents"""
@@ -353,6 +424,54 @@ class MPGraphExecutorTestCase(unittest.TestCase):
         with self.assertRaisesRegex(MPGraphExecutorError, "One or more tasks failed"):
             mpexec.execute(qgraph, butler=None)
         self.assertCountEqual(qexec.getDataIds("detector"), [0, 3])
+        report = mpexec.getReport()
+        self.assertEqual(report.status, ExecutionStatus.FAILURE)
+        self.assertEqual(
+            report.exceptionInfo.className, "lsst.ctrl.mpexec.mpGraphExecutor.MPGraphExecutorError"
+        )
+        # Dependencies of failed tasks do not appear in quantaReports
+        self.assertGreater(len(report.quantaReports), 0)
+        self.assertEquals(_count_status(report, ExecutionStatus.FAILURE), 1)
+        self.assertEquals(_count_status(report, ExecutionStatus.SUCCESS), 2)
+        self.assertEquals(_count_status(report, ExecutionStatus.SKIPPED), 2)
+        self.assertTrue(any(qrep.exitCode > 0 for qrep in report.quantaReports))
+        self.assertTrue(any(qrep.exceptionInfo is not None for qrep in report.quantaReports))
+
+    def test_mpexec_failure_dep_nomp(self):
+        """Failure in one task should skip dependents, in-process version"""
+
+        taskDef = TaskDefMock()
+        taskDefFail = TaskDefMock(taskClass=TaskMockFail)
+        qdata = [
+            QuantumIterDataMock(index=0, taskDef=taskDef, detector=0),
+            QuantumIterDataMock(index=1, taskDef=taskDefFail, detector=1),
+            QuantumIterDataMock(index=2, taskDef=taskDef, detector=2),
+            QuantumIterDataMock(index=3, taskDef=taskDef, detector=3),
+            QuantumIterDataMock(index=4, taskDef=taskDef, detector=4),
+        ]
+        qdata[2].dependencies.add(1)
+        qdata[4].dependencies.add(3)
+        qdata[4].dependencies.add(2)
+
+        qgraph = QuantumGraphMock(qdata)
+
+        qexec = QuantumExecutorMock()
+        mpexec = MPGraphExecutor(numProc=1, timeout=100, quantumExecutor=qexec)
+        with self.assertRaisesRegex(MPGraphExecutorError, "One or more tasks failed"):
+            mpexec.execute(qgraph, butler=None)
+        self.assertCountEqual(qexec.getDataIds("detector"), [0, 3])
+        report = mpexec.getReport()
+        self.assertEqual(report.status, ExecutionStatus.FAILURE)
+        self.assertEqual(
+            report.exceptionInfo.className, "lsst.ctrl.mpexec.mpGraphExecutor.MPGraphExecutorError"
+        )
+        # Dependencies of failed tasks do not appear in quantaReports
+        self.assertGreater(len(report.quantaReports), 0)
+        self.assertEquals(_count_status(report, ExecutionStatus.FAILURE), 1)
+        self.assertEquals(_count_status(report, ExecutionStatus.SUCCESS), 2)
+        self.assertEquals(_count_status(report, ExecutionStatus.SKIPPED), 2)
+        self.assertTrue(all(qrep.exitCode is None for qrep in report.quantaReports))
+        self.assertTrue(any(qrep.exceptionInfo is not None for qrep in report.quantaReports))
 
     def test_mpexec_failure_failfast(self):
         """Fast fail stops quickly.
@@ -383,6 +502,16 @@ class MPGraphExecutorTestCase(unittest.TestCase):
         with self.assertRaisesRegex(MPGraphExecutorError, "failed, exit code=1"):
             mpexec.execute(qgraph, butler=None)
         self.assertCountEqual(qexec.getDataIds("detector"), [0])
+        report = mpexec.getReport()
+        self.assertEqual(report.status, ExecutionStatus.FAILURE)
+        self.assertEqual(
+            report.exceptionInfo.className, "lsst.ctrl.mpexec.mpGraphExecutor.MPGraphExecutorError"
+        )
+        # Dependencies of failed tasks do not appear in quantaReports
+        self.assertGreater(len(report.quantaReports), 0)
+        self.assertEquals(_count_status(report, ExecutionStatus.FAILURE), 1)
+        self.assertTrue(any(qrep.exitCode > 0 for qrep in report.quantaReports))
+        self.assertTrue(any(qrep.exceptionInfo is not None for qrep in report.quantaReports))
 
     def test_mpexec_crash(self):
         """Check task crash due to signal"""
@@ -401,6 +530,17 @@ class MPGraphExecutorTestCase(unittest.TestCase):
         mpexec = MPGraphExecutor(numProc=3, timeout=100, quantumExecutor=qexec)
         with self.assertRaisesRegex(MPGraphExecutorError, "One or more tasks failed"):
             mpexec.execute(qgraph, butler=None)
+        report = mpexec.getReport()
+        self.assertEqual(report.status, ExecutionStatus.FAILURE)
+        self.assertEqual(
+            report.exceptionInfo.className, "lsst.ctrl.mpexec.mpGraphExecutor.MPGraphExecutorError"
+        )
+        # Dependencies of failed tasks do not appear in quantaReports
+        self.assertGreater(len(report.quantaReports), 0)
+        self.assertEquals(_count_status(report, ExecutionStatus.FAILURE), 1)
+        self.assertEquals(_count_status(report, ExecutionStatus.SUCCESS), 2)
+        self.assertTrue(any(qrep.exitCode == -signal.SIGILL for qrep in report.quantaReports))
+        self.assertTrue(all(qrep.exceptionInfo is None for qrep in report.quantaReports))
 
     def test_mpexec_crash_failfast(self):
         """Check task crash due to signal with --fail-fast"""
@@ -419,6 +559,14 @@ class MPGraphExecutorTestCase(unittest.TestCase):
         mpexec = MPGraphExecutor(numProc=3, timeout=100, quantumExecutor=qexec, failFast=True)
         with self.assertRaisesRegex(MPGraphExecutorError, "failed, killed by signal 4 .Illegal instruction"):
             mpexec.execute(qgraph, butler=None)
+        report = mpexec.getReport()
+        self.assertEqual(report.status, ExecutionStatus.FAILURE)
+        self.assertEqual(
+            report.exceptionInfo.className, "lsst.ctrl.mpexec.mpGraphExecutor.MPGraphExecutorError"
+        )
+        self.assertEquals(_count_status(report, ExecutionStatus.FAILURE), 1)
+        self.assertTrue(any(qrep.exitCode == -signal.SIGILL for qrep in report.quantaReports))
+        self.assertTrue(all(qrep.exceptionInfo is None for qrep in report.quantaReports))
 
     def test_mpexec_num_fd(self):
         """Check that number of open files stays reasonable"""
