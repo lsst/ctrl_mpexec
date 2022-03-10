@@ -31,10 +31,10 @@ import time
 from enum import Enum
 from typing import Optional
 
-from lsst.base import disableImplicitThreading
 from lsst.daf.butler.cli.cliLog import CliLog
 from lsst.pipe.base import InvalidQuantumError
 from lsst.pipe.base.graph.graph import QuantumGraph
+from lsst.utils.threads import disable_implicit_threading
 
 # -----------------------------
 #  Imports for other modules --
@@ -473,7 +473,7 @@ class MPGraphExecutor(QuantumGraphExecutor):
             Data butler instance
         """
 
-        disableImplicitThreading()  # To prevent thread contention
+        disable_implicit_threading()  # To prevent thread contention
 
         _LOG.debug("Using %r for multiprocessing start method", self.startMethod)
 
