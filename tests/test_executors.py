@@ -189,16 +189,6 @@ class TaskMockCrash:
         signal.raise_signal(signal.SIGILL)
 
 
-class TaskMockSleep:
-    """Simple mock class for task which "runs" for some time."""
-
-    canMultiprocess = True
-
-    def runQuantum(self):
-        _LOG.debug("TaskMockSleep.runQuantum")
-        time.sleep(5.0)
-
-
 class TaskMockLongSleep:
     """Simple mock class for task which "runs" for very long time."""
 
@@ -330,7 +320,7 @@ class MPGraphExecutorTestCase(unittest.TestCase):
         """Fail due to timeout"""
 
         taskDef = TaskDefMock()
-        taskDefSleep = TaskDefMock(taskClass=TaskMockSleep)
+        taskDefSleep = TaskDefMock(taskClass=TaskMockLongSleep)
         qgraph = QuantumGraphMock(
             [
                 QuantumIterDataMock(index=0, taskDef=taskDef, detector=0),
@@ -348,7 +338,7 @@ class MPGraphExecutorTestCase(unittest.TestCase):
         self.assertEqual(report.status, ExecutionStatus.TIMEOUT)
         self.assertEqual(report.exceptionInfo.className, "lsst.ctrl.mpexec.mpGraphExecutor.MPTimeoutError")
         self.assertGreater(len(report.quantaReports), 0)
-        self.assertEquals(_count_status(report, ExecutionStatus.TIMEOUT), 1)
+        self.assertEqual(_count_status(report, ExecutionStatus.TIMEOUT), 1)
         self.assertTrue(any(qrep.exitCode < 0 for qrep in report.quantaReports))
         self.assertTrue(all(qrep.exceptionInfo is None for qrep in report.quantaReports))
 
@@ -396,8 +386,8 @@ class MPGraphExecutorTestCase(unittest.TestCase):
             report.exceptionInfo.className, "lsst.ctrl.mpexec.mpGraphExecutor.MPGraphExecutorError"
         )
         self.assertGreater(len(report.quantaReports), 0)
-        self.assertEquals(_count_status(report, ExecutionStatus.FAILURE), 1)
-        self.assertEquals(_count_status(report, ExecutionStatus.SUCCESS), 2)
+        self.assertEqual(_count_status(report, ExecutionStatus.FAILURE), 1)
+        self.assertEqual(_count_status(report, ExecutionStatus.SUCCESS), 2)
         self.assertTrue(any(qrep.exitCode > 0 for qrep in report.quantaReports))
         self.assertTrue(any(qrep.exceptionInfo is not None for qrep in report.quantaReports))
 
@@ -431,9 +421,9 @@ class MPGraphExecutorTestCase(unittest.TestCase):
         )
         # Dependencies of failed tasks do not appear in quantaReports
         self.assertGreater(len(report.quantaReports), 0)
-        self.assertEquals(_count_status(report, ExecutionStatus.FAILURE), 1)
-        self.assertEquals(_count_status(report, ExecutionStatus.SUCCESS), 2)
-        self.assertEquals(_count_status(report, ExecutionStatus.SKIPPED), 2)
+        self.assertEqual(_count_status(report, ExecutionStatus.FAILURE), 1)
+        self.assertEqual(_count_status(report, ExecutionStatus.SUCCESS), 2)
+        self.assertEqual(_count_status(report, ExecutionStatus.SKIPPED), 2)
         self.assertTrue(any(qrep.exitCode > 0 for qrep in report.quantaReports))
         self.assertTrue(any(qrep.exceptionInfo is not None for qrep in report.quantaReports))
 
@@ -467,9 +457,9 @@ class MPGraphExecutorTestCase(unittest.TestCase):
         )
         # Dependencies of failed tasks do not appear in quantaReports
         self.assertGreater(len(report.quantaReports), 0)
-        self.assertEquals(_count_status(report, ExecutionStatus.FAILURE), 1)
-        self.assertEquals(_count_status(report, ExecutionStatus.SUCCESS), 2)
-        self.assertEquals(_count_status(report, ExecutionStatus.SKIPPED), 2)
+        self.assertEqual(_count_status(report, ExecutionStatus.FAILURE), 1)
+        self.assertEqual(_count_status(report, ExecutionStatus.SUCCESS), 2)
+        self.assertEqual(_count_status(report, ExecutionStatus.SKIPPED), 2)
         self.assertTrue(all(qrep.exitCode is None for qrep in report.quantaReports))
         self.assertTrue(any(qrep.exceptionInfo is not None for qrep in report.quantaReports))
 
@@ -509,7 +499,7 @@ class MPGraphExecutorTestCase(unittest.TestCase):
         )
         # Dependencies of failed tasks do not appear in quantaReports
         self.assertGreater(len(report.quantaReports), 0)
-        self.assertEquals(_count_status(report, ExecutionStatus.FAILURE), 1)
+        self.assertEqual(_count_status(report, ExecutionStatus.FAILURE), 1)
         self.assertTrue(any(qrep.exitCode > 0 for qrep in report.quantaReports))
         self.assertTrue(any(qrep.exceptionInfo is not None for qrep in report.quantaReports))
 
@@ -537,8 +527,8 @@ class MPGraphExecutorTestCase(unittest.TestCase):
         )
         # Dependencies of failed tasks do not appear in quantaReports
         self.assertGreater(len(report.quantaReports), 0)
-        self.assertEquals(_count_status(report, ExecutionStatus.FAILURE), 1)
-        self.assertEquals(_count_status(report, ExecutionStatus.SUCCESS), 2)
+        self.assertEqual(_count_status(report, ExecutionStatus.FAILURE), 1)
+        self.assertEqual(_count_status(report, ExecutionStatus.SUCCESS), 2)
         self.assertTrue(any(qrep.exitCode == -signal.SIGILL for qrep in report.quantaReports))
         self.assertTrue(all(qrep.exceptionInfo is None for qrep in report.quantaReports))
 
@@ -564,7 +554,7 @@ class MPGraphExecutorTestCase(unittest.TestCase):
         self.assertEqual(
             report.exceptionInfo.className, "lsst.ctrl.mpexec.mpGraphExecutor.MPGraphExecutorError"
         )
-        self.assertEquals(_count_status(report, ExecutionStatus.FAILURE), 1)
+        self.assertEqual(_count_status(report, ExecutionStatus.FAILURE), 1)
         self.assertTrue(any(qrep.exitCode == -signal.SIGILL for qrep in report.quantaReports))
         self.assertTrue(all(qrep.exceptionInfo is None for qrep in report.quantaReports))
 
