@@ -70,11 +70,18 @@ class _Job:
         self._state = JobState.PENDING
         self.started = None
         self._rcv_conn = None
+        self._terminated = False
 
     @property
     def state(self):
         """Job processing state (JobState)"""
         return self._state
+
+    @property
+    def terminated(self):
+        """Return True if job was killed by stop() method and negative exit
+        code is returned from child process. (`bool`)"""
+        return self._terminated and self.process.exitcode < 0
 
     def start(self, butler, quantumExecutor, startMethod=None):
         """Start process which runs the task.
@@ -152,6 +159,7 @@ class _Job:
         else:
             _LOG.debug("Killing process %s", self.process.name)
             self.process.kill()
+        self._terminated = True
 
     def cleanup(self):
         """Release processes resources, has to be called for each finished
@@ -176,6 +184,9 @@ class _Job:
                 dataId=self.qnode.quantum.dataId,
                 taskLabel=self.qnode.taskDef.label,
             )
+        if self.terminated:
+            # Means it was killed, assume it's due to timeout
+            report.status = ExecutionStatus.TIMEOUT
         return report
 
     def failMessage(self):
@@ -501,17 +512,25 @@ class MPGraphExecutor(QuantumGraphExecutor):
                     # finished
                     exitcode = job.process.exitcode
                     quantum_report = job.report()
-                    if quantum_report:
-                        self.report.quantaReports.append(quantum_report)
+                    self.report.quantaReports.append(quantum_report)
                     if exitcode == 0:
                         jobs.setJobState(job, JobState.FINISHED)
                         job.cleanup()
                         _LOG.debug("success: %s took %.3f seconds", job, time.time() - job.started)
                     else:
-                        self.report.status = ExecutionStatus.FAILURE
-                        # failMessage() has to be called before cleanup()
-                        message = job.failMessage()
-                        jobs.setJobState(job, JobState.FAILED)
+                        if job.terminated:
+                            # Was killed due to timeout.
+                            if self.report.status == ExecutionStatus.SUCCESS:
+                                # Do not override global FAILURE status
+                                self.report.status = ExecutionStatus.TIMEOUT
+                            message = f"Timeout ({self.timeout} sec) for task {job}, task is killed"
+                            jobs.setJobState(job, JobState.TIMED_OUT)
+                        else:
+                            self.report.status = ExecutionStatus.FAILURE
+                            # failMessage() has to be called before cleanup()
+                            message = job.failMessage()
+                            jobs.setJobState(job, JobState.FAILED)
+
                         job.cleanup()
                         _LOG.debug("failed: %s", job)
                         if self.failFast or exitcode == InvalidQuantumError.EXIT_CODE:
@@ -519,33 +538,22 @@ class MPGraphExecutor(QuantumGraphExecutor):
                             for stopJob in jobs.running:
                                 if stopJob is not job:
                                     stopJob.stop()
-                            raise MPGraphExecutorError(message)
+                            if job.state is JobState.TIMED_OUT:
+                                raise MPTimeoutError(f"Timeout ({self.timeout} sec) for task {job}.")
+                            else:
+                                raise MPGraphExecutorError(message)
                         else:
                             _LOG.error("%s; processing will continue for remaining tasks.", message)
                 else:
                     # check for timeout
                     now = time.time()
                     if now - job.started > self.timeout:
-                        # Do not override FAILURE status
-                        if self.report.status == ExecutionStatus.SUCCESS:
-                            self.report.status = ExecutionStatus.TIMEOUT
-                        jobs.setJobState(job, JobState.TIMED_OUT)
+                        # Try to kill it, and there is a chance that it
+                        # finishes successfully before it gets killed. Exit
+                        # status is handled by the code above on next
+                        # iteration.
                         _LOG.debug("Terminating job %s due to timeout", job)
                         job.stop()
-                        quantum_report = job.report()
-                        if quantum_report:
-                            quantum_report.status = ExecutionStatus.TIMEOUT
-                            self.report.quantaReports.append(quantum_report)
-                        job.cleanup()
-                        if self.failFast:
-                            raise MPTimeoutError(f"Timeout ({self.timeout} sec) for task {job}.")
-                        else:
-                            _LOG.error(
-                                "Timeout (%s sec) for task %s; task is killed, processing continues "
-                                "for remaining tasks.",
-                                self.timeout,
-                                job,
-                            )
 
             # Fail jobs whose inputs failed, this may need several iterations
             # if the order is not right, will be done in the next loop.
