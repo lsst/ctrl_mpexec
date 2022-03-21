@@ -20,7 +20,7 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 import click
-import lsst.obs.base.cli.opt as obsBaseOpts
+import lsst.pipe.base.cli.opt as pipeBaseOpts
 from lsst.daf.butler.cli.opt import config_file_option, config_option, options_file_option
 from lsst.daf.butler.cli.utils import MWCtxObj, catch_and_exit, option_section, unwrap
 
@@ -64,7 +64,7 @@ def _collectActions(ctx, **kwargs):
         ctrlMpExecOpts.delete_option.name(),
         config_option.name(),
         config_file_option.name(),
-        obsBaseOpts.instrument_option.name(),
+        pipeBaseOpts.instrument_option.name(),
     ):
         kwargs.pop(pipelineAction)
 

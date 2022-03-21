@@ -32,7 +32,7 @@ __all__ = (
 
 import click
 import lsst.daf.butler.cli.opt as dafButlerOpts
-import lsst.obs.base.cli.opt as obsBaseOpts
+import lsst.pipe.base.cli.opt as pipeBaseOpts
 from lsst.daf.butler.cli.utils import OptionGroup, option_section, unwrap
 
 from . import options as ctrlMpExecOpts
@@ -65,7 +65,7 @@ class pipeline_build_options(OptionGroup):  # noqa: N801
             ctrlMpExecOpts.order_pipeline_option(),
             ctrlMpExecOpts.save_pipeline_option(),
             ctrlMpExecOpts.pipeline_dot_option(),
-            obsBaseOpts.instrument_option(help=instrumentOptionHelp, metavar="instrument", multiple=True),
+            pipeBaseOpts.instrument_option(help=instrumentOptionHelp, metavar="instrument", multiple=True),
         ]
 
 

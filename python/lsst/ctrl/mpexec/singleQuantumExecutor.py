@@ -38,10 +38,10 @@ from typing import Dict, List, Optional
 
 from lsst.daf.butler import DatasetRef, DatasetType, FileDataset, NamedKeyDict, Quantum
 from lsst.daf.butler.core.logging import ButlerLogRecordHandler, ButlerLogRecords, ButlerMDC, JsonLogFormatter
-from lsst.obs.base import Instrument
 from lsst.pipe.base import (
     AdjustQuantumHelper,
     ButlerQuantumContext,
+    Instrument,
     InvalidQuantumError,
     NoWorkFound,
     RepeatableQuantumError,

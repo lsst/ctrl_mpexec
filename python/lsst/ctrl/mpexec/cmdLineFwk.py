@@ -45,9 +45,9 @@ import lsst.pex.config as pexConfig
 # -----------------------------
 from lsst.daf.butler import Butler, CollectionSearch, CollectionType, Registry
 from lsst.daf.butler.registry import MissingCollectionError, RegistryDefaults
-from lsst.obs.base import Instrument
 from lsst.pipe.base import (
     GraphBuilder,
+    Instrument,
     Pipeline,
     PipelineDatasetTypes,
     QuantumGraph,

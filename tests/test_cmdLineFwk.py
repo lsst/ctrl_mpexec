@@ -51,8 +51,14 @@ from lsst.ctrl.mpexec.cli.utils import (
 from lsst.daf.butler import Config, DataCoordinate, DatasetRef, DimensionUniverse, Quantum, Registry
 from lsst.daf.butler.core.datasets.type import DatasetType
 from lsst.daf.butler.registry import RegistryConfig
-from lsst.obs.base import Instrument
-from lsst.pipe.base import Pipeline, PipelineTaskConfig, PipelineTaskConnections, QuantumGraph, TaskDef
+from lsst.pipe.base import (
+    Instrument,
+    Pipeline,
+    PipelineTaskConfig,
+    PipelineTaskConnections,
+    QuantumGraph,
+    TaskDef,
+)
 from lsst.pipe.base.graphBuilder import DatasetQueryConstraintVariant as DQCVariant
 from lsst.pipe.base.tests.simpleQGraph import (
     AddTask,

@@ -26,9 +26,8 @@ __all__ = ("SimplePipelineExecutor",)
 from typing import Any, Iterable, Iterator, List, Optional, Type, Union
 
 from lsst.daf.butler import Butler, CollectionType, Quantum
-from lsst.obs.base import Instrument
 from lsst.pex.config import Config
-from lsst.pipe.base import GraphBuilder, Pipeline, PipelineTask, QuantumGraph, TaskDef
+from lsst.pipe.base import GraphBuilder, Instrument, Pipeline, PipelineTask, QuantumGraph, TaskDef
 
 from .preExecInit import PreExecInit
 from .singleQuantumExecutor import SingleQuantumExecutor
