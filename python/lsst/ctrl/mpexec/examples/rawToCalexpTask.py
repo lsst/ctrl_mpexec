@@ -3,7 +3,6 @@
 
 import logging
 
-from lsst.afw.image import ExposureF
 from lsst.pipe.base import PipelineTask, PipelineTaskConfig, PipelineTaskConnections, Struct
 from lsst.pipe.base import connectionTypes as cT
 
@@ -21,7 +20,9 @@ class RawToCalexpTaskConnections(PipelineTaskConnections, dimensions=("instrumen
     output = cT.Output(
         name="calexp",
         dimensions=["instrument", "visit", "detector"],
-        storageClass="ExposureF",
+        # Ordinarily this would be an ExposureF for a calexp
+        # but to minimize dependencies in this example use a simple list.
+        storageClass="StructuredDataList",
         doc="Output dataset type for this task",
     )
 
@@ -54,8 +55,8 @@ class RawToCalexpTask(PipelineTask):
 
         _LOG.info("executing %s: input=%s", self.getName(), input)
 
-        # result, scalar in this case, just create 100x100 image
-        data = ExposureF(100, 100)
+        # result, scalar in this case, just create simple list.
+        data = list(range(100))
 
         # attribute name of struct is the same as a config field name
         return Struct(output=data)
