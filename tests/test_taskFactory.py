@@ -23,19 +23,25 @@ import shutil
 import tempfile
 import unittest
 
-import lsst.afw.table as afwTable
 import lsst.daf.butler.tests as butlerTests
 import lsst.pex.config as pexConfig
 from lsst.ctrl.mpexec import TaskFactory
 from lsst.pipe.base import PipelineTaskConfig, PipelineTaskConnections, connectionTypes
 from lsst.pipe.base.configOverrides import ConfigOverrides
 
+# Storage class to use for tests of fakes.
+_FAKE_STORAGE_CLASS = "StructuredDataDict"
+
 
 class FakeConnections(PipelineTaskConnections, dimensions=set()):
-    initInput = connectionTypes.InitInput(name="fakeInitInput", doc="", storageClass="SourceCatalog")
-    initOutput = connectionTypes.InitOutput(name="fakeInitOutput", doc="", storageClass="SourceCatalog")
-    input = connectionTypes.Input(name="fakeInput", doc="", storageClass="SourceCatalog", dimensions=set())
-    output = connectionTypes.Output(name="fakeOutput", doc="", storageClass="SourceCatalog", dimensions=set())
+    initInput = connectionTypes.InitInput(name="fakeInitInput", doc="", storageClass=_FAKE_STORAGE_CLASS)
+    initOutput = connectionTypes.InitOutput(name="fakeInitOutput", doc="", storageClass=_FAKE_STORAGE_CLASS)
+    input = connectionTypes.Input(
+        name="fakeInput", doc="", storageClass=_FAKE_STORAGE_CLASS, dimensions=set()
+    )
+    output = connectionTypes.Output(
+        name="fakeOutput", doc="", storageClass=_FAKE_STORAGE_CLASS, dimensions=set()
+    )
 
 
 class FakeConfig(PipelineTaskConfig, pipelineConnections=FakeConnections):
@@ -56,10 +62,10 @@ class TaskFactoryTestCase(unittest.TestCase):
         tmp = tempfile.mkdtemp()
         cls.addClassCleanup(shutil.rmtree, tmp, ignore_errors=True)
         cls.repo = butlerTests.makeTestRepo(tmp)
-        butlerTests.addDatasetType(cls.repo, "fakeInitInput", set(), "SourceCatalog")
-        butlerTests.addDatasetType(cls.repo, "fakeInitOutput", set(), "SourceCatalog")
-        butlerTests.addDatasetType(cls.repo, "fakeInput", set(), "SourceCatalog")
-        butlerTests.addDatasetType(cls.repo, "fakeOutput", set(), "SourceCatalog")
+        butlerTests.addDatasetType(cls.repo, "fakeInitInput", set(), _FAKE_STORAGE_CLASS)
+        butlerTests.addDatasetType(cls.repo, "fakeInitOutput", set(), _FAKE_STORAGE_CLASS)
+        butlerTests.addDatasetType(cls.repo, "fakeInput", set(), _FAKE_STORAGE_CLASS)
+        butlerTests.addDatasetType(cls.repo, "fakeOutput", set(), _FAKE_STORAGE_CLASS)
 
     def setUp(self):
         super().setUp()
@@ -81,8 +87,7 @@ class TaskFactoryTestCase(unittest.TestCase):
 
     @staticmethod
     def _dummyCatalog():
-        schema = afwTable.SourceTable.makeMinimalSchema()
-        return afwTable.SourceCatalog(schema)
+        return {}
 
     def _tempButler(self):
         butler = butlerTests.makeTestCollection(self.repo, uniqueId=self.id())
