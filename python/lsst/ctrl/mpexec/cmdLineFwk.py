@@ -39,6 +39,7 @@ import warnings
 from typing import Iterable, Optional, Tuple
 
 import lsst.pex.config as pexConfig
+import lsst.pex.config.history as pexConfigHistory
 
 # -----------------------------
 #  Imports for other modules --
@@ -882,7 +883,7 @@ class CmdLineFwk:
                     hconfig, cname
                 ):
                     print(f"### Configuration field for task `{taskDef.label}'")
-                    print(pexConfig.history.format(hconfig, cname))
+                    print(pexConfigHistory.format(hconfig, cname))
                     found = True
 
         if not found:
