@@ -25,7 +25,7 @@ import re
 
 from lsst.daf.butler.cli.opt import config_file_option, config_option
 from lsst.daf.butler.cli.utils import MWCommand
-from lsst.obs.base.cli.opt import instrument_option
+from lsst.pipe.base.cli.opt import instrument_option
 
 from .opt import delete_option, task_option
 

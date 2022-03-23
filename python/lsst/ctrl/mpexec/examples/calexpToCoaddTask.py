@@ -3,8 +3,6 @@
 
 import logging
 
-import lsstDebug
-from lsst.afw.image import ExposureF
 from lsst.pipe.base import PipelineTask, PipelineTaskConfig, PipelineTaskConnections, Struct
 from lsst.pipe.base import connectionTypes as cT
 
@@ -16,13 +14,13 @@ class CalexpToCoaddTaskConnections(PipelineTaskConnections, dimensions=("skymap"
         name="calexp",
         dimensions=["instrument", "visit", "detector"],
         multiple=True,
-        storageClass="ExposureF",
+        storageClass="StructuredDataList",
         doc="DatasetType for the input image",
     )
     coadd = cT.Output(
         name="deepCoadd_calexp",
         dimensions=["skymap", "tract", "patch", "band"],
-        storageClass="ExposureF",
+        storageClass="StructuredDataList",
         doc="DatasetType for the output image",
     )
 
@@ -52,12 +50,11 @@ class CalexpToCoaddTask(PipelineTask):
         #     import lsstDebug
         #     lsstDebug.Info('lsst.ctrl.mpexec.examples.calexpToCoaddTask').display = True  # noqa: W505
         #
-        if lsstDebug.Info(__name__).display:
-            _LOG.info("%s: display enabled", __name__)
+        # if lsstDebug.Info(__name__).display:
+        #     _LOG.info("%s: display enabled", __name__)
 
-        # output data, scalar in this case
-        data = ExposureF(100, 100)
-
+        # output data, scalar in this case, simple list for example.
+        data = list(range(100))
         # attribute name of struct is the same as a config field name
         return Struct(coadd=data)
 

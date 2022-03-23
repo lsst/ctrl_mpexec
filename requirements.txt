@@ -1,0 +1,9 @@
+click
+astropy
+psutil
+pydantic
+networkx
+git+https://github.com/lsst/daf_butler@main#egg=daf_butler
+git+https://github.com/lsst/utils@main#egg=lsst_utils
+git+https://github.com/lsst/pipe_base@main#egg=pipe_base
+git+https://github.com/lsst/pex_config@main#egg=pex_config

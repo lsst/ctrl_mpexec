@@ -39,15 +39,16 @@ import warnings
 from typing import Iterable, Optional, Tuple
 
 import lsst.pex.config as pexConfig
+import lsst.pex.config.history as pexConfigHistory
 
 # -----------------------------
 #  Imports for other modules --
 # -----------------------------
 from lsst.daf.butler import Butler, CollectionSearch, CollectionType, Registry
 from lsst.daf.butler.registry import MissingCollectionError, RegistryDefaults
-from lsst.obs.base import Instrument
 from lsst.pipe.base import (
     GraphBuilder,
+    Instrument,
     Pipeline,
     PipelineDatasetTypes,
     QuantumGraph,
@@ -882,7 +883,7 @@ class CmdLineFwk:
                     hconfig, cname
                 ):
                     print(f"### Configuration field for task `{taskDef.label}'")
-                    print(pexConfig.history.format(hconfig, cname))
+                    print(pexConfigHistory.format(hconfig, cname))
                     found = True
 
         if not found:

@@ -1,3 +1,5 @@
+#!/usr/bin/env python
+
 # This file is part of ctrl_mpexec.
 #
 # Developed for the LSST Data Management System.
@@ -17,13 +19,23 @@
 # GNU General Public License for more details.
 #
 # You should have received a copy of the GNU General Public License
-# along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-import pkgutil
+import os.path
 
-try:
-    import lsstimport
-except ImportError:
-    pass
+from setuptools import setup
 
-__path__ = pkgutil.extend_path(__path__, __name__)
+version = "0.1.0"
+with open("./python/lsst/ctrl/mpexec/version.py", "w") as f:
+    print(
+        f"""
+__all__ = ("__version__", )
+__version__ = '{version}'""",
+        file=f,
+    )
+
+# read the contents of our README file
+this_directory = os.path.abspath(os.path.dirname(__file__))
+with open(os.path.join(this_directory, "README.rst"), encoding="utf-8") as f:
+    long_description = f.read()
+
+setup(version=version, long_description=long_description, long_description_content_type="text/x-rst")
