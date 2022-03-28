@@ -76,8 +76,12 @@ delete_option = MWOptionDecorator(
 )
 
 
-do_raise_option = MWOptionDecorator(
-    "--do-raise", help="Raise an exception on error. (else log a message and continue?)", is_flag=True
+pdb_option = MWOptionDecorator(
+    "--pdb",
+    help="Post-mortem debugger to launch for exceptions (defaults to pdb if unspecified; requires a tty).",
+    is_flag=False,
+    flag_value="pdb",
+    default=None,
 )
 
 

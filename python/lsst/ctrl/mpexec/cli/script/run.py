@@ -28,7 +28,7 @@ _log = logging.getLogger(__name__)
 
 
 def run(
-    do_raise,
+    pdb,
     graph_fixup,
     init_only,
     no_versions,
@@ -63,8 +63,8 @@ def run(
 
     Parameters
     ----------
-    do_raise : `bool`
-        Raise an exception in the case of an error.
+    pdb : `bool`
+        Drop into pdb on exception?
     graph_fixup : `str`
         The name of the class or factory method which makes an instance used
         for execution graph fixup.
@@ -154,7 +154,7 @@ def run(
         which ingore these unused kwargs.
     """
     args = SimpleNamespace(
-        do_raise=do_raise,
+        pdb=pdb,
         graph_fixup=graph_fixup,
         init_only=init_only,
         no_versions=no_versions,

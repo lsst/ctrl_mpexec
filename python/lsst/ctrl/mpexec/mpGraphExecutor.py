@@ -22,6 +22,7 @@
 __all__ = ["MPGraphExecutor", "MPGraphExecutorError", "MPTimeoutError"]
 
 import gc
+import importlib
 import logging
 import multiprocessing
 import pickle
@@ -330,6 +331,9 @@ class MPGraphExecutor(QuantumGraphExecutor):
         one for current platform.
     failFast : `bool`, optional
         If set to ``True`` then stop processing on first error from any task.
+    pdb : `str`, optional
+        Debugger to import and use (via the ``post_mortem`` function) in the
+        event of an exception.
     executionGraphFixup : `ExecutionGraphFixup`, optional
         Instance used for modification of execution graph.
     """
@@ -342,12 +346,14 @@ class MPGraphExecutor(QuantumGraphExecutor):
         *,
         startMethod=None,
         failFast=False,
+        pdb=None,
         executionGraphFixup=None,
     ):
         self.numProc = numProc
         self.timeout = timeout
         self.quantumExecutor = quantumExecutor
         self.failFast = failFast
+        self.pdb = pdb
         self.executionGraphFixup = executionGraphFixup
         self.report: Optional[Report] = None
 
@@ -436,6 +442,24 @@ class MPGraphExecutor(QuantumGraphExecutor):
                 self.quantumExecutor.execute(qnode.taskDef, qnode.quantum, butler)
                 successCount += 1
             except Exception as exc:
+                if self.pdb and sys.stdin.isatty() and sys.stdout.isatty():
+                    _LOG.error(
+                        "Task <%s dataId=%s> failed; dropping into pdb.",
+                        qnode.taskDef,
+                        qnode.quantum.dataId,
+                        exc_info=exc,
+                    )
+                    try:
+                        pdb = importlib.import_module(self.pdb)
+                    except ImportError as imp_exc:
+                        raise MPGraphExecutorError(
+                            f"Unable to import specified debugger module ({self.pdb}): {imp_exc}"
+                        ) from exc
+                    if not hasattr(pdb, "post_mortem"):
+                        raise MPGraphExecutorError(
+                            f"Specified debugger module ({self.pdb}) can't debug with post_mortem",
+                        ) from exc
+                    pdb.post_mortem(exc.__traceback__)
                 failedNodes.add(qnode)
                 self.report.status = ExecutionStatus.FAILURE
                 if self.failFast:
