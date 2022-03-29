@@ -1,0 +1,44 @@
+# this contains the minimum configuration needed to create a MetricTestRepo
+
+datastore:
+  formatters:
+    StructuredCompositeReadComp: lsst.daf.butler.tests.testFormatters.MetricsExampleFormatter
+storageClasses:
+  Integer:
+    pytype: int
+  StructuredComposite:
+    inheritsFrom: StructuredData
+    parameters:
+      - slice
+  StructuredCompositeReadComp:
+    inheritsFrom: StructuredComposite
+    components:
+      summary: StructuredDataDictYaml
+      output: StructuredDataDictYaml
+      data: StructuredDataDataTest
+    derivedComponents:
+      counter: Integer
+  StructuredData:
+    # Data from a simple Python class
+    pytype: lsst.daf.butler.tests.MetricsExample
+    delegate: lsst.daf.butler.tests.MetricsDelegate
+    # Use YAML formatter by default
+    components:
+      # Components are those supported by get.
+      summary: StructuredDataDictYaml
+      output: StructuredDataDictYaml
+      data: StructuredDataListYaml
+  StructuredDataDataTest:
+    pytype: list
+    delegate: lsst.daf.butler.tests.ListDelegate
+    derivedComponents:
+      counter: Integer
+    parameters:
+      - slice
+  StructuredDataDictYaml:
+    pytype: dict
+  StructuredDataListYaml:
+    pytype: list
+    delegate: lsst.daf.butler.tests.ListDelegate
+    parameters:
+      - slice

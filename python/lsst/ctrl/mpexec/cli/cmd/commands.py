@@ -19,13 +19,16 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+from functools import partial
+
 import click
 import lsst.pipe.base.cli.opt as pipeBaseOpts
-from lsst.daf.butler.cli.opt import config_file_option, config_option, options_file_option
+from lsst.daf.butler.cli.opt import config_file_option, config_option, confirm_option, options_file_option
 from lsst.daf.butler.cli.utils import MWCtxObj, catch_and_exit, option_section, unwrap
 
 from .. import opt as ctrlMpExecOpts
 from .. import script
+from ..script import confirmable
 from ..utils import _ACTION_CONFIG, _ACTION_CONFIG_FILE, PipetaskCommand, makePipelineActions
 
 epilog = unwrap(
@@ -125,3 +128,26 @@ def run(ctx, **kwargs):
     pipeline = script.build(**kwargs)
     qgraph = script.qgraph(pipelineObj=pipeline, **kwargs)
     script.run(qgraphObj=qgraph, **kwargs)
+
+
+@click.command(cls=PipetaskCommand)
+@ctrlMpExecOpts.butler_config_option()
+@ctrlMpExecOpts.collection_argument()
+@confirm_option()
+@ctrlMpExecOpts.recursive_option(
+    help="""If the parent CHAINED collection has child CHAINED collections,
+    search the children until nested chains that start with the parent's name
+    are removed."""
+)
+def purge(confirm, **kwargs):
+    """Remove a CHAINED collection and its contained collections.
+
+    COLLECTION is the name of the chained collection to purge. it must not be a
+    child of any other CHAINED collections
+
+    Child collections must be members of exactly one collection.
+
+    The collections that will be removed will be printed, there will be an
+    option to continue or abort (unless using --no-confirm).
+    """
+    confirmable.confirm(partial(script.purge, **kwargs), confirm)
