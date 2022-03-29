@@ -118,7 +118,7 @@ class execution_options(OptionGroup):  # noqa: N801
         self.decorators = [
             option_section(sectionText="Execution options:"),
             ctrlMpExecOpts.clobber_outputs_option(),
-            ctrlMpExecOpts.do_raise_option(),
+            ctrlMpExecOpts.pdb_option(),
             ctrlMpExecOpts.profile_option(),
             dafButlerOpts.processes_option(),
             ctrlMpExecOpts.start_method_option(),

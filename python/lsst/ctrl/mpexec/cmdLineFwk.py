@@ -729,6 +729,7 @@ class CmdLineFwk:
                 startMethod=args.start_method,
                 quantumExecutor=quantumExecutor,
                 failFast=args.fail_fast,
+                pdb=args.pdb,
                 executionGraphFixup=graphFixup,
             )
             try:

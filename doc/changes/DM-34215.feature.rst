@@ -1,0 +1,4 @@
+Replaced the unused ``--do-raise`` option with ``--pdb``,
+which drops the user into the debugger
+(``pdb`` by default, but ``--pdb=ipdb`` also works if you have ``ipdb`` installed)
+on an exception.
