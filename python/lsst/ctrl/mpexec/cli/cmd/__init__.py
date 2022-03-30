@@ -19,7 +19,7 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-__all__ = ["build", "purge", "qgraph", "run"]
+__all__ = ["build", "cleanup", "purge", "qgraph", "run"]
 
 
-from .commands import build, purge, qgraph, run
+from .commands import build, cleanup, purge, qgraph, run

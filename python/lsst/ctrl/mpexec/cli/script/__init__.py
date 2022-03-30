@@ -21,6 +21,7 @@
 
 
 from .build import build
+from .cleanup import cleanup
 from .purge import PurgeResult, purge
 from .qgraph import qgraph
 from .run import run

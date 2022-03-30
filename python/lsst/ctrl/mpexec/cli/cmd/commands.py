@@ -151,3 +151,16 @@ def purge(confirm, **kwargs):
     option to continue or abort (unless using --no-confirm).
     """
     confirmable.confirm(partial(script.purge, **kwargs), confirm)
+
+
+@click.command(cls=PipetaskCommand)
+@ctrlMpExecOpts.butler_config_option()
+@ctrlMpExecOpts.collection_argument()
+@confirm_option()
+def cleanup(confirm, **kwargs):
+    """Remove non-members of CHAINED collections.
+
+    Removes collections that start with the same name as a CHAINED
+    collection but are not members of that collection.
+    """
+    confirmable.confirm(partial(script.cleanup, **kwargs), confirm)
