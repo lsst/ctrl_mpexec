@@ -22,40 +22,6 @@
 import click
 from lsst.daf.butler.cli.utils import MWOptionDecorator, MWPath, split_commas, unwrap
 
-
-def _split_commas_int(context, param, values):
-    """Special callback that handles comma-separated list of integers.
-
-    Parameters
-    ----------
-    context : `click.Context` or `None`
-        The current execution context.
-    param : `click.core.Option` or `None`
-        The parameter being handled.
-    values : `list` [ `str` ]
-        All the values passed for this option. Strings may contain commas,
-        which will be treated as delimiters for separate values.
-
-    Returns
-    -------
-    numbers : `tuple` [ `int` ]
-        The passed in values separated by commas and combined into a single
-        list.
-    """
-
-    def _to_int(value):
-        """Convert string to integer, handle errors."""
-        try:
-            return int(value)
-        except ValueError:
-            raise click.BadParameter(f"'{value}' is not a valid integer", context, param)
-
-    values = split_commas(context, param, values)
-    if values is None:
-        return values
-    return tuple(_to_int(value) for value in values)
-
-
 butler_config_option = MWOptionDecorator(
     "-b", "--butler-config", help="Location of the gen3 butler/registry config file."
 )
@@ -201,7 +167,7 @@ prune_replaced_option = MWOptionDecorator(
                                                       ('unstore') or by removing them and the RUN completely
                                                       ('purge'). Requires --replace-run."""
     ),
-    type=click.Choice(("unstore", "purge"), case_sensitive=False),
+    type=click.Choice(choices=("unstore", "purge"), case_sensitive=False),
 )
 
 
@@ -401,7 +367,7 @@ timeout_option = MWOptionDecorator(
 start_method_option = MWOptionDecorator(
     "--start-method",
     default=None,
-    type=click.Choice(["spawn", "fork", "forkserver"]),
+    type=click.Choice(choices=["spawn", "fork", "forkserver"]),
     help="Multiprocessing start method, default is platform-specific.",
 )
 
