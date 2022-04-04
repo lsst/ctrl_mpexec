@@ -425,3 +425,9 @@ summary_option = MWOptionDecorator(
     ),
     type=MWPath(dir_okay=False, file_okay=True, writable=True),
 )
+
+
+recursive_option = MWOptionDecorator(
+    "--recursive",
+    is_flag=True,
+)

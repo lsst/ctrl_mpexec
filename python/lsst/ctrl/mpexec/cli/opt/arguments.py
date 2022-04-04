@@ -19,7 +19,7 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-__all__ = ["build", "cleanup", "purge", "qgraph", "run"]
 
+from lsst.daf.butler.cli.utils import MWArgumentDecorator
 
-from .commands import build, cleanup, purge, qgraph, run
+collection_argument = MWArgumentDecorator("collection")
