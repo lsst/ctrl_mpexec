@@ -870,6 +870,36 @@ class CmdLineFwkTestCaseWithButler(unittest.TestCase):
         # butler from command line options and there is no way to pass butler
         # mock to that code.
 
+    def testSimpleQGraphDatastoreRecords(self):
+        """Test quantum graph generation with --qgraph-datastore-records."""
+        args = _makeArgs(
+            butler_config=self.root, input="test", output="output", qgraph_datastore_records=True
+        )
+        butler = makeSimpleButler(self.root, run=args.input, inMemory=False)
+        populateButler(self.pipeline, butler)
+
+        fwk = CmdLineFwk()
+        qgraph = fwk.makeGraph(self.pipeline, args)
+        self.assertEqual(len(qgraph), self.nQuanta)
+        for i, qnode in enumerate(qgraph):
+            quantum = qnode.quantum
+            self.assertIsNotNone(quantum.datastore_records)
+            # only the first quantum has a pre-existing input
+            if i == 0:
+                datastore_name = "FileDatastore@<butlerRoot>"
+                self.assertEqual(set(quantum.datastore_records.keys()), {datastore_name})
+                records_data = quantum.datastore_records[datastore_name]
+                records = dict(records_data.records)
+                self.assertEqual(len(records), 1)
+                _, records = records.popitem()
+                records = records["file_datastore_records"]
+                self.assertEqual(
+                    [record.path for record in records],
+                    ["test/add_dataset0/add_dataset0_INSTR_det0_test.pickle"],
+                )
+            else:
+                self.assertEqual(quantum.datastore_records, {})
+
 
 class MyMemoryTestCase(lsst.utils.tests.MemoryTestCase):
     pass

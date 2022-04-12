@@ -192,6 +192,17 @@ qgraph_id_option = MWOptionDecorator(
 )
 
 
+qgraph_datastore_records_option = MWOptionDecorator(
+    "--qgraph-datastore-records",
+    help=unwrap(
+        """Include datastore records into generated quantum graph, these records are used by a
+        quantum-backed butler.
+        """
+    ),
+    is_flag=True,
+)
+
+
 # I wanted to use default=None here to match Python API but click silently
 # replaces None with an empty tuple when multiple=True.
 qgraph_node_id_option = MWOptionDecorator(
