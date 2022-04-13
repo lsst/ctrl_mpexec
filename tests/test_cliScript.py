@@ -122,7 +122,7 @@ config.connections.out_tmpl='_out'""",
             ),
             # history will contain machine-specific paths, TBD how to verify
             ShowInfo("history=task::addend", None),
-            ShowInfo("tasks", "### Subtasks for task `AddTask'"),
+            ShowInfo("tasks", "### Subtasks for task `lsst.pipe.base.tests.simpleQGraph.AddTask'"),
         ]
 
         for showInfo in testdata:
