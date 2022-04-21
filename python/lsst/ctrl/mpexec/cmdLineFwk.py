@@ -265,7 +265,7 @@ class _ButlerFactory:
     @classmethod
     def _makeReadParts(cls, args: argparse.Namespace):
         """Common implementation for `makeReadButler` and
-        `makeRegistryAndCollections`.
+        `makeButlerAndCollections`.
 
         Parameters
         ----------
@@ -325,9 +325,9 @@ class _ButlerFactory:
         return Butler(butler=butler, collections=inputs)
 
     @classmethod
-    def makeRegistryAndCollections(
+    def makeButlerAndCollections(
         cls, args: argparse.Namespace
-    ) -> Tuple[Registry, CollectionSearch, Optional[str]]:
+    ) -> Tuple[Butler, CollectionSearch, Optional[str]]:
         """Return a read-only registry, a collection search path, and the name
         of the run to be used for future writes.
 
@@ -339,8 +339,8 @@ class _ButlerFactory:
 
         Returns
         -------
-        registry : `lsst.daf.butler.Registry`
-            Butler registry that collections will be added to and/or queried
+        butler : `lsst.daf.butler.Butler`
+            A read-only butler that collections will be added to and/or queried
             from.
         inputs : `lsst.daf.butler.registry.CollectionSearch`
             Collections to search for datasets.
@@ -351,7 +351,7 @@ class _ButlerFactory:
         butler, inputs, self = cls._makeReadParts(args)
         run = self.outputRun.name if args.extend_run else None
         _LOG.debug("Preparing registry to read from %s and expect future writes to '%s'.", inputs, run)
-        return butler.registry, inputs, run
+        return butler, inputs, run
 
     @classmethod
     def makeWriteButler(
@@ -559,7 +559,7 @@ class CmdLineFwk:
         if args.extend_run:
             args.skip_existing = True
 
-        registry, collections, run = _ButlerFactory.makeRegistryAndCollections(args)
+        butler, collections, run = _ButlerFactory.makeButlerAndCollections(args)
 
         if args.skip_existing and run:
             args.skip_existing_in += (run,)
@@ -568,7 +568,7 @@ class CmdLineFwk:
             # click passes empty tuple as default value for qgraph_node_id
             nodes = args.qgraph_node_id or None
             qgraph = QuantumGraph.loadUri(
-                args.qgraph, registry.dimensions, nodes=nodes, graphID=args.qgraph_id
+                args.qgraph, butler.registry.dimensions, nodes=nodes, graphID=args.qgraph_id
             )
 
             # pipeline can not be provided in this case
@@ -579,7 +579,10 @@ class CmdLineFwk:
         else:
             # make execution plan (a.k.a. DAG) for pipeline
             graphBuilder = GraphBuilder(
-                registry, skipExistingIn=args.skip_existing_in, clobberOutputs=args.clobber_outputs
+                butler.registry,
+                skipExistingIn=args.skip_existing_in,
+                clobberOutputs=args.clobber_outputs,
+                datastore=butler.datastore if args.qgraph_datastore_records else None,
             )
             # accumulate metadata
             metadata = {

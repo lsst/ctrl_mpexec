@@ -34,6 +34,7 @@ def qgraph(
     qgraph,
     qgraph_id,
     qgraph_node_id,
+    qgraph_datastore_records,
     skip_existing_in,
     skip_existing,
     save_qgraph,
@@ -73,6 +74,8 @@ def qgraph(
     qgraph_node_id : `list` of `int`, optional
         Only load a specified set of nodes if graph is loaded from a file,
         nodes are identified by integer IDs.
+    qgraph_datastore_records : `bool`
+        If True then include datastore records into generated quanta.
     skip_existing_in : `list` [ `str` ]
         Accepts list of collections, if all Quantum outputs already exist in
         the specified list of collections then that Quantum will be excluded
@@ -158,6 +161,7 @@ def qgraph(
         qgraph=qgraph,
         qgraph_id=qgraph_id,
         qgraph_node_id=qgraph_node_id,
+        qgraph_datastore_records=qgraph_datastore_records,
         save_qgraph=save_qgraph,
         save_single_quanta=save_single_quanta,
         qgraph_dot=qgraph_dot,
