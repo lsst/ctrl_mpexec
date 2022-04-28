@@ -217,6 +217,7 @@ def _makeQGraph():
     config = Config(
         {
             "version": 1,
+            "namespace": "ctrl_mpexec_test",
             "skypix": {
                 "common": "htm7",
                 "htm": {
