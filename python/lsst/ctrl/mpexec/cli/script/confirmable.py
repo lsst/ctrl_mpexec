@@ -51,19 +51,22 @@ class ConfirmableResult(ABC):
         Called just after the user has confirmed (if needed)."""
         pass
 
-    @abstractproperty
+    @property
+    @abstractmethod
     def failed(self) -> bool:
         """Query if there was a failure preparing the ConfirmableResult,
         before `on_confirmation` is called."""
         pass
 
-    @abstractproperty
+    @property
+    @abstractmethod
     def describe_failure(self) -> str:
         """Get a message describing the failure. This is used as the message
         when raising a `ClickException` to stop with exit code 1."""
         pass
 
-    @abstractproperty
+    @property
+    @abstractmethod
     def can_continue(self) -> bool:
         """Query if the ConfirmableResult can continue. Returns `False` if
         there is no work to be done."""
