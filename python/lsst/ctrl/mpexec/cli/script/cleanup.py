@@ -42,7 +42,7 @@ class NotChainedCollectionFailure:
         self.type = type
 
     def __str__(self):
-        return f'COLLETION must be a CHAINED collection, "{self.collection}" is a "{self.type}" collection.'
+        return f'COLLECTION must be a CHAINED collection, "{self.collection}" is a "{self.type}" collection.'
 
 
 class CleanupResult(ConfirmableResult):
