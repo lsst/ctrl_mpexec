@@ -41,7 +41,7 @@ class ChildHasMultipleParentsFailure:
 
     def __str__(self):
         parents = ", ".join([f'"{p}"' for p in self.parents])
-        return f'Collection "{self.child}" is in multiple chained collections: {parents}.\n' + advice
+        return f'Collection "{self.child}" is in multiple chained collections: {parents}.\n {advice}'
 
 
 class TopCollectionHasParentsFailure:
@@ -53,7 +53,7 @@ class TopCollectionHasParentsFailure:
         parents = ", ".join([f'"{p}"' for p in self.parents])
         return (
             f'The passed-in collection "{self.collection}" must not be contained in other collections but '
-            f"is contained in collection(s) {parents}.\n" + advice
+            f"is contained in collection(s) {parents}.\n {advice}"
         )
 
 
@@ -235,7 +235,7 @@ def purge(
     purge_result : PurgeResult
         The description of what datasets to remove and/or failures encountered
         while preparing to remove datasets to remove, and a completion function
-        to remove the datests after confirmation, if needed.
+        to remove the datasets after confirmation, if needed.
     """
     result = PurgeResult(butler_config)
     butler = Butler(butler_config)

@@ -109,7 +109,8 @@ class CleanupCollectionTest(unittest.TestCase):
         result = self.runner.invoke(pipetask_cli, ["cleanup", "-b", self.root, "ingest"])
         self.assertEqual(result.exit_code, 1, clickResultMsg(result))
         self.assertIn(
-            'Error: COLLETION must be a CHAINED collection, "ingest" is a "TAGGED" collection.', result.output
+            'Error: COLLECTION must be a CHAINED collection, "ingest" is a "TAGGED" collection.',
+            result.output,
         )
 
 

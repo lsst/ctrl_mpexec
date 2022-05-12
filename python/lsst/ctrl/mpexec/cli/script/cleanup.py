@@ -42,7 +42,7 @@ class NotChainedCollectionFailure:
         self.type = type
 
     def __str__(self):
-        return f'COLLETION must be a CHAINED collection, "{self.collection}" is a "{self.type}" collection.'
+        return f'COLLECTION must be a CHAINED collection, "{self.collection}" is a "{self.type}" collection.'
 
 
 class CleanupResult(ConfirmableResult):
@@ -64,9 +64,10 @@ class CleanupResult(ConfirmableResult):
 
     def on_confirmation(self) -> None:
         butler = Butler(self.butler_config, writeable=True)
-        for collection in self.others_to_remove:
-            butler.registry.removeCollection(collection)
-        butler.removeRuns(self.runs_to_remove)
+        with butler.transaction():
+            for collection in self.others_to_remove:
+                butler.registry.removeCollection(collection)
+            butler.removeRuns(self.runs_to_remove)
 
     @property
     def failed(self) -> bool:
@@ -93,7 +94,7 @@ def cleanup(
     butler_config : str
         The path location of the gen3 butler/registry config file.
     collection : str
-        TODO
+        The name of the chained collection.
     """
     butler = Butler(butler_config)
     result = CleanupResult(butler_config)
