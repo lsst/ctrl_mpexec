@@ -32,7 +32,7 @@ __all__ = ["graph2dot", "pipeline2dot"]
 # -----------------------------
 #  Imports for other modules --
 # -----------------------------
-from lsst.daf.butler import DimensionUniverse
+from lsst.daf.butler import DatasetType, DimensionUniverse
 from lsst.pipe.base import Pipeline, iterConnections
 
 # ----------------------------------
@@ -244,7 +244,13 @@ def pipeline2dot(pipeline, file):
                 dimensions = expand_dimensions(attr.dimensions)
                 _renderDSTypeNode(attr.name, dimensions, file)
                 allDatasets.add(attr.name)
+            nodeName, component = DatasetType.splitDatasetTypeName(attr.name)
             _renderEdge(attr.name, taskNodeName, file)
+            # connect component dataset types to the composite type that
+            # produced it
+            if component is not None and (nodeName, attr.name) not in allDatasets:
+                _renderEdge(nodeName, attr.name, file)
+                allDatasets.add((nodeName, attr.name))
 
         for attr in iterConnections(taskDef.connections, "prerequisiteInputs"):
             if attr.name not in allDatasets:
