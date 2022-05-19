@@ -115,11 +115,12 @@ class DotToolsTestCase(unittest.TestCase):
         """Tests for dotTools.pipeline2dot method"""
         pipeline = _makePipeline(
             [
-                ("A", ("B", "C"), "task1"),
-                ("C", "E", "task2"),
-                ("B", "D", "task3"),
-                (("D", "E"), "F", "task4"),
-                ("D.C", "G", "task5"),
+                ("A", ("B", "C"), "task0"),
+                ("C", "E", "task1"),
+                ("B", "D", "task2"),
+                (("D", "E"), "F", "task3"),
+                ("D.C", "G", "task4"),
+                ("task3_metadata", "H", "task5"),
             ]
         )
         file = io.StringIO()
@@ -128,9 +129,9 @@ class DotToolsTestCase(unittest.TestCase):
         # It's hard to validate complete output, just checking few basic
         # things, even that is not terribly stable.
         lines = file.getvalue().strip().split("\n")
-        ndatasets = 8
-        ntasks = 5
-        nedges = 13
+        ndatasets = 10
+        ntasks = 6
+        nedges = 16
         nextra = 2  # graph header and closing
         self.assertEqual(len(lines), ndatasets + ntasks + nedges + nextra)
 
@@ -152,6 +153,10 @@ class DotToolsTestCase(unittest.TestCase):
 
         # make sure components are connected appropriately
         self.assertIn('"D" -> "D.C";', file.getvalue())
+
+        # make sure there is a connection created for metadata if someone
+        # tries to read it in
+        self.assertIn('"task3" -> "task3_metadata"', file.getvalue())
 
 
 class MyMemoryTestCase(lsst.utils.tests.MemoryTestCase):

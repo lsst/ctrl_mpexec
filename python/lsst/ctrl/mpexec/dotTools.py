@@ -28,6 +28,7 @@ __all__ = ["graph2dot", "pipeline2dot"]
 # -------------------------------
 #  Imports of standard modules --
 # -------------------------------
+import re
 
 # -----------------------------
 #  Imports for other modules --
@@ -233,10 +234,20 @@ def pipeline2dot(pipeline, file):
     allDatasets = set()
     if isinstance(pipeline, Pipeline):
         pipeline = pipeline.toExpandedPipeline()
+
+    # The next two lines are a workaround until DM-29658 at which time metadata
+    # connections should star working with the above code
+    labelToTaskName = {}
+    metadataNodesToLink = set()
+
     for idx, taskDef in enumerate(pipeline):
 
         # node for a task
         taskNodeName = "task{}".format(idx)
+
+        # next line is workaround until DM-29658
+        labelToTaskName[taskDef.label] = taskNodeName
+
         _renderTaskNode(taskNodeName, taskDef, file, idx)
 
         for attr in iterConnections(taskDef.connections, "inputs"):
@@ -251,6 +262,14 @@ def pipeline2dot(pipeline, file):
             if component is not None and (nodeName, attr.name) not in allDatasets:
                 _renderEdge(nodeName, attr.name, file)
                 allDatasets.add((nodeName, attr.name))
+                if nodeName not in allDatasets:
+                    dimensions = expand_dimensions(attr.dimensions)
+                    _renderDSTypeNode(nodeName, dimensions, file)
+            # The next if block is a workaround until DM-29658 at which time
+            # metadata connections should star working with the above code
+            if (match := re.match("^(.*)_metadata$", attr.name)) is not None:
+                matchTaskLabel = match.group(1)
+                metadataNodesToLink.add((matchTaskLabel, attr.name))
 
         for attr in iterConnections(taskDef.connections, "prerequisiteInputs"):
             if attr.name not in allDatasets:
@@ -266,6 +285,14 @@ def pipeline2dot(pipeline, file):
                 _renderDSTypeNode(attr.name, dimensions, file)
                 allDatasets.add(attr.name)
             _renderEdge(taskNodeName, attr.name, file)
+
+    # This for loop is a workaround until DM-29658 at which time metadata
+    # connections should star working with the above code
+    for matchLabel, dsTypeName in metadataNodesToLink:
+        # only render an edge to metadata if the label is part of the current
+        # graph
+        if (result := labelToTaskName.get(matchLabel)) is not None:
+            _renderEdge(result, dsTypeName, file)
 
     print("}", file=file)
     if close:
