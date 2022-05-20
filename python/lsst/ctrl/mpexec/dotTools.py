@@ -64,7 +64,7 @@ def _renderTaskNode(nodeName, taskDef, file, idx=None):
         labels.append(f"index: {idx}")
     if taskDef.connections:
         # don't print collection of str directly to avoid visually noisy quotes
-        dimensions_str = ", ".join(taskDef.connections.dimensions)
+        dimensions_str = ", ".join(sorted(taskDef.connections.dimensions))
         labels.append(f"dimensions: {dimensions_str}")
     _renderNode(file, nodeName, "task", labels)
 
@@ -81,7 +81,7 @@ def _renderDSTypeNode(name, dimensions, file):
     """Render GV node for a dataset type"""
     labels = [name]
     if dimensions:
-        labels.append("Dimensions: " + ", ".join(dimensions))
+        labels.append("Dimensions: " + ", ".join(sorted(dimensions)))
     _renderNode(file, name, "dsType", labels)
 
 
@@ -240,7 +240,7 @@ def pipeline2dot(pipeline, file):
     labelToTaskName = {}
     metadataNodesToLink = set()
 
-    for idx, taskDef in enumerate(pipeline):
+    for idx, taskDef in enumerate(sorted(pipeline, key=lambda x: x.label)):
 
         # node for a task
         taskNodeName = "task{}".format(idx)
@@ -248,9 +248,9 @@ def pipeline2dot(pipeline, file):
         # next line is workaround until DM-29658
         labelToTaskName[taskDef.label] = taskNodeName
 
-        _renderTaskNode(taskNodeName, taskDef, file, idx)
+        _renderTaskNode(taskNodeName, taskDef, file, None)
 
-        for attr in iterConnections(taskDef.connections, "inputs"):
+        for attr in sorted(iterConnections(taskDef.connections, "inputs"), key=lambda x: x.name):
             if attr.name not in allDatasets:
                 dimensions = expand_dimensions(attr.dimensions)
                 _renderDSTypeNode(attr.name, dimensions, file)
@@ -271,7 +271,7 @@ def pipeline2dot(pipeline, file):
                 matchTaskLabel = match.group(1)
                 metadataNodesToLink.add((matchTaskLabel, attr.name))
 
-        for attr in iterConnections(taskDef.connections, "prerequisiteInputs"):
+        for attr in sorted(iterConnections(taskDef.connections, "prerequisiteInputs"), key=lambda x: x.name):
             if attr.name not in allDatasets:
                 dimensions = expand_dimensions(attr.dimensions)
                 _renderDSTypeNode(attr.name, dimensions, file)
@@ -279,7 +279,7 @@ def pipeline2dot(pipeline, file):
             # use dashed line for prerequisite edges to distinguish them
             _renderEdge(attr.name, taskNodeName, file, style="dashed")
 
-        for attr in iterConnections(taskDef.connections, "outputs"):
+        for attr in sorted(iterConnections(taskDef.connections, "outputs"), key=lambda x: x.name):
             if attr.name not in allDatasets:
                 dimensions = expand_dimensions(attr.dimensions)
                 _renderDSTypeNode(attr.name, dimensions, file)
