@@ -29,7 +29,6 @@ from lsst.daf.butler.cli.opt import (
     long_log_option,
 )
 
-
 class PipetaskCLI(LoaderCLI):
 
     localCmdPkg = "lsst.ctrl.mpexec.cli.cmd"
@@ -48,4 +47,6 @@ def cli(log_level, long_log, log_file, log_tty, log_label):
 
 
 def main():
+    from my_utils import createTimer
+    createTimer()
     return cli()
