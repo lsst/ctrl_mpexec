@@ -236,7 +236,7 @@ def pipeline2dot(pipeline, file):
         pipeline = pipeline.toExpandedPipeline()
 
     # The next two lines are a workaround until DM-29658 at which time metadata
-    # connections should star working with the above code
+    # connections should start working with the above code
     labelToTaskName = {}
     metadataNodesToLink = set()
 
@@ -250,6 +250,7 @@ def pipeline2dot(pipeline, file):
 
         _renderTaskNode(taskNodeName, taskDef, file, None)
 
+        metadataRePattern = re.compile("^(.*)_metadata$")
         for attr in sorted(iterConnections(taskDef.connections, "inputs"), key=lambda x: x.name):
             if attr.name not in allDatasets:
                 dimensions = expand_dimensions(attr.dimensions)
@@ -266,8 +267,8 @@ def pipeline2dot(pipeline, file):
                     dimensions = expand_dimensions(attr.dimensions)
                     _renderDSTypeNode(nodeName, dimensions, file)
             # The next if block is a workaround until DM-29658 at which time
-            # metadata connections should star working with the above code
-            if (match := re.match("^(.*)_metadata$", attr.name)) is not None:
+            # metadata connections should start working with the above code
+            if (match := metadataRePattern.match(attr.name)) is not None:
                 matchTaskLabel = match.group(1)
                 metadataNodesToLink.add((matchTaskLabel, attr.name))
 
@@ -287,7 +288,7 @@ def pipeline2dot(pipeline, file):
             _renderEdge(taskNodeName, attr.name, file)
 
     # This for loop is a workaround until DM-29658 at which time metadata
-    # connections should star working with the above code
+    # connections should start working with the above code
     for matchLabel, dsTypeName in metadataNodesToLink:
         # only render an edge to metadata if the label is part of the current
         # graph
