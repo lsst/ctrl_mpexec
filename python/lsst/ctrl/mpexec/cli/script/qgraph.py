@@ -29,7 +29,7 @@ from ... import CmdLineFwk
 _log = logging.getLogger(__name__)
 
 
-def qgraph(
+def qgraph(  # type: ignore
     pipelineObj,
     qgraph,
     qgraph_id,

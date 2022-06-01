@@ -23,18 +23,26 @@
 or quantum graphs.
 """
 
+from __future__ import annotations
+
 __all__ = ["graph2dot", "pipeline2dot"]
 
 # -------------------------------
 #  Imports of standard modules --
 # -------------------------------
+import io
 import re
+from typing import TYPE_CHECKING, Any, Iterable, Union
 
 # -----------------------------
 #  Imports for other modules --
 # -----------------------------
 from lsst.daf.butler import DatasetType, DimensionUniverse
-from lsst.pipe.base import Pipeline, iterConnections
+from lsst.pipe.base import Pipeline, connectionTypes, iterConnections
+
+if TYPE_CHECKING:
+    from lsst.daf.butler import DatasetRef
+    from lsst.pipe.base import QuantumGraph, QuantumNode, TaskDef
 
 # ----------------------------------
 #  Local non-exported definitions --
@@ -49,15 +57,15 @@ _STYLES = dict(
 )
 
 
-def _renderNode(file, nodeName, style, labels):
+def _renderNode(file: io.TextIOBase, nodeName: str, style: str, labels: list[str]) -> None:
     """Render GV node"""
     label = r"\n".join(labels)
-    attrib = dict(_STYLES[style], label=label)
-    attrib = ", ".join([f'{key}="{val}"' for key, val in attrib.items()])
+    attrib_dict = dict(_STYLES[style], label=label)
+    attrib = ", ".join([f'{key}="{val}"' for key, val in attrib_dict.items()])
     print(f'"{nodeName}" [{attrib}];', file=file)
 
 
-def _renderTaskNode(nodeName, taskDef, file, idx=None):
+def _renderTaskNode(nodeName: str, taskDef: TaskDef, file: io.TextIOBase, idx: Any = None) -> None:
     """Render GV node for a task"""
     labels = [taskDef.label, taskDef.taskName]
     if idx is not None:
@@ -69,15 +77,18 @@ def _renderTaskNode(nodeName, taskDef, file, idx=None):
     _renderNode(file, nodeName, "task", labels)
 
 
-def _renderQuantumNode(nodeName, taskDef, quantumNode, file):
+def _renderQuantumNode(
+    nodeName: str, taskDef: TaskDef, quantumNode: QuantumNode, file: io.TextIOBase
+) -> None:
     """Render GV node for a quantum"""
     labels = [f"{quantumNode.nodeId}", taskDef.label]
     dataId = quantumNode.quantum.dataId
+    assert dataId is not None, "Quantum DataId cannot be None"
     labels.extend(f"{key} = {dataId[key]}" for key in sorted(dataId.keys()))
     _renderNode(file, nodeName, "quantum", labels)
 
 
-def _renderDSTypeNode(name, dimensions, file):
+def _renderDSTypeNode(name: str, dimensions: list[str], file: io.TextIOBase) -> None:
     """Render GV node for a dataset type"""
     labels = [name]
     if dimensions:
@@ -85,14 +96,14 @@ def _renderDSTypeNode(name, dimensions, file):
     _renderNode(file, name, "dsType", labels)
 
 
-def _renderDSNode(nodeName, dsRef, file):
+def _renderDSNode(nodeName: str, dsRef: DatasetRef, file: io.TextIOBase) -> None:
     """Render GV node for a dataset"""
     labels = [dsRef.datasetType.name, f"run: {dsRef.run!r}"]
     labels.extend(f"{key} = {dsRef.dataId[key]}" for key in sorted(dsRef.dataId.keys()))
     _renderNode(file, nodeName, "dataset", labels)
 
 
-def _renderEdge(fromName, toName, file, **kwargs):
+def _renderEdge(fromName: str, toName: str, file: io.TextIOBase, **kwargs: Any) -> None:
     """Render GV edge"""
     if kwargs:
         attrib = ", ".join([f'{key}="{val}"' for key, val in kwargs.items()])
@@ -101,14 +112,14 @@ def _renderEdge(fromName, toName, file, **kwargs):
         print(f'"{fromName}" -> "{toName}";', file=file)
 
 
-def _datasetRefId(dsRef):
+def _datasetRefId(dsRef: DatasetRef) -> str:
     """Make an identifying string for given ref"""
     dsId = [dsRef.datasetType.name]
     dsId.extend(f"{key} = {dsRef.dataId[key]}" for key in sorted(dsRef.dataId.keys()))
     return ":".join(dsId)
 
 
-def _makeDSNode(dsRef, allDatasetRefs, file):
+def _makeDSNode(dsRef: DatasetRef, allDatasetRefs: dict[str, str], file: io.TextIOBase) -> str:
     """Make new node for dataset if  it does not exist.
 
     Returns node name.
@@ -128,7 +139,7 @@ def _makeDSNode(dsRef, allDatasetRefs, file):
 # ------------------------
 
 
-def graph2dot(qgraph, file):
+def graph2dot(qgraph: QuantumGraph, file: Any) -> None:
     """Convert QuantumGraph into GraphViz digraph.
 
     This method is mostly for documentation/presentation purposes.
@@ -154,7 +165,7 @@ def graph2dot(qgraph, file):
 
     print("digraph QuantumGraph {", file=file)
 
-    allDatasetRefs = {}
+    allDatasetRefs: dict[str, str] = {}
     for taskId, taskDef in enumerate(qgraph.taskGraph):
 
         quanta = qgraph.getNodesForTask(taskDef)
@@ -181,7 +192,7 @@ def graph2dot(qgraph, file):
         file.close()
 
 
-def pipeline2dot(pipeline, file):
+def pipeline2dot(pipeline: Union[Pipeline, Iterable[TaskDef]], file: Any) -> None:
     """Convert Pipeline into GraphViz digraph.
 
     This method is mostly for documentation/presentation purposes.
@@ -204,7 +215,7 @@ def pipeline2dot(pipeline, file):
     """
     universe = DimensionUniverse()
 
-    def expand_dimensions(dimensions):
+    def expand_dimensions(connection: connectionTypes.BaseConnection) -> list[str]:
         """Returns expanded list of dimensions, with special skypix treatment.
 
         Parameters
@@ -215,13 +226,15 @@ def pipeline2dot(pipeline, file):
         -------
         dimensions : `list` [`str`]
         """
-        dimensions = set(dimensions)
+        dimension_set = set()
+        if isinstance(connection, connectionTypes.DimensionedConnection):
+            dimension_set = set(connection.dimensions)
         skypix_dim = []
-        if "skypix" in dimensions:
-            dimensions.remove("skypix")
+        if "skypix" in dimension_set:
+            dimension_set.remove("skypix")
             skypix_dim = ["skypix"]
-        dimensions = universe.extract(dimensions)
-        return list(dimensions.names) + skypix_dim
+        dimension_graph = universe.extract(dimension_set)
+        return list(dimension_graph.names) + skypix_dim
 
     # open a file if needed
     close = False
@@ -231,7 +244,7 @@ def pipeline2dot(pipeline, file):
 
     print("digraph Pipeline {", file=file)
 
-    allDatasets = set()
+    allDatasets: set[Union[str, tuple[str, str]]] = set()
     if isinstance(pipeline, Pipeline):
         pipeline = pipeline.toExpandedPipeline()
 
@@ -253,7 +266,7 @@ def pipeline2dot(pipeline, file):
         metadataRePattern = re.compile("^(.*)_metadata$")
         for attr in sorted(iterConnections(taskDef.connections, "inputs"), key=lambda x: x.name):
             if attr.name not in allDatasets:
-                dimensions = expand_dimensions(attr.dimensions)
+                dimensions = expand_dimensions(attr)
                 _renderDSTypeNode(attr.name, dimensions, file)
                 allDatasets.add(attr.name)
             nodeName, component = DatasetType.splitDatasetTypeName(attr.name)
@@ -264,7 +277,7 @@ def pipeline2dot(pipeline, file):
                 _renderEdge(nodeName, attr.name, file)
                 allDatasets.add((nodeName, attr.name))
                 if nodeName not in allDatasets:
-                    dimensions = expand_dimensions(attr.dimensions)
+                    dimensions = expand_dimensions(attr)
                     _renderDSTypeNode(nodeName, dimensions, file)
             # The next if block is a workaround until DM-29658 at which time
             # metadata connections should start working with the above code
@@ -274,7 +287,7 @@ def pipeline2dot(pipeline, file):
 
         for attr in sorted(iterConnections(taskDef.connections, "prerequisiteInputs"), key=lambda x: x.name):
             if attr.name not in allDatasets:
-                dimensions = expand_dimensions(attr.dimensions)
+                dimensions = expand_dimensions(attr)
                 _renderDSTypeNode(attr.name, dimensions, file)
                 allDatasets.add(attr.name)
             # use dashed line for prerequisite edges to distinguish them
@@ -282,7 +295,7 @@ def pipeline2dot(pipeline, file):
 
         for attr in sorted(iterConnections(taskDef.connections, "outputs"), key=lambda x: x.name):
             if attr.name not in allDatasets:
-                dimensions = expand_dimensions(attr.dimensions)
+                dimensions = expand_dimensions(attr)
                 _renderDSTypeNode(attr.name, dimensions, file)
                 allDatasets.add(attr.name)
             _renderEdge(taskNodeName, attr.name, file)

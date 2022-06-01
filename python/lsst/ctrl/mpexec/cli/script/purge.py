@@ -21,7 +21,7 @@
 
 
 import itertools
-from typing import List, Union
+from typing import Any, Optional, Union
 
 from lsst.daf.butler import Butler, CollectionType
 from lsst.daf.butler.registry import MissingCollectionError
@@ -35,21 +35,21 @@ advice = (
 
 
 class ChildHasMultipleParentsFailure:
-    def __init__(self, child: str, parents: List[str]):
+    def __init__(self, child: str, parents: list[str]):
         self.child = child
         self.parents = parents
 
-    def __str__(self):
+    def __str__(self) -> str:
         parents = ", ".join([f'"{p}"' for p in self.parents])
         return f'Collection "{self.child}" is in multiple chained collections: {parents}.\n {advice}'
 
 
 class TopCollectionHasParentsFailure:
-    def __init__(self, collection: str, parents: List[str]):
+    def __init__(self, collection: str, parents: list[str]):
         self.collection = collection
         self.parents = parents
 
-    def __str__(self):
+    def __str__(self) -> str:
         parents = ", ".join([f'"{p}"' for p in self.parents])
         return (
             f'The passed-in collection "{self.collection}" must not be contained in other collections but '
@@ -62,7 +62,7 @@ class TopCollectionIsNotChianedFailure:
         self.collection = collection
         self.collection_type = collection_type
 
-    def __str__(self):
+    def __str__(self) -> str:
         return (
             "The passed-in collection must be a CHAINED collection; "
             f'"{self.collection}" is a {self.collection_type.name} collection.'
@@ -73,23 +73,23 @@ class TopCollectionNotFoundFailure:
     def __init__(self, collection: str):
         self.collection = collection
 
-    def __str__(self):
+    def __str__(self) -> str:
         return f'The passed-in colleciton "{self.collection}" was not found.'
 
 
 class PurgeResult(ConfirmableResult):
     def __init__(self, butler_config: str):
-        self.runs_to_remove = []
-        self.chains_to_remove = []
-        self.others_to_remove = []
+        self.runs_to_remove: list[str] = []
+        self.chains_to_remove: list[str] = []
+        self.others_to_remove: list[str] = []
         self.butler_config = butler_config
-        self.failure = None
+        self.failure: Any = None
 
     @property
     def describe_failure(self) -> str:
         return str(self.failure)
 
-    def describe(self, will: bool):
+    def describe(self, will: bool) -> str:
         msg = ""
         if will:
             msg += "Will remove:\n"
@@ -129,11 +129,11 @@ class PurgeResult(ConfirmableResult):
             TopCollectionIsNotChianedFailure,
             TopCollectionNotFoundFailure,
         ],
-    ):
+    ) -> None:
         self.failure = failure
 
 
-def check_parents(butler: Butler, child: str, expected_parents: List[str]):
+def check_parents(butler: Butler, child: str, expected_parents: list[str]) -> Optional[list[str]]:
     """Check that the parents of a child collection match
     the provided expected parents.
 

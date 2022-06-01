@@ -27,7 +27,7 @@ from ... import CmdLineFwk, TaskFactory
 _log = logging.getLogger(__name__)
 
 
-def run(
+def run(  # type: ignore
     pdb,
     graph_fixup,
     init_only,

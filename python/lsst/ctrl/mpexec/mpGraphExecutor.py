@@ -19,6 +19,8 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+from __future__ import annotations
+
 __all__ = ["MPGraphExecutor", "MPGraphExecutorError", "MPTimeoutError"]
 
 import gc
@@ -30,18 +32,19 @@ import signal
 import sys
 import time
 from enum import Enum
-from typing import Optional
+from typing import TYPE_CHECKING, Iterable, Optional
 
 from lsst.daf.butler.cli.cliLog import CliLog
-from lsst.pipe.base import InvalidQuantumError
-from lsst.pipe.base.graph.graph import QuantumGraph
+from lsst.pipe.base import InvalidQuantumError, TaskDef
+from lsst.pipe.base.graph.graph import QuantumGraph, QuantumNode
 from lsst.utils.threads import disable_implicit_threading
 
-# -----------------------------
-#  Imports for other modules --
-# -----------------------------
-from .quantumGraphExecutor import QuantumGraphExecutor
+from .executionGraphFixup import ExecutionGraphFixup
+from .quantumGraphExecutor import QuantumExecutor, QuantumGraphExecutor
 from .reports import ExecutionStatus, QuantumReport, Report
+
+if TYPE_CHECKING:
+    from lsst.daf.butler import Butler
 
 _LOG = logging.getLogger(__name__)
 
@@ -65,26 +68,32 @@ class _Job:
         Quantum and some associated information.
     """
 
-    def __init__(self, qnode):
+    def __init__(self, qnode: QuantumNode):
         self.qnode = qnode
-        self.process = None
+        self.process: Optional[multiprocessing.process.BaseProcess] = None
         self._state = JobState.PENDING
-        self.started = None
-        self._rcv_conn = None
+        self.started: float = 0.0
+        self._rcv_conn: Optional[multiprocessing.connection.Connection] = None
         self._terminated = False
 
     @property
-    def state(self):
+    def state(self) -> JobState:
         """Job processing state (JobState)"""
         return self._state
 
     @property
-    def terminated(self):
+    def terminated(self) -> bool:
         """Return True if job was killed by stop() method and negative exit
         code is returned from child process. (`bool`)"""
-        return self._terminated and self.process.exitcode < 0
+        if self._terminated:
+            assert self.process is not None, "Process must be started"
+            if self.process.exitcode is not None:
+                return self.process.exitcode < 0
+        return False
 
-    def start(self, butler, quantumExecutor, startMethod=None):
+    def start(
+        self, butler: Butler, quantumExecutor: QuantumExecutor, startMethod: Optional[str] = None
+    ) -> None:
         """Start process which runs the task.
 
         Parameters
@@ -113,7 +122,14 @@ class _Job:
         self._state = JobState.RUNNING
 
     @staticmethod
-    def _executeJob(quantumExecutor, taskDef, quantum_pickle, butler, logConfigState, snd_conn):
+    def _executeJob(
+        quantumExecutor: QuantumExecutor,
+        taskDef: TaskDef,
+        quantum_pickle: bytes,
+        butler: Butler,
+        logConfigState: list,
+        snd_conn: multiprocessing.connection.Connection,
+    ) -> None:
         """Execute a job with arguments.
 
         Parameters
@@ -149,8 +165,9 @@ class _Job:
             except Exception:
                 pass
 
-    def stop(self):
+    def stop(self) -> None:
         """Stop the process."""
+        assert self.process is not None, "Process must be started"
         self.process.terminate()
         # give it 1 second to finish or KILL
         for i in range(10):
@@ -162,7 +179,7 @@ class _Job:
             self.process.kill()
         self._terminated = True
 
-    def cleanup(self):
+    def cleanup(self) -> None:
         """Release processes resources, has to be called for each finished
         process.
         """
@@ -175,13 +192,18 @@ class _Job:
         """Return task report, should be called after process finishes and
         before cleanup().
         """
+        assert self.process is not None, "Process must be started"
+        assert self._rcv_conn is not None, "Process must be started"
         try:
             report = self._rcv_conn.recv()
             report.exitCode = self.process.exitcode
         except Exception:
             # Likely due to the process killed, but there may be other reasons.
+            # Exit code should not be None, this is to keep mypy happy.
+            exitcode = self.process.exitcode if self.process.exitcode is not None else -1
+            assert self.qnode.quantum.dataId is not None, "Quantum DataId cannot be None"
             report = QuantumReport.from_exit_code(
-                exitCode=self.process.exitcode,
+                exitCode=exitcode,
                 dataId=self.qnode.quantum.dataId,
                 taskLabel=self.qnode.taskDef.label,
             )
@@ -190,8 +212,10 @@ class _Job:
             report.status = ExecutionStatus.TIMEOUT
         return report
 
-    def failMessage(self):
+    def failMessage(self) -> str:
         """Return a message describing task failure"""
+        assert self.process is not None, "Process must be started"
+        assert self.process.exitcode is not None, "Process has to finish"
         exitcode = self.process.exitcode
         if exitcode < 0:
             # Negative exit code means it is killed by signal
@@ -206,10 +230,10 @@ class _Job:
         elif exitcode > 0:
             msg = f"Task {self} failed, exit code={exitcode}"
         else:
-            msg = None
+            msg = ""
         return msg
 
-    def __str__(self):
+    def __str__(self) -> str:
         return f"<{self.qnode.taskDef} dataId={self.qnode.quantum.dataId}>"
 
 
@@ -223,15 +247,17 @@ class _JobList:
         task dependencies.
     """
 
-    def __init__(self, iterable):
+    def __init__(self, iterable: Iterable[QuantumNode]):
         self.jobs = [_Job(qnode) for qnode in iterable]
         self.pending = self.jobs[:]
-        self.running = []
-        self.finishedNodes = set()
-        self.failedNodes = set()
-        self.timedOutNodes = set()
+        self.running: list[_Job] = []
+        self.finishedNodes: set[QuantumNode] = set()
+        self.failedNodes: set[QuantumNode] = set()
+        self.timedOutNodes: set[QuantumNode] = set()
 
-    def submit(self, job, butler, quantumExecutor, startMethod=None):
+    def submit(
+        self, job: _Job, butler: Butler, quantumExecutor: QuantumExecutor, startMethod: Optional[str] = None
+    ) -> None:
         """Submit one more job for execution
 
         Parameters
@@ -250,7 +276,7 @@ class _JobList:
         job.start(butler, quantumExecutor, startMethod)
         self.running.append(job)
 
-    def setJobState(self, job, state):
+    def setJobState(self, job: _Job, state: JobState) -> None:
         """Update job state.
 
         Parameters
@@ -289,7 +315,7 @@ class _JobList:
         else:
             raise ValueError(f"Unexpected state value: {state}")
 
-    def cleanup(self):
+    def cleanup(self) -> None:
         """Do periodic cleanup for jobs that did not finish correctly.
 
         If timed out jobs are killed but take too long to stop then regular
@@ -340,14 +366,14 @@ class MPGraphExecutor(QuantumGraphExecutor):
 
     def __init__(
         self,
-        numProc,
-        timeout,
-        quantumExecutor,
+        numProc: int,
+        timeout: float,
+        quantumExecutor: QuantumExecutor,
         *,
-        startMethod=None,
-        failFast=False,
-        pdb=None,
-        executionGraphFixup=None,
+        startMethod: Optional[str] = None,
+        failFast: bool = False,
+        pdb: Optional[str] = None,
+        executionGraphFixup: Optional[ExecutionGraphFixup] = None,
     ):
         self.numProc = numProc
         self.timeout = timeout
@@ -364,20 +390,20 @@ class MPGraphExecutor(QuantumGraphExecutor):
             startMethod = methods.get(sys.platform)
         self.startMethod = startMethod
 
-    def execute(self, graph, butler):
+    def execute(self, graph: QuantumGraph, butler: Butler) -> None:
         # Docstring inherited from QuantumGraphExecutor.execute
         graph = self._fixupQuanta(graph)
         self.report = Report()
         try:
             if self.numProc > 1:
-                self._executeQuantaMP(graph, butler)
+                self._executeQuantaMP(graph, butler, self.report)
             else:
-                self._executeQuantaInProcess(graph, butler)
+                self._executeQuantaInProcess(graph, butler, self.report)
         except Exception as exc:
             self.report.set_exception(exc)
             raise
 
-    def _fixupQuanta(self, graph: QuantumGraph):
+    def _fixupQuanta(self, graph: QuantumGraph) -> QuantumGraph:
         """Call fixup code to modify execution graph.
 
         Parameters
@@ -408,7 +434,7 @@ class MPGraphExecutor(QuantumGraphExecutor):
 
         return graph
 
-    def _executeQuantaInProcess(self, graph, butler):
+    def _executeQuantaInProcess(self, graph: QuantumGraph, butler: Butler, report: Report) -> None:
         """Execute all Quanta in current process.
 
         Parameters
@@ -417,9 +443,11 @@ class MPGraphExecutor(QuantumGraphExecutor):
             `QuantumGraph` that is to be executed
         butler : `lsst.daf.butler.Butler`
             Data butler instance
+        report : `Report`
+            Object for reporting execution status.
         """
         successCount, totalCount = 0, len(graph)
-        failedNodes = set()
+        failedNodes: set[QuantumNode] = set()
         for qnode in graph:
 
             # Any failed inputs mean that the quantum has to be skipped.
@@ -431,10 +459,10 @@ class MPGraphExecutor(QuantumGraphExecutor):
                     qnode.quantum.dataId,
                 )
                 failedNodes.add(qnode)
-                quantum_report = QuantumReport(
+                failed_quantum_report = QuantumReport(
                     status=ExecutionStatus.SKIPPED, dataId=qnode.quantum.dataId, taskLabel=qnode.taskDef.label
                 )
-                self.report.quantaReports.append(quantum_report)
+                report.quantaReports.append(failed_quantum_report)
                 continue
 
             _LOG.debug("Executing %s", qnode)
@@ -461,7 +489,7 @@ class MPGraphExecutor(QuantumGraphExecutor):
                         ) from exc
                     pdb.post_mortem(exc.__traceback__)
                 failedNodes.add(qnode)
-                self.report.status = ExecutionStatus.FAILURE
+                report.status = ExecutionStatus.FAILURE
                 if self.failFast:
                     raise MPGraphExecutorError(
                         f"Task <{qnode.taskDef} dataId={qnode.quantum.dataId}> failed."
@@ -483,7 +511,7 @@ class MPGraphExecutor(QuantumGraphExecutor):
 
                 quantum_report = self.quantumExecutor.getReport()
                 if quantum_report:
-                    self.report.quantaReports.append(quantum_report)
+                    report.quantaReports.append(quantum_report)
 
             _LOG.info(
                 "Executed %d quanta successfully, %d failed and %d remain out of total %d quanta.",
@@ -497,7 +525,7 @@ class MPGraphExecutor(QuantumGraphExecutor):
         if failedNodes:
             raise MPGraphExecutorError("One or more tasks failed during execution.")
 
-    def _executeQuantaMP(self, graph, butler):
+    def _executeQuantaMP(self, graph: QuantumGraph, butler: Butler, report: Report) -> None:
         """Execute all Quanta in separate processes.
 
         Parameters
@@ -506,6 +534,8 @@ class MPGraphExecutor(QuantumGraphExecutor):
             `QuantumGraph` that is to be executed.
         butler : `lsst.daf.butler.Butler`
             Data butler instance
+        report : `Report`
+            Object for reporting execution status.
         """
 
         disable_implicit_threading()  # To prevent thread contention
@@ -531,12 +561,13 @@ class MPGraphExecutor(QuantumGraphExecutor):
 
             # See if any jobs have finished
             for job in jobs.running:
+                assert job.process is not None, "Process cannot be None"
                 if not job.process.is_alive():
                     _LOG.debug("finished: %s", job)
                     # finished
                     exitcode = job.process.exitcode
                     quantum_report = job.report()
-                    self.report.quantaReports.append(quantum_report)
+                    report.quantaReports.append(quantum_report)
                     if exitcode == 0:
                         jobs.setJobState(job, JobState.FINISHED)
                         job.cleanup()
@@ -544,13 +575,13 @@ class MPGraphExecutor(QuantumGraphExecutor):
                     else:
                         if job.terminated:
                             # Was killed due to timeout.
-                            if self.report.status == ExecutionStatus.SUCCESS:
+                            if report.status == ExecutionStatus.SUCCESS:
                                 # Do not override global FAILURE status
-                                self.report.status = ExecutionStatus.TIMEOUT
+                                report.status = ExecutionStatus.TIMEOUT
                             message = f"Timeout ({self.timeout} sec) for task {job}, task is killed"
                             jobs.setJobState(job, JobState.TIMED_OUT)
                         else:
-                            self.report.status = ExecutionStatus.FAILURE
+                            report.status = ExecutionStatus.FAILURE
                             # failMessage() has to be called before cleanup()
                             message = job.failMessage()
                             jobs.setJobState(job, JobState.FAILED)
@@ -590,7 +621,7 @@ class MPGraphExecutor(QuantumGraphExecutor):
                             dataId=job.qnode.quantum.dataId,
                             taskLabel=job.qnode.taskDef.label,
                         )
-                        self.report.quantaReports.append(quantum_report)
+                        report.quantaReports.append(quantum_report)
                         jobs.setJobState(job, JobState.FAILED_DEP)
                         _LOG.error("Upstream job failed for task %s, skipping this task.", job)
 

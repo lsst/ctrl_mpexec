@@ -21,6 +21,7 @@
 
 
 import re
+from typing import Any
 
 from lsst.daf.butler import Butler, CollectionType
 from lsst.daf.butler.registry import CollectionTypeError, MissingCollectionError
@@ -29,28 +30,28 @@ from .confirmable import ConfirmableResult
 
 
 class NoSuchCollectionFailure:
-    def __init__(self, collection):
+    def __init__(self, collection: str):
         self.collection = collection
 
-    def __str__(self):
+    def __str__(self) -> str:
         return f'Did not find a collection named "{self.collection}"'
 
 
 class NotChainedCollectionFailure:
-    def __init__(self, collection, type):
+    def __init__(self, collection: str, type: str):
         self.collection = collection
         self.type = type
 
-    def __str__(self):
+    def __str__(self) -> str:
         return f'COLLECTION must be a CHAINED collection, "{self.collection}" is a "{self.type}" collection.'
 
 
 class CleanupResult(ConfirmableResult):
-    def __init__(self, butler_config):
+    def __init__(self, butler_config: str):
         self.butler_config = butler_config
-        self.runs_to_remove = []
-        self.others_to_remove = []
-        self.failure = None
+        self.runs_to_remove: list[str] = []
+        self.others_to_remove: list[str] = []
+        self.failure: Any = None
 
     def describe(self, will: bool) -> str:
         if self.can_continue:
@@ -79,13 +80,13 @@ class CleanupResult(ConfirmableResult):
 
     @property
     def can_continue(self) -> bool:
-        return self.runs_to_remove or self.others_to_remove
+        return bool(self.runs_to_remove) or bool(self.others_to_remove)
 
 
 def cleanup(
     butler_config: str,
     collection: str,
-):
+) -> CleanupResult:
     """Remove collections that start with the same name as a CHAINED
     collection but are not members of that collection.
 

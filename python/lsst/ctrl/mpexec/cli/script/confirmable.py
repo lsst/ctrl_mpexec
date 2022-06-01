@@ -73,13 +73,13 @@ class ConfirmableResult(ABC):
         pass
 
 
-def confirm(script_func: Callable[[], None], confirm: bool) -> ConfirmableResult:
+def confirm(script_func: Callable[[], ConfirmableResult], confirm: bool) -> ConfirmableResult:
     result = script_func()
     if result.failed:
         raise click.ClickException(result.describe_failure)
     if not result.can_continue:
         print(result.describe(will=True))
-        return
+        return result
     if confirm:
         print(result.describe(will=True))
         if result.can_continue:
@@ -94,3 +94,4 @@ def confirm(script_func: Callable[[], None], confirm: bool) -> ConfirmableResult
             print(result.describe(will=False))
         else:
             print("Done.")
+    return result

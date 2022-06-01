@@ -19,15 +19,21 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-"""Module which defines TaskFactory class and related methods.
-"""
+from __future__ import annotations
 
 __all__ = ["TaskFactory"]
 
 import logging
+from typing import TYPE_CHECKING, Optional
 
 from lsst.daf.butler import DatasetType
 from lsst.pipe.base import TaskFactory as BaseTaskFactory
+
+if TYPE_CHECKING:
+    from lsst.daf.butler import Butler
+    from lsst.pex.config import Config
+    from lsst.pipe.base import PipelineTask
+    from lsst.pipe.base.configOverrides import ConfigOverrides
 
 _LOG = logging.getLogger(__name__)
 
@@ -35,7 +41,14 @@ _LOG = logging.getLogger(__name__)
 class TaskFactory(BaseTaskFactory):
     """Class instantiating PipelineTasks."""
 
-    def makeTask(self, taskClass, label, config, overrides, butler):
+    def makeTask(
+        self,
+        taskClass: type[PipelineTask],
+        label: Optional[str],
+        config: Optional[Config],
+        overrides: Optional[ConfigOverrides],
+        butler: Optional[Butler],
+    ) -> PipelineTask:
         """Create new PipelineTask instance from its class.
 
         Parameters

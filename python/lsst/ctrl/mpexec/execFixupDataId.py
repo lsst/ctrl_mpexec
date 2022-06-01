@@ -90,6 +90,7 @@ class ExecFixupDataId(ExecutionGraphFixup):
         key : `tuple`
         """
         dataId = qnode.quantum.dataId
+        assert dataId is not None, "Quantum DataId cannot be None"
         key = tuple(dataId[dim] for dim in self.dimensions)
         return key
 

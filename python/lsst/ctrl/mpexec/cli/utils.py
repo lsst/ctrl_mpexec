@@ -51,12 +51,12 @@ class _PipelineActionType:
         returned instance.
     """
 
-    def __init__(self, action, regex=".*", valueType=str):
+    def __init__(self, action: str, regex: str = ".*", valueType: type = str):
         self.action = action
         self.regex = re.compile(regex)
         self.valueType = valueType
 
-    def __call__(self, value):
+    def __call__(self, value: str) -> _PipelineAction:
         match = self.regex.match(value)
         if not match:
             raise TypeError("Unrecognized option syntax: " + value)
@@ -73,7 +73,7 @@ class _PipelineActionType:
         value = self.valueType(value)
         return _PipelineAction(self.action, label, value)
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         """String representation of this class."""
         return f"_PipelineActionType(action={self.action})"
 
@@ -86,13 +86,13 @@ _ACTION_ADD_INSTRUMENT = _PipelineActionType("add_instrument", "(?P<value>[^:]+)
 
 
 def makePipelineActions(
-    args,
-    taskFlags=task_option.opts(),
-    deleteFlags=delete_option.opts(),
-    configFlags=config_option.opts(),
-    configFileFlags=config_file_option.opts(),
-    instrumentFlags=instrument_option.opts(),
-):
+    args: list[str],
+    taskFlags: list[str] = task_option.opts(),
+    deleteFlags: list[str] = delete_option.opts(),
+    configFlags: list[str] = config_option.opts(),
+    configFileFlags: list[str] = config_file_option.opts(),
+    instrumentFlags: list[str] = instrument_option.opts(),
+) -> list[_PipelineAction]:
     """Make a list of pipline actions from a list of option flags and
     values.
 
@@ -143,4 +143,4 @@ def makePipelineActions(
 class PipetaskCommand(MWCommand):
     """Command subclass with pipetask-command specific overrides."""
 
-    extra_epilog = "See 'pipetask --help' for more options."
+    extra_epilog = "See 'pipetask --help' for more options."  # type: ignore

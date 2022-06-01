@@ -28,11 +28,14 @@ __all__ = ["profile", "printTable", "filterTasks", "subTaskIter"]
 #  Imports of standard modules --
 # -------------------------------
 import contextlib
+import logging
+from typing import Iterator, Optional
 
 # -----------------------------
 #  Imports for other modules --
 # -----------------------------
 import lsst.pex.config as pexConfig
+from lsst.pipe.base import Pipeline, TaskDef
 
 # ----------------------------------
 #  Local non-exported definitions --
@@ -44,7 +47,7 @@ import lsst.pex.config as pexConfig
 
 
 @contextlib.contextmanager
-def profile(filename, log=None):
+def profile(filename: str, log: Optional[logging.Logger] = None) -> Iterator:
     """Context manager for profiling with cProfile
 
     Parameters
@@ -95,7 +98,7 @@ def profile(filename, log=None):
         log.info("cProfile stats written to %s" % filename)
 
 
-def printTable(rows, header):
+def printTable(rows: list[tuple], header: Optional[tuple]) -> None:
     """Nice formatting of 2-column table.
 
     Parameters
@@ -117,7 +120,7 @@ def printTable(rows, header):
         print(col1.ljust(width), col2)
 
 
-def filterTasks(pipeline, name):
+def filterTasks(pipeline: Pipeline, name: Optional[str]) -> list[TaskDef]:
     """Finds list of tasks matching given name.
 
     For matching task either task label or task name after last dot should
@@ -146,7 +149,7 @@ def filterTasks(pipeline, name):
     return tasks
 
 
-def subTaskIter(config):
+def subTaskIter(config: pexConfig.Config) -> Iterator[tuple[str, str]]:
     """Recursively generates subtask names.
 
     Parameters

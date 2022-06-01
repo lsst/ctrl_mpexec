@@ -20,6 +20,7 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 from functools import partial
+from typing import Any
 
 import click
 import lsst.pipe.base.cli.opt as pipeBaseOpts
@@ -45,7 +46,7 @@ ignored.)
 )
 
 
-def _collectActions(ctx, **kwargs):
+def _collectActions(ctx: click.Context, **kwargs: Any) -> dict[str, Any]:
     """Extract pipeline building options, replace them with PipelineActions,
     return updated `kwargs`.
 
@@ -94,7 +95,7 @@ def _collectActions(ctx, **kwargs):
 @option_section(sectionText="")
 @options_file_option()
 @catch_and_exit
-def build(ctx, **kwargs):
+def build(ctx: click.Context, **kwargs: Any) -> None:
     """Build and optionally save pipeline definition.
 
     This does not require input data to be specified.
@@ -112,7 +113,7 @@ def build(ctx, **kwargs):
 @option_section(sectionText="")
 @options_file_option()
 @catch_and_exit
-def qgraph(ctx, **kwargs):
+def qgraph(ctx: click.Context, **kwargs: Any) -> None:
     """Build and optionally save quantum graph."""
     kwargs = _collectActions(ctx, **kwargs)
     pipeline = script.build(**kwargs)
@@ -122,7 +123,7 @@ def qgraph(ctx, **kwargs):
 @click.command(cls=PipetaskCommand, epilog=epilog)
 @ctrlMpExecOpts.run_options()
 @catch_and_exit
-def run(ctx, **kwargs):
+def run(ctx: click.Context, **kwargs: Any) -> None:
     """Build and execute pipeline and quantum graph."""
     kwargs = _collectActions(ctx, **kwargs)
     pipeline = script.build(**kwargs)
@@ -139,7 +140,7 @@ def run(ctx, **kwargs):
     search the children until nested chains that start with the parent's name
     are removed."""
 )
-def purge(confirm, **kwargs):
+def purge(confirm: bool, **kwargs: Any) -> None:
     """Remove a CHAINED collection and its contained collections.
 
     COLLECTION is the name of the chained collection to purge. it must not be a
@@ -157,7 +158,7 @@ def purge(confirm, **kwargs):
 @ctrlMpExecOpts.butler_config_option()
 @ctrlMpExecOpts.collection_argument()
 @confirm_option()
-def cleanup(confirm, **kwargs):
+def cleanup(confirm: bool, **kwargs: Any) -> None:
     """Remove non-members of CHAINED collections.
 
     Removes collections that start with the same name as a CHAINED

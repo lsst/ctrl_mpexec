@@ -22,11 +22,11 @@
 __all__ = ["DataIdMatch"]
 
 import operator
-from typing import Any, List, Optional, Tuple
+from typing import Any, Callable, List, Optional, Tuple
 
 import astropy.time
 from lsst.daf.butler import DataId
-from lsst.daf.butler.registry.queries.expressions import Node, ParserYacc, TreeVisitor
+from lsst.daf.butler.registry.queries.expressions import Node, ParserYacc, TreeVisitor  # type: ignore
 
 
 class _DataIdMatchTreeVisitor(TreeVisitor):
@@ -65,7 +65,7 @@ class _DataIdMatchTreeVisitor(TreeVisitor):
 
     def visitUnaryOp(self, operator_name: str, operand: Any, node: Node) -> Any:
         # docstring is inherited from base class
-        operators = {
+        operators: dict[str, Callable[[Any], Any]] = {
             "NOT": operator.not_,
             "+": operator.pos,
             "-": operator.neg,
