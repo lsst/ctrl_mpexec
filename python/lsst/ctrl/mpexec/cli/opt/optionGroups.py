@@ -47,7 +47,7 @@ class pipeline_build_options(OptionGroup):  # noqa: N801
     """Decorator to add options to the command function for building a
     pipeline."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.decorators = [
             option_section(sectionText="Pipeline build options:"),
             ctrlMpExecOpts.pipeline_option(),
@@ -73,7 +73,7 @@ class qgraph_options(OptionGroup):  # noqa: N801
     """Decorator to add options to a command function for creating a quantum
     graph."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.decorators = [
             option_section(sectionText="Quantum graph building options:"),
             ctrlMpExecOpts.qgraph_option(),
@@ -97,7 +97,7 @@ class butler_options(OptionGroup):  # noqa: N801
     """Decorator to add options to a command function for configuring a
     butler."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.decorators = [
             option_section(sectionText="Data repository and selection options:"),
             ctrlMpExecOpts.butler_config_option(required=True),
@@ -115,7 +115,7 @@ class execution_options(OptionGroup):  # noqa: N801
     """Decorator to add options to a command function for executing a
     pipeline."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.decorators = [
             option_section(sectionText="Execution options:"),
             ctrlMpExecOpts.clobber_outputs_option(),
@@ -135,7 +135,7 @@ class meta_info_options(OptionGroup):  # noqa: N801
     """Decorator to add options to a command function for managing pipeline
     meta information."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.decorators = [
             option_section(sectionText="Meta-information output options:"),
             ctrlMpExecOpts.skip_init_writes_option(),
@@ -148,7 +148,7 @@ class meta_info_options(OptionGroup):  # noqa: N801
 class run_options(OptionGroup):  # noqa: N801
     """Decorator to add the run options to the run command."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.decorators = [
             click.pass_context,
             ctrlMpExecOpts.debug_option(),

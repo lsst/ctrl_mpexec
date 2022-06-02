@@ -19,12 +19,15 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+from __future__ import annotations
+
 __all__ = ["PreExecInit"]
 
 # -------------------------------
 #  Imports of standard modules --
 # -------------------------------
 import logging
+from typing import TYPE_CHECKING, Any, Iterable
 
 # -----------------------------
 #  Imports for other modules --
@@ -35,6 +38,10 @@ from lsst.pipe.base import PipelineDatasetTypes
 from lsst.utils.packages import Packages
 
 from .mock_task import MockButlerQuantumContext
+
+if TYPE_CHECKING:
+    from lsst.daf.butler import Butler
+    from lsst.pipe.base import QuantumGraph, TaskFactory
 
 _LOG = logging.getLogger(__name__)
 
@@ -60,7 +67,7 @@ class PreExecInit:
         If `True` then also do initialization needed for pipeline mocking.
     """
 
-    def __init__(self, butler, taskFactory, extendRun=False, mock=False):
+    def __init__(self, butler: Butler, taskFactory: TaskFactory, extendRun: bool = False, mock: bool = False):
         self.butler = butler
         self.taskFactory = taskFactory
         self.extendRun = extendRun
@@ -71,7 +78,13 @@ class PreExecInit:
                 "with a default output RUN collection."
             )
 
-    def initialize(self, graph, saveInitOutputs=True, registerDatasetTypes=False, saveVersions=True):
+    def initialize(
+        self,
+        graph: QuantumGraph,
+        saveInitOutputs: bool = True,
+        registerDatasetTypes: bool = False,
+        saveVersions: bool = True,
+    ) -> None:
         """Perform all initialization steps.
 
         Convenience method to execute all initialization steps. Instead of
@@ -103,11 +116,11 @@ class PreExecInit:
             if saveVersions:
                 self.savePackageVersions(graph)
 
-    def initializeDatasetTypes(self, graph, registerDatasetTypes=False):
+    def initializeDatasetTypes(self, graph: QuantumGraph, registerDatasetTypes: bool = False) -> None:
         """Save or check DatasetTypes output by the tasks in a graph.
 
         Iterates over all DatasetTypes for all tasks in a graph and either
-        tries to add them to registry or compares them to exising ones.
+        tries to add them to registry or compares them to existing ones.
 
         Parameters
         ----------
@@ -160,8 +173,10 @@ class PreExecInit:
                 if mockDatasetTypes:
                     self._register_output_dataset_types(registerDatasetTypes, mockDatasetTypes, is_input)
 
-    def _register_output_dataset_types(self, registerDatasetTypes, datasetTypes, is_input):
-        def _check_compatibility(datasetType, expected, is_input) -> bool:
+    def _register_output_dataset_types(
+        self, registerDatasetTypes: bool, datasetTypes: Iterable[DatasetType], is_input: bool
+    ) -> None:
+        def _check_compatibility(datasetType: DatasetType, expected: DatasetType, is_input: bool) -> bool:
             # These are output dataset types so check for compatibility on put.
             is_compatible = expected.is_compatible_with(datasetType)
 
@@ -216,7 +231,7 @@ class PreExecInit:
                 "passing `--register-dataset-types` option to `pipetask run`."
             )
 
-    def saveInitOutputs(self, graph):
+    def saveInitOutputs(self, graph: QuantumGraph) -> None:
         """Write any datasets produced by initializing tasks in a graph.
 
         Parameters
@@ -279,7 +294,7 @@ class PreExecInit:
                     _LOG.debug("Saving InitOutputs for task=%s key=%s", taskDef.label, name)
                     self.butler.put(initOutputVar, attribute.name, {})
 
-    def saveConfigs(self, graph):
+    def saveConfigs(self, graph: QuantumGraph) -> None:
         """Write configurations for pipeline tasks to butler or check that
         existing configurations are equal to the new ones.
 
@@ -299,7 +314,7 @@ class PreExecInit:
             is raised.
         """
 
-        def logConfigMismatch(msg):
+        def logConfigMismatch(msg: str) -> None:
             """Log messages about configuration mismatch."""
             _LOG.fatal("Comparing configuration: %s", msg)
 
@@ -327,7 +342,7 @@ class PreExecInit:
                     _LOG.debug("Saving Config for task=%s dataset type=%s", taskDef.label, configName)
                     self.butler.put(taskDef.config, configName, {})
 
-    def savePackageVersions(self, graph):
+    def savePackageVersions(self, graph: QuantumGraph) -> None:
         """Write versions of software packages to butler.
 
         Parameters
@@ -344,7 +359,7 @@ class PreExecInit:
         packages = Packages.fromSystem()
         _LOG.debug("want to save packages: %s", packages)
         datasetType = PipelineDatasetTypes.packagesDatasetName
-        dataId = {}
+        dataId: dict[str, Any] = {}
         oldPackages = None
         # start transaction to rollback any changes on exceptions
         with self.butler.transaction():
@@ -376,6 +391,7 @@ class PreExecInit:
                     # have to remove existing dataset first, butler has no
                     # replace option.
                     ref = self.butler.registry.findDataset(datasetType, dataId, collections=[self.butler.run])
+                    assert ref is not None, "Expecting to get dataset ref which is not None."
                     self.butler.pruneDatasets([ref], unstore=True, purge=True)
                     self.butler.put(oldPackages, datasetType, dataId)
             else:

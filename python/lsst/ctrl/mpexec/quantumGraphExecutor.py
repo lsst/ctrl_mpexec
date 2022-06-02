@@ -19,12 +19,18 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+from __future__ import annotations
+
 __all__ = ["QuantumExecutor", "QuantumGraphExecutor"]
 
 from abc import ABC, abstractmethod
-from typing import Optional
+from typing import TYPE_CHECKING, Optional
 
 from .reports import QuantumReport, Report
+
+if TYPE_CHECKING:
+    from lsst.daf.butler import Butler, Quantum
+    from lsst.pipe.base import QuantumGraph, TaskDef
 
 
 class QuantumExecutor(ABC):
@@ -37,7 +43,7 @@ class QuantumExecutor(ABC):
     """
 
     @abstractmethod
-    def execute(self, taskDef, quantum, butler):
+    def execute(self, taskDef: TaskDef, quantum: Quantum, butler: Butler) -> Quantum:
         """Execute single quantum.
 
         Parameters
@@ -92,7 +98,7 @@ class QuantumGraphExecutor(ABC):
     """
 
     @abstractmethod
-    def execute(self, graph, butler):
+    def execute(self, graph: QuantumGraph, butler: Butler) -> None:
         """Execute whole graph.
 
         Implementation of this method depends on particular execution model

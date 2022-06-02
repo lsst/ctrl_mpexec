@@ -22,12 +22,13 @@
 """Module defining CmdLineFwk class and related methods.
 """
 
+from __future__ import annotations
+
 __all__ = ["CmdLineFwk"]
 
 # -------------------------------
 #  Imports of standard modules --
 # -------------------------------
-import argparse
 import copy
 import datetime
 import fnmatch
@@ -36,15 +37,12 @@ import logging
 import re
 import sys
 import warnings
-from typing import Iterable, Optional, Tuple
+from types import SimpleNamespace
+from typing import Any, Iterable, Optional, Tuple
 
 import lsst.pex.config as pexConfig
 import lsst.pex.config.history as pexConfigHistory
-
-# -----------------------------
-#  Imports for other modules --
-# -----------------------------
-from lsst.daf.butler import Butler, CollectionSearch, CollectionType, Registry
+from lsst.daf.butler import Butler, CollectionSearch, CollectionType, DatasetRef, Registry
 from lsst.daf.butler.registry import MissingCollectionError, RegistryDefaults
 from lsst.pipe.base import (
     GraphBuilder,
@@ -53,9 +51,10 @@ from lsst.pipe.base import (
     PipelineDatasetTypes,
     QuantumGraph,
     TaskDef,
+    TaskFactory,
     buildExecutionButler,
 )
-from lsst.utils import doImport
+from lsst.utils import doImportType
 
 from . import util
 from .dotTools import graph2dot, pipeline2dot
@@ -92,7 +91,7 @@ class _OutputChainedCollectionInfo:
             self.chain = ()
             self.exists = False
 
-    def __str__(self):
+    def __str__(self) -> str:
         return self.name
 
     name: str
@@ -192,7 +191,7 @@ class _ButlerFactory:
         Raised if ``writeable is True`` but there are no output collections.
     """
 
-    def __init__(self, registry: Registry, args: argparse.Namespace, writeable: bool):
+    def __init__(self, registry: Registry, args: SimpleNamespace, writeable: bool):
         if args.output is not None:
             self.output = _OutputChainedCollectionInfo(registry, args.output)
         else:
@@ -218,7 +217,7 @@ class _ButlerFactory:
         # collection.
         self.inputs = tuple(registry.queryCollections(args.input, flattenChains=True)) if args.input else ()
 
-    def check(self, args: argparse.Namespace):
+    def check(self, args: SimpleNamespace) -> None:
         """Check command-line options for consistency with each other and the
         data repository.
 
@@ -247,12 +246,13 @@ class _ButlerFactory:
                     f"Cannot add new input collections {self.inputs[:nNew]} after "
                     "output collection is first created."
                 )
-        if args.extend_run and self.outputRun is None:
-            raise ValueError("Cannot --extend-run when no output collection is given.")
-        if args.extend_run and not self.outputRun.exists:
-            raise ValueError(
-                f"Cannot --extend-run; output collection '{self.outputRun.name}' does not exist."
-            )
+        if args.extend_run:
+            if self.outputRun is None:
+                raise ValueError("Cannot --extend-run when no output collection is given.")
+            elif not self.outputRun.exists:
+                raise ValueError(
+                    f"Cannot --extend-run; output collection '{self.outputRun.name}' does not exist."
+                )
         if not args.extend_run and self.outputRun is not None and self.outputRun.exists:
             raise ValueError(
                 f"Output run '{self.outputRun.name}' already exists, but --extend-run was not given."
@@ -263,7 +263,7 @@ class _ButlerFactory:
             raise ValueError("--output must point to an existing CHAINED collection for --replace-run.")
 
     @classmethod
-    def _makeReadParts(cls, args: argparse.Namespace):
+    def _makeReadParts(cls, args: SimpleNamespace) -> tuple[Butler, CollectionSearch, _ButlerFactory]:
         """Common implementation for `makeReadButler` and
         `makeButlerAndCollections`.
 
@@ -290,7 +290,7 @@ class _ButlerFactory:
         if self.output and self.output.exists:
             if args.replace_run:
                 replaced = self.output.chain[0]
-                inputs = self.output.chain[1:]
+                inputs = list(self.output.chain[1:])
                 _LOG.debug(
                     "Simulating collection search in '%s' after removing '%s'.", self.output.name, replaced
                 )
@@ -299,12 +299,13 @@ class _ButlerFactory:
         else:
             inputs = list(self.inputs)
         if args.extend_run:
+            assert self.outputRun is not None, "Output collection has to be specified."
             inputs.insert(0, self.outputRun.name)
-        inputs = CollectionSearch.fromExpression(inputs)
-        return butler, inputs, self
+        collSearch = CollectionSearch.fromExpression(inputs)
+        return butler, collSearch, self
 
     @classmethod
-    def makeReadButler(cls, args: argparse.Namespace) -> Butler:
+    def makeReadButler(cls, args: SimpleNamespace) -> Butler:
         """Construct a read-only butler according to the given command-line
         arguments.
 
@@ -326,7 +327,7 @@ class _ButlerFactory:
 
     @classmethod
     def makeButlerAndCollections(
-        cls, args: argparse.Namespace
+        cls, args: SimpleNamespace
     ) -> Tuple[Butler, CollectionSearch, Optional[str]]:
         """Return a read-only registry, a collection search path, and the name
         of the run to be used for future writes.
@@ -349,14 +350,15 @@ class _ButlerFactory:
             if it already exists, or `None` if it does not.
         """
         butler, inputs, self = cls._makeReadParts(args)
-        run = self.outputRun.name if args.extend_run else None
+        run: Optional[str] = None
+        if args.extend_run:
+            assert self.outputRun is not None, "Output collection has to be specified."
+            run = self.outputRun.name
         _LOG.debug("Preparing registry to read from %s and expect future writes to '%s'.", inputs, run)
         return butler, inputs, run
 
     @classmethod
-    def makeWriteButler(
-        cls, args: argparse.Namespace, taskDefs: Optional[Iterable[TaskDef]] = None
-    ) -> Butler:
+    def makeWriteButler(cls, args: SimpleNamespace, taskDefs: Optional[Iterable[TaskDef]] = None) -> Butler:
         """Return a read-write butler initialized to write to and read from
         the collections specified by the given command-line arguments.
 
@@ -378,6 +380,7 @@ class _ButlerFactory:
         butler = Butler(args.butler_config, writeable=True)
         self = cls(butler.registry, args, writeable=True)
         self.check(args)
+        assert self.outputRun is not None, "Output collection has to be specified."  # for mypy
         if self.output is not None:
             chainDefinition = list(self.output.chain if self.output.exists else self.inputs)
             if args.replace_run:
@@ -385,7 +388,7 @@ class _ButlerFactory:
                 if args.prune_replaced == "unstore":
                     # Remove datasets from datastore
                     with butler.transaction():
-                        refs = butler.registry.queryDatasets(..., collections=replaced)
+                        refs: Iterable[DatasetRef] = butler.registry.queryDatasets(..., collections=replaced)
                         # we want to remove regular outputs but keep
                         # initOutputs, configs, and versions.
                         if taskDefs is not None:
@@ -447,7 +450,7 @@ class _FilteredStream:
     should be disabled by passing ``skipImports=True`` to ``saveToStream()``.
     """
 
-    def __init__(self, pattern):
+    def __init__(self, pattern: str):
         # obey case if pattern isn't lowercase or requests NOIGNORECASE
         mat = re.search(r"(.*):NOIGNORECASE$", pattern)
 
@@ -462,7 +465,7 @@ class _FilteredStream:
                 )
             self._pattern = re.compile(fnmatch.translate(pattern), re.IGNORECASE)
 
-    def write(self, showStr):
+    def write(self, showStr: str) -> None:
         # Strip off doc string line(s) and cut off at "=" for string matching
         matchStr = showStr.rstrip().split("\n")[-1].split("=")[0]
         if self._pattern.search(matchStr):
@@ -483,10 +486,10 @@ class CmdLineFwk:
 
     MP_TIMEOUT = 3600 * 24 * 30  # Default timeout (sec) for multiprocessing
 
-    def __init__(self):
+    def __init__(self) -> None:
         pass
 
-    def makePipeline(self, args):
+    def makePipeline(self, args: SimpleNamespace) -> Pipeline:
         """Build a pipeline from command line arguments.
 
         Parameters
@@ -539,7 +542,7 @@ class CmdLineFwk:
 
         return pipeline
 
-    def makeGraph(self, pipeline, args):
+    def makeGraph(self, pipeline: Pipeline, args: SimpleNamespace) -> Optional[QuantumGraph]:
         """Build a graph from command line arguments.
 
         Parameters
@@ -606,7 +609,7 @@ class CmdLineFwk:
                 datasetQueryConstraint=args.dataset_query_constraint,
             )
             if args.show_qgraph_header:
-                print(qgraph.buildAndPrintHeader())
+                qgraph.buildAndPrintHeader()
 
         # Count quanta in graph and give a warning if it's empty and return
         # None.
@@ -638,7 +641,7 @@ class CmdLineFwk:
             butler = Butler(args.butler_config)
             newArgs = copy.deepcopy(args)
 
-            def builderShim(butler):
+            def builderShim(butler: Butler) -> Butler:
                 newArgs.butler_config = butler._config
                 # Calling makeWriteButler is done for the side effects of
                 # calling that method, maining parsing all the args into
@@ -668,7 +671,13 @@ class CmdLineFwk:
 
         return qgraph
 
-    def runPipeline(self, graph, taskFactory, args, butler=None):
+    def runPipeline(
+        self,
+        graph: QuantumGraph,
+        taskFactory: TaskFactory,
+        args: SimpleNamespace,
+        butler: Optional[Butler] = None,
+    ) -> None:
         """Execute complete QuantumGraph.
 
         Parameters
@@ -701,7 +710,7 @@ class CmdLineFwk:
         if args.enableLsstDebug:
             try:
                 _LOG.debug("Will try to import debug.py")
-                import debug  # noqa:F401
+                import debug  # type: ignore # noqa:F401
             except ImportError:
                 _LOG.warn("No 'debug' module found.")
 
@@ -746,7 +755,9 @@ class CmdLineFwk:
                             # Do not save fields that are not set.
                             out.write(report.json(exclude_none=True, indent=2))
 
-    def showInfo(self, args, pipeline, graph=None):
+    def showInfo(
+        self, args: SimpleNamespace, pipeline: Pipeline, graph: Optional[QuantumGraph] = None
+    ) -> None:
         """Display useful info about pipeline and environment.
 
         Parameters
@@ -799,7 +810,7 @@ class CmdLineFwk:
                 )
                 sys.exit(1)
 
-    def _showConfig(self, pipeline, showArgs, dumpFullConfig):
+    def _showConfig(self, pipeline: Pipeline, showArgs: str, dumpFullConfig: bool) -> None:
         """Show task configuration
 
         Parameters
@@ -811,13 +822,14 @@ class CmdLineFwk:
         dumpFullConfig : `bool`
             If true then dump complete task configuration with all imports.
         """
-        stream = sys.stdout
+        stream: Any = sys.stdout
         if dumpFullConfig:
             # Task label can be given with this option
             taskName = showArgs
         else:
             # The argument can have form [TaskLabel::][pattern:NOIGNORECASE]
             matConfig = re.search(r"^(?:(\w+)::)?(?:config.)?(.+)?", showArgs)
+            assert matConfig is not None, "regex always matches"
             taskName = matConfig.group(1)
             pattern = matConfig.group(2)
             if pattern:
@@ -832,7 +844,7 @@ class CmdLineFwk:
             print("### Configuration for task `{}'".format(taskDef.label))
             taskDef.config.saveToStream(stream, root="config", skipImports=not dumpFullConfig)
 
-    def _showConfigHistory(self, pipeline, showArgs):
+    def _showConfigHistory(self, pipeline: Pipeline, showArgs: str) -> None:
         """Show history for task configuration
 
         Parameters
@@ -894,7 +906,7 @@ class CmdLineFwk:
             print(f"None of the tasks has field matching {pattern}", file=sys.stderr)
             sys.exit(1)
 
-    def _showTaskHierarchy(self, pipeline):
+    def _showTaskHierarchy(self, pipeline: Pipeline) -> None:
         """Print task hierarchy to stdout
 
         Parameters
@@ -907,7 +919,7 @@ class CmdLineFwk:
             for configName, taskName in util.subTaskIter(taskDef.config):
                 print("{}: {}".format(configName, taskName))
 
-    def _showGraph(self, graph):
+    def _showGraph(self, graph: QuantumGraph) -> None:
         """Print quanta information to stdout
 
         Parameters
@@ -929,7 +941,7 @@ class CmdLineFwk:
                     dataIds = ["DataId({})".format(ref.dataId) for ref in refs]
                     print("      {}: [{}]".format(key, ", ".join(dataIds)))
 
-    def _showWorkflow(self, graph, args):
+    def _showWorkflow(self, graph: QuantumGraph, args: SimpleNamespace) -> None:
         """Print quanta information and dependency to stdout
 
         Parameters
@@ -944,7 +956,7 @@ class CmdLineFwk:
             for parent in graph.determineInputsToQuantumNode(node):
                 print(f"Parent Quantum {parent.nodeId} - Child Quantum {node.nodeId}")
 
-    def _showUri(self, graph, args):
+    def _showUri(self, graph: QuantumGraph, args: SimpleNamespace) -> None:
         """Print input and predicted output URIs to stdout
 
         Parameters
@@ -955,7 +967,7 @@ class CmdLineFwk:
             Parsed command line
         """
 
-        def dumpURIs(thisRef):
+        def dumpURIs(thisRef: DatasetRef) -> None:
             primary, components = butler.getURIs(thisRef, predict=True, run="TBD")
             if primary:
                 print(f"    {primary}")
@@ -976,7 +988,7 @@ class CmdLineFwk:
                 for ref in refs:
                     dumpURIs(ref)
 
-    def _importGraphFixup(self, args):
+    def _importGraphFixup(self, args: SimpleNamespace) -> Optional[ExecutionGraphFixup]:
         """Import/instantiate graph fixup object.
 
         Parameters
@@ -996,7 +1008,7 @@ class CmdLineFwk:
         """
         if args.graph_fixup:
             try:
-                factory = doImport(args.graph_fixup)
+                factory = doImportType(args.graph_fixup)
             except Exception as exc:
                 raise ValueError("Failed to import graph fixup class/method") from exc
             try:
@@ -1006,3 +1018,4 @@ class CmdLineFwk:
             if not isinstance(fixup, ExecutionGraphFixup):
                 raise ValueError("Graph fixup is not an instance of ExecutionGraphFixup class")
             return fixup
+        return None

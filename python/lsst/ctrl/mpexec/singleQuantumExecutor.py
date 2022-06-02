@@ -34,9 +34,9 @@ from collections import defaultdict
 from contextlib import contextmanager
 from itertools import chain
 from logging import FileHandler
-from typing import Dict, List, Optional
+from typing import Any, Iterator, Optional, Union
 
-from lsst.daf.butler import DatasetRef, DatasetType, FileDataset, NamedKeyDict, Quantum
+from lsst.daf.butler import Butler, DatasetRef, DatasetType, FileDataset, NamedKeyDict, Quantum
 from lsst.daf.butler.core.logging import ButlerLogRecordHandler, ButlerLogRecords, ButlerMDC, JsonLogFormatter
 from lsst.pipe.base import (
     AdjustQuantumHelper,
@@ -44,7 +44,11 @@ from lsst.pipe.base import (
     Instrument,
     InvalidQuantumError,
     NoWorkFound,
+    PipelineTask,
+    PipelineTaskConfig,
     RepeatableQuantumError,
+    TaskDef,
+    TaskFactory,
 )
 from lsst.pipe.base.configOverrides import ConfigOverrides
 
@@ -56,6 +60,7 @@ from lsst.utils.timer import logInfo
 # -----------------------------
 #  Imports for other modules --
 # -----------------------------
+from .cli.utils import _PipelineAction
 from .mock_task import MockButlerQuantumContext, MockPipelineTask
 from .quantumGraphExecutor import QuantumExecutor
 from .reports import QuantumReport
@@ -109,13 +114,13 @@ class SingleQuantumExecutor(QuantumExecutor):
 
     def __init__(
         self,
-        taskFactory,
-        skipExistingIn=None,
-        clobberOutputs=False,
-        enableLsstDebug=False,
-        exitOnKnownError=False,
-        mock=False,
-        mock_configs=None,
+        taskFactory: TaskFactory,
+        skipExistingIn: Optional[list[str]] = None,
+        clobberOutputs: bool = False,
+        enableLsstDebug: bool = False,
+        exitOnKnownError: bool = False,
+        mock: bool = False,
+        mock_configs: Optional[list[_PipelineAction]] = None,
     ):
         self.taskFactory = taskFactory
         self.skipExistingIn = skipExistingIn
@@ -123,11 +128,11 @@ class SingleQuantumExecutor(QuantumExecutor):
         self.clobberOutputs = clobberOutputs
         self.exitOnKnownError = exitOnKnownError
         self.mock = mock
-        self.mock_configs = mock_configs
-        self.log_handler = None
+        self.mock_configs = mock_configs if mock_configs is not None else []
+        self.log_handler: Optional[logging.Handler] = None
         self.report: Optional[QuantumReport] = None
 
-    def execute(self, taskDef, quantum, butler):
+    def execute(self, taskDef: TaskDef, quantum: Quantum, butler: Butler) -> Quantum:
         # Docstring inherited from QuantumExecutor.execute
 
         # Catch any exception and make a report based on that.
@@ -136,6 +141,7 @@ class SingleQuantumExecutor(QuantumExecutor):
             self.report = QuantumReport(dataId=quantum.dataId, taskLabel=taskDef.label)
             return result
         except Exception as exc:
+            assert quantum.dataId is not None, "Quantum DataId cannot be None"
             self.report = QuantumReport.from_exception(
                 exception=exc,
                 dataId=quantum.dataId,
@@ -143,7 +149,7 @@ class SingleQuantumExecutor(QuantumExecutor):
             )
             raise
 
-    def _execute(self, taskDef, quantum, butler):
+    def _execute(self, taskDef: TaskDef, quantum: Quantum, butler: Butler) -> Quantum:
         """Internal implementation of execute()"""
         startTime = time.time()
 
@@ -151,7 +157,7 @@ class SingleQuantumExecutor(QuantumExecutor):
 
             # Save detailed resource usage before task start to metadata.
             quantumMetadata = _TASK_METADATA_TYPE()
-            logInfo(None, "prep", metadata=quantumMetadata)
+            logInfo(None, "prep", metadata=quantumMetadata)  # type: ignore
 
             taskClass, label, config = taskDef.taskClass, taskDef.label, taskDef.config
 
@@ -163,7 +169,7 @@ class SingleQuantumExecutor(QuantumExecutor):
                 _LOG.info(
                     "Skipping already-successful quantum for label=%s dataId=%s.", label, quantum.dataId
                 )
-                return
+                return quantum
             captureLog.store = True
 
             try:
@@ -180,18 +186,18 @@ class SingleQuantumExecutor(QuantumExecutor):
                 # nested PropertySets for subtasks).  This is slightly
                 # duplicative with logic in pipe_base that we can't easily call
                 # from here; we'll fix this on DM-29761.
-                logInfo(None, "end", metadata=quantumMetadata)
+                logInfo(None, "end", metadata=quantumMetadata)  # type: ignore
                 fullMetadata = _TASK_FULL_METADATA_TYPE()
                 fullMetadata[taskDef.label] = _TASK_METADATA_TYPE()
                 fullMetadata["quantum"] = quantumMetadata
                 self.writeMetadata(quantum, fullMetadata, taskDef, butler)
-                return
+                return quantum
 
             # enable lsstDebug debugging
             if self.enableLsstDebug:
                 try:
                     _LOG.debug("Will try to import debug.py")
-                    import debug  # noqa:F401
+                    import debug  # type: ignore # noqa:F401
                 except ImportError:
                     _LOG.warn("No 'debug' module found.")
 
@@ -200,9 +206,9 @@ class SingleQuantumExecutor(QuantumExecutor):
 
             # Ensure that we are executing a frozen config
             config.freeze()
-            logInfo(None, "init", metadata=quantumMetadata)
+            logInfo(None, "init", metadata=quantumMetadata)  # type: ignore
             task = self.makeTask(taskClass, label, config, butler)
-            logInfo(None, "start", metadata=quantumMetadata)
+            logInfo(None, "start", metadata=quantumMetadata)  # type: ignore
             try:
                 if self.mock:
                     # Use mock task instance to execute method.
@@ -219,7 +225,7 @@ class SingleQuantumExecutor(QuantumExecutor):
                     str(e),
                 )
                 raise
-            logInfo(None, "end", metadata=quantumMetadata)
+            logInfo(None, "end", metadata=quantumMetadata)  # type: ignore
             fullMetadata = task.getFullMetadata()
             fullMetadata["quantum"] = quantumMetadata
             self.writeMetadata(quantum, fullMetadata, taskDef, butler)
@@ -232,7 +238,7 @@ class SingleQuantumExecutor(QuantumExecutor):
             )
         return quantum
 
-    def _makeMockTask(self, taskDef):
+    def _makeMockTask(self, taskDef: TaskDef) -> PipelineTask:
         """Make an instance of mock task for given TaskDef."""
         # Make config instance and apply overrides
         overrides = ConfigOverrides()
@@ -252,7 +258,7 @@ class SingleQuantumExecutor(QuantumExecutor):
         return task
 
     @contextmanager
-    def captureLogging(self, taskDef, quantum, butler):
+    def captureLogging(self, taskDef: TaskDef, quantum: Quantum, butler: Butler) -> Iterator:
         """Configure logging system to capture logs for execution of this task.
 
         Parameters
@@ -312,7 +318,7 @@ class SingleQuantumExecutor(QuantumExecutor):
 
         ctx = _LogCaptureFlag()
         try:
-            with ButlerMDC.set_mdc({"LABEL": label, "RUN": butler.run}):
+            with ButlerMDC.set_mdc({"LABEL": label, "RUN": butler.run or ""}):
                 yield ctx
         finally:
             # Ensure that the logs are stored in butler.
@@ -320,7 +326,7 @@ class SingleQuantumExecutor(QuantumExecutor):
             if tmpdir:
                 shutil.rmtree(tmpdir, ignore_errors=True)
 
-    def checkExistingOutputs(self, quantum, butler, taskDef):
+    def checkExistingOutputs(self, quantum: Quantum, butler: Butler, taskDef: TaskDef) -> bool:
         """Decide whether this quantum needs to be executed.
 
         If only partial outputs exist then they are removed if
@@ -363,13 +369,15 @@ class SingleQuantumExecutor(QuantumExecutor):
         # whose outputs exist in `self.skipExistingIn` but pruning should only
         # be done for outputs existing in `butler.run`.
 
-        def findOutputs(collections):
+        def findOutputs(
+            collections: Optional[Union[str, list[str]]]
+        ) -> tuple[list[DatasetRef], list[DatasetRef]]:
             """Find quantum outputs in specified collections."""
             existingRefs = []
             missingRefs = []
             for datasetRefs in quantum.outputs.values():
-                checkRefs: List[DatasetRef] = []
-                registryRefToQuantumRef: Dict[DatasetRef, DatasetRef] = {}
+                checkRefs: list[DatasetRef] = []
+                registryRefToQuantumRef: dict[DatasetRef, DatasetRef] = {}
                 for datasetRef in datasetRefs:
                     ref = butler.registry.findDataset(
                         datasetRef.datasetType, datasetRef.dataId, collections=collections
@@ -434,7 +442,9 @@ class SingleQuantumExecutor(QuantumExecutor):
         # need to re-run
         return False
 
-    def makeTask(self, taskClass, name, config, butler):
+    def makeTask(
+        self, taskClass: type[PipelineTask], name: str, config: PipelineTaskConfig, butler: Butler
+    ) -> PipelineTask:
         """Make new task instance.
 
         Parameters
@@ -456,7 +466,7 @@ class SingleQuantumExecutor(QuantumExecutor):
         # call task factory for that
         return self.taskFactory.makeTask(taskClass, name, config, None, butler)
 
-    def updatedQuantumInputs(self, quantum, butler, taskDef):
+    def updatedQuantumInputs(self, quantum: Quantum, butler: Butler, taskDef: TaskDef) -> Quantum:
         """Update quantum with extra information, returns a new updated
         Quantum.
 
@@ -480,7 +490,7 @@ class SingleQuantumExecutor(QuantumExecutor):
             Updated Quantum instance
         """
         anyChanges = False
-        updatedInputs = defaultdict(list)
+        updatedInputs: defaultdict[DatasetType, list] = defaultdict(list)
         for key, refsForDatasetType in quantum.inputs.items():
             newRefsForDatasetType = updatedInputs[key]
             for ref in refsForDatasetType:
@@ -538,9 +548,10 @@ class SingleQuantumExecutor(QuantumExecutor):
         # generation, because a task shouldn't care whether an input is missing
         # because some previous task didn't produce it, or because it just
         # wasn't there during QG generation.
-        updatedInputs = NamedKeyDict[DatasetType, List[DatasetRef]](updatedInputs.items())
-        helper = AdjustQuantumHelper(updatedInputs, quantum.outputs)
+        namedUpdatedInputs = NamedKeyDict[DatasetType, list[DatasetRef]](updatedInputs.items())
+        helper = AdjustQuantumHelper(namedUpdatedInputs, quantum.outputs)
         if anyChanges:
+            assert quantum.dataId is not None, "Quantum DataId cannot be None"
             helper.adjust_in_place(taskDef.connections, label=taskDef.label, data_id=quantum.dataId)
         return Quantum(
             taskName=quantum.taskName,
@@ -551,7 +562,7 @@ class SingleQuantumExecutor(QuantumExecutor):
             outputs=helper.outputs,
         )
 
-    def runQuantum(self, task, quantum, taskDef, butler):
+    def runQuantum(self, task: PipelineTask, quantum: Quantum, taskDef: TaskDef, butler: Butler) -> None:
         """Execute task on a single quantum.
 
         Parameters
@@ -566,10 +577,10 @@ class SingleQuantumExecutor(QuantumExecutor):
             Data butler.
         """
         # Create a butler that operates in the context of a quantum
-        if self.mock:
-            butlerQC = MockButlerQuantumContext(butler, quantum)
-        else:
+        if not self.mock:
             butlerQC = ButlerQuantumContext(butler, quantum)
+        else:
+            butlerQC = MockButlerQuantumContext(butler, quantum)
 
         # Get the input and output references for the task
         inputRefs, outputRefs = taskDef.connections.buildDatasetRefs(quantum)
@@ -594,7 +605,7 @@ class SingleQuantumExecutor(QuantumExecutor):
             _LOG.fatal(err, exc_info=True)
             sys.exit(err.EXIT_CODE)
 
-    def writeMetadata(self, quantum, metadata, taskDef, butler):
+    def writeMetadata(self, quantum: Quantum, metadata: Any, taskDef: TaskDef, butler: Butler) -> None:
         if taskDef.metadataDatasetName is not None:
             # DatasetRef has to be in the Quantum outputs, can lookup by name
             try:
@@ -607,7 +618,7 @@ class SingleQuantumExecutor(QuantumExecutor):
                 ) from exc
             butler.put(metadata, ref[0])
 
-    def writeLogRecords(self, quantum, taskDef, butler, store):
+    def writeLogRecords(self, quantum: Quantum, taskDef: TaskDef, butler: Butler, store: bool) -> None:
         # If we are logging to an external file we must always try to
         # close it.
         filename = None
@@ -664,7 +675,7 @@ class SingleQuantumExecutor(QuantumExecutor):
                 except OSError:
                     pass
 
-    def initGlobals(self, quantum, butler):
+    def initGlobals(self, quantum: Quantum, butler: Butler) -> None:
         """Initialize global state needed for task execution.
 
         Parameters
@@ -691,7 +702,7 @@ class SingleQuantumExecutor(QuantumExecutor):
                 instrument = dataId.get("instrument")
                 if instrument is not None:
                     if oneInstrument is not None:
-                        assert (
+                        assert (  # type: ignore
                             instrument == oneInstrument
                         ), "Currently require that only one instrument is used per graph"
                     else:

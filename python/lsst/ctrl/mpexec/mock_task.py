@@ -33,7 +33,7 @@ from lsst.pipe.base import (
     PipelineTaskConfig,
     PipelineTaskConnections,
 )
-from lsst.utils import doImport
+from lsst.utils import doImportType
 from lsst.utils.introspection import get_full_type_name
 
 from .dataid_match import DataIdMatch
@@ -68,7 +68,7 @@ class MockButlerQuantumContext(ButlerQuantumContext):
         """Make mock dataset type name from actual dataset type name."""
         return "_mock_" + datasetTypeName
 
-    def _get(self, ref: DatasetRef) -> Any:
+    def _get(self, ref: Union[DeferredDatasetRef, DatasetRef]) -> Any:
         # docstring is inherited from the base class
         if isinstance(ref, DeferredDatasetRef):
             ref = ref.datasetRef
@@ -100,7 +100,7 @@ class MockButlerQuantumContext(ButlerQuantumContext):
             data.update(component=component)
         return data
 
-    def _put(self, value: Any, ref: DatasetRef):
+    def _put(self, value: Any, ref: DatasetRef) -> None:
         # docstring is inherited from the base class
 
         mockDatasetType = self.registry.getDatasetType(self.mockDatasetTypeName(ref.datasetType.name))
@@ -111,7 +111,7 @@ class MockButlerQuantumContext(ButlerQuantumContext):
         # also "store" non-mock refs
         self.registry._importDatasets([ref])
 
-    def _checkMembership(self, ref: Union[List[DatasetRef], DatasetRef], inout: set):
+    def _checkMembership(self, ref: Union[List[DatasetRef], DatasetRef], inout: set) -> None:
         # docstring is inherited from the base class
         return
 
@@ -156,30 +156,34 @@ class MockPipelineTask(PipelineTask):
 
     ConfigClass = MockPipelineTaskConfig
 
-    def __init__(self, *, config=None, **kwargs):
+    def __init__(self, *, config: Optional[PipelineTaskConfig] = None, **kwargs: Any):
         super().__init__(config=config, **kwargs)
 
-        self.dataIdMatch = None if config is None else config.dataIdMatch()
-        if self.dataIdMatch:
-            self.failException = doImport(config.failException)
-        else:
-            self.failException = None
+        self.failException: Optional[type] = None
+        self.dataIdMatch: Optional[DataIdMatch] = None
+        if config is not None:
+            self.dataIdMatch = config.dataIdMatch()
+            if self.dataIdMatch:
+                self.failException = doImportType(config.failException)
 
     def runQuantum(
         self,
-        butlerQC: MockButlerQuantumContext,
+        butlerQC: ButlerQuantumContext,
         inputRefs: InputQuantizedConnection,
         outputRefs: OutputQuantizedConnection,
-    ):
+    ) -> None:
         # docstring is inherited from the base class
         quantum = butlerQC.quantum
 
         _LOG.info("Mocking execution of task '%s' on quantum %s", self.getName(), quantum.dataId)
 
+        assert quantum.dataId is not None, "Quantum DataId cannot be None"
+
         # Possibly raise an exception.
         if self.dataIdMatch is not None and self.dataIdMatch.match(quantum.dataId):
             _LOG.info("Simulating failure of task '%s' on quantum %s", self.getName(), quantum.dataId)
             message = f"Simulated failure: task={self.getName()} dataId={quantum.dataId}"
+            assert self.failException is not None, "Exception type must be defined"
             raise self.failException(message)
 
         # read all inputs
