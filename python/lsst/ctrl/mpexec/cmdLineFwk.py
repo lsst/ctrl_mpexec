@@ -394,7 +394,7 @@ class _ButlerFactory:
                         if taskDefs is not None:
                             initDatasetNames = set(PipelineDatasetTypes.initOutputNames(taskDefs))
                             refs = [ref for ref in refs if ref.datasetType.name not in initDatasetNames]
-                        butler.pruneDatasets(refs, unstore=True, run=replaced, disassociate=False)
+                        butler.pruneDatasets(refs, unstore=True, disassociate=False)
                 elif args.prune_replaced == "purge":
                     # Erase entire collection and all datasets, need to remove
                     # collection from its chain collection first.

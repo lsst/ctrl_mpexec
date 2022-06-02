@@ -421,16 +421,7 @@ class SingleQuantumExecutor(QuantumExecutor):
                 if self.clobberOutputs:
                     # only prune
                     _LOG.info("Removing partial outputs for task %s: %s", taskDef, existingRefs)
-                    # Do not purge registry records if this looks like
-                    # an execution butler. This ensures that the UUID
-                    # of the dataset doesn't change.
-                    if butler._allow_put_of_predefined_dataset:
-                        purge = False
-                        disassociate = False
-                    else:
-                        purge = True
-                        disassociate = True
-                    butler.pruneDatasets(existingRefs, disassociate=disassociate, unstore=True, purge=purge)
+                    butler.pruneDatasets(existingRefs, disassociate=True, unstore=True, purge=True)
                     return False
                 else:
                     raise RuntimeError(
