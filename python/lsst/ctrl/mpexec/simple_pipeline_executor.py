@@ -105,8 +105,8 @@ class SimplePipelineExecutor:
         butler = Butler(root, writeable=True)
         butler.registry.registerCollection(output_run, CollectionType.RUN)
         butler.registry.registerCollection(output, CollectionType.CHAINED)
-        collections = list(inputs)
-        collections.append(output_run)
+        collections = [output_run]
+        collections.extend(inputs)
         butler.registry.setCollectionChain(output, collections)
         # Remake butler to let it infer default data IDs from collections, now
         # that those collections exist.
