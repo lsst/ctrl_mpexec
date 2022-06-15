@@ -3,7 +3,7 @@ astropy
 psutil
 pydantic
 networkx
-lsst-daf-butler
-lsst-utils
-lsst-pipe-base
-lsst-pex-config
+git+https://github.com/lsst/daf_butler@main#egg=lsst-daf-butler
+git+https://github.com/lsst/utils@main#egg=lsst-utils
+git+https://github.com/lsst/pipe_base@main#egg=lsst-pipe-base
+git+https://github.com/lsst/pex_config@main#egg=lsst-pex-config
