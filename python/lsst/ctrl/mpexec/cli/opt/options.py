@@ -415,6 +415,16 @@ clobber_execution_butler_option = MWOptionDecorator(
     ),
     is_flag=True,
 )
+
+target_datastore_root_option = MWOptionDecorator(
+    "--target-datastore-root",
+    help=unwrap(
+        """Root directory for datastore of execution butler.
+        Default is to use the original datastore.
+        """
+    ),
+)
+
 dataset_query_constraint = MWOptionDecorator(
     "--dataset-query-constraint",
     help=unwrap(

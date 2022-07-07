@@ -667,6 +667,8 @@ class CmdLineFwk:
                 butlerModifier=builderShim,
                 collections=all_inputs,
                 clobber=args.clobber_execution_butler,
+                datastoreRoot=args.target_datastore_root,
+                transfer=args.transfer,
             )
 
         return qgraph

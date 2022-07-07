@@ -51,6 +51,8 @@ def qgraph(  # type: ignore
     show,
     save_execution_butler,
     clobber_execution_butler,
+    target_datastore_root,
+    transfer,
     clobber_outputs,
     dataset_query_constraint,
     show_qgraph_header=False,
@@ -135,6 +137,12 @@ def qgraph(  # type: ignore
         QuantumGraph.
     clobber_execution_butler : `bool`
         It True overwrite existing execution butler files if present.
+    target_datastore_root : `str` or `None`
+        URI location for the execution butler's datastore.
+    transfer : `str` or `None`
+        Transfer mode for execution butler creation.  This should be a
+        ``transfer`` string recognized by
+        :func:`lsst.resources.ResourcePath.transfer_from`.
     clobber_outputs : `bool`
         Remove outputs from previous execution of the same quantum before new
         execution.  If ``skip_existing`` is also passed, then only failed
@@ -178,6 +186,8 @@ def qgraph(  # type: ignore
         skip_existing=skip_existing,
         execution_butler_location=save_execution_butler,
         clobber_execution_butler=clobber_execution_butler,
+        target_datastore_root=target_datastore_root,
+        transfer=transfer,
         clobber_outputs=clobber_outputs,
         dataset_query_constraint=dataset_query_constraint,
         show_qgraph_header=show_qgraph_header,
