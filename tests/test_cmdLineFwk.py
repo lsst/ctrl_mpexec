@@ -48,7 +48,15 @@ from lsst.ctrl.mpexec.cli.utils import (
     _ACTION_CONFIG_FILE,
     PipetaskCommand,
 )
-from lsst.daf.butler import Config, DataCoordinate, DatasetRef, DimensionUniverse, Quantum, Registry
+from lsst.daf.butler import (
+    Config,
+    DataCoordinate,
+    DatasetRef,
+    DimensionConfig,
+    DimensionUniverse,
+    Quantum,
+    Registry,
+)
 from lsst.daf.butler.core.datasets.type import DatasetType
 from lsst.daf.butler.registry import RegistryConfig
 from lsst.pipe.base import (
@@ -99,7 +107,7 @@ def makeTmpFile(contents=None, suffix=None):
 
 
 @contextlib.contextmanager
-def makeSQLiteRegistry(create=True):
+def makeSQLiteRegistry(create=True, universe=None):
     """Context manager to create new empty registry database.
 
     Yields
@@ -107,12 +115,13 @@ def makeSQLiteRegistry(create=True):
     config : `RegistryConfig`
         Registry configuration for initialized registry database.
     """
+    dimensionConfig = universe.dimensionConfig if universe is not None else _makeDimensionConfig()
     with temporaryDirectory() as tmpdir:
         uri = f"sqlite:///{tmpdir}/gen3.sqlite"
         config = RegistryConfig()
         config["db"] = uri
         if create:
-            Registry.createFromConfig(config)
+            Registry.createFromConfig(config, dimensionConfig=dimensionConfig)
         yield config
 
 
@@ -204,17 +213,9 @@ class FakeDSRef:
 _TASK_CLASS = "lsst.pipe.base.tests.simpleQGraph.AddTask"
 
 
-def _makeQGraph():
-    """Make a trivial QuantumGraph with one quantum.
-
-    The only thing that we need to do with this quantum graph is to pickle
-    it, the quanta in this graph are not usable for anything else.
-
-    Returns
-    -------
-    qgraph : `~lsst.pipe.base.QuantumGraph`
-    """
-    config = Config(
+def _makeDimensionConfig():
+    """Make a simple dimension universe configuration."""
+    return DimensionConfig(
         {
             "version": 1,
             "namespace": "ctrl_mpexec_test",
@@ -252,7 +253,19 @@ def _makeQGraph():
             "packers": {},
         }
     )
-    universe = DimensionUniverse(config=config)
+
+
+def _makeQGraph():
+    """Make a trivial QuantumGraph with one quantum.
+
+    The only thing that we need to do with this quantum graph is to pickle
+    it, the quanta in this graph are not usable for anything else.
+
+    Returns
+    -------
+    qgraph : `~lsst.pipe.base.QuantumGraph`
+    """
+    universe = DimensionUniverse(config=_makeDimensionConfig())
     fakeDSType = DatasetType("A", tuple(), storageClass="ExposureF", universe=universe)
     taskDef = TaskDef(taskName=_TASK_CLASS, config=AddTask.ConfigClass(), taskClass=AddTask)
     quanta = [
@@ -265,7 +278,7 @@ def _makeQGraph():
             },
         )
     ]  # type: ignore
-    qgraph = QuantumGraph({taskDef: set(quanta)})
+    qgraph = QuantumGraph({taskDef: set(quanta)}, universe=universe)
     return qgraph
 
 
@@ -374,7 +387,7 @@ class CmdLineFwkTestCase(unittest.TestCase):
 
             # reading empty graph from pickle should work but makeGraph()
             # will return None and make a warning
-            qgraph = QuantumGraph(dict())
+            qgraph = QuantumGraph(dict(), universe=DimensionUniverse(_makeDimensionConfig()))
             with open(tmpname, "wb") as saveFile:
                 qgraph.save(saveFile)
             args = _makeArgs(qgraph=tmpname, registryConfig=registryConfig, execution_butler_location=None)
@@ -815,7 +828,7 @@ class CmdLineFwkTestCaseWithButler(unittest.TestCase):
         self.assertRegex(str(cm.exception.__cause__), "Simulated failure: task=task3")
 
     def testSubgraph(self):
-        """Test successfull execution of trivial quantum graph."""
+        """Test successful execution of trivial quantum graph."""
         args = _makeArgs(butler_config=self.root, input="test", output="output")
         butler = makeSimpleButler(self.root, run=args.input, inMemory=False)
         populateButler(self.pipeline, butler)
@@ -832,7 +845,9 @@ class CmdLineFwkTestCaseWithButler(unittest.TestCase):
         self.assertEqual(len(qgraph.taskGraph), self.nQuanta)
         self.assertEqual(len(qgraph), self.nQuanta)
 
-        with makeTmpFile(suffix=".qgraph") as tmpname, makeSQLiteRegistry() as registryConfig:
+        with makeTmpFile(suffix=".qgraph") as tmpname, makeSQLiteRegistry(
+            universe=butler.registry.dimensions
+        ) as registryConfig:
             with open(tmpname, "wb") as saveFile:
                 qgraph.save(saveFile)
 
