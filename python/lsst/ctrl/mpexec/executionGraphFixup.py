@@ -56,7 +56,7 @@ class ExecutionGraphFixup(ABC):
             Quantum Graph that will be executed by the executor
 
         Returns
-        ------
+        -------
         graph : QuantumGraph
         """
         raise NotImplementedError
