@@ -24,6 +24,7 @@ from typing import Any
 
 import click
 import lsst.pipe.base.cli.opt as pipeBaseOpts
+from lsst.ctrl.mpexec.showInfo import ShowInfo
 from lsst.daf.butler.cli.opt import config_file_option, config_option, confirm_option, options_file_option
 from lsst.daf.butler.cli.utils import MWCtxObj, catch_and_exit, option_section, unwrap
 
@@ -101,7 +102,13 @@ def build(ctx: click.Context, **kwargs: Any) -> None:
     This does not require input data to be specified.
     """
     kwargs = _collectActions(ctx, **kwargs)
-    script.build(**kwargs)
+    show = ShowInfo(kwargs.pop("show", []))
+    script.build(**kwargs, show=show)
+    if show.unhandled:
+        print(
+            "The following '--show' options were not known to the build command: "
+            f"{', '.join(show.unhandled)}"
+        )
 
 
 @click.command(cls=PipetaskCommand, epilog=epilog)
@@ -116,8 +123,13 @@ def build(ctx: click.Context, **kwargs: Any) -> None:
 def qgraph(ctx: click.Context, **kwargs: Any) -> None:
     """Build and optionally save quantum graph."""
     kwargs = _collectActions(ctx, **kwargs)
-    pipeline = script.build(**kwargs)
-    script.qgraph(pipelineObj=pipeline, **kwargs)
+    show = ShowInfo(kwargs.pop("show", []))
+    pipeline = script.build(**kwargs, show=show)
+    if show.handled and not show.unhandled:
+        # The show option was given and all options were processed.
+        # No need to also build the quantum graph.
+        return
+    script.qgraph(pipelineObj=pipeline, **kwargs, show=show)
 
 
 @click.command(cls=PipetaskCommand, epilog=epilog)
@@ -126,8 +138,17 @@ def qgraph(ctx: click.Context, **kwargs: Any) -> None:
 def run(ctx: click.Context, **kwargs: Any) -> None:
     """Build and execute pipeline and quantum graph."""
     kwargs = _collectActions(ctx, **kwargs)
-    pipeline = script.build(**kwargs)
-    qgraph = script.qgraph(pipelineObj=pipeline, **kwargs)
+    show = ShowInfo(kwargs.pop("show", []))
+    pipeline = script.build(**kwargs, show=show)
+    if show.handled and not show.unhandled:
+        # The show option was given and all options were processed.
+        # No need to also build the quantum graph.
+        return
+    qgraph = script.qgraph(pipelineObj=pipeline, **kwargs, show=show)
+    if show.handled:
+        # The show option was given and all graph options were processed.
+        # No need to also run the pipeline.
+        return
     script.run(qgraphObj=qgraph, **kwargs)
 
 

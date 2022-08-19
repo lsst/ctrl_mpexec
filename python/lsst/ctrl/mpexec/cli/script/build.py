@@ -50,7 +50,7 @@ def build(  # type: ignore
         Path location of a pipeline definition file in YAML format.
     save_pipeline : `str`
         Path location for storing resulting pipeline definition in YAML format.
-    show : `list` [`str`]
+    show : `lsst.ctrl.mpexec.showInfo.ShowInfo`
         Descriptions of what to dump to stdout.
     kwargs : `dict` [`str`, `str`]
         Ignored; click commands may accept options for more than one script
@@ -86,7 +86,6 @@ def build(  # type: ignore
     # Will raise an exception if it fails to build the pipeline.
     pipeline = f.makePipeline(args)
 
-    args = SimpleNamespace(show=show)
-    f.showInfo(args, pipeline)
+    show.show_pipeline_info(pipeline)
 
     return pipeline

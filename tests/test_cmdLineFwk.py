@@ -48,6 +48,7 @@ from lsst.ctrl.mpexec.cli.utils import (
     _ACTION_CONFIG_FILE,
     PipetaskCommand,
 )
+from lsst.ctrl.mpexec.showInfo import ShowInfo
 from lsst.daf.butler import (
     Config,
     DataCoordinate,
@@ -404,14 +405,19 @@ class CmdLineFwkTestCase(unittest.TestCase):
         args = _makeArgs(pipeline_actions=actions)
         pipeline = fwk.makePipeline(args)
 
-        args.show = ["pipeline"]
-        fwk.showInfo(args, pipeline)
-        args.show = ["config"]
-        fwk.showInfo(args, pipeline)
-        args.show = ["history=task::addend"]
-        fwk.showInfo(args, pipeline)
-        args.show = ["tasks"]
-        fwk.showInfo(args, pipeline)
+        with self.assertRaises(ValueError):
+            ShowInfo(["unrecognized", "config"])
+
+        show = ShowInfo(
+            ["pipeline", "config", "history=task::addend", "tasks", "dump-config", "config=task::add*"]
+        )
+        show.show_pipeline_info(pipeline)
+        self.assertEqual(show.unhandled, frozenset({}))
+
+        show = ShowInfo(["pipeline", "uri"])
+        show.show_pipeline_info(pipeline)
+        self.assertEqual(show.unhandled, frozenset({"uri"}))
+        self.assertEqual(show.handled, {"pipeline"})
 
 
 class CmdLineFwkTestCaseWithButler(unittest.TestCase):
@@ -865,26 +871,27 @@ class CmdLineFwkTestCaseWithButler(unittest.TestCase):
 
     def testShowGraph(self):
         """Test for --show options for quantum graph."""
-        fwk = CmdLineFwk()
-
         nQuanta = 2
         butler, qgraph = makeSimpleQGraph(nQuanta, root=self.root)
 
-        args = _makeArgs(show=["graph"])
-        fwk.showInfo(args, pipeline=None, graph=qgraph)
+        show = ShowInfo(["graph"])
+        show.show_graph_info(qgraph)
+        self.assertEqual(show.handled, {"graph"})
 
     def testShowGraphWorkflow(self):
-        fwk = CmdLineFwk()
-
         nQuanta = 2
         butler, qgraph = makeSimpleQGraph(nQuanta, root=self.root)
 
-        args = _makeArgs(show=["workflow"])
-        fwk.showInfo(args, pipeline=None, graph=qgraph)
+        show = ShowInfo(["workflow"])
+        show.show_graph_info(qgraph)
+        self.assertEqual(show.handled, {"workflow"})
 
-        # TODO: cannot test "uri" option presently, it instanciates
+        # TODO: cannot test "uri" option presently, it instantiates
         # butler from command line options and there is no way to pass butler
         # mock to that code.
+        show = ShowInfo(["uri"])
+        with self.assertRaises(ValueError):  # No args given
+            show.show_graph_info(qgraph)
 
     def testSimpleQGraphDatastoreRecords(self):
         """Test quantum graph generation with --qgraph-datastore-records."""
