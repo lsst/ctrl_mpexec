@@ -38,6 +38,14 @@ You can find Jira issues for this module under the `ctrl_mpexec <https://jira.ls
 .. .. toctree::
 ..    :maxdepth: 1
 
+Configuring Execution Using Pipetask
+====================================
+
+.. toctree::
+   :maxdepth: 1
+
+   configuring-pipetask-tasks.rst
+
 .. _lsst.ctrl.mpexec-script:
 
 Command Line Scripts
