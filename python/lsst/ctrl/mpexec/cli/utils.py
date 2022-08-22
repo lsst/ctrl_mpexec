@@ -140,7 +140,9 @@ def makePipelineActions(
             config_args = split_commas(None, None, args[i + 1])
             pipelineActions.extend(_ACTION_CONFIG(c) for c in config_args)
         elif args[i] in configFileFlags:
-            pipelineActions.append(_ACTION_CONFIG_FILE(args[i + 1]))
+            # --config-file allows multiple comma-separated values.
+            configfile_args = split_commas(None, None, args[i + 1])
+            pipelineActions.extend(_ACTION_CONFIG_FILE(c) for c in configfile_args)
         elif args[i] in instrumentFlags:
             pipelineActions.append(_ACTION_ADD_INSTRUMENT(args[i + 1]))
     return pipelineActions
