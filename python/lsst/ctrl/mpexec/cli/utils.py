@@ -24,7 +24,7 @@ import collections
 import re
 
 from lsst.daf.butler.cli.opt import config_file_option, config_option
-from lsst.daf.butler.cli.utils import MWCommand
+from lsst.daf.butler.cli.utils import MWCommand, split_commas
 from lsst.pipe.base.cli.opt import instrument_option
 
 from .opt import delete_option, task_option
@@ -135,7 +135,10 @@ def makePipelineActions(
         elif args[i] in deleteFlags:
             pipelineActions.append(_ACTION_DELETE_TASK(args[i + 1]))
         elif args[i] in configFlags:
-            pipelineActions.append(_ACTION_CONFIG(args[i + 1]))
+            # --config is configured to split commas in the click interface,
+            # so we have to split commas here to match.
+            config_args = split_commas(None, None, args[i + 1])
+            pipelineActions.extend(_ACTION_CONFIG(c) for c in config_args)
         elif args[i] in configFileFlags:
             pipelineActions.append(_ACTION_CONFIG_FILE(args[i + 1]))
         elif args[i] in instrumentFlags:
