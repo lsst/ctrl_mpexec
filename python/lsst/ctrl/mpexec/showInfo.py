@@ -92,10 +92,13 @@ class ShowInfo:
     graph_commands = {"graph", "workflow", "uri"}
 
     def __init__(self, show: list[str]) -> None:
-        commands: dict[str, str] = {}
+        commands: dict[str, list[str]] = {}
         for value in show:
             command, _, args = value.partition("=")
-            commands[command] = args
+            if command in commands:
+                commands[command].append(args)
+            else:
+                commands[command] = [args]
         self.commands = commands
         self.handled: set[str] = set()
 
@@ -125,11 +128,14 @@ class ShowInfo:
             if command == "pipeline":
                 print(pipeline)
             elif command == "config":
-                self._showConfig(pipeline, args, False)
+                for arg in args:
+                    self._showConfig(pipeline, arg, False)
             elif command == "dump-config":
-                self._showConfig(pipeline, args, True)
+                for arg in args:
+                    self._showConfig(pipeline, arg, True)
             elif command == "history":
-                self._showConfigHistory(pipeline, args)
+                for arg in args:
+                    self._showConfigHistory(pipeline, arg)
             elif command == "tasks":
                 self._showTaskHierarchy(pipeline)
             else:
