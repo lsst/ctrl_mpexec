@@ -59,7 +59,10 @@ class _PipelineActionType:
     def __call__(self, value: str) -> _PipelineAction:
         match = self.regex.match(value)
         if not match:
-            raise TypeError("Unrecognized option syntax: " + value)
+            raise TypeError(
+                f"Unrecognized syntax for option {self.action!r}: {value!r} "
+                f"(does not match pattern {self.regex.pattern})"
+            )
         # get "label" group or use None as label
         try:
             label = match.group("label")
