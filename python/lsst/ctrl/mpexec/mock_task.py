@@ -68,8 +68,10 @@ class MockButlerQuantumContext(ButlerQuantumContext):
         """Make mock dataset type name from actual dataset type name."""
         return "_mock_" + datasetTypeName
 
-    def _get(self, ref: Union[DeferredDatasetRef, DatasetRef]) -> Any:
+    def _get(self, ref: Optional[Union[DeferredDatasetRef, DatasetRef]]) -> Any:
         # docstring is inherited from the base class
+        if ref is None:
+            return None
         if isinstance(ref, DeferredDatasetRef):
             ref = ref.datasetRef
         datasetType = ref.datasetType
