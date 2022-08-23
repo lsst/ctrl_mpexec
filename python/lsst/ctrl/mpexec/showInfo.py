@@ -51,7 +51,10 @@ class _FilteredStream:
     should be disabled by passing ``skipImports=True`` to ``saveToStream()``.
     """
 
-    def __init__(self, pattern: str) -> None:
+    def __init__(self, pattern: str, stream: Any = None) -> None:
+        if stream is None:
+            stream = sys.stdout
+        self.stream = stream
         # obey case if pattern isn't lowercase or requests NOIGNORECASE
         mat = re.search(r"(.*):NOIGNORECASE$", pattern)
 
@@ -62,7 +65,7 @@ class _FilteredStream:
             if pattern != pattern.lower():
                 print(
                     f'Matching "{pattern}" without regard to case ' "(append :NOIGNORECASE to prevent this)",
-                    file=sys.stdout,
+                    file=self.stream,
                 )
             self._pattern = re.compile(fnmatch.translate(pattern), re.IGNORECASE)
 
@@ -70,7 +73,7 @@ class _FilteredStream:
         # Strip off doc string line(s) and cut off at "=" for string matching
         matchStr = showStr.rstrip().split("\n")[-1].split("=")[0]
         if self._pattern.search(matchStr):
-            sys.stdout.write(showStr)
+            self.stream.write(showStr)
 
 
 class ShowInfo:
@@ -81,6 +84,8 @@ class ShowInfo:
     show : `list` [`str`]
         A list of show commands, some of which may have additional parameters
         specified using an ``=``.
+    stream : I/O stream or None.
+        The output stream to use. `None` will be treated as `sys.stdout`.
 
     Raises
     ------
@@ -91,7 +96,12 @@ class ShowInfo:
     pipeline_commands = {"pipeline", "config", "history", "tasks", "dump-config"}
     graph_commands = {"graph", "workflow", "uri"}
 
-    def __init__(self, show: list[str]) -> None:
+    def __init__(self, show: list[str], stream: Any = None) -> None:
+        if stream is None:
+            # Defer assigning sys.stdout to allow click to redefine it if
+            # it wants. Assigning the default at class definition leads
+            # to confusion on reassignment.
+            stream = sys.stdout
         commands: dict[str, list[str]] = {}
         for value in show:
             command, _, args = value.partition("=")
@@ -100,6 +110,7 @@ class ShowInfo:
             else:
                 commands[command] = [args]
         self.commands = commands
+        self.stream = stream
         self.handled: set[str] = set()
 
         known = self.pipeline_commands | self.graph_commands
@@ -126,7 +137,7 @@ class ShowInfo:
             args = self.commands[command]
 
             if command == "pipeline":
-                print(pipeline)
+                print(pipeline, file=self.stream)
             elif command == "config":
                 for arg in args:
                     self._showConfig(pipeline, arg, False)
@@ -180,7 +191,7 @@ class ShowInfo:
         dumpFullConfig : `bool`
             If true then dump complete task configuration with all imports.
         """
-        stream: Any = sys.stdout
+        stream: Any = self.stream
         if dumpFullConfig:
             # Task label can be given with this option
             taskName = showArgs
@@ -191,14 +202,14 @@ class ShowInfo:
             taskName = matConfig.group(1)
             pattern = matConfig.group(2)
             if pattern:
-                stream = _FilteredStream(pattern)
+                stream = _FilteredStream(pattern, stream=stream)
 
         tasks = util.filterTasks(pipeline, taskName)
         if not tasks:
             raise ValueError("Pipeline has no tasks named {}".format(taskName))
 
         for taskDef in tasks:
-            print("### Configuration for task `{}'".format(taskDef.label))
+            print("### Configuration for task `{}'".format(taskDef.label), file=self.stream)
             taskDef.config.saveToStream(stream, root="config", skipImports=not dumpFullConfig)
 
     def _showConfigHistory(self, pipeline: Pipeline, showArgs: str) -> None:
@@ -233,7 +244,7 @@ class ShowInfo:
             # Look for any matches in the config hierarchy for this name
             for nmatch, thisName in enumerate(fnmatch.filter(config.names(), pattern)):
                 if nmatch > 0:
-                    print("")
+                    print("", file=self.stream)
 
                 cpath, _, cname = thisName.rpartition(".")
                 try:
@@ -253,8 +264,8 @@ class ShowInfo:
                 if isinstance(hconfig, (pexConfig.Config, pexConfig.ConfigurableInstance)) and hasattr(
                     hconfig, cname
                 ):
-                    print(f"### Configuration field for task `{taskDef.label}'")
-                    print(pexConfigHistory.format(hconfig, cname))
+                    print(f"### Configuration field for task `{taskDef.label}'", file=self.stream)
+                    print(pexConfigHistory.format(hconfig, cname), file=self.stream)
                     found = True
 
         if not found:
@@ -269,10 +280,10 @@ class ShowInfo:
             Pipeline definition.
         """
         for taskDef in pipeline.toExpandedPipeline():
-            print("### Subtasks for task `{}'".format(taskDef.taskName))
+            print("### Subtasks for task `{}'".format(taskDef.taskName), file=self.stream)
 
             for configName, taskName in util.subTaskIter(taskDef.config):
-                print("{}: {}".format(configName, taskName))
+                print("{}: {}".format(configName, taskName), file=self.stream)
 
     def _showGraph(self, graph: QuantumGraph) -> None:
         """Print quanta information to stdout
@@ -283,18 +294,18 @@ class ShowInfo:
             Execution graph.
         """
         for taskNode in graph.taskGraph:
-            print(taskNode)
+            print(taskNode, file=self.stream)
 
             for iq, quantum in enumerate(graph.getQuantaForTask(taskNode)):
-                print("  Quantum {}:".format(iq))
-                print("    inputs:")
+                print("  Quantum {}:".format(iq), file=self.stream)
+                print("    inputs:", file=self.stream)
                 for key, refs in quantum.inputs.items():
                     dataIds = ["DataId({})".format(ref.dataId) for ref in refs]
-                    print("      {}: [{}]".format(key, ", ".join(dataIds)))
-                print("    outputs:")
+                    print("      {}: [{}]".format(key, ", ".join(dataIds)), file=self.stream)
+                print("    outputs:", file=self.stream)
                 for key, refs in quantum.outputs.items():
                     dataIds = ["DataId({})".format(ref.dataId) for ref in refs]
-                    print("      {}: [{}]".format(key, ", ".join(dataIds)))
+                    print("      {}: [{}]".format(key, ", ".join(dataIds)), file=self.stream)
 
     def _showWorkflow(self, graph: QuantumGraph) -> None:
         """Print quanta information and dependency to stdout
@@ -305,9 +316,9 @@ class ShowInfo:
             Execution graph.
         """
         for node in graph:
-            print(f"Quantum {node.nodeId}: {node.taskDef.taskName}")
+            print(f"Quantum {node.nodeId}: {node.taskDef.taskName}", file=self.stream)
             for parent in graph.determineInputsToQuantumNode(node):
-                print(f"Parent Quantum {parent.nodeId} - Child Quantum {node.nodeId}")
+                print(f"Parent Quantum {parent.nodeId} - Child Quantum {node.nodeId}", file=self.stream)
 
     def _showUri(self, graph: QuantumGraph, args: SimpleNamespace) -> None:
         """Print input and predicted output URIs to stdout
@@ -323,20 +334,20 @@ class ShowInfo:
         def dumpURIs(thisRef: DatasetRef) -> None:
             primary, components = butler.getURIs(thisRef, predict=True, run="TBD")
             if primary:
-                print(f"    {primary}")
+                print(f"    {primary}", file=self.stream)
             else:
-                print("    (disassembled artifact)")
+                print("    (disassembled artifact)", file=self.stream)
                 for compName, compUri in components.items():
-                    print(f"        {compName}: {compUri}")
+                    print(f"        {compName}: {compUri}", file=self.stream)
 
         butler = _ButlerFactory.makeReadButler(args)
         for node in graph:
-            print(f"Quantum {node.nodeId}: {node.taskDef.taskName}")
-            print("  inputs:")
+            print(f"Quantum {node.nodeId}: {node.taskDef.taskName}", file=self.stream)
+            print("  inputs:", file=self.stream)
             for key, refs in node.quantum.inputs.items():
                 for ref in refs:
                     dumpURIs(ref)
-            print("  outputs:")
+            print("  outputs:", file=self.stream)
             for key, refs in node.quantum.outputs.items():
                 for ref in refs:
                     dumpURIs(ref)
