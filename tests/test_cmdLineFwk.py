@@ -419,6 +419,21 @@ class CmdLineFwkTestCase(unittest.TestCase):
         self.assertEqual(show.unhandled, frozenset({"uri"}))
         self.assertEqual(show.handled, {"pipeline"})
 
+        show = ShowInfo(["dump-config=notask"])
+        with self.assertRaises(ValueError) as cm:
+            show.show_pipeline_info(pipeline)
+        self.assertIn("Pipeline has no tasks named notask", str(cm.exception))
+
+        show = ShowInfo(["history"])
+        with self.assertRaises(ValueError) as cm:
+            show.show_pipeline_info(pipeline)
+        self.assertIn("Please provide a value", str(cm.exception))
+
+        show = ShowInfo(["history=notask::param"])
+        with self.assertRaises(ValueError) as cm:
+            show.show_pipeline_info(pipeline)
+        self.assertIn("Pipeline has no tasks named notask", str(cm.exception))
+
 
 class CmdLineFwkTestCaseWithButler(unittest.TestCase):
     """A test case for CmdLineFwk"""

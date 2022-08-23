@@ -195,8 +195,7 @@ class ShowInfo:
 
         tasks = util.filterTasks(pipeline, taskName)
         if not tasks:
-            print("Pipeline has no tasks named {}".format(taskName), file=sys.stderr)
-            sys.exit(1)
+            raise ValueError("Pipeline has no tasks named {}".format(taskName))
 
         for taskDef in tasks:
             print("### Configuration for task `{}'".format(taskDef.label))
@@ -220,13 +219,11 @@ class ShowInfo:
             taskName = matHistory.group(1)
             pattern = matHistory.group(2)
         if not pattern:
-            print("Please provide a value with --show history (e.g. history=Task::param)", file=sys.stderr)
-            sys.exit(1)
+            raise ValueError("Please provide a value with --show history (e.g. history=Task::param)")
 
         tasks = util.filterTasks(pipeline, taskName)
         if not tasks:
-            print(f"Pipeline has no tasks named {taskName}", file=sys.stderr)
-            sys.exit(1)
+            raise ValueError(f"Pipeline has no tasks named {taskName}")
 
         found = False
         for taskDef in tasks:
@@ -261,8 +258,7 @@ class ShowInfo:
                     found = True
 
         if not found:
-            print(f"None of the tasks has field matching {pattern}", file=sys.stderr)
-            sys.exit(1)
+            raise ValueError(f"None of the tasks has field matching {pattern}")
 
     def _showTaskHierarchy(self, pipeline: Pipeline) -> None:
         """Print task hierarchy to stdout
