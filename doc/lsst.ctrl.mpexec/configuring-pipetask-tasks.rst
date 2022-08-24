@@ -7,7 +7,7 @@ Configuring tasks from the command line
 Generally, configuring tasks for pipeline processing should happen either in the pipeline definition itself or in obs package overrides.
 There are, though, situations where a specific override needs to be used when running using the :ref:`pipetask-command` command-line tool.
 
-This page describes how to review configurations with ``--show config`` and ``-show tasks``, and change configurations on the command line with ``--config`` or ``--config-file``
+This page describes how to review configurations with ``--show config`` and ``--show tasks``, and change configurations on the command line with ``--config`` or ``--config-file``
 
 .. _command-line-config-howto-show:
 
@@ -176,7 +176,7 @@ This subtask hierarchy is interpreted as follows:
 
 - The ``calibrate`` task in this pipeline is configured to use `lsst.pipe.tasks.calibrate.CalibrateTask`.
 - ``calibrate`` (again, implemented by `~lsst.pipe.tasks.calibrate.CalibrateTask`) has a subtask named ``astrometry``, which is currently configured to use the `lsst.meas.astrom.astrometry.AstrometryTask` task.
-- ``calibrate.astrometry`` has a subtask named ``matcher``, which is implemented by `~lsst.meas.astrom.matchOptimisticB.matchOptimisticBContinued.MatchOptimisticBTask`.
+- ``calibrate.astrometry`` has a subtask named ``matcher``, which is implemented by `~lsst.meas.astrom.matchPessimisticB.MatchPessimisticBTask`.
 
 Note that if the ``calibrate.astrometry`` task is retargeted to a different task class, the subtask of ``calibrate.astrometry`` *may* change (for example, ``calibrate.astrometry.matcher`` may no longer exist).
 
@@ -185,7 +185,7 @@ Note that if the ``calibrate.astrometry`` task is retargeted to a different task
 How to set configurations with command-line arguments
 =====================================================
 
-Pipelines can be configured through a combination of two mechanisms: arguments on the command line (``--config``) or through configuration files (:option:``--config-file``).
+Pipelines can be configured through a combination of two mechanisms: arguments on the command line (``--config``) or through configuration files (``--config-file``).
 In general, simple configurations can be made through the command line, while complex configurations and subtask retargeting must done through configuration files (see :ref:`command-line-config-howto-configfile`).
 
 To change a configuration value on the command line, pass that configuration task label, name and value to the ``--config`` argument.
@@ -285,7 +285,7 @@ The ``taskName`` is the pipeline task label and can either come from the name se
 
 Here are two examples:
 
-- :file:`obs_lsst/config/makeWarp.py`: specifies which parameters are preferred when warping images using the ``obs_subaru`` observatory package.
+- :file:`obs_lsst/config/makeWarp.py`: specifies which parameters are preferred when warping images using the ``obs_lsst`` observatory package.
 - :file:`obs_lsst/config/latiss/isr.py``: provides overrides for the instrument signature removal (aka detrending) task for the ``latiss`` camera in the ``obs_lsst`` observatory package.
 
 Overall, the priority order for setting task configurations is configurations is (highest priority first):
@@ -304,7 +304,7 @@ Determining the history of a config parameter
 Sometimes you aren't sure where a value for a configuration parameter is coming from, given all the many places where a parameter can be overridden.
 To investigate the history of a parameter you can use the ``--show history`` option.
 This option takes a task label and a pattern to use to match a configuration parameter.
-The output is quite verbose since it reports the entires code hierarchy involved in setting the parameter.
+The output is quite verbose since it reports the entire code hierarchy involved in setting the parameter.
 In this example we show how the ``assembleCcd.keysToRemove`` parameter defaults to an empty list, then values are set from the ``obs_subaru`` override, and then finally the command-line value overrides everything:
 
 .. code-block:: bash

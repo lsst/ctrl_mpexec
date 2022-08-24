@@ -130,7 +130,7 @@ def qgraph(  # type: ignore
         removing them and the RUN completely ("purge"). Requires `replace_run`.
     data_query : `str`
         User query selection expression.
-    show : `list` [`str`] or `None`
+    show : `lsst.ctrl.mpexec.showInfo.ShowInfo`
         Descriptions of what to dump to stdout.
     save_execution_butler : `str` or `None`
         URI location for storing an execution Butler build from the
