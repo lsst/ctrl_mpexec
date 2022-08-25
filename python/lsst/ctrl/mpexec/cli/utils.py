@@ -135,10 +135,7 @@ def makePipelineActions(
         elif args[i] in deleteFlags:
             pipelineActions.append(_ACTION_DELETE_TASK(args[i + 1]))
         elif args[i] in configFlags:
-            # --config is configured to split commas in the click interface,
-            # so we have to split commas here to match.
-            config_args = split_commas(None, None, args[i + 1])
-            pipelineActions.extend(_ACTION_CONFIG(c) for c in config_args)
+            pipelineActions.append(_ACTION_CONFIG(args[i + 1]))
         elif args[i] in configFileFlags:
             # --config-file allows multiple comma-separated values.
             configfile_args = split_commas(None, None, args[i + 1])

@@ -202,7 +202,7 @@ For example, change the mesh value from the previous example:
    # Mesh size in Y for flatness statistics
    config.qa.flatness.meshY=512
 
-You can provide multiple ``--config`` arguments on the same command line either as distinct ``--config`` options or by using commas to separate them with a single ``--config``:
+You can provide multiple ``--config`` arguments on the same command line as distinct ``--config`` options:
 
 .. code-block:: bash
 
@@ -224,7 +224,7 @@ Only simple configuration values can be set through ``--config`` arguments, such
 - **Lists of strings**, For example: ``--config task:strList=[BAD,GOOD]``.
 - **Boolean values**. For example: ``--config task:configName=True configName2=False``.
 
-The ``[]`` are required when specifying lists.
+The ``[]`` are optional when specifying lists.
 
 Specific types of configurations you **cannot** perform with the ``--config`` argument are:
 
