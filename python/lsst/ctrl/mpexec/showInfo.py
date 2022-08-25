@@ -26,6 +26,7 @@ __all__ = ["ShowInfo"]
 import fnmatch
 import re
 import sys
+from collections import defaultdict
 from types import SimpleNamespace
 from typing import Any, Optional
 
@@ -102,13 +103,10 @@ class ShowInfo:
             # it wants. Assigning the default at class definition leads
             # to confusion on reassignment.
             stream = sys.stdout
-        commands: dict[str, list[str]] = {}
+        commands: dict[str, list[str]] = defaultdict(list)
         for value in show:
             command, _, args = value.partition("=")
-            if command in commands:
-                commands[command].append(args)
-            else:
-                commands[command] = [args]
+            commands[command].append(args)
         self.commands = commands
         self.stream = stream
         self.handled: set[str] = set()
