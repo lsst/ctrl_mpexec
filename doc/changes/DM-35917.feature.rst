@@ -1,0 +1,4 @@
+* Added documentation on how to use ``--show`` and ``--config``.
+* A pipeline will now never execute if ``--show`` option is used with ``pipetask run``.
+* The ``--config`` option can now accept list configuration values (with or without square brackets), for example ``--config task:listItem=a,b`` or ``--config "task:listItem=[a,b]"``.
+* The ``--config-file`` option can now take comma-separated file names for multiple config files.
