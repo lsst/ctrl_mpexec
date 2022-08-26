@@ -1,1 +1,0 @@
-Remove dependency on the ``obs_base`` and ``afw`` packages. Now only depends on ``pipe_base`` and ``daf_butler`` (along with ``pex_config`` and ``utils``).
