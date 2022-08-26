@@ -65,7 +65,7 @@ pipetask = "lsst.ctrl.mpexec.cli.pipetask:main"
     package_dir = "python"
     filename = "doc/lsst.ctrl.mpexec/CHANGES.rst"
     directory = "doc/changes"
-    title_format = "Multi-Processing Executor {version} {project_date}"
+    title_format = "lsst-ctrl-mpexec {version} ({project_date})"
     issue_format = "`{issue} <https://jira.lsstcorp.org/browse/{issue}>`_"
 
     [[tool.towncrier.type]]
