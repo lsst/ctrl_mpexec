@@ -24,7 +24,7 @@ import collections
 import re
 
 from lsst.daf.butler.cli.opt import config_file_option, config_option
-from lsst.daf.butler.cli.utils import MWCommand
+from lsst.daf.butler.cli.utils import MWCommand, split_commas
 from lsst.pipe.base.cli.opt import instrument_option
 
 from .opt import delete_option, task_option
@@ -59,7 +59,10 @@ class _PipelineActionType:
     def __call__(self, value: str) -> _PipelineAction:
         match = self.regex.match(value)
         if not match:
-            raise TypeError("Unrecognized option syntax: " + value)
+            raise TypeError(
+                f"Unrecognized syntax for option {self.action!r}: {value!r} "
+                f"(does not match pattern {self.regex.pattern})"
+            )
         # get "label" group or use None as label
         try:
             label = match.group("label")
@@ -134,7 +137,9 @@ def makePipelineActions(
         elif args[i] in configFlags:
             pipelineActions.append(_ACTION_CONFIG(args[i + 1]))
         elif args[i] in configFileFlags:
-            pipelineActions.append(_ACTION_CONFIG_FILE(args[i + 1]))
+            # --config-file allows multiple comma-separated values.
+            configfile_args = split_commas(None, None, args[i + 1])
+            pipelineActions.extend(_ACTION_CONFIG_FILE(c) for c in configfile_args)
         elif args[i] in instrumentFlags:
             pipelineActions.append(_ACTION_ADD_INSTRUMENT(args[i + 1]))
     return pipelineActions

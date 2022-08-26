@@ -130,7 +130,7 @@ def qgraph(  # type: ignore
         removing them and the RUN completely ("purge"). Requires `replace_run`.
     data_query : `str`
         User query selection expression.
-    show : `list` [`str`] or `None`
+    show : `lsst.ctrl.mpexec.showInfo.ShowInfo`
         Descriptions of what to dump to stdout.
     save_execution_butler : `str` or `None`
         URI location for storing an execution Butler build from the
@@ -181,7 +181,6 @@ def qgraph(  # type: ignore
         replace_run=replace_run,
         prune_replaced=prune_replaced,
         data_query=data_query,
-        show=show,
         skip_existing_in=skip_existing_in,
         skip_existing=skip_existing,
         execution_butler_location=save_execution_butler,
@@ -200,7 +199,6 @@ def qgraph(  # type: ignore
         raise RuntimeError("QuantumGraph is empty.")
 
     # optionally dump some info.
-    if show:
-        f.showInfo(args, pipelineObj, qgraph)
+    show.show_graph_info(qgraph, args)
 
     return qgraph

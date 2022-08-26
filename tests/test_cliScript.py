@@ -27,6 +27,7 @@ import click
 import lsst.utils.tests
 from lsst.ctrl.mpexec.cli import opt, script
 from lsst.ctrl.mpexec.cli.pipetask import cli as pipetaskCli
+from lsst.ctrl.mpexec.showInfo import ShowInfo
 from lsst.daf.butler.cli.utils import LogCliRunner, clickResultMsg
 from lsst.pipe.base import Pipeline
 
@@ -44,7 +45,7 @@ class BuildTestCase(unittest.TestCase):
             pipeline_actions=(),
             pipeline_dot=None,
             save_pipeline=None,
-            show=(),
+            show=ShowInfo([]),
         )
         defaultArgs.update(kwargs)
         return defaultArgs
@@ -72,16 +73,16 @@ class BuildTestCase(unittest.TestCase):
     def testShowPipeline(self):
         """Test showing the pipeline."""
 
-        class ShowInfo:
+        class ShowInfoCmp:
             def __init__(self, show, expectedOutput):
                 self.show = show
                 self.expectedOutput = expectedOutput
 
             def __repr__(self):
-                return f"ShowInfo({self.show}, {self.expectedOutput}"
+                return f"ShowInfoCmp({self.show}, {self.expectedOutput}"
 
         testdata = [
-            ShowInfo(
+            ShowInfoCmp(
                 "pipeline",
                 """description: anonymous
 tasks:
@@ -90,7 +91,7 @@ tasks:
     config:
     - addend: '100'""",
             ),
-            ShowInfo(
+            ShowInfoCmp(
                 "config",
                 """### Configuration for task `task'
 # Flag to enable/disable metadata saving for a task, enabled by default.
@@ -121,8 +122,8 @@ config.connections.in_tmpl='_in'
 config.connections.out_tmpl='_out'""",
             ),
             # history will contain machine-specific paths, TBD how to verify
-            ShowInfo("history=task::addend", None),
-            ShowInfo("tasks", "### Subtasks for task `lsst.pipe.base.tests.simpleQGraph.AddTask'"),
+            ShowInfoCmp("history=task::addend", None),
+            ShowInfoCmp("tasks", "### Subtasks for task `lsst.pipe.base.tests.simpleQGraph.AddTask'"),
         ]
 
         for showInfo in testdata:

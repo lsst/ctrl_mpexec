@@ -19,11 +19,13 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+import sys
 from functools import partial
 from typing import Any
 
 import click
 import lsst.pipe.base.cli.opt as pipeBaseOpts
+from lsst.ctrl.mpexec.showInfo import ShowInfo
 from lsst.daf.butler.cli.opt import config_file_option, config_option, confirm_option, options_file_option
 from lsst.daf.butler.cli.utils import MWCtxObj, catch_and_exit, option_section, unwrap
 
@@ -88,6 +90,15 @@ def _collectActions(ctx: click.Context, **kwargs: Any) -> dict[str, Any]:
     return kwargs
 
 
+def _unhandledShow(show: ShowInfo, cmd: str) -> None:
+    if show.unhandled:
+        print(
+            f"The following '--show' options were not known to the {cmd} command: "
+            f"{', '.join(show.unhandled)}",
+            file=sys.stderr,
+        )
+
+
 @click.command(cls=PipetaskCommand, epilog=epilog, short_help="Build pipeline definition.")
 @click.pass_context
 @ctrlMpExecOpts.show_option()
@@ -101,7 +112,9 @@ def build(ctx: click.Context, **kwargs: Any) -> None:
     This does not require input data to be specified.
     """
     kwargs = _collectActions(ctx, **kwargs)
-    script.build(**kwargs)
+    show = ShowInfo(kwargs.pop("show", []))
+    script.build(**kwargs, show=show)
+    _unhandledShow(show, "build")
 
 
 @click.command(cls=PipetaskCommand, epilog=epilog)
@@ -116,8 +129,16 @@ def build(ctx: click.Context, **kwargs: Any) -> None:
 def qgraph(ctx: click.Context, **kwargs: Any) -> None:
     """Build and optionally save quantum graph."""
     kwargs = _collectActions(ctx, **kwargs)
-    pipeline = script.build(**kwargs)
-    script.qgraph(pipelineObj=pipeline, **kwargs)
+    show = ShowInfo(kwargs.pop("show", []))
+    pipeline = script.build(**kwargs, show=show)
+    if show.handled and not show.unhandled:
+        print(
+            "No quantum graph generated. The --show option was given and all options were processed.",
+            file=sys.stderr,
+        )
+        return
+    script.qgraph(pipelineObj=pipeline, **kwargs, show=show)
+    _unhandledShow(show, "qgraph")
 
 
 @click.command(cls=PipetaskCommand, epilog=epilog)
@@ -126,8 +147,23 @@ def qgraph(ctx: click.Context, **kwargs: Any) -> None:
 def run(ctx: click.Context, **kwargs: Any) -> None:
     """Build and execute pipeline and quantum graph."""
     kwargs = _collectActions(ctx, **kwargs)
-    pipeline = script.build(**kwargs)
-    qgraph = script.qgraph(pipelineObj=pipeline, **kwargs)
+    show = ShowInfo(kwargs.pop("show", []))
+    pipeline = script.build(**kwargs, show=show)
+    if show.handled and not show.unhandled:
+        print(
+            "No quantum graph generated or pipeline executed. "
+            "The --show option was given and all options were processed.",
+            file=sys.stderr,
+        )
+        return
+    qgraph = script.qgraph(pipelineObj=pipeline, **kwargs, show=show)
+    _unhandledShow(show, "run")
+    if show.handled:
+        print(
+            "No pipeline executed. The --show option was given and all options were processed.",
+            file=sys.stderr,
+        )
+        return
     script.run(qgraphObj=qgraph, **kwargs)
 
 
