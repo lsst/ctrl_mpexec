@@ -31,8 +31,7 @@ from lsst.pipe.base import TaskFactory as BaseTaskFactory
 
 if TYPE_CHECKING:
     from lsst.daf.butler import Butler
-    from lsst.pex.config import Config
-    from lsst.pipe.base import PipelineTask
+    from lsst.pipe.base import PipelineTask, PipelineTaskConfig
     from lsst.pipe.base.configOverrides import ConfigOverrides
 
 _LOG = logging.getLogger(__name__)
@@ -45,7 +44,7 @@ class TaskFactory(BaseTaskFactory):
         self,
         taskClass: type[PipelineTask],
         label: Optional[str],
-        config: Optional[Config],
+        config: Optional[PipelineTaskConfig],
         overrides: Optional[ConfigOverrides],
         butler: Optional[Butler],
     ) -> PipelineTask:

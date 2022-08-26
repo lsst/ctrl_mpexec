@@ -118,7 +118,7 @@ class MockButlerQuantumContext(ButlerQuantumContext):
 
 class MockPipelineTaskConfig(PipelineTaskConfig, pipelineConnections=PipelineTaskConnections):
 
-    failCondition = Field(
+    failCondition: Field[str] = Field(
         dtype=str,
         default="",
         doc=(
@@ -127,7 +127,7 @@ class MockPipelineTaskConfig(PipelineTaskConfig, pipelineConnections=PipelineTas
         ),
     )
 
-    failException = Field(
+    failException: Field[str] = Field(
         dtype=str,
         default="builtins.ValueError",
         doc=(
@@ -156,7 +156,7 @@ class MockPipelineTask(PipelineTask):
 
     ConfigClass = MockPipelineTaskConfig
 
-    def __init__(self, *, config: Optional[PipelineTaskConfig] = None, **kwargs: Any):
+    def __init__(self, *, config: Optional[MockPipelineTaskConfig] = None, **kwargs: Any):
         super().__init__(config=config, **kwargs)
 
         self.failException: Optional[type] = None

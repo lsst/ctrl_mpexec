@@ -1,5 +1,36 @@
-Multi-Processing Executor v23.0.1 2022-02-02
-============================================
+lsst-ctrl-mpexec v24.0.0 (2022-08-26)
+=====================================
+
+New Features
+------------
+
+- Added ``--dataset-query-constraint`` option to ``pipetask qgraph`` command (and thus downstream commands) that allows a
+  user to control how `~lsst.pipe.base.QuantumGraph` creation is constrained by dataset existence. (`DM-31769 <https://jira.lsstcorp.org/browse/DM-31769>`_)
+- Builds using ``setuptools`` now calculate versions from the Git repository, including the use of alpha releases for those associated with weekly tags. (`DM-32408 <https://jira.lsstcorp.org/browse/DM-32408>`_)
+- Added ``--summary`` option to ``pipetask run`` command, it produces JSON report for execution status of the whole process and individual quanta. (`DM-33481 <https://jira.lsstcorp.org/browse/DM-33481>`_)
+- Added ``pipetask`` CLI commands ``purge`` and ``cleanup``. (`DM-33634 <https://jira.lsstcorp.org/browse/DM-33634>`_)
+- Removed dependency on the ``obs_base`` and ``afw`` packages. Now only depends on ``pipe_base`` and ``daf_butler`` (along with ``pex_config`` and ``utils``). (`DM-34105 <https://jira.lsstcorp.org/browse/DM-34105>`_)
+- Replaced the unused ``--do-raise`` option with ``--pdb``,
+  which drops the user into the debugger
+  (``pdb`` by default, but ``--pdb=ipdb`` also works if you have ``ipdb`` installed)
+  on an exception. (`DM-34215 <https://jira.lsstcorp.org/browse/DM-34215>`_)
+
+
+Bug Fixes
+---------
+
+- The `click.Path` API should mostly be used with keyword arguments, changed from ordered arguments to keyword arguments when calling it. (`DM-34261 <https://jira.lsstcorp.org/browse/DM-34261>`_)
+- Fixed a bug where dot graphs of pipelines did not correctly render edges between composite and component dataset types. (`DM-34811 <https://jira.lsstcorp.org/browse/DM-34811>`_)
+
+
+Other Changes and Additions
+---------------------------
+
+- Added `lsst.ctrl.mpexec.SimplePipelineExecutor`, a minimal high-level Python interface for `~lsst.pipe.base.PipelineTask` execution intended primarily for unit testing. (`DM-31966 <https://jira.lsstcorp.org/browse/DM-31966>`_)
+
+
+lsst-ctrl-mpexec v23.0.1 (2022-02-02)
+=====================================
 
 Miscellaneous Changes of Minor Interest
 ---------------------------------------
@@ -7,13 +38,14 @@ Miscellaneous Changes of Minor Interest
 - Allow ``pipetask run`` execution to continue in single-process mode after failure of one or more tasks. Previously execution stopped on an exception from any task. (`DM-33339 <https://jira.lsstcorp.org/browse/DM-33339>`_)
 
 
-Multi-Processing Executor v23.0.0 2021-12-10
-============================================
+lsst-ctrl-mpexec v23.0.0 (2021-12-10)
+=====================================
 
 New Features
 ------------
 
 - Several improvements in ``pipetask`` execution options:
+
   - New option ``--skip-existing-in`` which takes collection names(s), if output
     datasets already exist in those collections corresponding quanta is skipped.
   - A ``--skip-existing`` option is now equivalent to appending output run
@@ -44,8 +76,8 @@ Miscellaneous Changes of Minor Interest
 - Add some of the pipetask command line options to QuantumGraph metadata (`DM-30702 <https://jira.lsstcorp.org/browse/DM-30702>`_)
 
 
-Multi-Processing Executor v22.0 2021-04-01
-==========================================
+lsst-ctrl-mpexec v22.0 (2021-04-01)
+===================================
 
 New Features
 ------------

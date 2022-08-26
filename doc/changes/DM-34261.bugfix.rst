@@ -1,1 +1,0 @@
-The `click.Path` API should mostly be used with keyword arguments, change from ordered arguments to keyword arguments when calling it.
