@@ -450,6 +450,8 @@ class MPGraphExecutor(QuantumGraphExecutor):
         failedNodes: set[QuantumNode] = set()
         for qnode in graph:
 
+            assert qnode.quantum.dataId is not None, "Quantum DataId cannot be None"
+
             # Any failed inputs mean that the quantum has to be skipped.
             inputNodes = graph.determineInputsToQuantumNode(qnode)
             if inputNodes & failedNodes:
@@ -615,6 +617,7 @@ class MPGraphExecutor(QuantumGraphExecutor):
             if jobs.failedNodes:
                 for job in jobs.pending:
                     jobInputNodes = graph.determineInputsToQuantumNode(job.qnode)
+                    assert job.qnode.quantum.dataId is not None, "Quantum DataId cannot be None"
                     if jobInputNodes & jobs.failedNodes:
                         quantum_report = QuantumReport(
                             status=ExecutionStatus.SKIPPED,

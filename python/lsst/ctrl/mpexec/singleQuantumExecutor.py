@@ -134,14 +134,13 @@ class SingleQuantumExecutor(QuantumExecutor):
 
     def execute(self, taskDef: TaskDef, quantum: Quantum, butler: Butler) -> Quantum:
         # Docstring inherited from QuantumExecutor.execute
-
+        assert quantum.dataId is not None, "Quantum DataId cannot be None"
         # Catch any exception and make a report based on that.
         try:
             result = self._execute(taskDef, quantum, butler)
             self.report = QuantumReport(dataId=quantum.dataId, taskLabel=taskDef.label)
             return result
         except Exception as exc:
-            assert quantum.dataId is not None, "Quantum DataId cannot be None"
             self.report = QuantumReport.from_exception(
                 exception=exc,
                 dataId=quantum.dataId,
