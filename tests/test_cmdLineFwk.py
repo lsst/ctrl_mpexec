@@ -388,14 +388,12 @@ class CmdLineFwkTestCase(unittest.TestCase):
                 fwk.makeGraph(None, args)
 
             # reading empty graph from pickle should work but makeGraph()
-            # will return None and make a warning
+            # will return None.
             qgraph = QuantumGraph(dict(), universe=DimensionUniverse(_makeDimensionConfig()))
             with open(tmpname, "wb") as saveFile:
                 qgraph.save(saveFile)
             args = _makeArgs(qgraph=tmpname, registryConfig=registryConfig, execution_butler_location=None)
-            with self.assertWarnsRegex(UserWarning, "QuantumGraph is empty"):
-                # this also tests that warning is generated for empty graph
-                qgraph = fwk.makeGraph(None, args)
+            qgraph = fwk.makeGraph(None, args)
             self.assertIs(qgraph, None)
 
     def testShowPipeline(self):
@@ -493,6 +491,25 @@ class CmdLineFwkTestCaseWithButler(unittest.TestCase):
         # run whole thing
         fwk.runPipeline(qgraph, taskFactory, args)
         self.assertEqual(taskFactory.countExec, self.nQuanta)
+
+    def testEmptyQGraph(self):
+        """Test that making an empty QG produces the right error messages."""
+        # We make QG generation fail by populating one input collection in the
+        # butler while using a different one (that we only register, not
+        # populate) to make the QG.
+        args = _makeArgs(butler_config=self.root, input="bad_input", output="output")
+        butler = makeSimpleButler(self.root, run="good_input", inMemory=False)
+        butler.registry.registerCollection("bad_input")
+        populateButler(self.pipeline, butler)
+
+        fwk = CmdLineFwk()
+        with self.assertLogs(level=logging.CRITICAL) as cm:
+            qgraph = fwk.makeGraph(self.pipeline, args)
+        self.assertRegexpMatches(
+            cm.output[0], ".*Initial data ID query returned no rows, so QuantumGraph will be empty.*"
+        )
+        self.assertRegexpMatches(cm.output[1], ".*No datasets.*bad_input.*")
+        self.assertIsNone(qgraph)
 
     def testSimpleQGraphNoSkipExisting_inputs(self):
         """Test for case when output data for one task already appears in

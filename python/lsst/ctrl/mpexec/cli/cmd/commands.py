@@ -137,7 +137,8 @@ def qgraph(ctx: click.Context, **kwargs: Any) -> None:
             file=sys.stderr,
         )
         return
-    script.qgraph(pipelineObj=pipeline, **kwargs, show=show)
+    if script.qgraph(pipelineObj=pipeline, **kwargs, show=show) is None:
+        raise click.ClickException("QuantumGraph was empty; CRITICAL logs above should provide details.")
     _unhandledShow(show, "qgraph")
 
 
@@ -156,7 +157,8 @@ def run(ctx: click.Context, **kwargs: Any) -> None:
             file=sys.stderr,
         )
         return
-    qgraph = script.qgraph(pipelineObj=pipeline, **kwargs, show=show)
+    if (qgraph := script.qgraph(pipelineObj=pipeline, **kwargs, show=show)) is None:
+        raise click.ClickException("QuantumGraph was empty; CRITICAL logs above should provide details.")
     _unhandledShow(show, "run")
     if show.handled:
         print(

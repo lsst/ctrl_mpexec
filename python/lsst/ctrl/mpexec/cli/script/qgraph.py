@@ -196,7 +196,7 @@ def qgraph(  # type: ignore
     qgraph = f.makeGraph(pipelineObj, args)
 
     if qgraph is None:
-        raise RuntimeError("QuantumGraph is empty.")
+        return None
 
     # optionally dump some info.
     show.show_graph_info(qgraph, args)
