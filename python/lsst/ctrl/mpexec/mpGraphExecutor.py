@@ -32,7 +32,7 @@ import signal
 import sys
 import time
 from enum import Enum
-from typing import TYPE_CHECKING, Iterable, Optional
+from typing import TYPE_CHECKING, Iterable, Literal, Optional
 
 from lsst.daf.butler.cli.cliLog import CliLog
 from lsst.pipe.base import InvalidQuantumError, TaskDef
@@ -92,7 +92,10 @@ class _Job:
         return False
 
     def start(
-        self, butler: Butler, quantumExecutor: QuantumExecutor, startMethod: Optional[str] = None
+        self,
+        butler: Butler,
+        quantumExecutor: QuantumExecutor,
+        startMethod: Literal["spawn"] | Literal["fork"] | Literal["forkserver"] | None = None,
     ) -> None:
         """Start process which runs the task.
 
@@ -256,7 +259,11 @@ class _JobList:
         self.timedOutNodes: set[QuantumNode] = set()
 
     def submit(
-        self, job: _Job, butler: Butler, quantumExecutor: QuantumExecutor, startMethod: Optional[str] = None
+        self,
+        job: _Job,
+        butler: Butler,
+        quantumExecutor: QuantumExecutor,
+        startMethod: Literal["spawn"] | Literal["fork"] | Literal["forkserver"] | None = None,
     ) -> None:
         """Submit one more job for execution
 
@@ -370,7 +377,7 @@ class MPGraphExecutor(QuantumGraphExecutor):
         timeout: float,
         quantumExecutor: QuantumExecutor,
         *,
-        startMethod: Optional[str] = None,
+        startMethod: Literal["spawn"] | Literal["fork"] | Literal["forkserver"] | None = None,
         failFast: bool = False,
         pdb: Optional[str] = None,
         executionGraphFixup: Optional[ExecutionGraphFixup] = None,
@@ -387,7 +394,7 @@ class MPGraphExecutor(QuantumGraphExecutor):
         # None for all other platforms to use multiprocessing default.
         if startMethod is None:
             methods = dict(linux="fork", darwin="spawn")
-            startMethod = methods.get(sys.platform)
+            startMethod = methods.get(sys.platform)  # type: ignore
         self.startMethod = startMethod
 
     def execute(self, graph: QuantumGraph, butler: Butler) -> None:

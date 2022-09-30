@@ -33,7 +33,6 @@ import copy
 import datetime
 import getpass
 import logging
-import warnings
 from types import SimpleNamespace
 from typing import Iterable, Optional, Tuple
 
@@ -575,7 +574,6 @@ class CmdLineFwk:
         # None.
         nQuanta = len(qgraph)
         if nQuanta == 0:
-            warnings.warn("QuantumGraph is empty", stacklevel=2)
             return None
         else:
             _LOG.info(
