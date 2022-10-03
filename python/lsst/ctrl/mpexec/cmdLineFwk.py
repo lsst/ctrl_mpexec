@@ -33,11 +33,13 @@ import copy
 import datetime
 import getpass
 import logging
+from collections.abc import Iterable, Sequence
 from types import SimpleNamespace
-from typing import Iterable, Optional, Tuple
+from typing import Optional, Tuple
 
-from lsst.daf.butler import Butler, CollectionSearch, CollectionType, DatasetRef, Registry
+from lsst.daf.butler import Butler, CollectionType, DatasetRef, Registry
 from lsst.daf.butler.registry import MissingCollectionError, RegistryDefaults
+from lsst.daf.butler.registry.wildcards import CollectionWildcard
 from lsst.pipe.base import (
     GraphBuilder,
     Instrument,
@@ -169,8 +171,8 @@ class _ButlerFactory:
             ``replace_run``).
 
         ``inputs``
-            Input collections of any type; may be any type handled by
-            `lsst.daf.butler.registry.CollectionSearch.fromExpression`.
+            Input collections of any type; see
+            :ref:`daf_butler_ordered_collection_searches` for details.
 
         ``butler_config``
             Path to a data repository root or configuration file.
@@ -257,7 +259,7 @@ class _ButlerFactory:
             raise ValueError("--output must point to an existing CHAINED collection for --replace-run.")
 
     @classmethod
-    def _makeReadParts(cls, args: SimpleNamespace) -> tuple[Butler, CollectionSearch, _ButlerFactory]:
+    def _makeReadParts(cls, args: SimpleNamespace) -> tuple[Butler, Sequence[str], _ButlerFactory]:
         """Common implementation for `makeReadButler` and
         `makeButlerAndCollections`.
 
@@ -272,7 +274,7 @@ class _ButlerFactory:
         butler : `lsst.daf.butler.Butler`
             A read-only butler constructed from the repo at
             ``args.butler_config``, but with no default collections.
-        inputs : `lsst.daf.butler.registry.CollectionSearch`
+        inputs : `Sequence` [ `str` ]
             A collection search path constructed according to ``args``.
         self : `_ButlerFactory`
             A new `_ButlerFactory` instance representing the processed version
@@ -295,7 +297,7 @@ class _ButlerFactory:
         if args.extend_run:
             assert self.outputRun is not None, "Output collection has to be specified."
             inputs.insert(0, self.outputRun.name)
-        collSearch = CollectionSearch.fromExpression(inputs)
+        collSearch = CollectionWildcard.from_expression(inputs).require_ordered()
         return butler, collSearch, self
 
     @classmethod
@@ -320,9 +322,7 @@ class _ButlerFactory:
         return Butler(butler=butler, collections=inputs)
 
     @classmethod
-    def makeButlerAndCollections(
-        cls, args: SimpleNamespace
-    ) -> Tuple[Butler, CollectionSearch, Optional[str]]:
+    def makeButlerAndCollections(cls, args: SimpleNamespace) -> Tuple[Butler, Sequence[str], Optional[str]]:
         """Return a read-only registry, a collection search path, and the name
         of the run to be used for future writes.
 
@@ -337,7 +337,7 @@ class _ButlerFactory:
         butler : `lsst.daf.butler.Butler`
             A read-only butler that collections will be added to and/or queried
             from.
-        inputs : `lsst.daf.butler.registry.CollectionSearch`
+        inputs : `Sequence` [ `str` ]
             Collections to search for datasets.
         run : `str` or `None`
             Name of the output `~lsst.daf.butler.CollectionType.RUN` collection
@@ -411,7 +411,7 @@ class _ButlerFactory:
             )
             butler.registry.defaults = RegistryDefaults(run=self.outputRun.name, collections=self.output.name)
         else:
-            inputs = CollectionSearch.fromExpression((self.outputRun.name,) + self.inputs)
+            inputs = (self.outputRun.name,) + self.inputs
             _LOG.debug("Preparing butler to write to '%s' and read from %s.", self.outputRun.name, inputs)
             butler.registry.defaults = RegistryDefaults(run=self.outputRun.name, collections=inputs)
         return butler
