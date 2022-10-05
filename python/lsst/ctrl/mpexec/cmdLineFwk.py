@@ -36,6 +36,7 @@ from collections.abc import Iterable, Sequence
 from types import SimpleNamespace
 from typing import Optional, Tuple
 
+from astropy.table import Table
 from lsst.daf.butler import Butler, CollectionType, DatasetRef, DatastoreCacheManager, Registry
 from lsst.daf.butler.registry import MissingCollectionError, RegistryDefaults
 from lsst.daf.butler.registry.wildcards import CollectionWildcard
@@ -586,18 +587,20 @@ class CmdLineFwk:
             if args.show_qgraph_header:
                 qgraph.buildAndPrintHeader()
 
-        # Count quanta in graph and give a warning if it's empty and return
-        # None.
+        # Count quanta in graph; give a warning if it's empty and return None.
         nQuanta = len(qgraph)
         if nQuanta == 0:
             return None
         else:
-            _LOG.info(
-                "QuantumGraph contains %d quanta for %d tasks, graph ID: %r",
-                nQuanta,
-                len(qgraph.taskGraph),
-                qgraph.graphID,
-            )
+            if _LOG.isEnabledFor(logging.INFO):
+                qg_task_table = self._generateTaskTable(qgraph)
+                _LOG.info(
+                    "QuantumGraph contains %d quanta for %d tasks, graph ID: %r\n%s",
+                    nQuanta,
+                    len(qgraph.taskGraph),
+                    qgraph.graphID,
+                    str(qg_task_table),
+                )
 
         if args.save_qgraph:
             qgraph.saveUri(args.save_qgraph)
@@ -730,6 +733,28 @@ class CmdLineFwk:
                         with open(args.summary, "w") as out:
                             # Do not save fields that are not set.
                             out.write(report.json(exclude_none=True, indent=2))
+
+    def _generateTaskTable(self, qgraph: QuantumGraph) -> Table:
+        """Generate astropy table listing the number of quanta per task for a
+        given quantum graph.
+
+        Parameters
+        ----------
+        qgraph : `lsst.pipe.base.graph.graph.QuantumGraph`
+            A QuantumGraph object.
+
+        Returns
+        -------
+        qg_task_table : `astropy.table.table.Table`
+            An astropy table containing columns: Quanta and Tasks.
+        """
+        qg_quanta, qg_tasks = [], []
+        for task_def in qgraph.iterTaskGraph():
+            num_qnodes = qgraph.getNumberOfQuantaForTask(task_def)
+            qg_quanta.append(num_qnodes)
+            qg_tasks.append(task_def.label)
+        qg_task_table = Table(dict(Quanta=qg_quanta, Tasks=qg_tasks))
+        return qg_task_table
 
     def _importGraphFixup(self, args: SimpleNamespace) -> Optional[ExecutionGraphFixup]:
         """Import/instantiate graph fixup object.
