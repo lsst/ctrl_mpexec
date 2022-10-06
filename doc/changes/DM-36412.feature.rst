@@ -1,0 +1,5 @@
+If ``pipetask`` is run with multiple processes and if a butler datastore cache is configured, all subprocesses will now share the same cache.
+For large numbers of simultaneous processes it may be necessary to significantly increase the number of datasets in the cache to make the cache usable.
+This can be done by using the ``$DAF_BUTLER_CACHE_EXPIRATION_MODE`` environment variable.
+
+Previously each subprocess would get its own cache and if ``fork`` start method was used these cache directories would not be cleaned up.
