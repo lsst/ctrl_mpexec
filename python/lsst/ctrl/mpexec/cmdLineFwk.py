@@ -26,18 +26,17 @@ from __future__ import annotations
 
 __all__ = ["CmdLineFwk"]
 
-# -------------------------------
-#  Imports of standard modules --
-# -------------------------------
+import atexit
 import copy
 import datetime
 import getpass
 import logging
+import shutil
 from collections.abc import Iterable, Sequence
 from types import SimpleNamespace
 from typing import Optional, Tuple
 
-from lsst.daf.butler import Butler, CollectionType, DatasetRef, Registry
+from lsst.daf.butler import Butler, CollectionType, DatasetRef, DatastoreCacheManager, Registry
 from lsst.daf.butler.registry import MissingCollectionError, RegistryDefaults
 from lsst.daf.butler.registry.wildcards import CollectionWildcard
 from lsst.pipe.base import (
@@ -317,6 +316,7 @@ class _ButlerFactory:
             A read-only butler initialized with the collections specified by
             ``args``.
         """
+        cls.defineDatastoreCache()  # Ensure that this butler can use a shared cache.
         butler, inputs, _ = cls._makeReadParts(args)
         _LOG.debug("Preparing butler to read from %s.", inputs)
         return Butler(butler=butler, collections=inputs)
@@ -351,6 +351,21 @@ class _ButlerFactory:
         _LOG.debug("Preparing registry to read from %s and expect future writes to '%s'.", inputs, run)
         return butler, inputs, run
 
+    @staticmethod
+    def defineDatastoreCache() -> None:
+        """Define where datastore cache directories should be found.
+
+        Notes
+        -----
+        All the jobs should share a datastore cache if applicable. This
+        method asks for a shared fallback cache to be defined and then
+        configures an exit handler to clean it up.
+        """
+        defined, cache_dir = DatastoreCacheManager.set_fallback_cache_directory_if_unset()
+        if defined:
+            atexit.register(shutil.rmtree, cache_dir, ignore_errors=True)
+            _LOG.debug("Defining shared datastore cache directory to %s", cache_dir)
+
     @classmethod
     def makeWriteButler(cls, args: SimpleNamespace, taskDefs: Optional[Iterable[TaskDef]] = None) -> Butler:
         """Return a read-write butler initialized to write to and read from
@@ -371,6 +386,7 @@ class _ButlerFactory:
         butler : `lsst.daf.butler.Butler`
             A read-write butler initialized according to the given arguments.
         """
+        cls.defineDatastoreCache()  # Ensure that this butler can use a shared cache.
         butler = Butler(args.butler_config, writeable=True)
         self = cls(butler.registry, args, writeable=True)
         self.check(args)
