@@ -23,7 +23,8 @@ from __future__ import annotations
 
 __all__ = ("SimplePipelineExecutor",)
 
-from typing import Any, Iterable, Iterator, List, Optional, Type, Union
+from collections.abc import Iterable, Iterator, Mapping
+from typing import Any, List, Optional, Type, Union
 
 from lsst.daf.butler import Butler, CollectionType, Quantum
 from lsst.pex.config import Config
@@ -114,7 +115,12 @@ class SimplePipelineExecutor:
 
     @classmethod
     def from_pipeline_filename(
-        cls, pipeline_filename: str, *, where: str = "", butler: Butler
+        cls,
+        pipeline_filename: str,
+        *,
+        where: str = "",
+        bind: Optional[Mapping[str, Any]] = None,
+        butler: Butler,
     ) -> SimplePipelineExecutor:
         """Create an executor by building a QuantumGraph from an on-disk
         pipeline YAML file.
@@ -125,6 +131,9 @@ class SimplePipelineExecutor:
             Name of the YAML file to load the pipeline definition from.
         where : `str`, optional
             Data ID query expression that constraints the quanta generated.
+        bind : `Mapping`, optional
+            Mapping containing literal values that should be injected into the
+            ``where`` expression, keyed by the identifiers they replace.
         butler : `Butler`
             Butler that manages all I/O.  `prep_butler` can be used to create
             one.
@@ -136,7 +145,7 @@ class SimplePipelineExecutor:
             `Butler`, ready for `run` to be called.
         """
         pipeline = Pipeline.fromFile(pipeline_filename)
-        return cls.from_pipeline(pipeline, butler=butler, where=where)
+        return cls.from_pipeline(pipeline, butler=butler, where=where, bind=bind)
 
     @classmethod
     def from_task_class(
@@ -146,6 +155,7 @@ class SimplePipelineExecutor:
         label: Optional[str] = None,
         *,
         where: str = "",
+        bind: Optional[Mapping[str, Any]] = None,
         butler: Butler,
     ) -> SimplePipelineExecutor:
         """Create an executor by building a QuantumGraph from a pipeline
@@ -163,6 +173,9 @@ class SimplePipelineExecutor:
             ``task_class._DefaultName``.
         where : `str`, optional
             Data ID query expression that constraints the quanta generated.
+        bind : `Mapping`, optional
+            Mapping containing literal values that should be injected into the
+            ``where`` expression, keyed by the identifiers they replace.
         butler : `Butler`
             Butler that manages all I/O.  `prep_butler` can be used to create
             one.
@@ -183,7 +196,7 @@ class SimplePipelineExecutor:
                 f"got {type(config).__name__}."
             )
         task_def = TaskDef(taskName=task_class.__name__, config=config, label=label, taskClass=task_class)
-        return cls.from_pipeline([task_def], butler=butler, where=where)
+        return cls.from_pipeline([task_def], butler=butler, where=where, bind=bind)
 
     @classmethod
     def from_pipeline(
@@ -191,6 +204,7 @@ class SimplePipelineExecutor:
         pipeline: Union[Pipeline, Iterable[TaskDef]],
         *,
         where: str = "",
+        bind: Optional[Mapping[str, Any]] = None,
         butler: Butler,
         **kwargs: Any,
     ) -> SimplePipelineExecutor:
@@ -204,6 +218,9 @@ class SimplePipelineExecutor:
             labels and configuration.
         where : `str`, optional
             Data ID query expression that constraints the quanta generated.
+        bind : `Mapping`, optional
+            Mapping containing literal values that should be injected into the
+            ``where`` expression, keyed by the identifiers they replace.
         butler : `Butler`
             Butler that manages all I/O.  `prep_butler` can be used to create
             one.
@@ -220,7 +237,7 @@ class SimplePipelineExecutor:
             pipeline = list(pipeline)
         graph_builder = GraphBuilder(butler.registry)
         quantum_graph = graph_builder.makeGraph(
-            pipeline, collections=butler.collections, run=butler.run, userQuery=where
+            pipeline, collections=butler.collections, run=butler.run, userQuery=where, bind=bind
         )
         return cls(quantum_graph=quantum_graph, butler=butler)
 
