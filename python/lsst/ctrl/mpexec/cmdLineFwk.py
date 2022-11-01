@@ -594,12 +594,13 @@ class CmdLineFwk:
         else:
             if _LOG.isEnabledFor(logging.INFO):
                 qg_task_table = self._generateTaskTable(qgraph)
+                qg_task_table_formatted = "\n".join(qg_task_table.pformat_all())
                 _LOG.info(
                     "QuantumGraph contains %d quanta for %d tasks, graph ID: %r\n%s",
                     nQuanta,
                     len(qgraph.taskGraph),
                     qgraph.graphID,
-                    str(qg_task_table),
+                    qg_task_table_formatted,
                 )
 
         if args.save_qgraph:
