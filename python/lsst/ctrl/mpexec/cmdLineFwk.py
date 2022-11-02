@@ -51,6 +51,7 @@ from lsst.pipe.base import (
     buildExecutionButler,
 )
 from lsst.utils import doImportType
+from lsst.utils.threads import disable_implicit_threading
 
 from . import util
 from .dotTools import graph2dot, pipeline2dot
@@ -675,6 +676,9 @@ class CmdLineFwk:
         # make sure that --extend-run always enables --skip-existing
         if args.extend_run:
             args.skip_existing = True
+
+        if not args.enable_implicit_threading:
+            disable_implicit_threading()
 
         # make butler instance
         if butler is None:

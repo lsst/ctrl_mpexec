@@ -355,6 +355,16 @@ skip_init_writes_option = MWOptionDecorator(
 )
 
 
+enable_implicit_threading_option = MWOptionDecorator(
+    "--enable-implicit-threading",
+    help=unwrap(
+        """Do not disable implicit threading use by third-party libraries (e.g. OpenBLAS).
+        Implicit threading is always disabled during execution with multiprocessing."""
+    ),
+    is_flag=True,
+)
+
+
 task_option = MWOptionDecorator(
     "-t",
     "--task",

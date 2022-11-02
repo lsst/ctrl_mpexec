@@ -55,6 +55,7 @@ def run(  # type: ignore
     summary,
     mock,
     mock_configs,
+    enable_implicit_threading,
     **kwargs,
 ):
     """Implements the command line interface `pipetask run` subcommand, should
@@ -148,10 +149,14 @@ def run(  # type: ignore
         If `True` then run mock pipeline instead of real one.
     mock_configs : `list` [ `PipelineAction` ]
         A list of config overrides for mock tasks.
+    enable_implicit_threading : `bool`, optional
+        If `True`, do not disable implicit threading by third-party libraries.
+        Implicit threading is always disabled during actual quantum execution
+        if ``processes > 1``.
     kwargs : `dict` [`str`, `str`]
         Ignored; click commands may accept options for more than one script
         function and pass all the option kwargs to each of the script functions
-        which ingore these unused kwargs.
+        which ignore these unused kwargs.
     """
     args = SimpleNamespace(
         pdb=pdb,
@@ -180,6 +185,7 @@ def run(  # type: ignore
         summary=summary,
         mock=mock,
         mock_configs=mock_configs,
+        enable_implicit_threading=enable_implicit_threading,
     )
 
     f = CmdLineFwk()
