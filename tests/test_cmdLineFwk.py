@@ -492,6 +492,9 @@ class CmdLineFwkTestCaseWithButler(unittest.TestCase):
         fwk.runPipeline(qgraph, taskFactory, args)
         self.assertEqual(taskFactory.countExec, self.nQuanta)
 
+        # test that we've disabled implicit threading
+        self.assertEqual(os.environ["OMP_NUM_THREADS"], "1")
+
     def testEmptyQGraph(self):
         """Test that making an empty QG produces the right error messages."""
         # We make QG generation fail by populating one input collection in the
