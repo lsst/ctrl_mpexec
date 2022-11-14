@@ -710,6 +710,7 @@ class CmdLineFwk:
         if not args.init_only:
             graphFixup = self._importGraphFixup(args)
             quantumExecutor = SingleQuantumExecutor(
+                butler,
                 taskFactory,
                 skipExistingIn=args.skip_existing_in,
                 clobberOutputs=args.clobber_outputs,
@@ -718,6 +719,7 @@ class CmdLineFwk:
                 mock=args.mock,
                 mock_configs=args.mock_configs,
             )
+
             timeout = self.MP_TIMEOUT if args.timeout is None else args.timeout
             executor = MPGraphExecutor(
                 numProc=args.processes,
@@ -728,9 +730,12 @@ class CmdLineFwk:
                 pdb=args.pdb,
                 executionGraphFixup=graphFixup,
             )
+            # Have to reset connection pool to avoid sharing connections with
+            # forked processes.
+            butler.registry.resetConnectionPool()
             try:
                 with util.profile(args.profile, _LOG):
-                    executor.execute(graph, butler)
+                    executor.execute(graph)
             finally:
                 if args.summary:
                     report = executor.getReport()
