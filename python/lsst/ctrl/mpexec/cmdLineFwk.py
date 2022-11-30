@@ -282,22 +282,19 @@ class _ButlerFactory:
     def _checkOutputInputConsistency(self) -> str | None:
         if self.inputs and self.output is not None and self.output.exists:
             # Passing the same inputs that were used to initialize the output
-            # collection is allowed; this means they must _end_ with the same
-            # collections, because we push new runs to the front of the chain.
-            for c1, c2 in zip(self.inputs[::-1], self.output.chain[::-1], strict=False):
-                if c1 != c2:
-                    return (
-                        f"Output CHAINED collection {self.output.name!r} exists, but it ends with "
-                        "a different sequence of input collections than those given: "
-                        f"{c1!r} != {c2!r} in inputs={self.inputs} vs "
-                        f"{self.output.name}={self.output.chain}."
-                    )
-            if len(self.inputs) > len(self.output.chain):
-                nNew = len(self.inputs) - len(self.output.chain)
-                return (
-                    f"Cannot add new input collections {self.inputs[:nNew]} after "
-                    "output collection is first created."
-                )
+            # collection is allowed; this means the inputs must appear as a
+            # contiguous subsequence of outputs (normally they're also at the
+            # end, but --rebase will in general put them in the middle).
+            for n in reversed(range(1 + len(self.output.chain) - len(self.inputs))):
+                if self.inputs == self.output.chain[n : n + len(self.inputs)]:
+                    return None
+            return (
+                f"Output CHAINED collection {self.output.name!r} exists and does not include the "
+                f"same sequence of (flattened) input collections {self.inputs} as a contiguous "
+                "subsequence. "
+                "Use --rebase to ignore this problem and reset the output collection, but note that "
+                "this may obfuscate what inputs were actually used to produce these outputs."
+            )
         return None
 
     @classmethod
