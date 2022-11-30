@@ -187,6 +187,13 @@ class _ButlerFactory:
             A boolean indicating whether to prune the replaced run (requires
             ``replace_run``).
 
+        ``rebase``
+            A boolean indicating whether to force the ``output`` collection
+            to be consistent with ``inputs`` and ``output`` run such that the
+            ``output`` collection has output run collections first (i.e. those
+            that start with the same prefix), then the new inputs, then any
+            original inputs not included in the new inputs.
+
         ``inputs``
             Input collections of any type; see
             :ref:`daf_butler_ordered_collection_searches` for details.
@@ -211,6 +218,8 @@ class _ButlerFactory:
         else:
             self.output = None
         if args.output_run is not None:
+            if args.rebase and self.output and not args.output_run.startswith(self.output.name):
+                raise ValueError("Cannot rebase if output run does not start with output collection name.")
             self.outputRun = _OutputRunCollectionInfo(registry, args.output_run)
         elif self.output is not None:
             if args.extend_run:
@@ -231,6 +240,15 @@ class _ButlerFactory:
         # collection.
         self.inputs = tuple(registry.queryCollections(args.input, flattenChains=True)) if args.input else ()
 
+        # If things are inconsistent and user has asked for a rebase then
+        # construct the new output chain.
+        if args.rebase and self._checkOutputInputConsistency():
+            assert self.output is not None
+            newOutputChain = [item for item in self.output.chain if item.startswith(self.output.name)]
+            newOutputChain.extend([item for item in self.inputs if item not in newOutputChain])
+            newOutputChain.extend([item for item in self.output.chain if item not in newOutputChain])
+            self.output.chain = tuple(newOutputChain)
+
     def check(self, args: SimpleNamespace) -> None:
         """Check command-line options for consistency with each other and the
         data repository.
@@ -242,24 +260,9 @@ class _ButlerFactory:
             construction parameter of the same name.
         """
         assert not (args.extend_run and args.replace_run), "In mutually-exclusive group in ArgumentParser."
-        if self.inputs and self.output is not None and self.output.exists:
-            # Passing the same inputs that were used to initialize the output
-            # collection is allowed; this means they must _end_ with the same
-            # collections, because we push new runs to the front of the chain.
-            for c1, c2 in zip(self.inputs[::-1], self.output.chain[::-1], strict=False):
-                if c1 != c2:
-                    raise ValueError(
-                        f"Output CHAINED collection {self.output.name!r} exists, but it ends with "
-                        "a different sequence of input collections than those given: "
-                        f"{c1!r} != {c2!r} in inputs={self.inputs} vs "
-                        f"{self.output.name}={self.output.chain}."
-                    )
-            if len(self.inputs) > len(self.output.chain):
-                nNew = len(self.inputs) - len(self.output.chain)
-                raise ValueError(
-                    f"Cannot add new input collections {self.inputs[:nNew]} after "
-                    "output collection is first created."
-                )
+        if consistencyError := self._checkOutputInputConsistency():
+            raise ValueError(consistencyError)
+
         if args.extend_run:
             if self.outputRun is None:
                 raise ValueError("Cannot --extend-run when no output collection is given.")
@@ -275,6 +278,27 @@ class _ButlerFactory:
             raise ValueError("--prune-replaced requires --replace-run.")
         if args.replace_run and (self.output is None or not self.output.exists):
             raise ValueError("--output must point to an existing CHAINED collection for --replace-run.")
+
+    def _checkOutputInputConsistency(self) -> str | None:
+        if self.inputs and self.output is not None and self.output.exists:
+            # Passing the same inputs that were used to initialize the output
+            # collection is allowed; this means they must _end_ with the same
+            # collections, because we push new runs to the front of the chain.
+            for c1, c2 in zip(self.inputs[::-1], self.output.chain[::-1], strict=False):
+                if c1 != c2:
+                    return (
+                        f"Output CHAINED collection {self.output.name!r} exists, but it ends with "
+                        "a different sequence of input collections than those given: "
+                        f"{c1!r} != {c2!r} in inputs={self.inputs} vs "
+                        f"{self.output.name}={self.output.chain}."
+                    )
+            if len(self.inputs) > len(self.output.chain):
+                nNew = len(self.inputs) - len(self.output.chain)
+                return (
+                    f"Cannot add new input collections {self.inputs[:nNew]} after "
+                    "output collection is first created."
+                )
+        return None
 
     @classmethod
     def _makeReadParts(cls, args: SimpleNamespace) -> tuple[Butler, Sequence[str], _ButlerFactory]:

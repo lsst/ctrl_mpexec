@@ -107,6 +107,14 @@ input_option = MWOptionDecorator(
     multiple=True,
 )
 
+
+rebase_option = MWOptionDecorator(
+    "--rebase",
+    help=unwrap("""Reset output collection chain if it is inconsistent with --inputs"""),
+    is_flag=True,
+)
+
+
 no_versions_option = MWOptionDecorator(
     "--no-versions", help="Do not save or check package versions.", is_flag=True
 )

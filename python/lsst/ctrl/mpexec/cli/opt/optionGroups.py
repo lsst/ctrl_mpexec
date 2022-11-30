@@ -137,6 +137,7 @@ class butler_options(OptionGroup):  # noqa: N801
             ctrlMpExecOpts.replace_run_option(),
             ctrlMpExecOpts.prune_replaced_option(),
             ctrlMpExecOpts.data_query_option(),
+            ctrlMpExecOpts.rebase_option(),
         ]
 
 

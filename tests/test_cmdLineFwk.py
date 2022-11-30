@@ -51,6 +51,7 @@ from lsst.ctrl.mpexec.cli.utils import (
 )
 from lsst.ctrl.mpexec.showInfo import ShowInfo
 from lsst.daf.butler import (
+    CollectionType,
     Config,
     DataCoordinate,
     DatasetRef,
@@ -532,6 +533,57 @@ class CmdLineFwkTestCaseWithButler(unittest.TestCase):
 
         # test that we've disabled implicit threading
         self.assertEqual(os.environ["OMP_NUM_THREADS"], "1")
+
+    def testSimpleQGraph_rebase(self):
+        """Test successful execution of trivial quantum graph, with --rebase
+        used to force redefinition of the output collection.
+        """
+        # Pass one input collection here for the usual test setup; we'll
+        # override it later.
+        args = _makeArgs(butler_config=self.root, input="test1", output="output")
+        butler = makeSimpleButler(self.root, run=args.input, inMemory=False)
+        populateButler(self.pipeline, butler)
+
+        fwk = CmdLineFwk()
+        taskFactory = AddTaskFactoryMock()
+
+        # We'll actually pass two input collections in.  One is empty, but
+        # the stuff we're testing here doesn't care.
+        args.input = ["test2", "test1"]
+        butler.registry.registerCollection("test2", CollectionType.RUN)
+
+        # Set up the output collection with a sequence that doesn't end the
+        # same way as the input collection.  This is normally an error.
+        butler.registry.registerCollection("output", CollectionType.CHAINED)
+        butler.registry.registerCollection("unexpected_input", CollectionType.RUN)
+        butler.registry.registerCollection("output/run0", CollectionType.RUN)
+        butler.registry.setCollectionChain("output", ["test2", "unexpected_input", "test1", "output/run0"])
+
+        # Without --rebase, the inconsistent input and output collections are
+        # an error.
+        with self.assertRaises(ValueError):
+            fwk.makeGraph(self.pipeline, args)
+
+        # With --rebase, the output collection gets redefined.
+        args.rebase = True
+        qgraph = fwk.makeGraph(self.pipeline, args)
+
+        self.assertEqual(len(qgraph.taskGraph), self.nQuanta)
+        self.assertEqual(len(qgraph), self.nQuanta)
+
+        # Ensure that the output run used in the graph is also used in
+        # the pipeline execution. It is possible for makeGraph and runPipeline
+        # to calculate time-stamped runs across a second boundary.
+        args.output_run = qgraph.metadata["output_run"]
+
+        fwk.runPipeline(qgraph, taskFactory, args)
+        self.assertEqual(taskFactory.countExec, self.nQuanta)
+
+        butler.registry.refresh()
+        self.assertEqual(
+            list(butler.registry.getCollectionChain("output")),
+            [args.output_run, "output/run0", "test2", "test1", "unexpected_input"],
+        )
 
     def test_simple_qgraph_qbb(self):
         """Test successful execution of trivial quantum graph in QBB mode."""
