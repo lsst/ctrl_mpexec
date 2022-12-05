@@ -159,6 +159,9 @@ class _Job:
 
         quantum = pickle.loads(quantum_pickle)
         try:
+            if butler is not None:
+                # None is apparently possible in some tests, despite annotation
+                butler.registry.refresh()
             quantumExecutor.execute(taskDef, quantum, butler)
         finally:
             # If sending fails we do not want this new exception to be exposed.
