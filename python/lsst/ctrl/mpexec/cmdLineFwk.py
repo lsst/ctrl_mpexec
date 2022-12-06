@@ -34,10 +34,17 @@ import logging
 import shutil
 from collections.abc import Iterable, Sequence
 from types import SimpleNamespace
-from typing import Optional, Tuple
+from typing import TYPE_CHECKING, Optional, Tuple
 
 from astropy.table import Table
-from lsst.daf.butler import Butler, CollectionType, DatasetRef, DatastoreCacheManager, Registry
+from lsst.daf.butler import (
+    Butler,
+    CollectionType,
+    DatasetId,
+    DatasetRef,
+    DatastoreCacheManager,
+    QuantumBackedButler,
+)
 from lsst.daf.butler.registry import MissingCollectionError, RegistryDefaults
 from lsst.daf.butler.registry.wildcards import CollectionWildcard
 from lsst.pipe.base import (
@@ -46,8 +53,6 @@ from lsst.pipe.base import (
     Pipeline,
     PipelineDatasetTypes,
     QuantumGraph,
-    TaskDef,
-    TaskFactory,
     buildExecutionButler,
 )
 from lsst.utils import doImportType
@@ -57,8 +62,13 @@ from . import util
 from .dotTools import graph2dot, pipeline2dot
 from .executionGraphFixup import ExecutionGraphFixup
 from .mpGraphExecutor import MPGraphExecutor
-from .preExecInit import PreExecInit
+from .preExecInit import PreExecInit, PreExecInitLimited
 from .singleQuantumExecutor import SingleQuantumExecutor
+
+if TYPE_CHECKING:
+    from lsst.daf.butler import DatastoreRecordData, Registry
+    from lsst.pipe.base import TaskDef, TaskFactory
+
 
 # ----------------------------------
 #  Local non-exported definitions --
@@ -349,6 +359,7 @@ class _ButlerFactory:
         run: Optional[str] = None
         if args.extend_run:
             assert self.outputRun is not None, "Output collection has to be specified."
+        if self.outputRun is not None:
             run = self.outputRun.name
         _LOG.debug("Preparing registry to read from %s and expect future writes to '%s'.", inputs, run)
         return butler, inputs, run
@@ -569,7 +580,7 @@ class CmdLineFwk:
                 "input": args.input,
                 "output": args.output,
                 "butler_argument": args.butler_config,
-                "output_run": args.output_run,
+                "output_run": run,
                 "extend_run": args.extend_run,
                 "skip_existing_in": args.skip_existing_in,
                 "skip_existing": args.skip_existing,
@@ -577,6 +588,8 @@ class CmdLineFwk:
                 "user": getpass.getuser(),
                 "time": f"{datetime.datetime.now()}",
             }
+            # Execution butler builder relies on non-resolved output refs.
+            resolve_refs = not args.execution_butler_location
             qgraph = graphBuilder.makeGraph(
                 pipeline,
                 collections,
@@ -584,6 +597,7 @@ class CmdLineFwk:
                 args.data_query,
                 metadata=metadata,
                 datasetQueryConstraint=args.dataset_query_constraint,
+                resolveRefs=resolve_refs,
             )
             if args.show_qgraph_header:
                 qgraph.buildAndPrintHeader()
@@ -680,7 +694,8 @@ class CmdLineFwk:
         if not args.enable_implicit_threading:
             disable_implicit_threading()
 
-        # make butler instance
+        # Make butler instance. QuantumGraph should have an output run defined,
+        # but we ignore it here and let command line decide actual output run.
         if butler is None:
             butler = _ButlerFactory.makeWriteButler(args, graph.iterTaskGraph())
 
@@ -797,3 +812,85 @@ class CmdLineFwk:
                 raise ValueError("Graph fixup is not an instance of ExecutionGraphFixup class")
             return fixup
         return None
+
+    def preExecInitQBB(self, task_factory: TaskFactory, args: SimpleNamespace) -> None:
+
+        # Load quantum graph. We do not really need individual Quanta here,
+        # but we need datastore records for initInputs, and those are only
+        # available from Quanta, so load the whole thing.
+        qgraph = QuantumGraph.loadUri(args.qgraph, graphID=args.qgraph_id)
+        universe = qgraph.universe
+
+        # Collect all init input/output dataset IDs.
+        predicted_inputs: set[DatasetId] = set()
+        predicted_outputs: set[DatasetId] = set()
+        for taskDef in qgraph.iterTaskGraph():
+            if (refs := qgraph.initInputRefs(taskDef)) is not None:
+                predicted_inputs.update(ref.getCheckedId() for ref in refs)
+            if (refs := qgraph.initOutputRefs(taskDef)) is not None:
+                predicted_outputs.update(ref.getCheckedId() for ref in refs)
+        predicted_outputs.update(ref.getCheckedId() for ref in qgraph.globalInitOutputRefs())
+        # remove intermediates from inputs
+        predicted_inputs -= predicted_outputs
+
+        # Very inefficient way to extract datastore records from quantum graph,
+        # we have to scan all quanta and look at their datastore records.
+        datastore_records: dict[str, DatastoreRecordData] = {}
+        for quantum_node in qgraph:
+            for store_name, records in quantum_node.quantum.datastore_records.items():
+                subset = records.subset(predicted_inputs)
+                if subset is not None:
+                    datastore_records.setdefault(store_name, DatastoreRecordData()).update(subset)
+
+        # Make butler from everything.
+        butler = QuantumBackedButler.from_predicted(
+            config=args.butler_config,
+            predicted_inputs=predicted_inputs,
+            predicted_outputs=predicted_outputs,
+            dimensions=universe,
+            datastore_records=datastore_records,
+            search_paths=args.config_search_path,
+        )
+
+        # Save all InitOutputs, configs, etc.
+        preExecInit = PreExecInitLimited(butler, task_factory)
+        preExecInit.initialize(qgraph)
+
+    def runGraphQBB(self, task_factory: TaskFactory, args: SimpleNamespace) -> None:
+
+        # Load quantum graph.
+        nodes = args.qgraph_node_id or None
+        qgraph = QuantumGraph.loadUri(args.qgraph, nodes=nodes, graphID=args.qgraph_id)
+
+        if qgraph.metadata is None:
+            raise ValueError("QuantumGraph is missing metadata, cannot ")
+
+        # make special quantum executor
+        quantumExecutor = SingleQuantumExecutor(
+            butler=None,
+            taskFactory=task_factory,
+            enableLsstDebug=args.enableLsstDebug,
+            exitOnKnownError=args.fail_fast,
+            butler_config=args.butler_config,
+            universe=qgraph.universe,
+        )
+
+        timeout = self.MP_TIMEOUT if args.timeout is None else args.timeout
+        executor = MPGraphExecutor(
+            numProc=args.processes,
+            timeout=timeout,
+            startMethod=args.start_method,
+            quantumExecutor=quantumExecutor,
+            failFast=args.fail_fast,
+            pdb=args.pdb,
+        )
+        try:
+            with util.profile(args.profile, _LOG):
+                executor.execute(qgraph)
+        finally:
+            if args.summary:
+                report = executor.getReport()
+                if report:
+                    with open(args.summary, "w") as out:
+                        # Do not save fields that are not set.
+                        out.write(report.json(exclude_none=True, indent=2))

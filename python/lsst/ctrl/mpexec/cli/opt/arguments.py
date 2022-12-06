@@ -23,3 +23,5 @@
 from lsst.daf.butler.cli.utils import MWArgumentDecorator
 
 collection_argument = MWArgumentDecorator("collection")
+
+qgraph_argument = MWArgumentDecorator("qgraph")

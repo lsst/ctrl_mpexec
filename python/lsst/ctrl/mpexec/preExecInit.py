@@ -26,13 +26,16 @@ __all__ = ["PreExecInit"]
 # -------------------------------
 #  Imports of standard modules --
 # -------------------------------
+import abc
 import logging
-from typing import TYPE_CHECKING, Any, Iterable
+from collections.abc import Iterable, Iterator
+from contextlib import contextmanager
+from typing import TYPE_CHECKING, Any
 
 # -----------------------------
 #  Imports for other modules --
 # -----------------------------
-from lsst.daf.butler import DatasetType
+from lsst.daf.butler import DataCoordinate, DatasetIdFactory, DatasetRef, DatasetType
 from lsst.daf.butler.registry import ConflictingDefinitionError
 from lsst.pipe.base import PipelineDatasetTypes
 from lsst.utils.packages import Packages
@@ -40,43 +43,49 @@ from lsst.utils.packages import Packages
 from .mock_task import MockButlerQuantumContext
 
 if TYPE_CHECKING:
-    from lsst.daf.butler import Butler
-    from lsst.pipe.base import QuantumGraph, TaskFactory
+    from lsst.daf.butler import Butler, LimitedButler
+    from lsst.pipe.base import QuantumGraph, TaskDef, TaskFactory
 
 _LOG = logging.getLogger(__name__)
 
 
-class PreExecInit:
-    """Initialization of registry for QuantumGraph execution.
+class MissingReferenceError(Exception):
+    """Exception raised when resolved reference is missing from graph."""
 
-    This class encapsulates all necessary operations that have to be performed
-    on butler and registry to prepare them for QuantumGraph execution.
+    pass
+
+
+def _compare_packages(old_packages: Packages, new_packages: Packages) -> None:
+    """Compare two versions of Packages.
 
     Parameters
     ----------
-    butler : `~lsst.daf.butler.Butler`
-        Data butler instance.
-    taskFactory : `~lsst.pipe.base.TaskFactory`
-        Task factory.
-    extendRun : `bool`, optional
-        If `True` then do not try to overwrite any datasets that might exist
-        in ``butler.run``; instead compare them when appropriate/possible.  If
-        `False`, then any existing conflicting dataset will cause a butler
-        exception to be raised.
-    mock : `bool`, optional
-        If `True` then also do initialization needed for pipeline mocking.
+    old_packages : `Packages`
+        Previously recorded package versions.
+    new_packages : `Packages`
+        New set of package versions.
+
+    Raises
+    ------
+    TypeError
+        Raised if parameters are inconsistent.
+    """
+    diff = new_packages.difference(old_packages)
+    if diff:
+        versions_str = "; ".join(f"{pkg}: {diff[pkg][1]} vs {diff[pkg][0]}" for pkg in diff)
+        raise TypeError(f"Package versions mismatch: ({versions_str})")
+    else:
+        _LOG.debug("new packages are consistent with old")
+
+
+class PreExecInitBase(abc.ABC):
+    """Common part of the implementation of PreExecInit classes that does not
+    depend on Butler type.
     """
 
-    def __init__(self, butler: Butler, taskFactory: TaskFactory, extendRun: bool = False, mock: bool = False):
+    def __init__(self, butler: LimitedButler, taskFactory: TaskFactory):
         self.butler = butler
         self.taskFactory = taskFactory
-        self.extendRun = extendRun
-        self.mock = mock
-        if self.extendRun and self.butler.run is None:
-            raise RuntimeError(
-                "Cannot perform extendRun logic unless butler is initialized "
-                "with a default output RUN collection."
-            )
 
     def initialize(
         self,
@@ -116,6 +125,7 @@ class PreExecInit:
             if saveVersions:
                 self.savePackageVersions(graph)
 
+    @abc.abstractmethod
     def initializeDatasetTypes(self, graph: QuantumGraph, registerDatasetTypes: bool = False) -> None:
         """Save or check DatasetTypes output by the tasks in a graph.
 
@@ -139,9 +149,256 @@ class PreExecInit:
             Raised if ``registerDatasetTypes`` is ``False`` and DatasetType
             does not exist in registry.
         """
+        raise NotImplementedError()
+
+    def saveInitOutputs(self, graph: QuantumGraph) -> None:
+        """Write any datasets produced by initializing tasks in a graph.
+
+        Parameters
+        ----------
+        graph : `~lsst.pipe.base.QuantumGraph`
+            Execution graph.
+
+        Raises
+        ------
+        TypeError
+            Raised if the type of existing object in butler is different from
+            new data.
+        """
+        _LOG.debug("Will save InitOutputs for all tasks")
+        for taskDef in graph.iterTaskGraph():
+            init_input_refs = self.find_init_input_refs(taskDef, graph)
+            task = self.taskFactory.makeTask(taskDef, self.butler, init_input_refs)
+            for name in taskDef.connections.initOutputs:
+                attribute = getattr(taskDef.connections, name)
+                obj_from_store, init_output_ref = self.find_init_output(taskDef, attribute.name, graph)
+                if init_output_ref is None:
+                    raise ValueError(f"Cannot find or make dataset reference for init output {name}")
+                init_output_var = getattr(task, name)
+
+                if obj_from_store is not None:
+                    _LOG.debug(
+                        "Retrieving InitOutputs for task=%s key=%s dsTypeName=%s", task, name, attribute.name
+                    )
+                    obj_from_store = self.butler.getDirect(init_output_ref)
+                    # Types are supposed to be identical.
+                    # TODO: Check that object contents is identical too.
+                    if type(obj_from_store) is not type(init_output_var):
+                        raise TypeError(
+                            f"Stored initOutput object type {type(obj_from_store)} "
+                            f"is different  from task-generated type "
+                            f"{type(init_output_var)} for task {taskDef}"
+                        )
+                else:
+                    _LOG.debug("Saving InitOutputs for task=%s key=%s", taskDef.label, name)
+                    # This can still raise if there is a concurrent write.
+                    self.butler.putDirect(init_output_var, init_output_ref)
+
+    def saveConfigs(self, graph: QuantumGraph) -> None:
+        """Write configurations for pipeline tasks to butler or check that
+        existing configurations are equal to the new ones.
+
+        Parameters
+        ----------
+        graph : `~lsst.pipe.base.QuantumGraph`
+            Execution graph.
+
+        Raises
+        ------
+        TypeError
+            Raised if existing object in butler is different from new data.
+        Exception
+            Raised if ``extendRun`` is `False` and datasets already exists.
+            Content of a butler collection should not be changed if exception
+            is raised.
+        """
+
+        def logConfigMismatch(msg: str) -> None:
+            """Log messages about configuration mismatch."""
+            _LOG.fatal("Comparing configuration: %s", msg)
+
+        _LOG.debug("Will save Configs for all tasks")
+        # start transaction to rollback any changes on exceptions
+        with self.transaction():
+            for taskDef in graph.iterTaskGraph():
+                config_name = taskDef.configDatasetName
+
+                old_config, dataset_ref = self.find_init_output(taskDef, taskDef.configDatasetName, graph)
+
+                if old_config is not None:
+                    if not taskDef.config.compare(old_config, shortcut=False, output=logConfigMismatch):
+                        raise TypeError(
+                            f"Config does not match existing task config {taskDef.configDatasetName!r} in "
+                            "butler; tasks configurations must be consistent within the same run collection"
+                        )
+                else:
+                    # butler will raise exception if dataset is already there
+                    _LOG.debug("Saving Config for task=%s dataset type=%s", taskDef.label, config_name)
+                    self.butler.putDirect(taskDef.config, dataset_ref)
+
+    def savePackageVersions(self, graph: QuantumGraph) -> None:
+        """Write versions of software packages to butler.
+
+        Parameters
+        ----------
+        graph : `~lsst.pipe.base.QuantumGraph`
+            Execution graph.
+
+        Raises
+        ------
+        TypeError
+            Raised if existing object in butler is incompatible with new data.
+        """
+        packages = Packages.fromSystem()
+        _LOG.debug("want to save packages: %s", packages)
+
+        # start transaction to rollback any changes on exceptions
+        with self.transaction():
+
+            old_packages, dataset_ref = self.find_packages(graph)
+
+            if old_packages is not None:
+                # Note that because we can only detect python modules that have
+                # been imported, the stored list of products may be more or
+                # less complete than what we have now.  What's important is
+                # that the products that are in common have the same version.
+                _compare_packages(old_packages, packages)
+                # Update the old set of packages in case we have more packages
+                # that haven't been persisted.
+                extra = packages.extra(old_packages)
+                if extra:
+                    _LOG.debug("extra packages: %s", extra)
+                    old_packages.update(packages)
+                    # have to remove existing dataset first, butler has no
+                    # replace option.
+                    self.butler.pruneDatasets([dataset_ref], unstore=True, purge=True)
+                    self.butler.putDirect(old_packages, dataset_ref)
+            else:
+                self.butler.putDirect(packages, dataset_ref)
+
+    @abc.abstractmethod
+    def find_init_input_refs(self, taskDef: TaskDef, graph: QuantumGraph) -> Iterable[DatasetRef]:
+        """Return the list of resolved dataset references for task init inputs.
+
+        Parameters
+        ----------
+        taskDef : `~lsst.pipe.base.TaskDef`
+            Pipeline task definition.
+        graph : `~lsst.pipe.base.QuantumGraph`
+            Quantum graph.
+
+        Returns
+        -------
+        refs : `~collections.abc.Iterable` [`~lsst.daf.butler.DatasetRef`]
+            Resolved dataset references.
+        """
+        raise NotImplementedError()
+
+    @abc.abstractmethod
+    def find_init_output(
+        self, taskDef: TaskDef, dataset_type: str, graph: QuantumGraph
+    ) -> tuple[Any | None, DatasetRef]:
+        """Find task init output for given dataset type.
+
+        Parameters
+        ----------
+        taskDef : `~lsst.pipe.base.TaskDef`
+            Pipeline task definition.
+        dataset_type : `str`
+            Dataset type name.
+        graph : `~lsst.pipe.base.QuantumGraph`
+            Quantum graph.
+
+        Returns
+        -------
+        data
+            Existing init output object retrieved from butler, `None` if butler
+            has no existing object.
+        ref : `~lsst.daf.butler.DatasetRef`
+            Resolved reference for init output to be stored in butler.
+
+        Raises
+        ------
+        MissingReferenceError
+            Raised if reference cannot be found or generated.
+        """
+        raise NotImplementedError()
+
+    @abc.abstractmethod
+    def find_packages(self, graph: QuantumGraph) -> tuple[Packages | None, DatasetRef]:
+        """Find packages information.
+
+        Parameters
+        ----------
+        graph : `~lsst.pipe.base.QuantumGraph`
+            Quantum graph.
+
+        Returns
+        -------
+        packages : `lsst.utils.packages.Packages` or `None`
+            Existing packages data retrieved from butler, or `None`.
+        ref : `~lsst.daf.butler.DatasetRef`
+            Resolved reference for packages to be stored in butler.
+
+        Raises
+        ------
+        MissingReferenceError
+            Raised if reference cannot be found or generated.
+        """
+        raise NotImplementedError()
+
+    @contextmanager
+    def transaction(self) -> Iterator[None]:
+        """Context manager for transaction.
+
+        Default implementation has no transaction support.
+        """
+        yield
+
+
+class PreExecInit(PreExecInitBase):
+    """Initialization of registry for QuantumGraph execution.
+
+    This class encapsulates all necessary operations that have to be performed
+    on butler and registry to prepare them for QuantumGraph execution.
+
+    Parameters
+    ----------
+    butler : `~lsst.daf.butler.Butler`
+        Data butler instance.
+    taskFactory : `~lsst.pipe.base.TaskFactory`
+        Task factory.
+    extendRun : `bool`, optional
+        If `True` then do not try to overwrite any datasets that might exist
+        in ``butler.run``; instead compare them when appropriate/possible.  If
+        `False`, then any existing conflicting dataset will cause a butler
+        exception to be raised.
+    mock : `bool`, optional
+        If `True` then also do initialization needed for pipeline mocking.
+    """
+
+    def __init__(self, butler: Butler, taskFactory: TaskFactory, extendRun: bool = False, mock: bool = False):
+        super().__init__(butler, taskFactory)
+        self.full_butler = butler
+        self.extendRun = extendRun
+        self.mock = mock
+        if self.extendRun and self.full_butler.run is None:
+            raise RuntimeError(
+                "Cannot perform extendRun logic unless butler is initialized "
+                "with a default output RUN collection."
+            )
+
+    @contextmanager
+    def transaction(self) -> Iterator[None]:
+        # dosctring inherited
+        with self.full_butler.transaction():
+            yield
+
+    def initializeDatasetTypes(self, graph: QuantumGraph, registerDatasetTypes: bool = False) -> None:
+        # docstring inherited
         pipeline = graph.taskGraph
         pipelineDatasetTypes = PipelineDatasetTypes.fromPipeline(
-            pipeline, registry=self.butler.registry, include_configs=True, include_packages=True
+            pipeline, registry=self.full_butler.registry, include_configs=True, include_packages=True
         )
 
         for datasetTypes, is_input in (
@@ -203,16 +460,16 @@ class PreExecInit:
                 # this is a no-op if it already exists and is consistent,
                 # and it raises if it is inconsistent.
                 try:
-                    self.butler.registry.registerDatasetType(datasetType)
+                    self.full_butler.registry.registerDatasetType(datasetType)
                 except ConflictingDefinitionError:
                     if not _check_compatibility(
-                        datasetType, self.butler.registry.getDatasetType(datasetType.name), is_input
+                        datasetType, self.full_butler.registry.getDatasetType(datasetType.name), is_input
                     ):
                         raise
             else:
                 _LOG.debug("Checking DatasetType %s against registry", datasetType)
                 try:
-                    expected = self.butler.registry.getDatasetType(datasetType.name)
+                    expected = self.full_butler.registry.getDatasetType(datasetType.name)
                 except KeyError:
                     # Likely means that --register-dataset-types is forgotten.
                     missing_datasetTypes.add(datasetType.name)
@@ -231,168 +488,101 @@ class PreExecInit:
                 "passing `--register-dataset-types` option to `pipetask run`."
             )
 
-    def saveInitOutputs(self, graph: QuantumGraph) -> None:
-        """Write any datasets produced by initializing tasks in a graph.
+    def find_init_input_refs(self, taskDef: TaskDef, graph: QuantumGraph) -> Iterable[DatasetRef]:
+        # docstring inherited
+        refs: list[DatasetRef] = []
+        for name in taskDef.connections.initInputs:
+            attribute = getattr(taskDef.connections, name)
+            dataId = DataCoordinate.makeEmpty(self.full_butler.dimensions)
+            dataset_type = DatasetType(attribute.name, graph.universe.empty, attribute.storageClass)
+            ref = self.full_butler.registry.findDataset(dataset_type, dataId)
+            if ref is None:
+                raise ValueError(f"InitInput does not exist in butler for dataset type {dataset_type}")
+            refs.append(ref)
+        return refs
 
-        Parameters
-        ----------
-        graph : `~lsst.pipe.base.QuantumGraph`
-            Execution graph.
+    def find_init_output(
+        self, taskDef: TaskDef, dataset_type_name: str, graph: QuantumGraph
+    ) -> tuple[Any | None, DatasetRef]:
+        # docstring inherited
+        dataset_type = self.full_butler.registry.getDatasetType(dataset_type_name)
+        dataId = DataCoordinate.makeEmpty(self.full_butler.dimensions)
+        return self._find_existing(dataset_type, dataId)
 
-        Raises
-        ------
-        TypeError
-            Raised if ``extendRun`` is `True` but type of existing object in
-            butler is different from new data.
-        Exception
-            Raised if ``extendRun`` is `False` and datasets already
-            exists. Content of a butler collection may be changed if
-            exception is raised.
+    def find_packages(self, graph: QuantumGraph) -> tuple[Packages | None, DatasetRef]:
+        # docstring inherited
+        dataset_type = self.full_butler.registry.getDatasetType(PipelineDatasetTypes.packagesDatasetName)
+        dataId = DataCoordinate.makeEmpty(self.full_butler.dimensions)
+        return self._find_existing(dataset_type, dataId)
 
-        Notes
-        -----
-        If ``extendRun`` is `True` then existing datasets are not
-        overwritten, instead we should check that their stored object is
-        exactly the same as what we would save at this time. Comparing
-        arbitrary types of object is, of course, non-trivial. Current
-        implementation only checks the existence of the datasets and their
-        types against the types of objects produced by tasks. Ideally we
-        would like to check that object data is identical too but presently
-        there is no generic way to compare objects. In the future we can
-        potentially introduce some extensible mechanism for that.
+    def _find_existing(
+        self, dataset_type: DatasetType, dataId: DataCoordinate
+    ) -> tuple[Any | None, DatasetRef]:
+        """Make a reference of a given dataset type and try to retrieve it from
+        butler. If not found then generate new resolved reference.
         """
-        _LOG.debug("Will save InitOutputs for all tasks")
-        for taskDef in graph.iterTaskGraph():
-            task = self.taskFactory.makeTask(
-                taskDef.taskClass, taskDef.label, taskDef.config, None, self.butler
-            )
-            for name in taskDef.connections.initOutputs:
-                attribute = getattr(taskDef.connections, name)
-                initOutputVar = getattr(task, name)
-                objFromStore = None
-                if self.extendRun:
-                    # check if it is there already
-                    _LOG.debug(
-                        "Retrieving InitOutputs for task=%s key=%s dsTypeName=%s", task, name, attribute.name
-                    )
-                    try:
-                        objFromStore = self.butler.get(attribute.name, {}, collections=[self.butler.run])
-                        # Types are supposed to be identical.
-                        # TODO: Check that object contents is identical too.
-                        if type(objFromStore) is not type(initOutputVar):
-                            raise TypeError(
-                                f"Stored initOutput object type {type(objFromStore)} "
-                                f"is different  from task-generated type "
-                                f"{type(initOutputVar)} for task {taskDef}"
-                            )
-                    except (LookupError, FileNotFoundError):
-                        # FileNotFoundError likely means execution butler
-                        # where refs do exist but datastore artifacts do not.
-                        pass
-                if objFromStore is None:
-                    # butler will raise exception if dataset is already there
-                    _LOG.debug("Saving InitOutputs for task=%s key=%s", taskDef.label, name)
-                    self.butler.put(initOutputVar, attribute.name, {})
+        run = self.full_butler.run
+        assert run is not None
 
-    def saveConfigs(self, graph: QuantumGraph) -> None:
-        """Write configurations for pipeline tasks to butler or check that
-        existing configurations are equal to the new ones.
+        ref = self.full_butler.registry.findDataset(dataset_type, dataId, collections=[run])
+        if self.extendRun and ref is not None:
+            try:
+                config = self.butler.getDirect(ref)
+                return config, ref
+            except (LookupError, FileNotFoundError):
+                return None, ref
+        else:
+            # make new resolved dataset ref
+            ref = DatasetRef(dataset_type, dataId)
+            ref = DatasetIdFactory().resolveRef(ref, run)
+            return None, ref
 
-        Parameters
-        ----------
-        graph : `~lsst.pipe.base.QuantumGraph`
-            Execution graph.
 
-        Raises
-        ------
-        TypeError
-            Raised if ``extendRun`` is `True` but existing object in butler is
-            different from new data.
-        Exception
-            Raised if ``extendRun`` is `False` and datasets already exists.
-            Content of a butler collection should not be changed if exception
-            is raised.
+class PreExecInitLimited(PreExecInitBase):
+    """Initialization of registry for QuantumGraph execution.
+
+    This class works with LimitedButler and expects that all references in
+    QuantumGraph are resolved.
+
+    Parameters
+    ----------
+    butler : `~lsst.daf.butler.LimitedButler`
+        Limited data butler instance.
+    taskFactory : `~lsst.pipe.base.TaskFactory`
+        Task factory.
+    """
+
+    def __init__(self, butler: LimitedButler, taskFactory: TaskFactory):
+        super().__init__(butler, taskFactory)
+
+    def initializeDatasetTypes(self, graph: QuantumGraph, registerDatasetTypes: bool = False) -> None:
+        # docstring inherited
+        # With LimitedButler we never create or check dataset types.
+        pass
+
+    def find_init_input_refs(self, taskDef: TaskDef, graph: QuantumGraph) -> Iterable[DatasetRef]:
+        # docstring inherited
+        return graph.initInputRefs(taskDef) or []
+
+    def find_init_output(
+        self, taskDef: TaskDef, dataset_type: str, graph: QuantumGraph
+    ) -> tuple[Any | None, DatasetRef]:
+        # docstring inherited
+        return self._find_existing(graph.initOutputRefs(taskDef) or [], dataset_type)
+
+    def find_packages(self, graph: QuantumGraph) -> tuple[Packages | None, DatasetRef]:
+        # docstring inherited
+        return self._find_existing(graph.globalInitOutputRefs(), PipelineDatasetTypes.packagesDatasetName)
+
+    def _find_existing(self, refs: Iterable[DatasetRef], dataset_type: str) -> tuple[Any | None, DatasetRef]:
+        """Find a reference of a given dataset type in the list of references
+        and try to retrieve it from butler.
         """
-
-        def logConfigMismatch(msg: str) -> None:
-            """Log messages about configuration mismatch."""
-            _LOG.fatal("Comparing configuration: %s", msg)
-
-        _LOG.debug("Will save Configs for all tasks")
-        # start transaction to rollback any changes on exceptions
-        with self.butler.transaction():
-            for taskDef in graph.taskGraph:
-                configName = taskDef.configDatasetName
-
-                oldConfig = None
-                if self.extendRun:
-                    try:
-                        oldConfig = self.butler.get(configName, {}, collections=[self.butler.run])
-                        if not taskDef.config.compare(oldConfig, shortcut=False, output=logConfigMismatch):
-                            raise TypeError(
-                                f"Config does not match existing task config {configName!r} in butler; "
-                                "tasks configurations must be consistent within the same run collection"
-                            )
-                    except (LookupError, FileNotFoundError):
-                        # FileNotFoundError likely means execution butler
-                        # where refs do exist but datastore artifacts do not.
-                        pass
-                if oldConfig is None:
-                    # butler will raise exception if dataset is already there
-                    _LOG.debug("Saving Config for task=%s dataset type=%s", taskDef.label, configName)
-                    self.butler.put(taskDef.config, configName, {})
-
-    def savePackageVersions(self, graph: QuantumGraph) -> None:
-        """Write versions of software packages to butler.
-
-        Parameters
-        ----------
-        graph : `~lsst.pipe.base.QuantumGraph`
-            Execution graph.
-
-        Raises
-        ------
-        TypeError
-            Raised if ``extendRun`` is `True` but existing object in butler is
-            different from new data.
-        """
-        packages = Packages.fromSystem()
-        _LOG.debug("want to save packages: %s", packages)
-        datasetType = PipelineDatasetTypes.packagesDatasetName
-        dataId: dict[str, Any] = {}
-        oldPackages = None
-        # start transaction to rollback any changes on exceptions
-        with self.butler.transaction():
-            if self.extendRun:
+        for ref in refs:
+            if ref.datasetType.name == dataset_type:
                 try:
-                    oldPackages = self.butler.get(datasetType, dataId, collections=[self.butler.run])
-                    _LOG.debug("old packages: %s", oldPackages)
+                    data = self.butler.getDirect(ref)
+                    return data, ref
                 except (LookupError, FileNotFoundError):
-                    # FileNotFoundError likely means execution butler where
-                    # refs do exist but datastore artifacts do not.
-                    pass
-            if oldPackages is not None:
-                # Note that because we can only detect python modules that have
-                # been imported, the stored list of products may be more or
-                # less complete than what we have now.  What's important is
-                # that the products that are in common have the same version.
-                diff = packages.difference(oldPackages)
-                if diff:
-                    versions_str = "; ".join(f"{pkg}: {diff[pkg][1]} vs {diff[pkg][0]}" for pkg in diff)
-                    raise TypeError(f"Package versions mismatch: ({versions_str})")
-                else:
-                    _LOG.debug("new packages are consistent with old")
-                # Update the old set of packages in case we have more packages
-                # that haven't been persisted.
-                extra = packages.extra(oldPackages)
-                if extra:
-                    _LOG.debug("extra packages: %s", extra)
-                    oldPackages.update(packages)
-                    # have to remove existing dataset first, butler has no
-                    # replace option.
-                    ref = self.butler.registry.findDataset(datasetType, dataId, collections=[self.butler.run])
-                    assert ref is not None, "Expecting to get dataset ref which is not None."
-                    self.butler.pruneDatasets([ref], unstore=True, purge=True)
-                    self.butler.put(oldPackages, datasetType, dataId)
-            else:
-                self.butler.put(packages, datasetType, dataId)
+                    return None, ref
+        raise MissingReferenceError(f"Failed to find reference for dataset type {dataset_type}")
