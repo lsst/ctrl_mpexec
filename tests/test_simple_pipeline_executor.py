@@ -219,12 +219,10 @@ class SimplePipelineExecutorTests(lsst.utils.tests.TestCase):
         # A returns a dict because it has not been told to do anything else.
         # That does not match the storage class so it will be converted
         # on put.
-        # b is given a TaskMetadata.
+        # b is given a dict, because that's what its connection asks for.
         # b returns a TaskMetadata because that's how we configured it, but
         # the butler expects a dict so it is converted on put.
-        self._test_logs(
-            cm.output, "dict", "dict", "lsst.pipe.base.TaskMetadata", "lsst.pipe.base.TaskMetadata"
-        )
+        self._test_logs(cm.output, "dict", "dict", "dict", "lsst.pipe.base.TaskMetadata")
 
         self.assertEqual(len(quanta), 2)
         self.assertEqual(self.butler.get("intermediate").to_dict(), {"zero": 0, "one": 1})
