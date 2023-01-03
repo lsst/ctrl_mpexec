@@ -148,4 +148,4 @@ def makePipelineActions(
 class PipetaskCommand(MWCommand):
     """Command subclass with pipetask-command specific overrides."""
 
-    extra_epilog = "See 'pipetask --help' for more options."  # type: ignore
+    extra_epilog = "See 'pipetask --help' for more options."
