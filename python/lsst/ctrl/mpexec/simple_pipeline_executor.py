@@ -241,7 +241,7 @@ class SimplePipelineExecutor:
         )
         return cls(quantum_graph=quantum_graph, butler=butler)
 
-    def run(self, register_dataset_types: bool = False) -> List[Quantum]:
+    def run(self, register_dataset_types: bool = False, save_versions: bool = True) -> List[Quantum]:
         """Run all the quanta in the `QuantumGraph` in topological order.
 
         Use this method to run all quanta in the graph.  Use
@@ -253,6 +253,8 @@ class SimplePipelineExecutor:
         register_dataset_types : `bool`, optional
             If `True`, register all output dataset types before executing any
             quanta.
+        save_versions : `bool`, optional
+            If `True` (default), save a package versions dataset.
 
         Returns
         -------
@@ -268,9 +270,13 @@ class SimplePipelineExecutor:
         A topological ordering is not in general unique, but no other
         guarantees are made about the order in which quanta are processed.
         """
-        return list(self.as_generator(register_dataset_types=register_dataset_types))
+        return list(
+            self.as_generator(register_dataset_types=register_dataset_types, save_versions=save_versions)
+        )
 
-    def as_generator(self, register_dataset_types: bool = False) -> Iterator[Quantum]:
+    def as_generator(
+        self, register_dataset_types: bool = False, save_versions: bool = True
+    ) -> Iterator[Quantum]:
         """Yield quanta in the `QuantumGraph` in topological order.
 
         These quanta will be run as the returned generator is iterated
@@ -282,6 +288,8 @@ class SimplePipelineExecutor:
         register_dataset_types : `bool`, optional
             If `True`, register all output dataset types before executing any
             quanta.
+        save_versions : `bool`, optional
+            If `True` (default), save a package versions dataset.
 
         Returns
         -------
@@ -304,7 +312,9 @@ class SimplePipelineExecutor:
         """
         task_factory = TaskFactory()
         pre_exec_init = PreExecInit(self.butler, task_factory)
-        pre_exec_init.initialize(graph=self.quantum_graph, registerDatasetTypes=register_dataset_types)
+        pre_exec_init.initialize(
+            graph=self.quantum_graph, registerDatasetTypes=register_dataset_types, saveVersions=save_versions
+        )
         single_quantum_executor = SingleQuantumExecutor(task_factory)
         # Important that this returns a generator expression rather than being
         # a generator itself; that is what makes the PreExecInit stuff above

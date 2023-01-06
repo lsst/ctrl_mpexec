@@ -187,7 +187,7 @@ class SimplePipelineExecutorTests(lsst.utils.tests.TestCase):
         )
 
         with self.assertLogs("lsst", level="INFO") as cm:
-            quanta = executor.run(register_dataset_types=True)
+            quanta = executor.run(register_dataset_types=True, save_versions=False)
         self._test_logs(cm.output, "dict", "dict", "dict", "dict")
 
         self.assertEqual(len(quanta), 2)
@@ -214,7 +214,7 @@ class SimplePipelineExecutorTests(lsst.utils.tests.TestCase):
         )
 
         with self.assertLogs("lsst", level="INFO") as cm:
-            quanta = executor.run(register_dataset_types=True)
+            quanta = executor.run(register_dataset_types=True, save_versions=False)
         # A dict is given to task a without change.
         # A returns a dict because it has not been told to do anything else.
         # That does not match the storage class so it will be converted
@@ -248,7 +248,7 @@ class SimplePipelineExecutorTests(lsst.utils.tests.TestCase):
         )
 
         with self.assertLogs("lsst", level="INFO") as cm:
-            quanta = executor.run(register_dataset_types=True)
+            quanta = executor.run(register_dataset_types=True, save_versions=False)
         # a has been told to return a TaskMetadata but will convert to dict.
         # b returns a dict and that is converted to TaskMetadata on put.
         self._test_logs(cm.output, "dict", "lsst.pipe.base.TaskMetadata", "dict", "dict")
@@ -265,7 +265,7 @@ class SimplePipelineExecutorTests(lsst.utils.tests.TestCase):
         executor = self._configure_pipeline(NoDimensionsTestConfig2, NoDimensionsTestTask.ConfigClass)
 
         with self.assertLogs("lsst", level="INFO") as cm:
-            quanta = executor.run(register_dataset_types=True)
+            quanta = executor.run(register_dataset_types=True, save_versions=False)
         self._test_logs(cm.output, "lsst.pipe.base.TaskMetadata", "dict", "dict", "dict")
 
         self.assertEqual(len(quanta), 2)
@@ -290,7 +290,7 @@ class SimplePipelineExecutorTests(lsst.utils.tests.TestCase):
         with self.assertRaisesRegex(
             ValueError, "StructuredDataDict.*inconsistent with registry definition.*StructuredDataList"
         ):
-            executor.run(register_dataset_types=True)
+            executor.run(register_dataset_types=True, save_versions=False)
 
     def test_from_pipeline_metadata(self):
         """Test two tasks where the output uses metadata from input."""
@@ -308,7 +308,7 @@ class SimplePipelineExecutorTests(lsst.utils.tests.TestCase):
         executor = SimplePipelineExecutor.from_pipeline(task_defs, butler=self.butler)
 
         with self.assertLogs("test_simple_pipeline_executor", level="INFO") as cm:
-            quanta = executor.run(register_dataset_types=True)
+            quanta = executor.run(register_dataset_types=True, save_versions=False)
         self.assertIn(f"Received task metadata ({get_full_type_name(dict)})", "".join(cm.output))
 
         self.assertEqual(len(quanta), 2)
@@ -339,7 +339,7 @@ class SimplePipelineExecutorTests(lsst.utils.tests.TestCase):
                 """
             )
         executor = SimplePipelineExecutor.from_pipeline_filename(filename, butler=self.butler)
-        quanta = executor.run(register_dataset_types=True)
+        quanta = executor.run(register_dataset_types=True, save_versions=False)
         self.assertEqual(len(quanta), 2)
         self.assertEqual(self.butler.get("intermediate"), {"zero": 0, "one": 1})
         self.assertEqual(self.butler.get("output"), {"zero": 0, "one": 1, "two": 2})
