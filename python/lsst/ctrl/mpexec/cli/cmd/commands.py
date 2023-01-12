@@ -26,7 +26,14 @@ from typing import Any
 import click
 import lsst.pipe.base.cli.opt as pipeBaseOpts
 from lsst.ctrl.mpexec.showInfo import ShowInfo
-from lsst.daf.butler.cli.opt import config_file_option, config_option, confirm_option, options_file_option
+from lsst.daf.butler.cli.opt import (
+    config_file_option,
+    config_option,
+    confirm_option,
+    options_file_option,
+    processes_option,
+    repo_argument,
+)
 from lsst.daf.butler.cli.utils import MWCtxObj, catch_and_exit, option_section, unwrap
 
 from .. import opt as ctrlMpExecOpts
@@ -203,3 +210,43 @@ def cleanup(confirm: bool, **kwargs: Any) -> None:
     collection but are not members of that collection.
     """
     confirmable.confirm(partial(script.cleanup, **kwargs), confirm)
+
+
+@click.command(cls=PipetaskCommand)
+@repo_argument()
+@ctrlMpExecOpts.qgraph_argument()
+@ctrlMpExecOpts.config_search_path_option()
+@ctrlMpExecOpts.qgraph_id_option()
+def pre_exec_init_qbb(repo: str, qgraph: str, **kwargs: Any) -> None:
+    """Execute pre-exec-init on Quantum-Backed Butler.
+
+    REPO is the location of the butler/registry config file.
+
+    QGRAPH is the path to a serialized Quantum Graph file.
+    """
+    script.pre_exec_init_qbb(repo, qgraph, **kwargs)
+
+
+@click.command(cls=PipetaskCommand)
+@repo_argument()
+@ctrlMpExecOpts.qgraph_argument()
+@ctrlMpExecOpts.config_search_path_option()
+@ctrlMpExecOpts.qgraph_id_option()
+@ctrlMpExecOpts.qgraph_node_id_option()
+@processes_option()
+@ctrlMpExecOpts.pdb_option()
+@ctrlMpExecOpts.profile_option()
+@ctrlMpExecOpts.debug_option()
+@ctrlMpExecOpts.start_method_option()
+@ctrlMpExecOpts.timeout_option()
+@ctrlMpExecOpts.fail_fast_option()
+@ctrlMpExecOpts.summary_option()
+@ctrlMpExecOpts.enable_implicit_threading_option()
+def run_qbb(repo: str, qgraph: str, **kwargs: Any) -> None:
+    """Execute pipeline using Quantum-Backed Butler.
+
+    REPO is the location of the butler/registry config file.
+
+    QGRAPH is the path to a serialized Quantum Graph file.
+    """
+    script.run_qbb(repo, qgraph, **kwargs)

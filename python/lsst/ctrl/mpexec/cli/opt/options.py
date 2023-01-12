@@ -462,3 +462,12 @@ recursive_option = MWOptionDecorator(
     "--recursive",
     is_flag=True,
 )
+
+config_search_path_option = MWOptionDecorator(
+    "--config-search-path",
+    callback=split_commas,
+    default=list(),
+    help="Additional search paths for butler configuration.",
+    metavar="PATH",
+    multiple=True,
+)

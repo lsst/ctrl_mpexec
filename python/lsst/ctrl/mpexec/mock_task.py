@@ -60,8 +60,9 @@ class MockButlerQuantumContext(ButlerQuantumContext):
     """
 
     def __init__(self, butler: Butler, quantum: Quantum):
-        super().__init__(butler, quantum)
+        super().__init__(butler=butler, limited=butler, quantum=quantum)
         self.butler = butler
+        self.registry = butler.registry
 
     @classmethod
     def mockDatasetTypeName(cls, datasetTypeName: str) -> str:
@@ -110,8 +111,8 @@ class MockButlerQuantumContext(ButlerQuantumContext):
         value.setdefault("ref", {}).update(datasetType=mockDatasetType.name)
         self.butler.put(value, mockRef)
 
-        # also "store" non-mock refs
-        self.registry._importDatasets([ref])
+        # also "store" non-mock refs, make sure it is not resolved.
+        self.registry._importDatasets([ref.unresolved()])
 
     def _checkMembership(self, ref: Union[List[DatasetRef], DatasetRef], inout: set) -> None:
         # docstring is inherited from the base class

@@ -315,13 +315,10 @@ class SimplePipelineExecutor:
         pre_exec_init.initialize(
             graph=self.quantum_graph, registerDatasetTypes=register_dataset_types, saveVersions=save_versions
         )
-        single_quantum_executor = SingleQuantumExecutor(task_factory)
+        single_quantum_executor = SingleQuantumExecutor(self.butler, task_factory)
         # Important that this returns a generator expression rather than being
         # a generator itself; that is what makes the PreExecInit stuff above
         # happen immediately instead of when the first quanta is executed,
         # which might be useful for callers who want to check the state of the
         # repo in between.
-        return (
-            single_quantum_executor.execute(qnode.taskDef, qnode.quantum, self.butler)
-            for qnode in self.quantum_graph
-        )
+        return (single_quantum_executor.execute(qnode.taskDef, qnode.quantum) for qnode in self.quantum_graph)

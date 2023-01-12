@@ -31,8 +31,9 @@ import pickle
 import signal
 import sys
 import time
+from collections.abc import Iterable
 from enum import Enum
-from typing import TYPE_CHECKING, Iterable, Literal, Optional
+from typing import Literal, Optional
 
 from lsst.daf.butler.cli.cliLog import CliLog
 from lsst.pipe.base import InvalidQuantumError, TaskDef
@@ -42,9 +43,6 @@ from lsst.utils.threads import disable_implicit_threading
 from .executionGraphFixup import ExecutionGraphFixup
 from .quantumGraphExecutor import QuantumExecutor, QuantumGraphExecutor
 from .reports import ExecutionStatus, QuantumReport, Report
-
-if TYPE_CHECKING:
-    from lsst.daf.butler import Butler
 
 _LOG = logging.getLogger(__name__)
 
@@ -93,7 +91,6 @@ class _Job:
 
     def start(
         self,
-        butler: Butler,
         quantumExecutor: QuantumExecutor,
         startMethod: Literal["spawn"] | Literal["fork"] | Literal["forkserver"] | None = None,
     ) -> None:
@@ -101,23 +98,22 @@ class _Job:
 
         Parameters
         ----------
-        butler : `lsst.daf.butler.Butler`
-            Data butler instance.
         quantumExecutor : `QuantumExecutor`
             Executor for single quantum.
         startMethod : `str`, optional
             Start method from `multiprocessing` module.
         """
-        # Unpickling of quantum has to happen after butler, this is why
-        # it is pickled manually here.
+        # Unpickling of quantum has to happen after butler/executor, this is
+        # why it is pickled manually here.
         quantum_pickle = pickle.dumps(self.qnode.quantum)
         taskDef = self.qnode.taskDef
         self._rcv_conn, snd_conn = multiprocessing.Pipe(False)
         logConfigState = CliLog.configState
+
         mp_ctx = multiprocessing.get_context(startMethod)
         self.process = mp_ctx.Process(
             target=_Job._executeJob,
-            args=(quantumExecutor, taskDef, quantum_pickle, butler, logConfigState, snd_conn),
+            args=(quantumExecutor, taskDef, quantum_pickle, logConfigState, snd_conn),
             name=f"task-{self.qnode.quantum.dataId}",
         )
         self.process.start()
@@ -129,7 +125,6 @@ class _Job:
         quantumExecutor: QuantumExecutor,
         taskDef: TaskDef,
         quantum_pickle: bytes,
-        butler: Butler,
         logConfigState: list,
         snd_conn: multiprocessing.connection.Connection,
     ) -> None:
@@ -143,8 +138,6 @@ class _Job:
             Task definition structure.
         quantum_pickle : `bytes`
             Quantum for this task execution in pickled form.
-        butler : `lss.daf.butler.Butler`
-            Data butler instance.
         snd_conn : `multiprocessing.Connection`
             Connection to send job report to parent process.
         """
@@ -153,16 +146,9 @@ class _Job:
             # re-initialize logging
             CliLog.replayConfigState(logConfigState)
 
-        # have to reset connection pool to avoid sharing connections
-        if butler is not None:
-            butler.registry.resetConnectionPool()
-
         quantum = pickle.loads(quantum_pickle)
         try:
-            if butler is not None:
-                # None is apparently possible in some tests, despite annotation
-                butler.registry.refresh()
-            quantumExecutor.execute(taskDef, quantum, butler)
+            quantumExecutor.execute(taskDef, quantum)
         finally:
             # If sending fails we do not want this new exception to be exposed.
             try:
@@ -264,7 +250,6 @@ class _JobList:
     def submit(
         self,
         job: _Job,
-        butler: Butler,
         quantumExecutor: QuantumExecutor,
         startMethod: Literal["spawn"] | Literal["fork"] | Literal["forkserver"] | None = None,
     ) -> None:
@@ -274,8 +259,6 @@ class _JobList:
         ----------
         job : `_Job`
             Job to submit.
-        butler : `lsst.daf.butler.Butler`
-            Data butler instance.
         quantumExecutor : `QuantumExecutor`
             Executor for single quantum.
         startMethod : `str`, optional
@@ -283,7 +266,7 @@ class _JobList:
         """
         # this will raise if job is not in pending list
         self.pending.remove(job)
-        job.start(butler, quantumExecutor, startMethod)
+        job.start(quantumExecutor, startMethod)
         self.running.append(job)
 
     def setJobState(self, job: _Job, state: JobState) -> None:
@@ -400,15 +383,15 @@ class MPGraphExecutor(QuantumGraphExecutor):
             startMethod = methods.get(sys.platform)  # type: ignore
         self.startMethod = startMethod
 
-    def execute(self, graph: QuantumGraph, butler: Butler) -> None:
+    def execute(self, graph: QuantumGraph) -> None:
         # Docstring inherited from QuantumGraphExecutor.execute
         graph = self._fixupQuanta(graph)
         self.report = Report()
         try:
             if self.numProc > 1:
-                self._executeQuantaMP(graph, butler, self.report)
+                self._executeQuantaMP(graph, self.report)
             else:
-                self._executeQuantaInProcess(graph, butler, self.report)
+                self._executeQuantaInProcess(graph, self.report)
         except Exception as exc:
             self.report.set_exception(exc)
             raise
@@ -444,15 +427,13 @@ class MPGraphExecutor(QuantumGraphExecutor):
 
         return graph
 
-    def _executeQuantaInProcess(self, graph: QuantumGraph, butler: Butler, report: Report) -> None:
+    def _executeQuantaInProcess(self, graph: QuantumGraph, report: Report) -> None:
         """Execute all Quanta in current process.
 
         Parameters
         ----------
         graph : `QuantumGraph`
             `QuantumGraph` that is to be executed
-        butler : `lsst.daf.butler.Butler`
-            Data butler instance
         report : `Report`
             Object for reporting execution status.
         """
@@ -479,7 +460,7 @@ class MPGraphExecutor(QuantumGraphExecutor):
 
             _LOG.debug("Executing %s", qnode)
             try:
-                self.quantumExecutor.execute(qnode.taskDef, qnode.quantum, butler)
+                self.quantumExecutor.execute(qnode.taskDef, qnode.quantum)
                 successCount += 1
             except Exception as exc:
                 if self.pdb and sys.stdin.isatty() and sys.stdout.isatty():
@@ -537,15 +518,13 @@ class MPGraphExecutor(QuantumGraphExecutor):
         if failedNodes:
             raise MPGraphExecutorError("One or more tasks failed during execution.")
 
-    def _executeQuantaMP(self, graph: QuantumGraph, butler: Butler, report: Report) -> None:
+    def _executeQuantaMP(self, graph: QuantumGraph, report: Report) -> None:
         """Execute all Quanta in separate processes.
 
         Parameters
         ----------
         graph : `QuantumGraph`
             `QuantumGraph` that is to be executed.
-        butler : `lsst.daf.butler.Butler`
-            Data butler instance
         report : `Report`
             Object for reporting execution status.
         """
@@ -646,7 +625,7 @@ class MPGraphExecutor(QuantumGraphExecutor):
                         # all dependencies have completed, can start new job
                         if len(jobs.running) < self.numProc:
                             _LOG.debug("Submitting %s", job)
-                            jobs.submit(job, butler, self.quantumExecutor, self.startMethod)
+                            jobs.submit(job, self.quantumExecutor, self.startMethod)
                         if len(jobs.running) >= self.numProc:
                             # Cannot start any more jobs, wait until something
                             # finishes.

@@ -29,7 +29,7 @@ from typing import TYPE_CHECKING, Optional
 from .reports import QuantumReport, Report
 
 if TYPE_CHECKING:
-    from lsst.daf.butler import Butler, Quantum
+    from lsst.daf.butler import Quantum
     from lsst.pipe.base import QuantumGraph, TaskDef
 
 
@@ -43,7 +43,7 @@ class QuantumExecutor(ABC):
     """
 
     @abstractmethod
-    def execute(self, taskDef: TaskDef, quantum: Quantum, butler: Butler) -> Quantum:
+    def execute(self, taskDef: TaskDef, quantum: Quantum) -> Quantum:
         """Execute single quantum.
 
         Parameters
@@ -52,8 +52,6 @@ class QuantumExecutor(ABC):
             Task definition structure.
         quantum : `~lsst.daf.butler.Quantum`
             Quantum for this execution.
-        butler : `~lsst.daf.butler.Butler`
-            Data butler instance
 
         Returns
         -------
@@ -98,7 +96,7 @@ class QuantumGraphExecutor(ABC):
     """
 
     @abstractmethod
-    def execute(self, graph: QuantumGraph, butler: Butler) -> None:
+    def execute(self, graph: QuantumGraph) -> None:
         """Execute whole graph.
 
         Implementation of this method depends on particular execution model
@@ -110,8 +108,6 @@ class QuantumGraphExecutor(ABC):
         ----------
         graph : `~lsst.pipe.base.QuantumGraph`
             Execution graph.
-        butler : `~lsst.daf.butler.Butler`
-            Data butler instance
         """
         raise NotImplementedError()
 
