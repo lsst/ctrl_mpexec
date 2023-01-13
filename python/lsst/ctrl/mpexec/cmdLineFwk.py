@@ -588,8 +588,6 @@ class CmdLineFwk:
                 "user": getpass.getuser(),
                 "time": f"{datetime.datetime.now()}",
             }
-            # Execution butler builder relies on non-resolved output refs.
-            resolve_refs = not args.execution_butler_location
             qgraph = graphBuilder.makeGraph(
                 pipeline,
                 collections,
@@ -597,7 +595,7 @@ class CmdLineFwk:
                 args.data_query,
                 metadata=metadata,
                 datasetQueryConstraint=args.dataset_query_constraint,
-                resolveRefs=resolve_refs,
+                resolveRefs=True,
             )
             if args.show_qgraph_header:
                 qgraph.buildAndPrintHeader()
