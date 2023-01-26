@@ -34,6 +34,7 @@ def run_qbb(
     pdb: str | None,
     profile: str | None,
     debug: bool,
+    coverage: bool,
     start_method: str | None,
     timeout: int | None,
     fail_fast: bool,
@@ -67,6 +68,8 @@ def run_qbb(
     debug : `bool`
         If true, enable debugging output using lsstDebug facility (imports
         debug.py).
+    coverage : `bool`
+        If true, run coverage.
     start_method : `str` or `None`
         Start method from `multiprocessing` module, `None` selects the best
         one for current platform.
@@ -92,6 +95,7 @@ def run_qbb(
         pdb=pdb,
         profile=profile,
         enableLsstDebug=debug,
+        coverage=coverage,
         start_method=start_method,
         timeout=timeout,
         fail_fast=fail_fast,

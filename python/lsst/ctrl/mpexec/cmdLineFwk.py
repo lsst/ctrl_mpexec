@@ -705,6 +705,11 @@ class CmdLineFwk:
             except ImportError:
                 _LOG.warn("No 'debug' module found.")
 
+        if args.coverage:
+            _LOG.debug("Coverage turned on")
+        else:
+            _LOG.debug("Coverage turned off")
+
         # Save all InitOutputs, configs, etc.
         preExecInit = PreExecInit(butler, taskFactory, extendRun=args.extend_run, mock=args.mock)
         preExecInit.initialize(

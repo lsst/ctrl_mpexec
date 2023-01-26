@@ -183,6 +183,7 @@ def run(  # type: ignore
         skip_existing_in=skip_existing_in,
         skip_existing=skip_existing,
         enableLsstDebug=debug,
+        coverage=coverage,
         fail_fast=fail_fast,
         clobber_outputs=clobber_outputs,
         summary=summary,
