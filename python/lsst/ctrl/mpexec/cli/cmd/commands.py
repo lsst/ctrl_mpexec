@@ -237,6 +237,7 @@ def pre_exec_init_qbb(repo: str, qgraph: str, **kwargs: Any) -> None:
 @ctrlMpExecOpts.pdb_option()
 @ctrlMpExecOpts.profile_option()
 @ctrlMpExecOpts.debug_option()
+@ctrlMpExecOpts.coverage_option()
 @ctrlMpExecOpts.start_method_option()
 @ctrlMpExecOpts.timeout_option()
 @ctrlMpExecOpts.fail_fast_option()

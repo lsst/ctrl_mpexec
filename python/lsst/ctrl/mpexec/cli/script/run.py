@@ -50,6 +50,7 @@ def run(  # type: ignore
     skip_existing_in,
     skip_existing,
     debug,
+    coverage,
     fail_fast,
     clobber_outputs,
     summary,
@@ -136,6 +137,8 @@ def run(  # type: ignore
     debug : `bool`
         If true, enable debugging output using lsstDebug facility (imports
         debug.py).
+    coverage: `bool`
+        If true, enable coverage output
     fail_fast : `bool`
         If true then stop processing at first error, otherwise process as many
         tasks as possible.
