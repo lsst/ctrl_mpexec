@@ -682,9 +682,8 @@ class CmdLineFwk:
         if args.coverage:
             _LOG.warn("Coverage turned on")
             import coverage
-            cov = coverage.Coverage(
-                branch=True
-            )
+
+            cov = coverage.Coverage(branch=True)
             cov.load()
             cov.start()
 
@@ -762,7 +761,7 @@ class CmdLineFwk:
 
         if args.coverage:
             cov.stop()
-            cov.html_report(directory='covhtml')
+            cov.html_report(directory="covhtml")
             _LOG.warn("Coverage turned off")
 
     def _generateTaskTable(self, qgraph: QuantumGraph) -> Table:
