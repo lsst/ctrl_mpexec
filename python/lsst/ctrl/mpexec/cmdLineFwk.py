@@ -679,6 +679,15 @@ class CmdLineFwk:
             Data Butler instance, if not defined then new instance is made
             using command line options.
         """
+        if args.coverage:
+            _LOG.warn("Coverage turned on")
+            import coverage
+            cov = coverage.Coverage(
+                branch=True
+            )
+            cov.load()
+            cov.start()
+
         # make sure that --extend-run always enables --skip-existing
         if args.extend_run:
             args.skip_existing = True
@@ -704,11 +713,6 @@ class CmdLineFwk:
                 import debug  # type: ignore # noqa:F401
             except ImportError:
                 _LOG.warn("No 'debug' module found.")
-
-        if args.coverage:
-            _LOG.debug("Coverage turned on")
-        else:
-            _LOG.debug("Coverage turned off")
 
         # Save all InitOutputs, configs, etc.
         preExecInit = PreExecInit(butler, taskFactory, extendRun=args.extend_run, mock=args.mock)
@@ -755,6 +759,11 @@ class CmdLineFwk:
                         with open(args.summary, "w") as out:
                             # Do not save fields that are not set.
                             out.write(report.json(exclude_none=True, indent=2))
+
+        if args.coverage:
+            cov.stop()
+            cov.html_report(directory='covhtml')
+            _LOG.warn("Coverage turned off")
 
     def _generateTaskTable(self, qgraph: QuantumGraph) -> Table:
         """Generate astropy table listing the number of quanta per task for a
