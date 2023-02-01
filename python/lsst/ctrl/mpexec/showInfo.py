@@ -65,7 +65,7 @@ class _FilteredStream:
         else:
             if pattern != pattern.lower():
                 print(
-                    f'Matching "{pattern}" without regard to case ' "(append :NOIGNORECASE to prevent this)",
+                    f'Matching "{pattern}" without regard to case (append :NOIGNORECASE to prevent this)',
                     file=self.stream,
                 )
             self._pattern = re.compile(fnmatch.translate(pattern), re.IGNORECASE)

@@ -411,7 +411,7 @@ class SingleQuantumExecutor(QuantumExecutor):
                     return False
                 else:
                     raise RuntimeError(
-                        f"Registry inconsistency while checking for existing outputs:"
+                        "Registry inconsistency while checking for existing outputs:"
                         f" collection={self.butler.run} existingRefs={existingRefs}"
                         f" missingRefs={missingRefs}"
                     )
@@ -583,8 +583,8 @@ class SingleQuantumExecutor(QuantumExecutor):
             except LookupError as exc:
                 raise InvalidQuantumError(
                     f"Quantum outputs is missing metadata dataset type {taskDef.metadataDatasetName};"
-                    f" this could happen due to inconsistent options between QuantumGraph generation"
-                    f" and execution"
+                    " this could happen due to inconsistent options between QuantumGraph generation"
+                    " and execution"
                 ) from exc
             if self.butler is not None:
                 # Dataset ref can already be resolved, for non-QBB executor we
