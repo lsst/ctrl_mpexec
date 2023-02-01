@@ -914,9 +914,10 @@ class CmdLineFwkTestCaseWithButler(unittest.TestCase):
         self.assertEqual(len(qgraph.taskGraph), self.nQuanta)
         self.assertEqual(len(qgraph), self.nQuanta)
 
-        with makeTmpFile(suffix=".qgraph") as tmpname, makeSQLiteRegistry(
-            universe=butler.registry.dimensions
-        ) as registryConfig:
+        with (
+            makeTmpFile(suffix=".qgraph") as tmpname,
+            makeSQLiteRegistry(universe=butler.registry.dimensions) as registryConfig,
+        ):
             with open(tmpname, "wb") as saveFile:
                 qgraph.save(saveFile)
 
