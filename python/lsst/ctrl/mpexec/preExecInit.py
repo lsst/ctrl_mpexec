@@ -254,7 +254,6 @@ class PreExecInitBase(abc.ABC):
 
         # start transaction to rollback any changes on exceptions
         with self.transaction():
-
             old_packages, dataset_ref = self.find_packages(graph)
 
             if old_packages is not None:

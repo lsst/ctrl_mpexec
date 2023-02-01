@@ -360,7 +360,6 @@ class CmdLineFwkTestCase(unittest.TestCase):
         fwk = CmdLineFwk()
 
         with makeTmpFile(suffix=".qgraph") as tmpname, makeSQLiteRegistry() as registryConfig:
-
             # make non-empty graph and store it in a file
             qgraph = _makeQGraph()
             with open(tmpname, "wb") as saveFile:

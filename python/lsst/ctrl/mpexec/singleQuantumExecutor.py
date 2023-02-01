@@ -208,7 +208,6 @@ class SingleQuantumExecutor(QuantumExecutor):
         else:
             log_capture = LogCapture.from_limited(limited_butler)
         with log_capture.capture_logging(taskDef, quantum) as captureLog:
-
             # Save detailed resource usage before task start to metadata.
             quantumMetadata = _TASK_METADATA_TYPE()
             logInfo(None, "prep", metadata=quantumMetadata)  # type: ignore[arg-type]
@@ -448,7 +447,6 @@ class SingleQuantumExecutor(QuantumExecutor):
         for key, refsForDatasetType in quantum.inputs.items():
             newRefsForDatasetType = updatedInputs[key]
             for ref in refsForDatasetType:
-
                 # Inputs may already be resolved even if they do not exist, but
                 # we have to re-resolve them because IDs are ignored on output.
                 # Check datastore for existence first to cover calibration

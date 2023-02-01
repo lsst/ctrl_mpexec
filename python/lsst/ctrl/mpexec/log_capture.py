@@ -145,7 +145,6 @@ class LogCapture:
                     shutil.rmtree(tmpdir, ignore_errors=True)
 
             else:
-
                 log_handler_memory = ButlerLogRecordHandler()
                 logging.getLogger().addHandler(log_handler_memory)
 
@@ -160,7 +159,6 @@ class LogCapture:
                     log_handler_memory.records.clear()
 
         else:
-
             with ButlerMDC.set_mdc(mdc):
                 yield ctx
 
