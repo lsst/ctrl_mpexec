@@ -167,7 +167,7 @@ class PurgeTest(unittest.TestCase):
         )
         self.assertEqual(result.exit_code, 1, clickResultMsg(result))
         self.assertIn(
-            "The passed-in collection must be a CHAINED collection; " '"ingest/run" is a RUN collection.',
+            'The passed-in collection must be a CHAINED collection; "ingest/run" is a RUN collection.',
             result.output,
         )
 

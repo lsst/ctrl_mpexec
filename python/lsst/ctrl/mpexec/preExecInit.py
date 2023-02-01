@@ -186,7 +186,7 @@ class PreExecInitBase(abc.ABC):
                     if type(obj_from_store) is not type(init_output_var):
                         raise TypeError(
                             f"Stored initOutput object type {type(obj_from_store)} "
-                            f"is different  from task-generated type "
+                            "is different from task-generated type "
                             f"{type(init_output_var)} for task {taskDef}"
                         )
                 else:
@@ -254,7 +254,6 @@ class PreExecInitBase(abc.ABC):
 
         # start transaction to rollback any changes on exceptions
         with self.transaction():
-
             old_packages, dataset_ref = self.find_packages(graph)
 
             if old_packages is not None:

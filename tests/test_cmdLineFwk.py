@@ -360,7 +360,6 @@ class CmdLineFwkTestCase(unittest.TestCase):
         fwk = CmdLineFwk()
 
         with makeTmpFile(suffix=".qgraph") as tmpname, makeSQLiteRegistry() as registryConfig:
-
             # make non-empty graph and store it in a file
             qgraph = _makeQGraph()
             with open(tmpname, "wb") as saveFile:
@@ -915,9 +914,10 @@ class CmdLineFwkTestCaseWithButler(unittest.TestCase):
         self.assertEqual(len(qgraph.taskGraph), self.nQuanta)
         self.assertEqual(len(qgraph), self.nQuanta)
 
-        with makeTmpFile(suffix=".qgraph") as tmpname, makeSQLiteRegistry(
-            universe=butler.registry.dimensions
-        ) as registryConfig:
+        with (
+            makeTmpFile(suffix=".qgraph") as tmpname,
+            makeSQLiteRegistry(universe=butler.registry.dimensions) as registryConfig,
+        ):
             with open(tmpname, "wb") as saveFile:
                 qgraph.save(saveFile)
 

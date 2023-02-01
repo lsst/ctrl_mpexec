@@ -208,7 +208,6 @@ class SingleQuantumExecutor(QuantumExecutor):
         else:
             log_capture = LogCapture.from_limited(limited_butler)
         with log_capture.capture_logging(taskDef, quantum) as captureLog:
-
             # Save detailed resource usage before task start to metadata.
             quantumMetadata = _TASK_METADATA_TYPE()
             logInfo(None, "prep", metadata=quantumMetadata)  # type: ignore[arg-type]
@@ -412,7 +411,7 @@ class SingleQuantumExecutor(QuantumExecutor):
                     return False
                 else:
                     raise RuntimeError(
-                        f"Registry inconsistency while checking for existing outputs:"
+                        "Registry inconsistency while checking for existing outputs:"
                         f" collection={self.butler.run} existingRefs={existingRefs}"
                         f" missingRefs={missingRefs}"
                     )
@@ -448,7 +447,6 @@ class SingleQuantumExecutor(QuantumExecutor):
         for key, refsForDatasetType in quantum.inputs.items():
             newRefsForDatasetType = updatedInputs[key]
             for ref in refsForDatasetType:
-
                 # Inputs may already be resolved even if they do not exist, but
                 # we have to re-resolve them because IDs are ignored on output.
                 # Check datastore for existence first to cover calibration
@@ -585,8 +583,8 @@ class SingleQuantumExecutor(QuantumExecutor):
             except LookupError as exc:
                 raise InvalidQuantumError(
                     f"Quantum outputs is missing metadata dataset type {taskDef.metadataDatasetName};"
-                    f" this could happen due to inconsistent options between QuantumGraph generation"
-                    f" and execution"
+                    " this could happen due to inconsistent options between QuantumGraph generation"
+                    " and execution"
                 ) from exc
             if self.butler is not None:
                 # Dataset ref can already be resolved, for non-QBB executor we

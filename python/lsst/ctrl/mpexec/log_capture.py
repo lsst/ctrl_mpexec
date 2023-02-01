@@ -145,7 +145,6 @@ class LogCapture:
                     shutil.rmtree(tmpdir, ignore_errors=True)
 
             else:
-
                 log_handler_memory = ButlerLogRecordHandler()
                 logging.getLogger().addHandler(log_handler_memory)
 
@@ -160,7 +159,6 @@ class LogCapture:
                     log_handler_memory.records.clear()
 
         else:
-
             with ButlerMDC.set_mdc(mdc):
                 yield ctx
 
@@ -173,8 +171,8 @@ class LogCapture:
         except LookupError as exc:
             raise InvalidQuantumError(
                 f"Quantum outputs is missing log output dataset type {dataset_type};"
-                f" this could happen due to inconsistent options between QuantumGraph generation"
-                f" and execution"
+                " this could happen due to inconsistent options between QuantumGraph generation"
+                " and execution"
             ) from exc
 
         if self.full_butler is None:

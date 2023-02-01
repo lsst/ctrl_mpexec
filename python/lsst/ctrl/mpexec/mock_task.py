@@ -120,7 +120,6 @@ class MockButlerQuantumContext(ButlerQuantumContext):
 
 
 class MockPipelineTaskConfig(PipelineTaskConfig, pipelineConnections=PipelineTaskConnections):
-
     failCondition: Field[str] = Field(
         dtype=str,
         default="",
