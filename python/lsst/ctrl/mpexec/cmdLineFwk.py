@@ -31,6 +31,8 @@ import copy
 import datetime
 import getpass
 import logging
+import os
+import pathlib
 import shutil
 from collections.abc import Iterable, Sequence
 from types import SimpleNamespace
@@ -683,7 +685,8 @@ class CmdLineFwk:
             _LOG.debug("Coverage turned on")
             import coverage
 
-            cov = coverage.Coverage(branch=True)
+            coveragerc = os.path.join(pathlib.Path(__file__).parent.resolve(), "coveragerc")
+            cov = coverage.Coverage(branch=True, concurrency="multiprocessing", config_file=coveragerc)
             cov.load()
             cov.start()
 
@@ -866,7 +869,8 @@ class CmdLineFwk:
             _LOG.debug("Coverage turned on")
             import coverage
 
-            cov = coverage.Coverage(branch=True)
+            coveragerc = os.path.join(pathlib.Path(__file__).parent.resolve(), "coveragerc")
+            cov = coverage.Coverage(branch=True, concurrency="multiprocessing", config_file=coveragerc)
             cov.load()
             cov.start()
 
