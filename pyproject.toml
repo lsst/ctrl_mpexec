@@ -28,7 +28,8 @@ dependencies = [
     "astropy",
     "pydantic",
     "networkx",
-    "psutil"
+    "psutil",
+    "coverage"
 ]
 dynamic = ["version"]
 

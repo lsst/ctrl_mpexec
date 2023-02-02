@@ -680,7 +680,7 @@ class CmdLineFwk:
             using command line options.
         """
         if args.coverage:
-            _LOG.warn("Coverage turned on")
+            _LOG.debug("Coverage turned on")
             import coverage
 
             cov = coverage.Coverage(branch=True)
@@ -759,10 +759,11 @@ class CmdLineFwk:
                             # Do not save fields that are not set.
                             out.write(report.json(exclude_none=True, indent=2))
 
-        if args.coverage:
-            cov.stop()
-            cov.html_report(directory="covhtml")
-            _LOG.warn("Coverage turned off")
+                if args.coverage:
+                    cov.stop()
+                    cov.html_report(directory="covhtml")
+                    cov.report()
+                    _LOG.info("Coverage data stored in ./covhtml")
 
     def _generateTaskTable(self, qgraph: QuantumGraph) -> Table:
         """Generate astropy table listing the number of quanta per task for a
@@ -861,6 +862,14 @@ class CmdLineFwk:
         preExecInit.initialize(qgraph)
 
     def runGraphQBB(self, task_factory: TaskFactory, args: SimpleNamespace) -> None:
+        if args.coverage:
+            _LOG.debug("Coverage turned on")
+            import coverage
+
+            cov = coverage.Coverage(branch=True)
+            cov.load()
+            cov.start()
+
         # Load quantum graph.
         nodes = args.qgraph_node_id or None
         qgraph = QuantumGraph.loadUri(args.qgraph, nodes=nodes, graphID=args.qgraph_id)
@@ -897,3 +906,9 @@ class CmdLineFwk:
                     with open(args.summary, "w") as out:
                         # Do not save fields that are not set.
                         out.write(report.json(exclude_none=True, indent=2))
+
+            if args.coverage:
+                cov.stop()
+                cov.html_report(directory="covhtml")
+                cov.report()
+                _LOG.info("Coverage data stored in ./covhtml")

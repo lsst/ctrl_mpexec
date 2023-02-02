@@ -867,6 +867,39 @@ class CmdLineFwkTestCaseWithButler(unittest.TestCase):
         datasetTypes = list(butler.registry.queryDatasetTypes(re.compile("^_mock_.*")))
         self.assertEqual(len(datasetTypes), self.nQuanta * 2)
 
+    def testCoverage(self):
+        """Test --coverage option."""
+        args = _makeArgs(
+            butler_config=self.root,
+            coverage=True,
+            input="test",
+            output="output",
+            mock=True,
+            register_dataset_types=True,
+        )
+        butler = makeSimpleButler(self.root, run=args.input, inMemory=False)
+        populateButler(self.pipeline, butler)
+
+        fwk = CmdLineFwk()
+        taskFactory = AddTaskFactoryMock()
+
+        qgraph = fwk.makeGraph(self.pipeline, args)
+        self.assertEqual(len(qgraph.taskGraph), self.nQuanta)
+        self.assertEqual(len(qgraph), self.nQuanta)
+
+        # run whole thing
+        fwk.runPipeline(qgraph, taskFactory, args)
+        # None of the actual tasks is executed
+        self.assertEqual(taskFactory.countExec, 0)
+
+        # check dataset types
+        butler.registry.refresh()
+        datasetTypes = list(butler.registry.queryDatasetTypes(re.compile("^_mock_.*")))
+        self.assertEqual(len(datasetTypes), self.nQuanta * 2)
+
+        # check that the coverage data was written
+        self.assertEqual(os.path.exists("covhtml"), True)
+
     def testMockTaskFailure(self):
         """Test --mock option and configure one of the tasks to fail."""
         args = _makeArgs(
