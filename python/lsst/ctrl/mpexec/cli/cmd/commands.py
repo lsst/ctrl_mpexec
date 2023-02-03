@@ -126,6 +126,7 @@ def build(ctx: click.Context, **kwargs: Any) -> None:
 
 @click.command(cls=PipetaskCommand, epilog=epilog)
 @click.pass_context
+@ctrlMpExecOpts.coverage_option()
 @ctrlMpExecOpts.show_option()
 @ctrlMpExecOpts.pipeline_build_options()
 @ctrlMpExecOpts.qgraph_options()
@@ -136,6 +137,11 @@ def build(ctx: click.Context, **kwargs: Any) -> None:
 def qgraph(ctx: click.Context, **kwargs: Any) -> None:
     """Build and optionally save quantum graph."""
     kwargs = _collectActions(ctx, **kwargs)
+    coverage = kwargs.pop("coverage", False)
+    if coverage:
+        print("Coverage turned on!", file=sys.stderr)
+    else:
+        print("Coverage not on", file=sys.stderr)
     show = ShowInfo(kwargs.pop("show", []))
     pipeline = script.build(**kwargs, show=show)
     if show.handled and not show.unhandled:
@@ -155,6 +161,12 @@ def qgraph(ctx: click.Context, **kwargs: Any) -> None:
 def run(ctx: click.Context, **kwargs: Any) -> None:
     """Build and execute pipeline and quantum graph."""
     kwargs = _collectActions(ctx, **kwargs)
+    coverage = kwargs.pop("coverage", False)
+    if coverage:
+        print("Coverage turned on!", file=sys.stderr)
+    else:
+        print("Coverage not on", file=sys.stderr)
+
     show = ShowInfo(kwargs.pop("show", []))
     pipeline = script.build(**kwargs, show=show)
     if show.handled and not show.unhandled:
@@ -236,6 +248,7 @@ def pre_exec_init_qbb(repo: str, qgraph: str, **kwargs: Any) -> None:
 @processes_option()
 @ctrlMpExecOpts.pdb_option()
 @ctrlMpExecOpts.profile_option()
+@ctrlMpExecOpts.coverage_option()
 @ctrlMpExecOpts.debug_option()
 @ctrlMpExecOpts.start_method_option()
 @ctrlMpExecOpts.timeout_option()
