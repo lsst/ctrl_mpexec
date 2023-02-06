@@ -126,6 +126,22 @@ def build(ctx: click.Context, **kwargs: Any) -> None:
     _unhandledShow(show, "build")
 
 
+def start_coverage():
+    print("Coverage turned ON!", file=sys.stderr)
+    import coverage
+    coveragerc = os.path.join(pathlib.Path(__file__).parent.resolve(), "coveragerc")
+    cov = coverage.Coverage(branch=True, concurrency="multiprocessing", config_file=coveragerc, source_pkgs=[])
+    cov.load()
+    cov.start()
+    return cov
+
+def stop_coverage(cov):
+    cov.stop()
+    cov.html_report(directory="covhtml")
+    cov.report()
+    print("Coverage data stored in ./covhtml")
+
+
 @click.command(cls=PipetaskCommand, epilog=epilog)
 @click.pass_context
 @ctrlMpExecOpts.coverage_option()
@@ -141,12 +157,7 @@ def qgraph(ctx: click.Context, **kwargs: Any) -> None:
     kwargs = _collectActions(ctx, **kwargs)
     coverage = kwargs.pop("coverage", False)
     if coverage:
-        print("Coverage turned ON!", file=sys.stderr)
-        import coverage
-        coveragerc = os.path.join(pathlib.Path(__file__).parent.resolve(), "coveragerc")
-        cov = coverage.Coverage(branch=True, concurrency="multiprocessing", config_file=coveragerc, source_pkgs=["lsst.daf.butler"])
-        cov.load()
-        cov.start()
+        cov = start_coverage()
 
     try:
         show = ShowInfo(kwargs.pop("show", []))
@@ -162,10 +173,7 @@ def qgraph(ctx: click.Context, **kwargs: Any) -> None:
         _unhandledShow(show, "qgraph")
     finally:
         if coverage:
-            cov.stop()
-            cov.html_report(directory="covhtml")
-            cov.report()
-            print("Coverage data stored in ./covhtml")
+            stop_coverage(cov)
 
 
 @click.command(cls=PipetaskCommand, epilog=epilog)
@@ -176,12 +184,7 @@ def run(ctx: click.Context, **kwargs: Any) -> None:
     kwargs = _collectActions(ctx, **kwargs)
     coverage = kwargs.pop("coverage", False)
     if coverage:
-        print("Coverage turned ON!", file=sys.stderr)
-        import coverage
-        coveragerc = os.path.join(pathlib.Path(__file__).parent.resolve(), "coveragerc")
-        cov = coverage.Coverage(branch=True, concurrency="multiprocessing", config_file=coveragerc, source_pkgs=["lsst.daf.butler"])
-        cov.load()
-        cov.start()
+        cov = start_coverage()
 
     try:
         show = ShowInfo(kwargs.pop("show", []))
@@ -205,10 +208,7 @@ def run(ctx: click.Context, **kwargs: Any) -> None:
         script.run(qgraphObj=qgraph, **kwargs)
     finally:
         if coverage:
-            cov.stop()
-            cov.html_report(directory="covhtml")
-            cov.report()
-            print("Coverage data stored in ./covhtml")
+            stop_coverage(cov)
 
 
 @click.command(cls=PipetaskCommand)

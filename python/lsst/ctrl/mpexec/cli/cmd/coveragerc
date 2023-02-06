@@ -4,4 +4,3 @@ directory = covhtml
 [run]
 branch = True
 concurrency = multiprocessing
-source = lsst.daf.butler
