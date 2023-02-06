@@ -126,8 +126,11 @@ def build(ctx: click.Context, **kwargs: Any) -> None:
     _unhandledShow(show, "build")
 
 
-def start_coverage():
+def start_coverage(coverage_packages):
     print("Coverage turned ON!", file=sys.stderr)
+    if coverage_packages:
+        print("Coverage limited to: " + ",".join(coverage_packages), file=sys.stderr)
+
     import coverage
     coveragerc = os.path.join(pathlib.Path(__file__).parent.resolve(), "coveragerc")
     cov = coverage.Coverage(branch=True, concurrency="multiprocessing", config_file=coveragerc, source_pkgs=[])
@@ -145,6 +148,7 @@ def stop_coverage(cov):
 @click.command(cls=PipetaskCommand, epilog=epilog)
 @click.pass_context
 @ctrlMpExecOpts.coverage_option()
+@ctrlMpExecOpts.coverage_packages_option()
 @ctrlMpExecOpts.show_option()
 @ctrlMpExecOpts.pipeline_build_options()
 @ctrlMpExecOpts.qgraph_options()
@@ -157,7 +161,8 @@ def qgraph(ctx: click.Context, **kwargs: Any) -> None:
     kwargs = _collectActions(ctx, **kwargs)
     coverage = kwargs.pop("coverage", False)
     if coverage:
-        cov = start_coverage()
+        coverage_packages = kwargs.pop("cov_packages", ())
+        cov = start_coverage(coverage_packages)
 
     try:
         show = ShowInfo(kwargs.pop("show", []))
@@ -184,7 +189,8 @@ def run(ctx: click.Context, **kwargs: Any) -> None:
     kwargs = _collectActions(ctx, **kwargs)
     coverage = kwargs.pop("coverage", False)
     if coverage:
-        cov = start_coverage()
+        coverage_packages = kwargs.pop("cov_packages", ())
+        cov = start_coverage(coverage_packages)
 
     try:
         show = ShowInfo(kwargs.pop("show", []))
@@ -272,6 +278,7 @@ def pre_exec_init_qbb(repo: str, qgraph: str, **kwargs: Any) -> None:
 @ctrlMpExecOpts.pdb_option()
 @ctrlMpExecOpts.profile_option()
 @ctrlMpExecOpts.coverage_option()
+@ctrlMpExecOpts.coverage_packages_option()
 @ctrlMpExecOpts.debug_option()
 @ctrlMpExecOpts.start_method_option()
 @ctrlMpExecOpts.timeout_option()

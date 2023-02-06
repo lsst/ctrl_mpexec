@@ -163,6 +163,7 @@ class run_options(OptionGroup):  # noqa: N801
             click.pass_context,
             ctrlMpExecOpts.debug_option(),
             ctrlMpExecOpts.coverage_option(),
+            ctrlMpExecOpts.coverage_packages_option(),
             ctrlMpExecOpts.show_option(),
             pipeline_build_options(),
             qgraph_options(),
