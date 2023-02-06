@@ -19,11 +19,11 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-import pathlib
 import os
+import pathlib
 import sys
 from functools import partial
-from typing import Any
+from typing import Any, Tuple
 
 import click
 import lsst.pipe.base.cli.opt as pipeBaseOpts
@@ -126,19 +126,23 @@ def build(ctx: click.Context, **kwargs: Any) -> None:
     _unhandledShow(show, "build")
 
 
-def start_coverage(coverage_packages):
+def start_coverage(coverage_packages: Tuple) -> Any:
     print("Coverage turned ON!", file=sys.stderr)
     if coverage_packages:
         print("Coverage limited to: " + ",".join(coverage_packages), file=sys.stderr)
 
     import coverage
+
     coveragerc = os.path.join(pathlib.Path(__file__).parent.resolve(), "coveragerc")
-    cov = coverage.Coverage(branch=True, concurrency="multiprocessing", config_file=coveragerc, source_pkgs=[])
+    cov = coverage.Coverage(
+        branch=True, concurrency="multiprocessing", config_file=coveragerc, source_pkgs=coverage_packages
+    )
     cov.load()
     cov.start()
     return cov
 
-def stop_coverage(cov):
+
+def stop_coverage(cov: Any) -> None:
     cov.stop()
     cov.html_report(directory="covhtml")
     cov.report()
