@@ -19,6 +19,8 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+import pathlib
+import os
 import sys
 from functools import partial
 from typing import Any
@@ -139,20 +141,31 @@ def qgraph(ctx: click.Context, **kwargs: Any) -> None:
     kwargs = _collectActions(ctx, **kwargs)
     coverage = kwargs.pop("coverage", False)
     if coverage:
-        print("Coverage turned on!", file=sys.stderr)
-    else:
-        print("Coverage not on", file=sys.stderr)
-    show = ShowInfo(kwargs.pop("show", []))
-    pipeline = script.build(**kwargs, show=show)
-    if show.handled and not show.unhandled:
-        print(
-            "No quantum graph generated. The --show option was given and all options were processed.",
-            file=sys.stderr,
-        )
-        return
-    if script.qgraph(pipelineObj=pipeline, **kwargs, show=show) is None:
-        raise click.ClickException("QuantumGraph was empty; CRITICAL logs above should provide details.")
-    _unhandledShow(show, "qgraph")
+        print("Coverage turned ON!", file=sys.stderr)
+        import coverage
+        coveragerc = os.path.join(pathlib.Path(__file__).parent.resolve(), "coveragerc")
+        cov = coverage.Coverage(branch=True, concurrency="multiprocessing", config_file=coveragerc, source_pkgs=["lsst.daf.butler"])
+        cov.load()
+        cov.start()
+
+    try:
+        show = ShowInfo(kwargs.pop("show", []))
+        pipeline = script.build(**kwargs, show=show)
+        if show.handled and not show.unhandled:
+            print(
+                "No quantum graph generated. The --show option was given and all options were processed.",
+                file=sys.stderr,
+            )
+            return
+        if script.qgraph(pipelineObj=pipeline, **kwargs, show=show) is None:
+            raise click.ClickException("QuantumGraph was empty; CRITICAL logs above should provide details.")
+        _unhandledShow(show, "qgraph")
+    finally:
+        if coverage:
+            cov.stop()
+            cov.html_report(directory="covhtml")
+            cov.report()
+            print("Coverage data stored in ./covhtml")
 
 
 @click.command(cls=PipetaskCommand, epilog=epilog)
@@ -163,29 +176,39 @@ def run(ctx: click.Context, **kwargs: Any) -> None:
     kwargs = _collectActions(ctx, **kwargs)
     coverage = kwargs.pop("coverage", False)
     if coverage:
-        print("Coverage turned on!", file=sys.stderr)
-    else:
-        print("Coverage not on", file=sys.stderr)
+        print("Coverage turned ON!", file=sys.stderr)
+        import coverage
+        coveragerc = os.path.join(pathlib.Path(__file__).parent.resolve(), "coveragerc")
+        cov = coverage.Coverage(branch=True, concurrency="multiprocessing", config_file=coveragerc, source_pkgs=["lsst.daf.butler"])
+        cov.load()
+        cov.start()
 
-    show = ShowInfo(kwargs.pop("show", []))
-    pipeline = script.build(**kwargs, show=show)
-    if show.handled and not show.unhandled:
-        print(
-            "No quantum graph generated or pipeline executed. "
-            "The --show option was given and all options were processed.",
-            file=sys.stderr,
-        )
-        return
-    if (qgraph := script.qgraph(pipelineObj=pipeline, **kwargs, show=show)) is None:
-        raise click.ClickException("QuantumGraph was empty; CRITICAL logs above should provide details.")
-    _unhandledShow(show, "run")
-    if show.handled:
-        print(
-            "No pipeline executed. The --show option was given and all options were processed.",
-            file=sys.stderr,
-        )
-        return
-    script.run(qgraphObj=qgraph, **kwargs)
+    try:
+        show = ShowInfo(kwargs.pop("show", []))
+        pipeline = script.build(**kwargs, show=show)
+        if show.handled and not show.unhandled:
+            print(
+                "No quantum graph generated or pipeline executed. "
+                "The --show option was given and all options were processed.",
+                file=sys.stderr,
+            )
+            return
+        if (qgraph := script.qgraph(pipelineObj=pipeline, **kwargs, show=show)) is None:
+            raise click.ClickException("QuantumGraph was empty; CRITICAL logs above should provide details.")
+        _unhandledShow(show, "run")
+        if show.handled:
+            print(
+                "No pipeline executed. The --show option was given and all options were processed.",
+                file=sys.stderr,
+            )
+            return
+        script.run(qgraphObj=qgraph, **kwargs)
+    finally:
+        if coverage:
+            cov.stop()
+            cov.html_report(directory="covhtml")
+            cov.report()
+            print("Coverage data stored in ./covhtml")
 
 
 @click.command(cls=PipetaskCommand)
