@@ -19,13 +19,13 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-import os
-import pathlib
 import sys
+import tempfile
 from functools import partial
-from typing import Any, Tuple
+from typing import Any
 
 import click
+import coverage
 import lsst.pipe.base.cli.opt as pipeBaseOpts
 from lsst.ctrl.mpexec.showInfo import ShowInfo
 from lsst.daf.butler.cli.opt import (
@@ -126,27 +126,38 @@ def build(ctx: click.Context, **kwargs: Any) -> None:
     _unhandledShow(show, "build")
 
 
-def start_coverage(coverage_packages: Tuple) -> Any:
-    print("Coverage turned ON!", file=sys.stderr)
+def _start_coverage(coverage_packages: tuple) -> coverage.Coverage:
+    coveragerc = """
+[html]
+directory = covhtml
+
+[run]
+branch = True
+concurrency = multiprocessing
+"""
+
     if coverage_packages:
-        print("Coverage limited to: " + ",".join(coverage_packages), file=sys.stderr)
+        pkgs = ",".join(coverage_packages)
+        click.echo(f"Coverage enabled of packages: {pkgs}")
+        coveragerc += f"source_pkgs={pkgs}"
+    else:
+        click.echo("Coverage enabled")
 
-    import coverage
+    with tempfile.NamedTemporaryFile(mode="w") as cov_file:
+        cov_file.write(coveragerc)
+        cov_file.flush()
+        cov = coverage.Coverage(config_file=cov_file.name)
 
-    coveragerc = os.path.join(pathlib.Path(__file__).parent.resolve(), "coveragerc")
-    cov = coverage.Coverage(
-        branch=True, concurrency="multiprocessing", config_file=coveragerc, source_pkgs=coverage_packages
-    )
-    cov.load()
     cov.start()
     return cov
 
 
-def stop_coverage(cov: Any) -> None:
+def _stop_coverage(cov: coverage.Coverage) -> None:
     cov.stop()
-    cov.html_report(directory="covhtml")
+    outdir = "./covhtml"
+    cov.html_report(directory=outdir)
     cov.report()
-    print("Coverage data stored in ./covhtml")
+    click.echo(f"Coverage data written to {outdir}")
 
 
 @click.command(cls=PipetaskCommand, epilog=epilog)
@@ -166,7 +177,7 @@ def qgraph(ctx: click.Context, **kwargs: Any) -> None:
     coverage = kwargs.pop("coverage", False)
     if coverage:
         coverage_packages = kwargs.pop("cov_packages", ())
-        cov = start_coverage(coverage_packages)
+        cov = _start_coverage(coverage_packages)
 
     try:
         show = ShowInfo(kwargs.pop("show", []))
@@ -182,7 +193,7 @@ def qgraph(ctx: click.Context, **kwargs: Any) -> None:
         _unhandledShow(show, "qgraph")
     finally:
         if coverage:
-            stop_coverage(cov)
+            _stop_coverage(cov)
 
 
 @click.command(cls=PipetaskCommand, epilog=epilog)
@@ -194,7 +205,7 @@ def run(ctx: click.Context, **kwargs: Any) -> None:
     coverage = kwargs.pop("coverage", False)
     if coverage:
         coverage_packages = kwargs.pop("cov_packages", ())
-        cov = start_coverage(coverage_packages)
+        cov = _start_coverage(coverage_packages)
 
     try:
         show = ShowInfo(kwargs.pop("show", []))
@@ -218,7 +229,7 @@ def run(ctx: click.Context, **kwargs: Any) -> None:
         script.run(qgraphObj=qgraph, **kwargs)
     finally:
         if coverage:
-            stop_coverage(cov)
+            _stop_coverage(cov)
 
 
 @click.command(cls=PipetaskCommand)
@@ -296,4 +307,13 @@ def run_qbb(repo: str, qgraph: str, **kwargs: Any) -> None:
 
     QGRAPH is the path to a serialized Quantum Graph file.
     """
-    script.run_qbb(repo, qgraph, **kwargs)
+    coverage = kwargs.pop("coverage", False)
+    if coverage:
+        coverage_packages = kwargs.pop("cov_packages", ())
+        cov = _start_coverage(coverage_packages)
+
+    try:
+        script.run_qbb(repo, qgraph, **kwargs)
+    finally:
+        if coverage:
+            _stop_coverage(cov)

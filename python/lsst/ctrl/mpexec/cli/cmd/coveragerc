@@ -1,6 +1,0 @@
-[html]
-directory = covhtml
-
-[run]
-branch = True
-concurrency = multiprocessing
