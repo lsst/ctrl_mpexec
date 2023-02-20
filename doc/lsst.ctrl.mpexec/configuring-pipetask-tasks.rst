@@ -32,7 +32,7 @@ For example, using the RC2 subset test repository from the tutorial the first fe
 
 .. code-block:: bash
 
-   pipetask build  -p $RC2_SUBSET_DIR/pipelines/DRP.yaml#singleFrame --show config
+   pipetask build  -p $DRP_PIPE_DIR/pipelines/HSC/DRP-RC2_subset.yaml#singleFrame --show config
 
    ### Configuration for task `isr'
    # Flag to enable/disable metadata saving for a task, enabled by default.
