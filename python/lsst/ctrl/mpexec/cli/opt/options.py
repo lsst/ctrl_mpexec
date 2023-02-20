@@ -36,6 +36,16 @@ debug_option = MWOptionDecorator(
     "--debug", help="Enable debugging output using lsstDebug facility (imports debug.py).", is_flag=True
 )
 
+coverage_option = MWOptionDecorator("--coverage", help="Enable coverage output.", is_flag=True)
+
+coverage_packages_option = MWOptionDecorator(
+    "--cov-packages",
+    help=unwrap(
+        """Python packages to restrict coverage to.  If none are provided, runs coverage on all packages."""
+    ),
+    multiple=True,
+    callback=split_commas,
+)
 
 delete_option = MWOptionDecorator(
     "--delete", callback=split_commas, help="Delete task with given label from pipeline.", multiple=True
