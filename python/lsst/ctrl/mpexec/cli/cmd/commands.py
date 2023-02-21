@@ -175,8 +175,8 @@ def qgraph(ctx: click.Context, **kwargs: Any) -> None:
     """Build and optionally save quantum graph."""
     kwargs = _collectActions(ctx, **kwargs)
     coverage = kwargs.pop("coverage", False)
+    coverage_packages = kwargs.pop("cov_packages", ())
     if coverage:
-        coverage_packages = kwargs.pop("cov_packages", ())
         cov = _start_coverage(coverage_packages)
 
     try:
@@ -308,8 +308,8 @@ def run_qbb(repo: str, qgraph: str, **kwargs: Any) -> None:
     QGRAPH is the path to a serialized Quantum Graph file.
     """
     coverage = kwargs.pop("coverage", False)
+    coverage_packages = kwargs.pop("cov_packages", ())
     if coverage:
-        coverage_packages = kwargs.pop("cov_packages", ())
         cov = _start_coverage(coverage_packages)
 
     try:
