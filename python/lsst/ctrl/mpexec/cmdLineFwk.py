@@ -66,7 +66,7 @@ from .preExecInit import PreExecInit, PreExecInitLimited
 from .singleQuantumExecutor import SingleQuantumExecutor
 
 if TYPE_CHECKING:
-    from lsst.daf.butler import DatastoreRecordData, Registry
+    from lsst.daf.butler import DatastoreRecordData, LimitedButler, Quantum, Registry
     from lsst.pipe.base import TaskDef, TaskFactory
 
 
@@ -833,6 +833,8 @@ class CmdLineFwk:
                 if subset is not None:
                     datastore_records.setdefault(store_name, DatastoreRecordData()).update(subset)
 
+        dataset_types = {dstype.name: dstype for dstype in qgraph.registryDatasetTypes()}
+
         # Make butler from everything.
         butler = QuantumBackedButler.from_predicted(
             config=args.butler_config,
@@ -841,6 +843,7 @@ class CmdLineFwk:
             dimensions=universe,
             datastore_records=datastore_records,
             search_paths=args.config_search_path,
+            dataset_types=dataset_types,
         )
 
         # Save all InitOutputs, configs, etc.
@@ -855,14 +858,24 @@ class CmdLineFwk:
         if qgraph.metadata is None:
             raise ValueError("QuantumGraph is missing metadata, cannot ")
 
+        dataset_types = {dstype.name: dstype for dstype in qgraph.registryDatasetTypes()}
+
+        def _butler_factory(quantum: Quantum) -> LimitedButler:
+            """Factory method to create QuantumBackedButler instances."""
+            return QuantumBackedButler.initialize(
+                config=args.butler_config,
+                quantum=quantum,
+                dimensions=qgraph.universe,
+                dataset_types=dataset_types,
+            )
+
         # make special quantum executor
         quantumExecutor = SingleQuantumExecutor(
             butler=None,
             taskFactory=task_factory,
             enableLsstDebug=args.enableLsstDebug,
             exitOnKnownError=args.fail_fast,
-            butler_config=args.butler_config,
-            universe=qgraph.universe,
+            limited_butler_factory=_butler_factory,
         )
 
         timeout = self.MP_TIMEOUT if args.timeout is None else args.timeout
