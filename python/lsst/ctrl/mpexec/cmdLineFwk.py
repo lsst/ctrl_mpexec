@@ -486,29 +486,23 @@ class CmdLineFwk:
         # loop over all pipeline actions and apply them in order
         for action in args.pipeline_actions:
             if action.action == "add_instrument":
-
                 pipeline.addInstrument(action.value)
 
             elif action.action == "new_task":
-
                 pipeline.addTask(action.value, action.label)
 
             elif action.action == "delete_task":
-
                 pipeline.removeTask(action.label)
 
             elif action.action == "config":
-
                 # action value string is "field=value", split it at '='
                 field, _, value = action.value.partition("=")
                 pipeline.addConfigOverride(action.label, field, value)
 
             elif action.action == "configfile":
-
                 pipeline.addConfigFile(action.label, action.value)
 
             else:
-
                 raise ValueError(f"Unexpected pipeline action: {action.action}")
 
         if args.save_pipeline:

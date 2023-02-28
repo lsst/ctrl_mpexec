@@ -167,10 +167,8 @@ def graph2dot(qgraph: QuantumGraph, file: Any) -> None:
 
     allDatasetRefs: dict[str, str] = {}
     for taskId, taskDef in enumerate(qgraph.taskGraph):
-
         quanta = qgraph.getNodesForTask(taskDef)
         for qId, quantumNode in enumerate(quanta):
-
             # node for a task
             taskNodeName = "task_{}_{}".format(taskId, qId)
             _renderQuantumNode(taskNodeName, taskDef, quantumNode, file)
@@ -254,7 +252,6 @@ def pipeline2dot(pipeline: Union[Pipeline, Iterable[TaskDef]], file: Any) -> Non
     metadataNodesToLink = set()
 
     for idx, taskDef in enumerate(sorted(pipeline, key=lambda x: x.label)):
-
         # node for a task
         taskNodeName = "task{}".format(idx)
 
