@@ -153,7 +153,6 @@ class SingleQuantumExecutor(QuantumExecutor):
         startTime = time.time()
 
         with self.captureLogging(taskDef, quantum, butler) as captureLog:
-
             # Save detailed resource usage before task start to metadata.
             quantumMetadata = _TASK_METADATA_TYPE()
             logInfo(None, "prep", metadata=quantumMetadata)  # type: ignore

@@ -31,7 +31,6 @@ from lsst.daf.butler.cli.opt import (
 
 
 class PipetaskCLI(LoaderCLI):
-
     localCmdPkg = "lsst.ctrl.mpexec.cli.cmd"
 
 

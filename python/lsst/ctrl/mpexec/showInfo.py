@@ -236,7 +236,6 @@ class ShowInfo:
 
         found = False
         for taskDef in tasks:
-
             config = taskDef.config
 
             # Look for any matches in the config hierarchy for this name
