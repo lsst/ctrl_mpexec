@@ -1,3 +1,31 @@
+lsst-ctrl-mpexec v25.0.0 (2023-02-28)
+=====================================
+
+New Features
+------------
+
+- * Added support for transferring files into execution butler. (`DM-35494 <https://jira.lsstcorp.org/browse/DM-35494>`_)
+- * Added documentation on how to use ``--show`` and ``--config``.
+  * A pipeline will now never execute if ``--show`` option is used with ``pipetask run``.
+  * The ``--config`` option can now accept list configuration values (with or without square brackets), for example ``--config task:listItem=a,b`` or ``--config "task:listItem=[a,b]"``.
+  * The ``--config-file`` option can now take comma-separated file names for multiple config files. (`DM-35917 <https://jira.lsstcorp.org/browse/DM-35917>`_)
+- * added additional quanta information to be displayed by the logger, showing number of quanta per task (`DM-36145 <https://jira.lsstcorp.org/browse/DM-36145>`_)
+- If ``pipetask`` is run with multiple processes and if a butler datastore cache is configured, all subprocesses will now share the same cache.
+  For large numbers of simultaneous processes it may be necessary to significantly increase the number of datasets in the cache to make the cache usable.
+  This can be done by using the ``$DAF_BUTLER_CACHE_EXPIRATION_MODE`` environment variable.
+
+  Previously each subprocess would get its own cache and if ``fork`` start method was used these cache directories would not be cleaned up. (`DM-36412 <https://jira.lsstcorp.org/browse/DM-36412>`_)
+- Always disable implicit threading (e.g. in OpenBLAS) by default in ``pipetask run``, even when not using ``-j``.
+
+  The new ``--enable-implicit-threading`` can be used to turn it back on. (`DM-36831 <https://jira.lsstcorp.org/browse/DM-36831>`_)
+
+
+API Changes
+-----------
+
+- ``SimplePipelineExecutor`` factory methods add ``bind`` parameter for bind values to use with the user expression. (`DM-36487 <https://jira.lsstcorp.org/browse/DM-36487>`_)
+
+
 lsst-ctrl-mpexec v24.0.0 (2022-08-26)
 =====================================
 
