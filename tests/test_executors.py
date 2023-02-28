@@ -22,6 +22,7 @@
 """Simple unit test for cmdLineFwk module.
 """
 
+import faulthandler
 import logging
 import signal
 import sys
@@ -186,6 +187,8 @@ class TaskMockCrash:
 
     def runQuantum(self):
         _LOG.debug("TaskMockCrash.runQuantum")
+        # Disable fault handler to suppress long scary traceback.
+        faulthandler.disable()
         signal.raise_signal(signal.SIGILL)
 
 
