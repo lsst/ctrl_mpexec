@@ -29,20 +29,11 @@ import os
 import sys
 import time
 from collections import defaultdict
+from collections.abc import Callable
 from itertools import chain
 from typing import Any, Optional, Union
 
-from lsst.daf.butler import (
-    Butler,
-    Config,
-    DatasetRef,
-    DatasetType,
-    DimensionUniverse,
-    LimitedButler,
-    NamedKeyDict,
-    Quantum,
-    QuantumBackedButler,
-)
+from lsst.daf.butler import Butler, DatasetRef, DatasetType, LimitedButler, NamedKeyDict, Quantum
 from lsst.pipe.base import (
     AdjustQuantumHelper,
     ButlerQuantumContext,
@@ -106,6 +97,10 @@ class SingleQuantumExecutor(QuantumExecutor):
         If `True` then mock task execution.
     mock_configs : `list` [ `_PipelineAction` ], optional
         Optional config overrides for mock tasks.
+    limited_butler_factory : `Callable`, optional
+        A method that creates a `~lsst.daf.butler.LimitedButler` instance
+        for a given Quantum. This parameter must be defined if ``butler`` is
+        `None`. If ``butler`` is not `None` then this parameter is ignored.
     """
 
     def __init__(
@@ -118,8 +113,7 @@ class SingleQuantumExecutor(QuantumExecutor):
         exitOnKnownError: bool = False,
         mock: bool = False,
         mock_configs: list[_PipelineAction] | None = None,
-        butler_config: Config | str | None = None,
-        universe: DimensionUniverse | None = None,
+        limited_butler_factory: Callable[[Quantum], LimitedButler] | None = None,
     ):
         self.butler = butler
         self.taskFactory = taskFactory
@@ -129,16 +123,12 @@ class SingleQuantumExecutor(QuantumExecutor):
         self.exitOnKnownError = exitOnKnownError
         self.mock = mock
         self.mock_configs = mock_configs if mock_configs is not None else []
-        self.butler_config = butler_config
-        self.universe = universe
+        self.limited_butler_factory = limited_butler_factory
         self.report: Optional[QuantumReport] = None
 
         if self.butler is None:
             assert not self.mock, "Mock execution only possible with full butler"
-        if self.butler is not None:
-            assert butler_config is None and universe is None
-        if self.butler is None:
-            assert butler_config is not None and universe is not None
+            assert limited_butler_factory is not None, "limited_butler_factory is needed when butler is None"
 
     def execute(self, taskDef: TaskDef, quantum: Quantum) -> Quantum:
         # Docstring inherited from QuantumExecutor.execute
@@ -191,17 +181,15 @@ class SingleQuantumExecutor(QuantumExecutor):
         """Internal implementation of execute()"""
         startTime = time.time()
 
-        # Make butler instance
+        # Make a limited butler instance if needed (which should be QBB if full
+        # butler is not defined).
         limited_butler: LimitedButler
         if self.butler is not None:
             limited_butler = self.butler
         else:
-            assert self.butler_config is not None and self.universe is not None
-            limited_butler = QuantumBackedButler.initialize(
-                config=self.butler_config,
-                quantum=quantum,
-                dimensions=self.universe,
-            )
+            # We check this in constructor, but mypy needs this check here.
+            assert self.limited_butler_factory is not None
+            limited_butler = self.limited_butler_factory(quantum)
 
         if self.butler is not None:
             log_capture = LogCapture.from_full(self.butler)
