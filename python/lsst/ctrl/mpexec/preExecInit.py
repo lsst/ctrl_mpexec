@@ -180,7 +180,7 @@ class PreExecInitBase(abc.ABC):
                     _LOG.debug(
                         "Retrieving InitOutputs for task=%s key=%s dsTypeName=%s", task, name, attribute.name
                     )
-                    obj_from_store = self.butler.getDirect(init_output_ref)
+                    obj_from_store = self.butler.get(init_output_ref)
                     # Types are supposed to be identical.
                     # TODO: Check that object contents is identical too.
                     if type(obj_from_store) is not type(init_output_var):
@@ -526,7 +526,7 @@ class PreExecInit(PreExecInitBase):
         ref = self.full_butler.registry.findDataset(dataset_type, dataId, collections=[run])
         if self.extendRun and ref is not None:
             try:
-                config = self.butler.getDirect(ref)
+                config = self.butler.get(ref)
                 return config, ref
             except (LookupError, FileNotFoundError):
                 return None, ref
@@ -580,7 +580,7 @@ class PreExecInitLimited(PreExecInitBase):
         for ref in refs:
             if ref.datasetType.name == dataset_type:
                 try:
-                    data = self.butler.getDirect(ref)
+                    data = self.butler.get(ref)
                     return data, ref
                 except (LookupError, FileNotFoundError):
                     return None, ref
