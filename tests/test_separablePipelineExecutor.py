@@ -28,12 +28,15 @@ import lsst.daf.butler
 import lsst.utils.tests
 from lsst.ctrl.mpexec import SeparablePipelineExecutor
 from lsst.pipe.base import Instrument
+from lsst.resources import ResourcePath
 
 TESTDIR = os.path.abspath(os.path.dirname(__file__))
 
 
 class SeparablePipelineExecutorTests(lsst.utils.tests.TestCase):
     """Test the SeparablePipelineExecutor API with a trivial task."""
+
+    pipeline_file = os.path.join(TESTDIR, "pipeline_separable.yaml")
 
     def setUp(self):
         repodir = tempfile.TemporaryDirectory()
@@ -74,6 +77,29 @@ class SeparablePipelineExecutorTests(lsst.utils.tests.TestCase):
 
         with self.assertRaises(ValueError):
             SeparablePipelineExecutor(butler)
+
+    def test_make_pipeline_full(self):
+        executor = SeparablePipelineExecutor(self.butler)
+        for uri in [
+            self.pipeline_file,
+            ResourcePath(self.pipeline_file),
+            ResourcePath(self.pipeline_file).geturl(),
+        ]:
+            pipeline = executor.make_pipeline(uri)
+            self.assertEqual(len(pipeline), 2)
+            self.assertEqual({t.label for t in pipeline}, {"a", "b"})
+
+    def test_make_pipeline_subset(self):
+        executor = SeparablePipelineExecutor(self.butler)
+        path = self.pipeline_file + "#a"
+        for uri in [
+            path,
+            ResourcePath(path),
+            ResourcePath(path).geturl(),
+        ]:
+            pipeline = executor.make_pipeline(uri)
+            self.assertEqual(len(pipeline), 1)
+            self.assertEqual({t.label for t in pipeline}, {"a"})
 
 
 class MemoryTester(lsst.utils.tests.MemoryTestCase):

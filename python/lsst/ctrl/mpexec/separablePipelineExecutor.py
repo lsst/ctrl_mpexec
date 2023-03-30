@@ -30,6 +30,7 @@ __all__ = [
 from typing import Iterable
 
 import lsst.pipe.base
+import lsst.resources
 from lsst.daf.butler import Butler
 
 from .taskFactory import TaskFactory
@@ -84,3 +85,20 @@ class SeparablePipelineExecutor:
         self._skip_existing_in = list(skip_existing_in) if skip_existing_in else []
 
         self._task_factory = task_factory if task_factory else TaskFactory()
+
+    def make_pipeline(self, pipeline_uri: str | lsst.resources.ResourcePath) -> lsst.pipe.base.Pipeline:
+        """Build a pipeline from pipeline and configuration information.
+
+        Parameters
+        ----------
+        pipeline_uri : `str` or `lsst.resources.ResourcePath`
+            URI to a file containing a pipeline definition. A URI fragment may
+            be used to specify a subset of the pipeline, as described in
+            :ref:`pipeline-running-intro`.
+
+        Returns
+        -------
+        pipeline : `lsst.pipe.base.Pipeline`
+            The fully-built pipeline.
+        """
+        return lsst.pipe.base.Pipeline.from_uri(pipeline_uri)
