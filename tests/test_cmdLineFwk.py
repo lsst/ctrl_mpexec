@@ -23,7 +23,6 @@
 """
 
 import contextlib
-import copy
 import logging
 import os
 import pickle
@@ -739,7 +738,7 @@ class CmdLineFwkTestCaseWithButler(unittest.TestCase):
         self.assertEqual(len(qgraph), self.nQuanta)
 
         # deep copy is needed because quanta are updated in place
-        fwk.runPipeline(copy.deepcopy(qgraph), taskFactory, args)
+        fwk.runPipeline(qgraph, taskFactory, args)
         self.assertEqual(taskFactory.countExec, self.nQuanta)
 
         # need to refresh collections explicitly (or make new butler/registry)
@@ -762,7 +761,8 @@ class CmdLineFwkTestCaseWithButler(unittest.TestCase):
         # changed)
         args.replace_run = True
         args.output_run = "output/run2"
-        fwk.runPipeline(copy.deepcopy(qgraph), taskFactory, args)
+        qgraph = fwk.makeGraph(self.pipeline, args)
+        fwk.runPipeline(qgraph, taskFactory, args)
 
         butler.registry.refresh()
         collections = set(butler.registry.queryCollections(...))
@@ -780,7 +780,8 @@ class CmdLineFwkTestCaseWithButler(unittest.TestCase):
         args.replace_run = True
         args.prune_replaced = "unstore"
         args.output_run = "output/run3"
-        fwk.runPipeline(copy.deepcopy(qgraph), taskFactory, args)
+        qgraph = fwk.makeGraph(self.pipeline, args)
+        fwk.runPipeline(qgraph, taskFactory, args)
 
         butler.registry.refresh()
         collections = set(butler.registry.queryCollections(...))
@@ -810,7 +811,8 @@ class CmdLineFwkTestCaseWithButler(unittest.TestCase):
         args.replace_run = True
         args.prune_replaced = "purge"
         args.output_run = "output/run4"
-        fwk.runPipeline(copy.deepcopy(qgraph), taskFactory, args)
+        qgraph = fwk.makeGraph(self.pipeline, args)
+        fwk.runPipeline(qgraph, taskFactory, args)
 
         butler.registry.refresh()
         collections = set(butler.registry.queryCollections(...))
@@ -828,7 +830,8 @@ class CmdLineFwkTestCaseWithButler(unittest.TestCase):
             args.prune_replaced = None
             args.replace_run = True
             args.output_run = "output/run5"
-            fwk.runPipeline(copy.deepcopy(qgraph), taskFactory, args)
+            qgraph = fwk.makeGraph(self.pipeline, args)
+            fwk.runPipeline(qgraph, taskFactory, args)
         butler.registry.refresh()
         collections = set(butler.registry.queryCollections(...))
         self.assertEqual(collections, {"test", "output", "output/run1", "output/run2", "output/run4"})
@@ -837,7 +840,8 @@ class CmdLineFwkTestCaseWithButler(unittest.TestCase):
             args.prune_replaced = None
             args.replace_run = True
             args.output_run = "output/run6"
-            fwk.runPipeline(copy.deepcopy(qgraph), taskFactory, args)
+            qgraph = fwk.makeGraph(self.pipeline, args)
+            fwk.runPipeline(qgraph, taskFactory, args)
         butler.registry.refresh()
         collections = set(butler.registry.queryCollections(...))
         self.assertEqual(collections, {"test", "output", "output/run1", "output/run2", "output/run4"})
