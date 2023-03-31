@@ -27,13 +27,37 @@ __all__ = [
 ]
 
 
-from typing import Iterable
+import datetime
+import getpass
+import logging
+from typing import Any, Iterable, Mapping, Protocol
 
 import lsst.pipe.base
 import lsst.resources
 from lsst.daf.butler import Butler
 
 from .taskFactory import TaskFactory
+
+_LOG = logging.getLogger(__name__)
+
+
+# Only way to keep black, flake8, and mypy all happy
+_dqc = lsst.pipe.base._datasetQueryConstraints
+
+
+class _GraphBuilderLike(Protocol):
+    def makeGraph(
+        self,
+        pipeline: lsst.pipe.base.Pipeline | Iterable[lsst.pipe.base.pipeline.TaskDef],
+        collections: Any,
+        run: str | None,
+        userQuery: str | None,
+        datasetQueryConstraint: _dqc.DatasetQueryConstraintVariant = _dqc._ALL,
+        metadata: Mapping[str, Any] | None = None,
+        resolveRefs: bool = False,
+        bind: Mapping[str, Any] | None = None,
+    ) -> lsst.pipe.base.QuantumGraph:
+        pass
 
 
 class SeparablePipelineExecutor:
@@ -102,3 +126,62 @@ class SeparablePipelineExecutor:
             The fully-built pipeline.
         """
         return lsst.pipe.base.Pipeline.from_uri(pipeline_uri)
+
+    def make_quantum_graph(
+        self, pipeline: lsst.pipe.base.Pipeline, where: str = "", builder: _GraphBuilderLike | None = None
+    ) -> lsst.pipe.base.QuantumGraph:
+        """Build a quantum graph from a pipeline and input datasets.
+
+        Parameters
+        ----------
+        pipeline : `lsst.pipe.base.Pipeline`
+            The pipeline for which to generate a quantum graph.
+        where : `str`, optional
+            A data ID query that constrains the quanta generated.
+        builder : `lsst.pipe.base.GraphBuilder`-like, optional
+            A graph builder that implements a
+            `~lsst.pipe.base.GraphBuilder.makeGraph` method. By default, a new
+            instance of `lsst.pipe.base.GraphBuilder` is used.
+
+        Returns
+        -------
+        graph : `lsst.pipe.base.QuantumGraph`
+            The quantum graph for ``pipeline`` as run on the datasets
+            identified by ``where``.
+
+        Notes
+        -----
+        This method does no special handling of empty quantum graphs. If
+        needed, clients can use `len` to test if the returned graph is empty.
+        """
+        if not builder:
+            builder = lsst.pipe.base.GraphBuilder(
+                self._butler.registry,
+                skipExistingIn=self._skip_existing_in,
+                clobberOutputs=self._clobber_output,
+            )
+
+        metadata = {
+            "input": self._butler.collections,
+            "output_run": self._butler.run,
+            "skip_existing_in": self._skip_existing_in,
+            "skip_existing": bool(self._skip_existing_in),
+            "data_query": where,
+            "user": getpass.getuser(),
+            "time": str(datetime.datetime.now()),
+        }
+        graph = builder.makeGraph(
+            pipeline,
+            self._butler.collections,
+            self._butler.run,
+            userQuery=where,
+            metadata=metadata,
+            resolveRefs=True,
+        )
+        _LOG.info(
+            "QuantumGraph contains %d quanta for %d tasks, graph ID: %r",
+            len(graph),
+            len(graph.taskGraph),
+            graph.graphID,
+        )
+        return graph
