@@ -180,7 +180,7 @@ class PreExecInitBase(abc.ABC):
                     _LOG.debug(
                         "Retrieving InitOutputs for task=%s key=%s dsTypeName=%s", task, name, attribute.name
                     )
-                    obj_from_store = self.butler.getDirect(init_output_ref)
+                    obj_from_store = self.butler.get(init_output_ref)
                     # Types are supposed to be identical.
                     # TODO: Check that object contents is identical too.
                     if type(obj_from_store) is not type(init_output_var):
@@ -192,7 +192,7 @@ class PreExecInitBase(abc.ABC):
                 else:
                     _LOG.debug("Saving InitOutputs for task=%s key=%s", taskDef.label, name)
                     # This can still raise if there is a concurrent write.
-                    self.butler.putDirect(init_output_var, init_output_ref)
+                    self.butler.put(init_output_var, init_output_ref)
 
     def saveConfigs(self, graph: QuantumGraph) -> None:
         """Write configurations for pipeline tasks to butler or check that
@@ -234,7 +234,7 @@ class PreExecInitBase(abc.ABC):
                 else:
                     # butler will raise exception if dataset is already there
                     _LOG.debug("Saving Config for task=%s dataset type=%s", taskDef.label, config_name)
-                    self.butler.putDirect(taskDef.config, dataset_ref)
+                    self.butler.put(taskDef.config, dataset_ref)
 
     def savePackageVersions(self, graph: QuantumGraph) -> None:
         """Write versions of software packages to butler.
@@ -271,9 +271,9 @@ class PreExecInitBase(abc.ABC):
                     # have to remove existing dataset first, butler has no
                     # replace option.
                     self.butler.pruneDatasets([dataset_ref], unstore=True, purge=True)
-                    self.butler.putDirect(old_packages, dataset_ref)
+                    self.butler.put(old_packages, dataset_ref)
             else:
-                self.butler.putDirect(packages, dataset_ref)
+                self.butler.put(packages, dataset_ref)
 
     @abc.abstractmethod
     def find_init_input_refs(self, taskDef: TaskDef, graph: QuantumGraph) -> Iterable[DatasetRef]:
@@ -526,7 +526,7 @@ class PreExecInit(PreExecInitBase):
         ref = self.full_butler.registry.findDataset(dataset_type, dataId, collections=[run])
         if self.extendRun and ref is not None:
             try:
-                config = self.butler.getDirect(ref)
+                config = self.butler.get(ref)
                 return config, ref
             except (LookupError, FileNotFoundError):
                 return None, ref
@@ -580,7 +580,7 @@ class PreExecInitLimited(PreExecInitBase):
         for ref in refs:
             if ref.datasetType.name == dataset_type:
                 try:
-                    data = self.butler.getDirect(ref)
+                    data = self.butler.get(ref)
                     return data, ref
                 except (LookupError, FileNotFoundError):
                     return None, ref

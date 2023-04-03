@@ -55,7 +55,7 @@ class TaskFactory(BaseTaskFactory):
                 dataset_type_name = attribute.name
                 for ref in initInputRefs:
                     if ref.datasetType.name == dataset_type_name:
-                        init_inputs[name] = butler.getDirect(ref)
+                        init_inputs[name] = butler.get(ref)
                         break
 
         # make task instance

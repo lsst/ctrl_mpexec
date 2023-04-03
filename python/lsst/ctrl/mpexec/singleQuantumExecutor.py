@@ -582,7 +582,7 @@ class SingleQuantumExecutor(QuantumExecutor):
                     ref = ref.unresolved()
                 self.butler.put(metadata, ref)
             else:
-                limited_butler.putDirect(metadata, ref)
+                limited_butler.put(metadata, ref)
 
     def initGlobals(self, quantum: Quantum) -> None:
         """Initialize global state needed for task execution.

@@ -182,7 +182,7 @@ class LogCapture:
                 raise InvalidQuantumError(
                     f"Quantum contains unresolved reference for task log output dataset type {dataset_type}."
                 )
-            self.butler.putDirect(log_handler.records, ref)
+            self.butler.put(log_handler.records, ref)
         else:
             self.full_butler.put(log_handler.records, ref)
 
