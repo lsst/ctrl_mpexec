@@ -36,6 +36,7 @@ import lsst.pipe.base
 import lsst.resources
 from lsst.daf.butler import Butler
 
+from .preExecInit import PreExecInit
 from .taskFactory import TaskFactory
 
 _LOG = logging.getLogger(__name__)
@@ -109,6 +110,40 @@ class SeparablePipelineExecutor:
         self._skip_existing_in = list(skip_existing_in) if skip_existing_in else []
 
         self._task_factory = task_factory if task_factory else TaskFactory()
+
+    def pre_execute_qgraph(
+        self,
+        graph: lsst.pipe.base.QuantumGraph,
+        register_dataset_types: bool = False,
+        save_init_outputs: bool = True,
+        save_versions: bool = True,
+    ) -> None:
+        """Run pre-execution initialization.
+
+        This method will be deprecated after DM-38041, to be replaced with a
+        method that takes either a `~lsst.pipe.base.Pipeline` or a
+        ``ResolvedPipelineGraph`` instead of a `~lsst.pipe.base.QuantumGraph`.
+
+        Parameters
+        ----------
+        graph : `lsst.pipe.base.QuantumGraph`
+            The quantum graph defining the pipeline and datasets to
+            be initialized.
+        register_dataset_types : `bool`, optional
+            If `True`, register all output dataset types from the pipeline
+            represented by ``graph``.
+        save_init_outputs : `bool`, optional
+            If `True`, create init-output datasets in this object's output run.
+        save_versions : `bool`, optional
+            If `True`, save a package versions dataset.
+        """
+        pre_exec_init = PreExecInit(self._butler, self._task_factory, extendRun=self._clobber_output)
+        pre_exec_init.initialize(
+            graph=graph,
+            saveInitOutputs=save_init_outputs,
+            registerDatasetTypes=register_dataset_types,
+            saveVersions=save_versions,
+        )
 
     def make_pipeline(self, pipeline_uri: str | lsst.resources.ResourcePath) -> lsst.pipe.base.Pipeline:
         """Build a pipeline from pipeline and configuration information.

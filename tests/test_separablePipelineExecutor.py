@@ -28,7 +28,7 @@ import lsst.daf.butler
 import lsst.daf.butler.tests as butlerTests
 import lsst.utils.tests
 from lsst.ctrl.mpexec import SeparablePipelineExecutor
-from lsst.pipe.base import Instrument, Pipeline, TaskMetadata
+from lsst.pipe.base import Instrument, Pipeline, PipelineDatasetTypes, TaskMetadata
 from lsst.resources import ResourcePath
 
 TESTDIR = os.path.abspath(os.path.dirname(__file__))
@@ -60,11 +60,154 @@ class SeparablePipelineExecutorTests(lsst.utils.tests.TestCase):
 
         butlerTests.addDatasetType(self.butler, "input", set(), "StructuredDataDict")
         butlerTests.addDatasetType(self.butler, "intermediate", set(), "StructuredDataDict")
-        butlerTests.addDatasetType(self.butler, "output", set(), "StructuredDataDict")
         butlerTests.addDatasetType(self.butler, "a_log", set(), "ButlerLogRecords")
         butlerTests.addDatasetType(self.butler, "a_metadata", set(), "TaskMetadata")
+
+    def test_pre_execute_qgraph(self):
+        # Too hard to make a quantum graph from scratch.
+        executor = SeparablePipelineExecutor(self.butler)
+        pipeline = Pipeline.fromFile(self.pipeline_file)
+        self.butler.put({"zero": 0}, "input")
+        graph = executor.make_quantum_graph(pipeline)
+
+        butlerTests.addDatasetType(self.butler, "output", set(), "StructuredDataDict")
+        butlerTests.addDatasetType(self.butler, "a_config", set(), "Config")
+        butlerTests.addDatasetType(self.butler, "b_config", set(), "Config")
         butlerTests.addDatasetType(self.butler, "b_log", set(), "ButlerLogRecords")
         butlerTests.addDatasetType(self.butler, "b_metadata", set(), "TaskMetadata")
+        butlerTests.addDatasetType(self.butler, PipelineDatasetTypes.packagesDatasetName, set(), "Packages")
+
+        executor.pre_execute_qgraph(
+            graph,
+            register_dataset_types=False,
+            save_init_outputs=False,
+            save_versions=False,
+        )
+        with self.assertRaises(LookupError):
+            self.butler.datasetExists("a_config", {}, collections=[self.butler.run])
+        with self.assertRaises(LookupError):
+            self.butler.datasetExists(PipelineDatasetTypes.packagesDatasetName, {})
+
+    def test_pre_execute_qgraph_unconnected(self):
+        # Unconnected graph; see
+        # test_make_quantum_graph_nowhere_skippartial_clobber.
+        executor = SeparablePipelineExecutor(
+            self.butler,
+            skip_existing_in=[self.butler.run],
+            clobber_output=True,
+        )
+        pipeline = Pipeline.fromFile(self.pipeline_file)
+        self.butler.put({"zero": 0}, "input")
+        self.butler.put({"zero": 0}, "intermediate")
+        graph = executor.make_quantum_graph(pipeline)
+
+        butlerTests.addDatasetType(self.butler, "output", set(), "StructuredDataDict")
+        butlerTests.addDatasetType(self.butler, "a_config", set(), "Config")
+        butlerTests.addDatasetType(self.butler, "b_config", set(), "Config")
+        butlerTests.addDatasetType(self.butler, "b_log", set(), "ButlerLogRecords")
+        butlerTests.addDatasetType(self.butler, "b_metadata", set(), "TaskMetadata")
+        butlerTests.addDatasetType(self.butler, PipelineDatasetTypes.packagesDatasetName, set(), "Packages")
+
+        executor.pre_execute_qgraph(
+            graph,
+            register_dataset_types=False,
+            save_init_outputs=False,
+            save_versions=False,
+        )
+        with self.assertRaises(LookupError):
+            self.butler.datasetExists("a_config", {}, collections=[self.butler.run])
+        with self.assertRaises(LookupError):
+            self.butler.datasetExists(PipelineDatasetTypes.packagesDatasetName, {})
+
+    def test_pre_execute_qgraph_empty(self):
+        executor = SeparablePipelineExecutor(self.butler)
+        graph = lsst.pipe.base.QuantumGraph({}, universe=self.butler.dimensions)
+
+        butlerTests.addDatasetType(self.butler, "output", set(), "StructuredDataDict")
+        butlerTests.addDatasetType(self.butler, "a_config", set(), "Config")
+        butlerTests.addDatasetType(self.butler, "b_config", set(), "Config")
+        butlerTests.addDatasetType(self.butler, "b_log", set(), "ButlerLogRecords")
+        butlerTests.addDatasetType(self.butler, "b_metadata", set(), "TaskMetadata")
+        butlerTests.addDatasetType(self.butler, PipelineDatasetTypes.packagesDatasetName, set(), "Packages")
+
+        executor.pre_execute_qgraph(
+            graph,
+            register_dataset_types=False,
+            save_init_outputs=False,
+            save_versions=False,
+        )
+        with self.assertRaises(LookupError):
+            self.butler.datasetExists("a_config", {}, collections=[self.butler.run])
+        with self.assertRaises(LookupError):
+            self.butler.datasetExists(PipelineDatasetTypes.packagesDatasetName, {})
+
+    def test_pre_execute_qgraph_register(self):
+        executor = SeparablePipelineExecutor(self.butler)
+        pipeline = Pipeline.fromFile(self.pipeline_file)
+        self.butler.put({"zero": 0}, "input")
+        graph = executor.make_quantum_graph(pipeline)
+
+        executor.pre_execute_qgraph(
+            graph,
+            register_dataset_types=True,
+            save_init_outputs=False,
+            save_versions=False,
+        )
+        self.assertEqual({d.name for d in self.butler.registry.queryDatasetTypes("output")}, {"output"})
+        self.assertEqual(
+            {d.name for d in self.butler.registry.queryDatasetTypes("b_*")},
+            {"b_config", "b_log", "b_metadata"},
+        )
+        with self.assertRaises(LookupError):
+            self.butler.datasetExists("a_config", {}, collections=[self.butler.run])
+        with self.assertRaises(LookupError):
+            self.butler.datasetExists(PipelineDatasetTypes.packagesDatasetName, {})
+
+    def test_pre_execute_qgraph_init_outputs(self):
+        # Too hard to make a quantum graph from scratch.
+        executor = SeparablePipelineExecutor(self.butler)
+        pipeline = Pipeline.fromFile(self.pipeline_file)
+        self.butler.put({"zero": 0}, "input")
+        graph = executor.make_quantum_graph(pipeline)
+
+        butlerTests.addDatasetType(self.butler, "output", set(), "StructuredDataDict")
+        butlerTests.addDatasetType(self.butler, "a_config", set(), "Config")
+        butlerTests.addDatasetType(self.butler, "b_config", set(), "Config")
+        butlerTests.addDatasetType(self.butler, "b_log", set(), "ButlerLogRecords")
+        butlerTests.addDatasetType(self.butler, "b_metadata", set(), "TaskMetadata")
+        butlerTests.addDatasetType(self.butler, PipelineDatasetTypes.packagesDatasetName, set(), "Packages")
+
+        executor.pre_execute_qgraph(
+            graph,
+            register_dataset_types=False,
+            save_init_outputs=True,
+            save_versions=False,
+        )
+        self.assertTrue(self.butler.datasetExists("a_config", {}, collections=[self.butler.run]))
+        with self.assertRaises(LookupError):
+            self.butler.datasetExists(PipelineDatasetTypes.packagesDatasetName, {})
+
+    def test_pre_execute_qgraph_versions(self):
+        executor = SeparablePipelineExecutor(self.butler)
+        pipeline = Pipeline.fromFile(self.pipeline_file)
+        self.butler.put({"zero": 0}, "input")
+        graph = executor.make_quantum_graph(pipeline)
+
+        butlerTests.addDatasetType(self.butler, "output", set(), "StructuredDataDict")
+        butlerTests.addDatasetType(self.butler, "a_config", set(), "Config")
+        butlerTests.addDatasetType(self.butler, "b_config", set(), "Config")
+        butlerTests.addDatasetType(self.butler, "b_log", set(), "ButlerLogRecords")
+        butlerTests.addDatasetType(self.butler, "b_metadata", set(), "TaskMetadata")
+        butlerTests.addDatasetType(self.butler, PipelineDatasetTypes.packagesDatasetName, set(), "Packages")
+
+        executor.pre_execute_qgraph(
+            graph,
+            register_dataset_types=False,
+            save_init_outputs=True,
+            save_versions=True,
+        )
+        self.assertTrue(self.butler.datasetExists("a_config", {}, collections=[self.butler.run]))
+        self.assertTrue(self.butler.datasetExists(PipelineDatasetTypes.packagesDatasetName, {}))
 
     def test_init_badinput(self):
         butler = lsst.daf.butler.Butler(butler=self.butler, collections=[], run="foo")
@@ -266,6 +409,10 @@ class SeparablePipelineExecutorTests(lsst.utils.tests.TestCase):
     def test_make_quantum_graph_alloutput_skip(self):
         executor = SeparablePipelineExecutor(self.butler, skip_existing_in=[self.butler.run])
         pipeline = Pipeline.fromFile(self.pipeline_file)
+
+        butlerTests.addDatasetType(self.butler, "output", set(), "StructuredDataDict")
+        butlerTests.addDatasetType(self.butler, "b_log", set(), "ButlerLogRecords")
+        butlerTests.addDatasetType(self.butler, "b_metadata", set(), "TaskMetadata")
 
         self.butler.put({"zero": 0}, "input")
         self.butler.put({"zero": 0}, "intermediate")
