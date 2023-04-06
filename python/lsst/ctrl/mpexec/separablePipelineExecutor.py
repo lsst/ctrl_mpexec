@@ -30,13 +30,18 @@ __all__ = [
 import datetime
 import getpass
 import logging
+import math
+import multiprocessing
 from typing import Any, Iterable, Mapping, Protocol
 
 import lsst.pipe.base
 import lsst.resources
 from lsst.daf.butler import Butler
 
+from .mpGraphExecutor import MPGraphExecutor
 from .preExecInit import PreExecInit
+from .quantumGraphExecutor import QuantumGraphExecutor
+from .singleQuantumExecutor import SingleQuantumExecutor
 from .taskFactory import TaskFactory
 
 _LOG = logging.getLogger(__name__)
@@ -220,3 +225,44 @@ class SeparablePipelineExecutor:
             graph.graphID,
         )
         return graph
+
+    def run_pipeline(
+        self,
+        graph: lsst.pipe.base.QuantumGraph,
+        fail_fast: bool = False,
+        graph_executor: QuantumGraphExecutor | None = None,
+    ) -> None:
+        """Run a pipeline in the form of a prepared quantum graph.
+
+        Pre-execution initialization must have already been run;
+        see `pre_execute_qgraph`.
+
+        Parameters
+        ----------
+        graph : `lsst.pipe.base.QuantumGraph`
+            The pipeline and datasets to execute.
+        fail_fast : `bool`, optional
+            If `True`, abort all (parallel) execution if any task fails (only
+            used with the default graph executor).
+        graph_executor : `lsst.ctrl.mpexec.QuantumGraphExecutor`, optional
+            A custom graph executor. By default, a new instance of
+            `lsst.ctrl.mpexec.MPGraphExecutor` is used.
+        """
+        if not graph_executor:
+            quantum_executor = SingleQuantumExecutor(
+                self._butler,
+                self._task_factory,
+                skipExistingIn=self._skip_existing_in,
+                clobberOutputs=self._clobber_output,
+            )
+            graph_executor = MPGraphExecutor(
+                numProc=math.ceil(0.8 * multiprocessing.cpu_count()),
+                timeout=2_592_000.0,  # In practice, timeout is never helpful; set to 30 days.
+                quantumExecutor=quantum_executor,
+                failFast=fail_fast,
+            )
+            # Have to reset connection pool to avoid sharing connections with
+            # forked processes.
+            self._butler.registry.resetConnectionPool()
+
+        graph_executor.execute(graph)
