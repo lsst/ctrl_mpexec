@@ -371,16 +371,19 @@ class SingleQuantumExecutor(QuantumExecutor):
                         missingRefs.append(registryRefToQuantumRef[ref])
             return existingRefs, missingRefs
 
+        # If skipExistingIn is None this will search in butler.run.
         existingRefs, missingRefs = findOutputs(self.skipExistingIn)
         if self.skipExistingIn:
             if existingRefs and not missingRefs:
-                # everything is already there
+                # Everything is already there, and we do not clobber complete
+                # outputs if skipExistingIn is specified.
                 return True
 
         # If we are to re-run quantum then prune datasets that exists in
         # output run collection, only if `self.clobberOutputs` is set,
         # that only works when we have full butler.
         if existingRefs and self.butler is not None:
+            # Look at butler run instead of skipExistingIn collections.
             existingRefs, missingRefs = findOutputs(self.butler.run)
             if existingRefs and missingRefs:
                 _LOG.debug(
@@ -403,6 +406,11 @@ class SingleQuantumExecutor(QuantumExecutor):
                         f" collection={self.butler.run} existingRefs={existingRefs}"
                         f" missingRefs={missingRefs}"
                     )
+            elif existingRefs and self.clobberOutputs and not self.skipExistingIn:
+                # Clobber complete outputs if skipExistingIn is not specified.
+                _LOG.info("Removing complete outputs for task %s: %s", taskDef, existingRefs)
+                self.butler.pruneDatasets(existingRefs, disassociate=True, unstore=True, purge=True)
+                return False
 
         # need to re-run
         return False
