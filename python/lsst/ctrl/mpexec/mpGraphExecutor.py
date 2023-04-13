@@ -30,6 +30,7 @@ import multiprocessing
 import pickle
 import signal
 import sys
+import threading
 import time
 from collections.abc import Iterable
 from enum import Enum
@@ -141,6 +142,15 @@ class _Job:
         snd_conn : `multiprocessing.Connection`
             Connection to send job report to parent process.
         """
+        # This terrible hack is a workaround for Python threading bug:
+        # https://github.com/python/cpython/issues/102512. Should be removed
+        # when fix for that bug is deployed. Inspired by
+        # https://github.com/QubesOS/qubes-core-admin-client/pull/236/files.
+        thread = threading.current_thread()
+        if isinstance(thread, threading._DummyThread):
+            if getattr(thread, "_tstate_lock", "") is None:
+                thread._set_tstate_lock()  # type: ignore[attr-defined]
+
         if logConfigState and not CliLog.configState:
             # means that we are in a new spawned Python process and we have to
             # re-initialize logging
