@@ -26,6 +26,7 @@ from .mpGraphExecutor import *
 from .preExecInit import *
 from .quantumGraphExecutor import *
 from .reports import *
+from .separablePipelineExecutor import *
 from .simple_pipeline_executor import *
 from .singleQuantumExecutor import *
 from .taskFactory import *
