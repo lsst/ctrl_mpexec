@@ -35,7 +35,7 @@ from typing import TYPE_CHECKING, Any
 # -----------------------------
 #  Imports for other modules --
 # -----------------------------
-from lsst.daf.butler import DataCoordinate, DatasetIdFactory, DatasetRef, DatasetType
+from lsst.daf.butler import DataCoordinate, DatasetIdFactory, DatasetIdGenEnum, DatasetRef, DatasetType
 from lsst.daf.butler.registry import ConflictingDefinitionError
 from lsst.pipe.base import PipelineDatasetTypes
 from lsst.utils.packages import Packages
@@ -532,8 +532,8 @@ class PreExecInit(PreExecInitBase):
                 return None, ref
         else:
             # make new resolved dataset ref
-            ref = DatasetRef(dataset_type, dataId)
-            ref = DatasetIdFactory().resolveRef(ref, run)
+            datasetId = DatasetIdFactory().makeDatasetId(run, dataset_type, dataId, DatasetIdGenEnum.UNIQUE)
+            ref = DatasetRef(dataset_type, dataId, run=run, id=datasetId)
             return None, ref
 
 

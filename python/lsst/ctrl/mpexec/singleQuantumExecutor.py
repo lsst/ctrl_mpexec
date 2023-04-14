@@ -28,12 +28,21 @@ import logging
 import os
 import sys
 import time
+import warnings
 from collections import defaultdict
 from collections.abc import Callable
 from itertools import chain
 from typing import Any, Optional, Union
 
-from lsst.daf.butler import Butler, DatasetRef, DatasetType, LimitedButler, NamedKeyDict, Quantum
+from lsst.daf.butler import (
+    Butler,
+    DatasetRef,
+    DatasetType,
+    LimitedButler,
+    NamedKeyDict,
+    Quantum,
+    UnresolvedRefWarning,
+)
 from lsst.pipe.base import (
     AdjustQuantumHelper,
     ButlerQuantumContext,
@@ -171,7 +180,9 @@ class SingleQuantumExecutor(QuantumExecutor):
         if self.butler is not None:
             # If running with full butler, need to re-resolve it in case
             # collections are different.
-            ref = ref.unresolved()
+            with warnings.catch_warnings():
+                warnings.simplefilter("ignore", category=UnresolvedRefWarning)
+                ref = ref.unresolved()
             return self.butler.registry.findDataset(ref.datasetType, ref.dataId, collections=collections)
         else:
             # In case of QBB all refs must be resolved already, do not check.
@@ -485,11 +496,15 @@ class SingleQuantumExecutor(QuantumExecutor):
                         if self.butler.datastore.exists(resolvedRef):
                             newRefsForDatasetType.append(resolvedRef)
                     else:
-                        mockRef = DatasetRef(mockDatasetType, ref.dataId)
                         resolvedMockRef = self.butler.registry.findDataset(
-                            mockRef.datasetType, mockRef.dataId, collections=self.butler.collections
+                            mockDatasetType, ref.dataId, collections=self.butler.collections
                         )
-                        _LOG.debug("mockRef=%s resolvedMockRef=%s", mockRef, resolvedMockRef)
+                        _LOG.debug(
+                            "mockRef=(%s, %s) resolvedMockRef=%s",
+                            mockDatasetType,
+                            ref.dataId,
+                            resolvedMockRef,
+                        )
                         if resolvedMockRef is not None and self.butler.datastore.exists(resolvedMockRef):
                             _LOG.debug("resolvedMockRef dataset exists")
                             newRefsForDatasetType.append(resolvedRef)
@@ -587,7 +602,9 @@ class SingleQuantumExecutor(QuantumExecutor):
                 # have to ignore that because may be overriding run
                 # collection.
                 if ref.id is not None:
-                    ref = ref.unresolved()
+                    with warnings.catch_warnings():
+                        warnings.simplefilter("ignore", category=UnresolvedRefWarning)
+                        ref = ref.unresolved()
                 self.butler.put(metadata, ref)
             else:
                 limited_butler.put(metadata, ref)

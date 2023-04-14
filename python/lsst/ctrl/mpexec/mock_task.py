@@ -20,9 +20,10 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 import logging
+import warnings
 from typing import Any, List, Optional, Union
 
-from lsst.daf.butler import Butler, DatasetRef, Quantum
+from lsst.daf.butler import Butler, DatasetRef, Quantum, UnresolvedRefWarning
 from lsst.pex.config import Field
 from lsst.pipe.base import (
     ButlerQuantumContext,
@@ -85,7 +86,12 @@ class MockButlerQuantumContext(ButlerQuantumContext):
 
         try:
             mockDatasetType = self.butler.registry.getDatasetType(mockDatasetTypeName)
-            ref = DatasetRef(mockDatasetType, ref.dataId)
+            # Is the ref needed here? Can those parameters be passed directly
+            # to the get() call or is this ref needed in the KeyError except
+            # catch?
+            with warnings.catch_warnings():
+                warnings.simplefilter("ignore", category=UnresolvedRefWarning)
+                ref = DatasetRef(mockDatasetType, ref.dataId)
             data = self.butler.get(ref)
         except KeyError:
             data = super()._get(ref)
@@ -107,12 +113,16 @@ class MockButlerQuantumContext(ButlerQuantumContext):
         # docstring is inherited from the base class
 
         mockDatasetType = self.registry.getDatasetType(self.mockDatasetTypeName(ref.datasetType.name))
-        mockRef = DatasetRef(mockDatasetType, ref.dataId)
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", category=UnresolvedRefWarning)
+            mockRef = DatasetRef(mockDatasetType, ref.dataId)
         value.setdefault("ref", {}).update(datasetType=mockDatasetType.name)
         self.butler.put(value, mockRef)
 
         # also "store" non-mock refs, make sure it is not resolved.
-        self.registry._importDatasets([ref.unresolved()])
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", category=UnresolvedRefWarning)
+            self.registry._importDatasets([ref.unresolved()])
 
     def _checkMembership(self, ref: Union[List[DatasetRef], DatasetRef], inout: set) -> None:
         # docstring is inherited from the base class
