@@ -274,7 +274,11 @@ def _makeQGraph():
             taskName=_TASK_CLASS,
             inputs={
                 fakeDSType: [
-                    DatasetRef(fakeDSType, DataCoordinate.standardize({"A": 1, "B": 2}, universe=universe))
+                    DatasetRef(
+                        fakeDSType,
+                        DataCoordinate.standardize({"A": 1, "B": 2}, universe=universe),
+                        run="fake_run",
+                    )
                 ]
             },
         )

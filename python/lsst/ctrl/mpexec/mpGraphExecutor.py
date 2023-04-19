@@ -32,10 +32,12 @@ import signal
 import sys
 import threading
 import time
+import warnings
 from collections.abc import Iterable
 from enum import Enum
 from typing import Literal, Optional
 
+from lsst.daf.butler import UnresolvedRefWarning
 from lsst.daf.butler.cli.cliLog import CliLog
 from lsst.pipe.base import InvalidQuantumError, TaskDef
 from lsst.pipe.base.graph.graph import QuantumGraph, QuantumNode
@@ -156,7 +158,11 @@ class _Job:
             # re-initialize logging
             CliLog.replayConfigState(logConfigState)
 
-        quantum = pickle.loads(quantum_pickle)
+        with warnings.catch_warnings():
+            # Loading the pickle file can trigger unresolved ref warnings
+            # so we must hide them.
+            warnings.simplefilter("ignore", category=UnresolvedRefWarning)
+            quantum = pickle.loads(quantum_pickle)
         try:
             quantumExecutor.execute(taskDef, quantum)
         finally:
