@@ -85,14 +85,9 @@ class MockButlerQuantumContext(ButlerQuantumContext):
             mockDatasetTypeName = self.mockDatasetTypeName(datasetType.name)
 
         try:
+            # Try to use the mock DatasetType if it is defined.
             mockDatasetType = self.butler.registry.getDatasetType(mockDatasetTypeName)
-            # Is the ref needed here? Can those parameters be passed directly
-            # to the get() call or is this ref needed in the KeyError except
-            # catch?
-            with warnings.catch_warnings():
-                warnings.simplefilter("ignore", category=UnresolvedRefWarning)
-                ref = DatasetRef(mockDatasetType, ref.dataId)
-            data = self.butler.get(ref)
+            data = self.butler.get(mockDatasetType, ref.dataId)
         except KeyError:
             data = super()._get(ref)
             # If the input as an actual non-mock data then we want to replace
