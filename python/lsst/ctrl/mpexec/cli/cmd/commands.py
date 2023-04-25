@@ -317,3 +317,28 @@ def run_qbb(repo: str, qgraph: str, **kwargs: Any) -> None:
     finally:
         if coverage:
             _stop_coverage(cov)
+
+
+@click.command(cls=PipetaskCommand)
+@ctrlMpExecOpts.qgraph_argument()
+@ctrlMpExecOpts.run_argument()
+@ctrlMpExecOpts.output_qgraph_argument()
+@ctrlMpExecOpts.metadata_run_key_option()
+@ctrlMpExecOpts.update_graph_id_option()
+def update_graph_run(
+    qgraph: str,
+    run: str,
+    output_qgraph: str,
+    metadata_run_key: str,
+    update_graph_id: bool,
+) -> None:
+    """Update existing quantum graph with new output run name and re-generate
+    output dataset IDs.
+
+    QGRAPH is the URL to a serialized Quantum Graph file.
+
+    RUN is the new RUN collection name for output graph.
+
+    OUTPUT_QGRAPH is the URL to store the updated Quantum Graph.
+    """
+    script.update_graph_run(qgraph, run, output_qgraph, metadata_run_key, update_graph_id)
