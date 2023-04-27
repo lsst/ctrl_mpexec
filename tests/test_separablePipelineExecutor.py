@@ -342,10 +342,10 @@ class SeparablePipelineExecutorTests(lsst.utils.tests.TestCase):
         self.butler.put(TaskMetadata(), "a_metadata")
 
         graph = executor.make_quantum_graph(pipeline)
-        self.assertFalse(graph.isConnected)  # Both tasks run, but can use old values for b
+        self.assertTrue(graph.isConnected)
         self.assertEqual(len(graph), 2)
-        self.assertEqual({q.taskDef.label for q in graph.inputQuanta}, {"a", "b"})
-        self.assertEqual({q.taskDef.label for q in graph.outputQuanta}, {"a", "b"})
+        self.assertEqual({q.taskDef.label for q in graph.inputQuanta}, {"a"})
+        self.assertEqual({q.taskDef.label for q in graph.outputQuanta}, {"b"})
 
     def test_make_quantum_graph_nowhere_skipnone_clobber(self):
         executor = SeparablePipelineExecutor(
@@ -394,10 +394,10 @@ class SeparablePipelineExecutorTests(lsst.utils.tests.TestCase):
         self.butler.put({"zero": 0}, "intermediate")
 
         graph = executor.make_quantum_graph(pipeline)
-        self.assertFalse(graph.isConnected)  # Both tasks run, but can use old values for b
+        self.assertTrue(graph.isConnected)
         self.assertEqual(len(graph), 2)
-        self.assertEqual({q.taskDef.label for q in graph.inputQuanta}, {"a", "b"})
-        self.assertEqual({q.taskDef.label for q in graph.outputQuanta}, {"a", "b"})
+        self.assertEqual({q.taskDef.label for q in graph.inputQuanta}, {"a"})
+        self.assertEqual({q.taskDef.label for q in graph.outputQuanta}, {"b"})
 
     def test_make_quantum_graph_noinput(self):
         executor = SeparablePipelineExecutor(self.butler)
@@ -520,7 +520,6 @@ class SeparablePipelineExecutorTests(lsst.utils.tests.TestCase):
         self.assertEqual(self.butler.get("intermediate"), {"zero": 0, "one": 1})
         self.assertEqual(self.butler.get("output"), {"zero": 0, "one": 1, "two": 2})
 
-    @unittest.skip("Will not work until DM-38601 is fixed.")
     def test_run_pipeline_noskip_clobber_unconnected(self):
         executor = SeparablePipelineExecutor(self.butler, skip_existing_in=None, clobber_output=True)
         pipeline = Pipeline.fromFile(self.pipeline_file)
@@ -586,7 +585,6 @@ class SeparablePipelineExecutorTests(lsst.utils.tests.TestCase):
         self.butler.registry.refresh()
         self.assertEqual(self.butler.get("output"), {"zero": 0, "two": 2})
 
-    @unittest.skip("Bad behavior with unconnected graph; Middleware will investigate after DM-33027")
     def test_run_pipeline_skippartial_clobber_unconnected(self):
         executor = SeparablePipelineExecutor(
             self.butler,
