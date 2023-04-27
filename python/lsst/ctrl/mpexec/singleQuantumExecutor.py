@@ -90,11 +90,14 @@ class SingleQuantumExecutor(QuantumExecutor):
     skipExistingIn : `list` [ `str` ], optional
         Accepts list of collections, if all Quantum outputs already exist in
         the specified list of collections then that Quantum will not be rerun.
+        If `None` then butler output RUN collection is searched for existing
+        datasets. If empty list then there no check for existing outputs (which
+        could result in conflicts when datasets are stored).
     clobberOutputs : `bool`, optional
-        If `True`, then existing outputs in output run collection will be
-        overwritten.  If ``skipExistingIn`` is defined, only outputs from
-        failed quanta will be overwritten. Only used when ``butler`` is not
-        `None`.
+        If `True`, then existing qauntum outputs in output run collection will
+        be removed prior to executing a quantum.  If ``skipExistingIn`` is
+        defined, only patial outputs from failed quanta will be overwritten
+        (see notes). Only used when ``butler`` is not `None`.
     enableLsstDebug : `bool`, optional
         Enable debugging with ``lsstDebug`` facility for a task.
     exitOnKnownError : `bool`, optional
@@ -110,6 +113,25 @@ class SingleQuantumExecutor(QuantumExecutor):
         A method that creates a `~lsst.daf.butler.LimitedButler` instance
         for a given Quantum. This parameter must be defined if ``butler`` is
         `None`. If ``butler`` is not `None` then this parameter is ignored.
+
+    Notes
+    -----
+    There is a non-trivial interaction between ``skipExistingIn`` and
+    ``clobberOutputs`` areguments. Here is how they wortk together:
+
+    - If ``skipExistingIn`` is specified (or `None`) then those collections
+      are searched for quantum output datasets, If all outputs are found then
+      quantum is not executed and `run` completes successfully.
+    - Otherwise if ``clobberOutputs`` is `True` then butler output RUN
+      collection is checked for existing quantum outputs. If full or partial
+      outputs are found, they are are pruned and quantum is executed.
+    - Otherwise if ``clobberOutputs`` is `False` then butler output RUN
+      collection is checked for existing quantum outputs. If any output
+      dataset is found an exception is raised.
+
+    This leaves the case when partial quantum outputs may be found in
+    ``skipExistingIn`` but that list does not include butler RUN collection.
+    Those partial outputs are not prunned.
     """
 
     def __init__(
@@ -393,7 +415,7 @@ class SingleQuantumExecutor(QuantumExecutor):
         # If we are to re-run quantum then prune datasets that exists in
         # output run collection, only if `self.clobberOutputs` is set,
         # that only works when we have full butler.
-        if existingRefs and self.butler is not None:
+        if self.butler is not None:
             # Look at butler run instead of skipExistingIn collections.
             existingRefs, missingRefs = findOutputs(self.butler.run)
             if existingRefs and missingRefs:
