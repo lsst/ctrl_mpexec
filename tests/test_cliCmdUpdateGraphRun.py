@@ -57,7 +57,6 @@ class UpdateGraphRunTest(unittest.TestCase):
             root=self.root,
             instrument=self.instrument,
             metadata=metadata,
-            resolveRefs=True,
         )
         self.assertEqual(check_output_run(qgraph, "run"), [])
 

@@ -236,6 +236,7 @@ class SimplePipelineExecutor:
         else:
             pipeline = list(pipeline)
         graph_builder = GraphBuilder(butler.registry)
+        assert butler.run is not None, "Butler output run collection must be defined"
         quantum_graph = graph_builder.makeGraph(
             pipeline, collections=butler.collections, run=butler.run, userQuery=where, bind=bind
         )

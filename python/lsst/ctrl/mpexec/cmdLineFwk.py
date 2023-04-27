@@ -582,6 +582,7 @@ class CmdLineFwk:
                 "user": getpass.getuser(),
                 "time": f"{datetime.datetime.now()}",
             }
+            assert run is not None, "Butler output run collection must be defined"
             qgraph = graphBuilder.makeGraph(
                 pipeline,
                 collections,
@@ -589,7 +590,6 @@ class CmdLineFwk:
                 args.data_query,
                 metadata=metadata,
                 datasetQueryConstraint=args.dataset_query_constraint,
-                resolveRefs=True,
             )
             if args.show_qgraph_header:
                 qgraph.buildAndPrintHeader()
