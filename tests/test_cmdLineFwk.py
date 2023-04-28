@@ -490,6 +490,11 @@ class CmdLineFwkTestCaseWithButler(unittest.TestCase):
         self.assertEqual(len(qgraph.taskGraph), self.nQuanta)
         self.assertEqual(len(qgraph), self.nQuanta)
 
+        # Ensure that the output run used in the graph is also used in
+        # the pipeline execution. It is possible for makeGraph and runPipeline
+        # to calculate time-stamped runs across a second boundary.
+        args.output_run = qgraph.metadata["output_run"]
+
         # run whole thing
         fwk.runPipeline(qgraph, taskFactory, args)
         self.assertEqual(taskFactory.countExec, self.nQuanta)
@@ -552,6 +557,11 @@ class CmdLineFwkTestCaseWithButler(unittest.TestCase):
         # executing one quantum is skipped.
         self.assertEqual(len(qgraph), self.nQuanta)
 
+        # Ensure that the output run used in the graph is also used in
+        # the pipeline execution. It is possible for makeGraph and runPipeline
+        # to calculate time-stamped runs across a second boundary.
+        args.output_run = qgraph.metadata["output_run"]
+
         # run whole thing
         fwk.runPipeline(qgraph, taskFactory, args)
         self.assertEqual(taskFactory.countExec, self.nQuanta)
@@ -590,6 +600,11 @@ class CmdLineFwkTestCaseWithButler(unittest.TestCase):
         qgraph = fwk.makeGraph(self.pipeline, args)
         self.assertEqual(len(qgraph.taskGraph), self.nQuanta)
         self.assertEqual(len(qgraph), self.nQuanta - 1)
+
+        # Ensure that the output run used in the graph is also used in
+        # the pipeline execution. It is possible for makeGraph and runPipeline
+        # to calculate time-stamped runs across a second boundary.
+        args.output_run = qgraph.metadata["output_run"]
 
         # run whole thing
         fwk.runPipeline(qgraph, taskFactory, args)
@@ -655,6 +670,11 @@ class CmdLineFwkTestCaseWithButler(unittest.TestCase):
         qgraph = fwk.makeGraph(self.pipeline, args)
         self.assertEqual(len(qgraph), self.nQuanta)
 
+        # Ensure that the output run used in the graph is also used in
+        # the pipeline execution. It is possible for makeGraph and runPipeline
+        # to calculate time-stamped runs across a second boundary.
+        args.output_run = qgraph.metadata["output_run"]
+
         # run first three quanta
         with self.assertRaises(MPGraphExecutorError):
             fwk.runPipeline(qgraph, taskFactory, args)
@@ -673,6 +693,11 @@ class CmdLineFwkTestCaseWithButler(unittest.TestCase):
         )
         self.assertIsNotNone(ref2)
         butler.pruneDatasets([ref1, ref2], disassociate=True, unstore=True, purge=True)
+
+        # Ensure that the output run used in the graph is also used in
+        # the pipeline execution. It is possible for makeGraph and runPipeline
+        # to calculate time-stamped runs across a second boundary.
+        args.output_run = qgraph.metadata["output_run"]
 
         taskFactory.stopAt = -1
         args.skip_existing_in = (args.output,)
@@ -696,6 +721,11 @@ class CmdLineFwkTestCaseWithButler(unittest.TestCase):
 
         # should have one task and number of quanta
         self.assertEqual(len(qgraph), self.nQuanta)
+
+        # Ensure that the output run used in the graph is also used in
+        # the pipeline execution. It is possible for makeGraph and runPipeline
+        # to calculate time-stamped runs across a second boundary.
+        args.output_run = qgraph.metadata["output_run"]
 
         # run first three quanta
         with self.assertRaises(MPGraphExecutorError):
@@ -865,6 +895,11 @@ class CmdLineFwkTestCaseWithButler(unittest.TestCase):
         self.assertEqual(len(qgraph.taskGraph), self.nQuanta)
         self.assertEqual(len(qgraph), self.nQuanta)
 
+        # Ensure that the output run used in the graph is also used in
+        # the pipeline execution. It is possible for makeGraph and runPipeline
+        # to calculate time-stamped runs across a second boundary.
+        args.output_run = qgraph.metadata["output_run"]
+
         # run whole thing
         fwk.runPipeline(qgraph, taskFactory, args)
         # None of the actual tasks is executed
@@ -897,6 +932,11 @@ class CmdLineFwkTestCaseWithButler(unittest.TestCase):
         qgraph = fwk.makeGraph(self.pipeline, args)
         self.assertEqual(len(qgraph.taskGraph), self.nQuanta)
         self.assertEqual(len(qgraph), self.nQuanta)
+
+        # Ensure that the output run used in the graph is also used in
+        # the pipeline execution. It is possible for makeGraph and runPipeline
+        # to calculate time-stamped runs across a second boundary.
+        args.output_run = qgraph.metadata["output_run"]
 
         with self.assertRaises(MPGraphExecutorError) as cm:
             fwk.runPipeline(qgraph, taskFactory, args)
