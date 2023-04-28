@@ -96,7 +96,7 @@ class SingleQuantumExecutor(QuantumExecutor):
     clobberOutputs : `bool`, optional
         If `True`, then existing qauntum outputs in output run collection will
         be removed prior to executing a quantum.  If ``skipExistingIn`` is
-        defined, only patial outputs from failed quanta will be overwritten
+        defined, only partial outputs from failed quanta will be overwritten
         (see notes). Only used when ``butler`` is not `None`.
     enableLsstDebug : `bool`, optional
         Enable debugging with ``lsstDebug`` facility for a task.
@@ -117,10 +117,10 @@ class SingleQuantumExecutor(QuantumExecutor):
     Notes
     -----
     There is a non-trivial interaction between ``skipExistingIn`` and
-    ``clobberOutputs`` areguments. Here is how they wortk together:
+    ``clobberOutputs`` areguments. Here is how they work together:
 
     - If ``skipExistingIn`` is specified (or `None`) then those collections
-      are searched for quantum output datasets, If all outputs are found then
+      are searched for quantum output datasets. If all outputs are found, then
       quantum is not executed and `run` completes successfully.
     - Otherwise if ``clobberOutputs`` is `True` then butler output RUN
       collection is checked for existing quantum outputs. If full or partial
