@@ -481,3 +481,19 @@ config_search_path_option = MWOptionDecorator(
     metavar="PATH",
     multiple=True,
 )
+
+update_graph_id_option = MWOptionDecorator(
+    "--update-graph-id",
+    help=unwrap("Update graph ID with new unique value."),
+    is_flag=True,
+)
+
+metadata_run_key_option = MWOptionDecorator(
+    "--metadata-run-key",
+    help=(
+        "Quantum graph metadata key for the name of the output run. "
+        "Empty string disables update of the metadata. "
+        "Default value: output_run."
+    ),
+    default="output_run",
+)

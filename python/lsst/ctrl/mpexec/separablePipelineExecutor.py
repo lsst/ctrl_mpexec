@@ -56,11 +56,10 @@ class _GraphBuilderLike(Protocol):
         self,
         pipeline: lsst.pipe.base.Pipeline | Iterable[lsst.pipe.base.pipeline.TaskDef],
         collections: Any,
-        run: str | None,
+        run: str,
         userQuery: str | None,
         datasetQueryConstraint: _dqc.DatasetQueryConstraintVariant = _dqc._ALL,
         metadata: Mapping[str, Any] | None = None,
-        resolveRefs: bool = False,
         bind: Mapping[str, Any] | None = None,
     ) -> lsst.pipe.base.QuantumGraph:
         pass
@@ -210,13 +209,13 @@ class SeparablePipelineExecutor:
             "user": getpass.getuser(),
             "time": str(datetime.datetime.now()),
         }
+        assert self._butler.run is not None, "Butler output run collection must be defined"
         graph = builder.makeGraph(
             pipeline,
             self._butler.collections,
             self._butler.run,
             userQuery=where,
             metadata=metadata,
-            resolveRefs=True,
         )
         _LOG.info(
             "QuantumGraph contains %d quanta for %d tasks, graph ID: %r",
