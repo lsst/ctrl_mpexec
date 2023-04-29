@@ -190,4 +190,10 @@ def run(  # type: ignore
 
     f = CmdLineFwk()
     taskFactory = TaskFactory()
+
+    # If we have no output run specified, use the one from the graph rather
+    # than letting a new timestamped run be created.
+    if not args.output_run and qgraphObj.metadata and (output_run := qgraphObj.metadata.get("output_run")):
+        args.output_run = output_run
+
     f.runPipeline(qgraphObj, taskFactory, args)
