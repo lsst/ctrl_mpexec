@@ -620,13 +620,14 @@ class SingleQuantumExecutor(QuantumExecutor):
                     " and execution"
                 ) from exc
             if self.butler is not None:
-                # Dataset ref can already be resolved, for non-QBB executor we
-                # have to ignore that because may be overriding run
-                # collection.
+                # Dataset ref will already be resolved. We are now required
+                # to respect the output run of the ref so can not unresolve.
                 if ref.id is not None:
-                    with warnings.catch_warnings():
-                        warnings.simplefilter("ignore", category=UnresolvedRefWarning)
-                        ref = ref.unresolved()
+                    if ref.run != self.butler.run:  # This test allows for clearer error message.
+                        raise RuntimeError(
+                            f"Inconsistency in RUN when putting resolved ref. "
+                            f"Ref has run {ref.run!r} but butler is putting it into {self.butler.run!r}"
+                        )
                 self.butler.put(metadata, ref)
             else:
                 limited_butler.put(metadata, ref)
