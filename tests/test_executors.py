@@ -669,6 +669,14 @@ class SingleQuantumExecutorTestCase(unittest.TestCase):
         self.assertEqual(len(refs), 1)
         dataset_id_1 = refs[0].id
 
+        original_dataset = butler.get(refs[0])
+
+        # Remove the dataset ourself, and replace it with something
+        # different so we can check later whether it got replaced.
+        butler.pruneDatasets([refs[0]], disassociate=False, unstore=True, purge=False)
+        replacement = original_dataset + 10
+        butler.put(replacement, refs[0])
+
         # Re-run it with clobberOutputs and skipExistingIn, it should not
         # clobber but should skip instead.
         assert butler.run is not None
@@ -683,6 +691,9 @@ class SingleQuantumExecutorTestCase(unittest.TestCase):
         dataset_id_2 = refs[0].id
         self.assertEqual(dataset_id_1, dataset_id_2)
 
+        second_dataset = butler.get(refs[0])
+        self.assertEqual(list(second_dataset), list(replacement))
+
         # Re-run it with clobberOutputs but without skipExistingIn, it should
         # clobber.
         assert butler.run is not None
@@ -693,7 +704,12 @@ class SingleQuantumExecutorTestCase(unittest.TestCase):
         refs = list(butler.registry.queryDatasets("add_dataset1", collections=butler.run))
         self.assertEqual(len(refs), 1)
         dataset_id_3 = refs[0].id
-        self.assertNotEqual(dataset_id_1, dataset_id_3)
+
+        third_dataset = butler.get(refs[0])
+        self.assertEqual(list(third_dataset), list(original_dataset))
+
+        # No change in UUID even after replacement
+        self.assertEqual(dataset_id_1, dataset_id_3)
 
 
 if __name__ == "__main__":
