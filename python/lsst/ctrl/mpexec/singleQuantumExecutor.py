@@ -28,21 +28,12 @@ import logging
 import os
 import sys
 import time
-import warnings
 from collections import defaultdict
 from collections.abc import Callable
 from itertools import chain
 from typing import Any, Optional, Union
 
-from lsst.daf.butler import (
-    Butler,
-    DatasetRef,
-    DatasetType,
-    LimitedButler,
-    NamedKeyDict,
-    Quantum,
-    UnresolvedRefWarning,
-)
+from lsst.daf.butler import Butler, DatasetRef, DatasetType, LimitedButler, NamedKeyDict, Quantum
 from lsst.pipe.base import (
     AdjustQuantumHelper,
     ButlerQuantumContext,
@@ -181,35 +172,6 @@ class SingleQuantumExecutor(QuantumExecutor):
             )
             raise
 
-    def _resolve_ref(self, ref: DatasetRef, collections: Any = None) -> DatasetRef | None:
-        """Return resolved reference.
-
-        Parameters
-        ----------
-        ref : `DatasetRef`
-            Input reference, can be either resolved or unresolved.
-        collections :
-            Collections to search for the existing reference, only used when
-            running with full butler.
-
-        Notes
-        -----
-        When running with Quantum-backed butler it assumes that reference is
-        already resolved and returns input references without any checks. When
-        running with full butler, it always searches registry fof a reference
-        in specified collections, even if reference is already resolved.
-        """
-        if self.butler is not None:
-            # If running with full butler, need to re-resolve it in case
-            # collections are different.
-            with warnings.catch_warnings():
-                warnings.simplefilter("ignore", category=UnresolvedRefWarning)
-                ref = ref.unresolved()
-            return self.butler.registry.findDataset(ref.datasetType, ref.dataId, collections=collections)
-        else:
-            # In case of QBB all refs must be resolved already, do not check.
-            return ref
-
     def _execute(self, taskDef: TaskDef, quantum: Quantum) -> Quantum:
         """Internal implementation of execute()"""
         startTime = time.time()
@@ -281,12 +243,7 @@ class SingleQuantumExecutor(QuantumExecutor):
             # Ensure that we are executing a frozen config
             taskDef.config.freeze()
             logInfo(None, "init", metadata=quantumMetadata)  # type: ignore[arg-type]
-            init_input_refs = []
-            for ref in quantum.initInputs.values():
-                resolved = self._resolve_ref(ref)
-                if resolved is None:
-                    raise ValueError(f"Failed to resolve init input reference {ref}")
-                init_input_refs.append(resolved)
+            init_input_refs = list(quantum.initInputs.values())
             task = self.taskFactory.makeTask(taskDef, limited_butler, init_input_refs)
             logInfo(None, "start", metadata=quantumMetadata)  # type: ignore[arg-type]
             try:
@@ -367,9 +324,8 @@ class SingleQuantumExecutor(QuantumExecutor):
             # Metadata output exists; this is sufficient to assume the previous
             # run was successful and should be skipped.
             [metadata_ref] = quantum.outputs[taskDef.metadataDatasetName]
-            ref = self._resolve_ref(metadata_ref, self.skipExistingIn)
-            if ref is not None:
-                if limited_butler.datastore.exists(ref):
+            if metadata_ref is not None:
+                if limited_butler.datastore.exists(metadata_ref):
                     return True
 
         # Previously we always checked for existing outputs in `butler.run`,
@@ -387,7 +343,14 @@ class SingleQuantumExecutor(QuantumExecutor):
                 checkRefs: list[DatasetRef] = []
                 registryRefToQuantumRef: dict[DatasetRef, DatasetRef] = {}
                 for datasetRef in datasetRefs:
-                    ref = self._resolve_ref(datasetRef, collections)
+                    if self.butler is not None:
+                        # If running with full butler check registry.
+                        ref = self.butler.registry.findDataset(
+                            datasetRef.datasetType, datasetRef.dataId, collections=collections
+                        )
+                    else:
+                        # In case of QBB assume it must be there.
+                        ref = datasetRef
                     if ref is None:
                         missingRefs.append(datasetRef)
                     else:
@@ -482,12 +445,13 @@ class SingleQuantumExecutor(QuantumExecutor):
                 # dataset types, as they would need a timespan for findDataset.
                 resolvedRef: DatasetRef | None
                 checked_datastore = False
-                if ref.id is not None and limited_butler.datastore.exists(ref):
+                if limited_butler.datastore.exists(ref):
                     resolvedRef = ref
                     checked_datastore = True
                 elif self.butler is not None:
-                    # In case of full butler try to (re-)resolve it.
-                    resolvedRef = self._resolve_ref(ref)
+                    # This branch is for mock execution only which does not
+                    # generate actual outputs, only adds datasets to registry.
+                    resolvedRef = self.butler.registry.findDataset(ref.datasetType, ref.dataId)
                     if resolvedRef is None:
                         _LOG.info("No dataset found for %s", ref)
                         continue
@@ -619,18 +583,7 @@ class SingleQuantumExecutor(QuantumExecutor):
                     " this could happen due to inconsistent options between QuantumGraph generation"
                     " and execution"
                 ) from exc
-            if self.butler is not None:
-                # Dataset ref will already be resolved. We are now required
-                # to respect the output run of the ref so can not unresolve.
-                if ref.id is not None:
-                    if ref.run != self.butler.run:  # This test allows for clearer error message.
-                        raise RuntimeError(
-                            f"Inconsistency in RUN when putting resolved ref. "
-                            f"Ref has run {ref.run!r} but butler is putting it into {self.butler.run!r}"
-                        )
-                self.butler.put(metadata, ref)
-            else:
-                limited_butler.put(metadata, ref)
+            limited_butler.put(metadata, ref)
 
     def initGlobals(self, quantum: Quantum) -> None:
         """Initialize global state needed for task execution.

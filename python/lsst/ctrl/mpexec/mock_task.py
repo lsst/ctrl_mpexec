@@ -20,10 +20,9 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 import logging
-import warnings
 from typing import Any, List, Optional, Union
 
-from lsst.daf.butler import Butler, DatasetRef, Quantum, UnresolvedRefWarning
+from lsst.daf.butler import Butler, DatasetRef, Quantum
 from lsst.pex.config import Field
 from lsst.pipe.base import (
     ButlerQuantumContext,
@@ -108,16 +107,12 @@ class MockButlerQuantumContext(ButlerQuantumContext):
         # docstring is inherited from the base class
 
         mockDatasetType = self.registry.getDatasetType(self.mockDatasetTypeName(ref.datasetType.name))
-        with warnings.catch_warnings():
-            warnings.simplefilter("ignore", category=UnresolvedRefWarning)
-            mockRef = DatasetRef(mockDatasetType, ref.dataId)
+        mockRef = DatasetRef(mockDatasetType, ref.dataId, run=ref.run)
         value.setdefault("ref", {}).update(datasetType=mockDatasetType.name)
         self.butler.put(value, mockRef)
 
-        # also "store" non-mock refs, make sure it is not resolved.
-        with warnings.catch_warnings():
-            warnings.simplefilter("ignore", category=UnresolvedRefWarning)
-            self.registry._importDatasets([ref.unresolved()])
+        # Also "store" non-mock refs.
+        self.registry._importDatasets([ref])
 
     def _checkMembership(self, ref: Union[List[DatasetRef], DatasetRef], inout: set) -> None:
         # docstring is inherited from the base class
