@@ -63,11 +63,11 @@ pdb_option = MWOptionDecorator(
 
 extend_run_option = MWOptionDecorator(
     "--extend-run",
-    help=unwrap(
-        """Instead of creating a new RUN collection, insert datasets
-                                                  into either the one given by --output-run (if provided) or
-                                                  the first child collection of --output (which must be of
-                                                  type RUN). This also enables --skip-existing option."""
+    help=(
+        "Instead of creating a new RUN collection, insert datasets into either the one given by "
+        "--output-run (if provided) or the first child collection of --output (which must be of type RUN). "
+        "This also enables --skip-existing option when building a graph. "
+        "When executing a graph this option skips quanta with all existing outputs."
     ),
     is_flag=True,
 )
@@ -344,12 +344,10 @@ skip_existing_option = MWOptionDecorator(
 
 clobber_outputs_option = MWOptionDecorator(
     "--clobber-outputs",
-    help=unwrap(
-        """Remove outputs from previous execution of the same
-                                                       quantum before new execution.  If --skip-existing
-                                                       is also passed, then only failed quanta will be
-                                                       clobbered. Requires the 'run' command's --extend-run
-                                                       flag to be set."""
+    help=(
+        "Remove outputs of failed quanta from the output run when they would block the execution of new "
+        "quanta with the same data ID (or assume that this will be done, if just building a QuantumGraph).  "
+        "Does nothing if --extend-run is not passed."
     ),
     is_flag=True,
 )

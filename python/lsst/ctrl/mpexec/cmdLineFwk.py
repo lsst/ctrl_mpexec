@@ -690,9 +690,12 @@ class CmdLineFwk:
                     "To update graph metadata run `pipetask update-graph-run` command."
                 )
 
-        # make sure that --extend-run always enables --skip-existing
+        # Make sure that --extend-run always enables --skip-existing,
+        # clobbering should be disabled if --extend-run is not specified.
         if args.extend_run:
             args.skip_existing = True
+        else:
+            args.clobber_outputs = False
 
         if not args.enable_implicit_threading:
             disable_implicit_threading()
