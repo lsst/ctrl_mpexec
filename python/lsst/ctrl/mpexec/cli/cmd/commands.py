@@ -41,7 +41,7 @@ from lsst.daf.butler.cli.utils import MWCtxObj, catch_and_exit, option_section, 
 from .. import opt as ctrlMpExecOpts
 from .. import script
 from ..script import confirmable
-from ..utils import _ACTION_CONFIG, _ACTION_CONFIG_FILE, PipetaskCommand, makePipelineActions
+from ..utils import PipetaskCommand, makePipelineActions
 
 epilog = unwrap(
     """Notes:
@@ -84,17 +84,10 @@ def _collectActions(ctx: click.Context, **kwargs: Any) -> dict[str, Any]:
         kwargs.pop(pipelineAction)
 
     actions = makePipelineActions(MWCtxObj.getFrom(ctx).args)
-    mock_configs = []
     pipeline_actions = []
     for action in actions:
-        if action.label and action.label.endswith("-mock"):
-            if action.action not in (_ACTION_CONFIG.action, _ACTION_CONFIG_FILE.action):
-                raise ValueError(f"Unexpected option for mock task config overrides: {action}")
-            mock_configs.append(action)
-        else:
-            pipeline_actions.append(action)
+        pipeline_actions.append(action)
 
-    kwargs["mock_configs"] = mock_configs
     kwargs["pipeline_actions"] = pipeline_actions
     return kwargs
 

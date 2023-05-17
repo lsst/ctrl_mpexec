@@ -590,6 +590,11 @@ class CmdLineFwk:
             if args.show_qgraph_header:
                 print(QuantumGraph.readHeader(args.qgraph))
         else:
+            task_defs = list(pipeline.toExpandedPipeline())
+            if args.mock:
+                from lsst.pipe.base.tests.mocks import mock_task_defs
+
+                task_defs = mock_task_defs(task_defs, unmocked_dataset_types=args.unmocked_dataset_types)
             # make execution plan (a.k.a. DAG) for pipeline
             graphBuilder = GraphBuilder(
                 butler.registry,
@@ -612,7 +617,7 @@ class CmdLineFwk:
             }
             assert run is not None, "Butler output run collection must be defined"
             qgraph = graphBuilder.makeGraph(
-                pipeline,
+                task_defs,
                 collections,
                 run,
                 args.data_query,
@@ -748,7 +753,7 @@ class CmdLineFwk:
                 _LOG.warn("No 'debug' module found.")
 
         # Save all InitOutputs, configs, etc.
-        preExecInit = PreExecInit(butler, taskFactory, extendRun=args.extend_run, mock=args.mock)
+        preExecInit = PreExecInit(butler, taskFactory, extendRun=args.extend_run)
         preExecInit.initialize(
             graph,
             saveInitOutputs=not args.skip_init_writes,
@@ -765,8 +770,6 @@ class CmdLineFwk:
                 clobberOutputs=args.clobber_outputs,
                 enableLsstDebug=args.enableLsstDebug,
                 exitOnKnownError=args.fail_fast,
-                mock=args.mock,
-                mock_configs=args.mock_configs,
             )
 
             timeout = self.MP_TIMEOUT if args.timeout is None else args.timeout

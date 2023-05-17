@@ -425,6 +425,15 @@ mock_option = MWOptionDecorator(
     is_flag=True,
 )
 
+unmocked_dataset_types_option = MWOptionDecorator(
+    "--unmocked-dataset-types",
+    callback=split_commas,
+    default=None,
+    metavar="COLLECTION",
+    multiple=True,
+    help=unwrap("""Names of input dataset types that should not be mocked."""),
+)
+
 clobber_execution_butler_option = MWOptionDecorator(
     "--clobber-execution-butler",
     help=unwrap(

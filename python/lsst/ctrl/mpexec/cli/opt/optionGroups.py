@@ -99,6 +99,8 @@ class qgraph_options(OptionGroup):  # noqa: N801
             ),
             ctrlMpExecOpts.dataset_query_constraint(),
             ctrlMpExecOpts.qgraph_header_data_option(),
+            ctrlMpExecOpts.mock_option(),
+            ctrlMpExecOpts.unmocked_dataset_types_option(),
         ]
 
 
@@ -135,7 +137,6 @@ class execution_options(OptionGroup):  # noqa: N801
             ctrlMpExecOpts.timeout_option(),
             ctrlMpExecOpts.fail_fast_option(),
             ctrlMpExecOpts.graph_fixup_option(),
-            ctrlMpExecOpts.mock_option(),
             ctrlMpExecOpts.summary_option(),
             ctrlMpExecOpts.enable_implicit_threading_option(),
         ]
