@@ -679,9 +679,23 @@ class CmdLineFwk:
             Data Butler instance, if not defined then new instance is made
             using command line options.
         """
-        # make sure that --extend-run always enables --skip-existing
+        # Check that output run defined on command line is consistent with
+        # quantum graph.
+        if args.output_run and graph.metadata:
+            graph_output_run = graph.metadata.get("output_run", args.output_run)
+            if graph_output_run != args.output_run:
+                raise ValueError(
+                    f"Output run defined on command line ({args.output_run}) has to be "
+                    f"identical to graph metadata ({graph_output_run}). "
+                    "To update graph metadata run `pipetask update-graph-run` command."
+                )
+
+        # Make sure that --extend-run always enables --skip-existing,
+        # clobbering should be disabled if --extend-run is not specified.
         if args.extend_run:
             args.skip_existing = True
+        else:
+            args.clobber_outputs = False
 
         if not args.enable_implicit_threading:
             disable_implicit_threading()

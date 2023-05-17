@@ -28,21 +28,21 @@ import logging
 import os
 import sys
 import time
-import warnings
 from collections import defaultdict
 from collections.abc import Callable
 from itertools import chain
-from typing import Any, Optional, Union
+from typing import Any, Optional
 
 from lsst.daf.butler import (
     Butler,
+    CollectionType,
     DatasetRef,
     DatasetType,
     LimitedButler,
     NamedKeyDict,
     Quantum,
-    UnresolvedRefWarning,
 )
+from lsst.daf.butler.registry.wildcards import CollectionWildcard
 from lsst.pipe.base import (
     AdjustQuantumHelper,
     ButlerQuantumContext,
@@ -87,17 +87,18 @@ class SingleQuantumExecutor(QuantumExecutor):
         instead.
     taskFactory : `~lsst.pipe.base.TaskFactory`
         Instance of a task factory.
-    skipExistingIn : `list` [ `str` ], optional
-        Accepts list of collections, if all Quantum outputs already exist in
-        the specified list of collections then that Quantum will not be rerun.
-        If `None` then butler output RUN collection is searched for existing
-        datasets. If empty list then there no check for existing outputs (which
-        could result in conflicts when datasets are stored).
+    skipExistingIn
+        Expressions representing the collections to search for existing
+        output datasets. See :ref:`daf_butler_ordered_collection_searches`
+        for allowed types. This class only checks for the presence of butler
+        output run in the list of collections. If the output run is present
+        in the list then the quanta whose complete outputs exist in the output
+        run will be skipped. `None` or empty string/sequence disables skipping.
     clobberOutputs : `bool`, optional
-        If `True`, then existing qauntum outputs in output run collection will
-        be removed prior to executing a quantum.  If ``skipExistingIn`` is
-        defined, only partial outputs from failed quanta will be overwritten
-        (see notes). Only used when ``butler`` is not `None`.
+        If `True`, then outputs from a quantum that exist in output run
+        collection will be removed prior to executing a quantum. If
+        ``skipExistingIn`` contains output run, then only partial outputs from
+        a quantum will be removed. Only used when ``butler`` is not `None`.
     enableLsstDebug : `bool`, optional
         Enable debugging with ``lsstDebug`` facility for a task.
     exitOnKnownError : `bool`, optional
@@ -113,32 +114,13 @@ class SingleQuantumExecutor(QuantumExecutor):
         A method that creates a `~lsst.daf.butler.LimitedButler` instance
         for a given Quantum. This parameter must be defined if ``butler`` is
         `None`. If ``butler`` is not `None` then this parameter is ignored.
-
-    Notes
-    -----
-    There is a non-trivial interaction between ``skipExistingIn`` and
-    ``clobberOutputs`` areguments. Here is how they work together:
-
-    - If ``skipExistingIn`` is specified (or `None`) then those collections
-      are searched for quantum output datasets. If all outputs are found, then
-      quantum is not executed and `run` completes successfully.
-    - Otherwise if ``clobberOutputs`` is `True` then butler output RUN
-      collection is checked for existing quantum outputs. If full or partial
-      outputs are found, they are are pruned and quantum is executed.
-    - Otherwise if ``clobberOutputs`` is `False` then butler output RUN
-      collection is checked for existing quantum outputs. If any output
-      dataset is found an exception is raised.
-
-    This leaves the case when partial quantum outputs may be found in
-    ``skipExistingIn`` but that list does not include butler RUN collection.
-    Those partial outputs are not prunned.
     """
 
     def __init__(
         self,
         butler: Butler | None,
         taskFactory: TaskFactory,
-        skipExistingIn: list[str] | None = None,
+        skipExistingIn: Any = None,
         clobberOutputs: bool = False,
         enableLsstDebug: bool = False,
         exitOnKnownError: bool = False,
@@ -148,7 +130,6 @@ class SingleQuantumExecutor(QuantumExecutor):
     ):
         self.butler = butler
         self.taskFactory = taskFactory
-        self.skipExistingIn = skipExistingIn
         self.enableLsstDebug = enableLsstDebug
         self.clobberOutputs = clobberOutputs
         self.exitOnKnownError = exitOnKnownError
@@ -160,6 +141,21 @@ class SingleQuantumExecutor(QuantumExecutor):
         if self.butler is None:
             assert not self.mock, "Mock execution only possible with full butler"
             assert limited_butler_factory is not None, "limited_butler_factory is needed when butler is None"
+
+        # Find whether output run is in skipExistingIn.
+        # TODO: This duplicates logic in GraphBuilder, would be nice to have
+        # better abstraction for this some day.
+        self.skipExisting = False
+        if self.butler is not None and skipExistingIn:
+            skip_collections_wildcard = CollectionWildcard.from_expression(skipExistingIn)
+            # As optimization check in the explicit list of names first
+            self.skipExisting = self.butler.run in skip_collections_wildcard.strings
+            if not self.skipExisting:
+                # need to flatten it and check again
+                self.skipExisting = self.butler.run in self.butler.registry.queryCollections(
+                    skipExistingIn,
+                    collectionTypes=CollectionType.RUN,
+                )
 
     def execute(self, taskDef: TaskDef, quantum: Quantum) -> Quantum:
         # Docstring inherited from QuantumExecutor.execute
@@ -180,35 +176,6 @@ class SingleQuantumExecutor(QuantumExecutor):
                 taskLabel=taskDef.label,
             )
             raise
-
-    def _resolve_ref(self, ref: DatasetRef, collections: Any = None) -> DatasetRef | None:
-        """Return resolved reference.
-
-        Parameters
-        ----------
-        ref : `DatasetRef`
-            Input reference, can be either resolved or unresolved.
-        collections :
-            Collections to search for the existing reference, only used when
-            running with full butler.
-
-        Notes
-        -----
-        When running with Quantum-backed butler it assumes that reference is
-        already resolved and returns input references without any checks. When
-        running with full butler, it always searches registry fof a reference
-        in specified collections, even if reference is already resolved.
-        """
-        if self.butler is not None:
-            # If running with full butler, need to re-resolve it in case
-            # collections are different.
-            with warnings.catch_warnings():
-                warnings.simplefilter("ignore", category=UnresolvedRefWarning)
-                ref = ref.unresolved()
-            return self.butler.registry.findDataset(ref.datasetType, ref.dataId, collections=collections)
-        else:
-            # In case of QBB all refs must be resolved already, do not check.
-            return ref
 
     def _execute(self, taskDef: TaskDef, quantum: Quantum) -> Quantum:
         """Internal implementation of execute()"""
@@ -281,12 +248,7 @@ class SingleQuantumExecutor(QuantumExecutor):
             # Ensure that we are executing a frozen config
             taskDef.config.freeze()
             logInfo(None, "init", metadata=quantumMetadata)  # type: ignore[arg-type]
-            init_input_refs = []
-            for ref in quantum.initInputs.values():
-                resolved = self._resolve_ref(ref)
-                if resolved is None:
-                    raise ValueError(f"Failed to resolve init input reference {ref}")
-                init_input_refs.append(resolved)
+            init_input_refs = list(quantum.initInputs.values())
             task = self.taskFactory.makeTask(taskDef, limited_butler, init_input_refs)
             logInfo(None, "start", metadata=quantumMetadata)  # type: ignore[arg-type]
             try:
@@ -353,7 +315,7 @@ class SingleQuantumExecutor(QuantumExecutor):
         Returns
         -------
         exist : `bool`
-            `True` if ``self.skipExistingIn`` is defined, and a previous
+            `True` if ``self.skipExisting`` is defined, and a previous
             execution of this quanta appears to have completed successfully
             (either because metadata was written or all datasets were written).
             `False` otherwise.
@@ -363,67 +325,41 @@ class SingleQuantumExecutor(QuantumExecutor):
         RuntimeError
             Raised if some outputs exist and some not.
         """
-        if self.skipExistingIn and taskDef.metadataDatasetName is not None:
+        if not self.butler:
+            # Skip/prune logic only works for full butler.
+            return False
+
+        if self.skipExisting and taskDef.metadataDatasetName is not None:
             # Metadata output exists; this is sufficient to assume the previous
             # run was successful and should be skipped.
             [metadata_ref] = quantum.outputs[taskDef.metadataDatasetName]
-            ref = self._resolve_ref(metadata_ref, self.skipExistingIn)
-            if ref is not None:
-                if limited_butler.datastore.exists(ref):
+            if metadata_ref is not None:
+                if limited_butler.datastore.exists(metadata_ref):
                     return True
 
-        # Previously we always checked for existing outputs in `butler.run`,
-        # now logic gets more complicated as we only want to skip quantum
-        # whose outputs exist in `self.skipExistingIn` but pruning should only
-        # be done for outputs existing in `butler.run`.
-
-        def findOutputs(
-            collections: Optional[Union[str, list[str]]]
-        ) -> tuple[list[DatasetRef], list[DatasetRef]]:
-            """Find quantum outputs in specified collections."""
-            existingRefs = []
-            missingRefs = []
-            for datasetRefs in quantum.outputs.values():
-                checkRefs: list[DatasetRef] = []
-                registryRefToQuantumRef: dict[DatasetRef, DatasetRef] = {}
-                for datasetRef in datasetRefs:
-                    ref = self._resolve_ref(datasetRef, collections)
-                    if ref is None:
-                        missingRefs.append(datasetRef)
-                    else:
-                        checkRefs.append(ref)
-                        registryRefToQuantumRef[ref] = datasetRef
-
-                # More efficient to ask the datastore in bulk for ref
-                # existence rather than one at a time.
-                existence = limited_butler.datastore.mexists(checkRefs)
-                for ref, exists in existence.items():
-                    if exists:
-                        existingRefs.append(ref)
-                    else:
-                        missingRefs.append(registryRefToQuantumRef[ref])
-            return existingRefs, missingRefs
-
-        # If skipExistingIn is None this will search in butler.run.
-        existingRefs, missingRefs = findOutputs(self.skipExistingIn)
-        if self.skipExistingIn:
-            if existingRefs and not missingRefs:
-                # Everything is already there, and we do not clobber complete
-                # outputs if skipExistingIn is specified.
-                return True
-
-        # If we are to re-run quantum then prune datasets that exists in
-        # output run collection, only if `self.clobberOutputs` is set,
-        # that only works when we have full butler.
-        if self.butler is not None:
-            # Look at butler run instead of skipExistingIn collections.
-            existingRefs, missingRefs = findOutputs(self.butler.run)
-            if existingRefs and missingRefs:
+        # Find and prune (partial) outputs if `self.clobberOutputs` is set.
+        ref_dict = self.butler.datastore.mexists(chain.from_iterable(quantum.outputs.values()))
+        existingRefs = [ref for ref, exists in ref_dict.items() if exists]
+        missingRefs = [ref for ref, exists in ref_dict.items() if not exists]
+        if existingRefs:
+            if not missingRefs:
+                # Full outputs exist.
+                if self.skipExisting:
+                    return True
+                elif self.clobberOutputs:
+                    _LOG.info("Removing complete outputs for quantum %s: %s", quantum, existingRefs)
+                    self.butler.pruneDatasets(existingRefs, disassociate=True, unstore=True, purge=True)
+                else:
+                    raise RuntimeError(
+                        f"Complete outputs exists for a quantum {quantum} "
+                        "and neither clobberOutputs nor skipExisting is set: "
+                        f"collection={self.butler.run} existingRefs={existingRefs}"
+                    )
+            else:
+                # Partial outputs from a failed quantum.
                 _LOG.debug(
-                    "Partial outputs exist for task %s dataId=%s collection=%s "
-                    "existingRefs=%s missingRefs=%s",
-                    taskDef,
-                    quantum.dataId,
+                    "Partial outputs exist for quantum %s collection=%s existingRefs=%s missingRefs=%s",
+                    quantum,
                     self.butler.run,
                     existingRefs,
                     missingRefs,
@@ -435,17 +371,12 @@ class SingleQuantumExecutor(QuantumExecutor):
                     return False
                 else:
                     raise RuntimeError(
-                        "Registry inconsistency while checking for existing outputs:"
-                        f" collection={self.butler.run} existingRefs={existingRefs}"
+                        "Registry inconsistency while checking for existing quantum outputs:"
+                        f" quantum={quantum} collection={self.butler.run} existingRefs={existingRefs}"
                         f" missingRefs={missingRefs}"
                     )
-            elif existingRefs and self.clobberOutputs and not self.skipExistingIn:
-                # Clobber complete outputs if skipExistingIn is not specified.
-                _LOG.info("Removing complete outputs for task %s: %s", taskDef, existingRefs)
-                self.butler.pruneDatasets(existingRefs, disassociate=True, unstore=True, purge=True)
-                return False
 
-        # need to re-run
+        # By default always execute.
         return False
 
     def updatedQuantumInputs(
@@ -482,12 +413,13 @@ class SingleQuantumExecutor(QuantumExecutor):
                 # dataset types, as they would need a timespan for findDataset.
                 resolvedRef: DatasetRef | None
                 checked_datastore = False
-                if ref.id is not None and limited_butler.datastore.exists(ref):
+                if limited_butler.datastore.exists(ref):
                     resolvedRef = ref
                     checked_datastore = True
                 elif self.butler is not None:
-                    # In case of full butler try to (re-)resolve it.
-                    resolvedRef = self._resolve_ref(ref)
+                    # This branch is for mock execution only which does not
+                    # generate actual outputs, only adds datasets to registry.
+                    resolvedRef = self.butler.registry.findDataset(ref.datasetType, ref.dataId)
                     if resolvedRef is None:
                         _LOG.info("No dataset found for %s", ref)
                         continue
@@ -619,18 +551,7 @@ class SingleQuantumExecutor(QuantumExecutor):
                     " this could happen due to inconsistent options between QuantumGraph generation"
                     " and execution"
                 ) from exc
-            if self.butler is not None:
-                # Dataset ref will already be resolved. We are now required
-                # to respect the output run of the ref so can not unresolve.
-                if ref.id is not None:
-                    if ref.run != self.butler.run:  # This test allows for clearer error message.
-                        raise RuntimeError(
-                            f"Inconsistency in RUN when putting resolved ref. "
-                            f"Ref has run {ref.run!r} but butler is putting it into {self.butler.run!r}"
-                        )
-                self.butler.put(metadata, ref)
-            else:
-                limited_butler.put(metadata, ref)
+            limited_butler.put(metadata, ref)
 
     def initGlobals(self, quantum: Quantum) -> None:
         """Initialize global state needed for task execution.
