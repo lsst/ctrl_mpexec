@@ -39,18 +39,20 @@ _FAKE_STORAGE_CLASS = "StructuredDataDict"
 
 
 class FakeConnections(PipelineTaskConnections, dimensions=set()):
-    initInput = connectionTypes.InitInput(name="fakeInitInput", doc="", storageClass=_FAKE_STORAGE_CLASS)
-    initOutput = connectionTypes.InitOutput(name="fakeInitOutput", doc="", storageClass=_FAKE_STORAGE_CLASS)
+    initInput = connectionTypes.InitInput(name="fakeInitInput", doc="test", storageClass=_FAKE_STORAGE_CLASS)
+    initOutput = connectionTypes.InitOutput(
+        name="fakeInitOutput", doc="test", storageClass=_FAKE_STORAGE_CLASS
+    )
     input = connectionTypes.Input(
-        name="fakeInput", doc="", storageClass=_FAKE_STORAGE_CLASS, dimensions=set()
+        name="fakeInput", doc="test", storageClass=_FAKE_STORAGE_CLASS, dimensions=set()
     )
     output = connectionTypes.Output(
-        name="fakeOutput", doc="", storageClass=_FAKE_STORAGE_CLASS, dimensions=set()
+        name="fakeOutput", doc="test", storageClass=_FAKE_STORAGE_CLASS, dimensions=set()
     )
 
 
 class FakeConfig(PipelineTaskConfig, pipelineConnections=FakeConnections):
-    widget = pexConfig.Field(dtype=float, doc="", default=1.0)
+    widget = pexConfig.Field(dtype=float, doc="test", default=1.0)
 
 
 def mockTaskClass():
