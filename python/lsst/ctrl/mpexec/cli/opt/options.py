@@ -38,6 +38,12 @@ debug_option = MWOptionDecorator(
 
 coverage_option = MWOptionDecorator("--coverage", help="Enable coverage output.", is_flag=True)
 
+coverage_report_option = MWOptionDecorator(
+    "--cov-report/--no-cov-report",
+    help="If coverage is enabled, controls whether to produce an HTML coverage report.",
+    default=True,
+)
+
 coverage_packages_option = MWOptionDecorator(
     "--cov-packages",
     help=unwrap(

@@ -20,8 +20,10 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 import sys
-import tempfile
+from collections.abc import Iterator
+from contextlib import contextmanager
 from functools import partial
+from tempfile import NamedTemporaryFile
 from typing import Any
 
 import click
@@ -119,44 +121,40 @@ def build(ctx: click.Context, **kwargs: Any) -> None:
     _unhandledShow(show, "build")
 
 
-def _start_coverage(coverage_packages: tuple) -> coverage.Coverage:
-    coveragerc = """
-[html]
-directory = covhtml
-
+@contextmanager
+def coverage_context(kwargs: dict[str, Any]) -> Iterator[None]:
+    packages = kwargs.pop("cov_packages", ())
+    report = kwargs.pop("cov_report", True)
+    if not kwargs.pop("coverage", False):
+        yield
+        return
+    with NamedTemporaryFile("w") as rcfile:
+        rcfile.write(
+            """
 [run]
 branch = True
 concurrency = multiprocessing
 """
-
-    if coverage_packages:
-        pkgs = ",".join(coverage_packages)
-        click.echo(f"Coverage enabled of packages: {pkgs}")
-        coveragerc += f"source_pkgs={pkgs}"
-    else:
-        click.echo("Coverage enabled")
-
-    with tempfile.NamedTemporaryFile(mode="w") as cov_file:
-        cov_file.write(coveragerc)
-        cov_file.flush()
-        cov = coverage.Coverage(config_file=cov_file.name)
-
-    cov.start()
-    return cov
-
-
-def _stop_coverage(cov: coverage.Coverage) -> None:
-    cov.stop()
-    outdir = "./covhtml"
-    cov.html_report(directory=outdir)
-    cov.report()
-    click.echo(f"Coverage data written to {outdir}")
+        )
+        if packages:
+            packages_str = ",".join(packages)
+            rcfile.write(f"source_pkgs = {packages_str}\n")
+        rcfile.flush()
+        cov = coverage.Coverage(config_file=rcfile.name)
+        cov.start()
+        try:
+            yield
+        finally:
+            cov.stop()
+            cov.save()
+            if report:
+                outdir = "./covhtml"
+                cov.html_report(directory=outdir)
+                click.echo(f"Coverage report written to {outdir}.")
 
 
 @click.command(cls=PipetaskCommand, epilog=epilog)
 @click.pass_context
-@ctrlMpExecOpts.coverage_option()
-@ctrlMpExecOpts.coverage_packages_option()
 @ctrlMpExecOpts.show_option()
 @ctrlMpExecOpts.pipeline_build_options()
 @ctrlMpExecOpts.qgraph_options()
@@ -167,12 +165,7 @@ def _stop_coverage(cov: coverage.Coverage) -> None:
 def qgraph(ctx: click.Context, **kwargs: Any) -> None:
     """Build and optionally save quantum graph."""
     kwargs = _collectActions(ctx, **kwargs)
-    coverage = kwargs.pop("coverage", False)
-    coverage_packages = kwargs.pop("cov_packages", ())
-    if coverage:
-        cov = _start_coverage(coverage_packages)
-
-    try:
+    with coverage_context(kwargs):
         show = ShowInfo(kwargs.pop("show", []))
         pipeline = script.build(**kwargs, show=show)
         if show.handled and not show.unhandled:
@@ -184,9 +177,6 @@ def qgraph(ctx: click.Context, **kwargs: Any) -> None:
         if script.qgraph(pipelineObj=pipeline, **kwargs, show=show) is None:
             raise click.ClickException("QuantumGraph was empty; CRITICAL logs above should provide details.")
         _unhandledShow(show, "qgraph")
-    finally:
-        if coverage:
-            _stop_coverage(cov)
 
 
 @click.command(cls=PipetaskCommand, epilog=epilog)
@@ -195,12 +185,7 @@ def qgraph(ctx: click.Context, **kwargs: Any) -> None:
 def run(ctx: click.Context, **kwargs: Any) -> None:
     """Build and execute pipeline and quantum graph."""
     kwargs = _collectActions(ctx, **kwargs)
-    coverage = kwargs.pop("coverage", False)
-    if coverage:
-        coverage_packages = kwargs.pop("cov_packages", ())
-        cov = _start_coverage(coverage_packages)
-
-    try:
+    with coverage_context(kwargs):
         show = ShowInfo(kwargs.pop("show", []))
         pipeline = script.build(**kwargs, show=show)
         if show.handled and not show.unhandled:
@@ -220,9 +205,6 @@ def run(ctx: click.Context, **kwargs: Any) -> None:
             )
             return
         script.run(qgraphObj=qgraph, **kwargs)
-    finally:
-        if coverage:
-            _stop_coverage(cov)
 
 
 @click.command(cls=PipetaskCommand)
@@ -266,6 +248,7 @@ def cleanup(confirm: bool, **kwargs: Any) -> None:
 @ctrlMpExecOpts.qgraph_argument()
 @ctrlMpExecOpts.config_search_path_option()
 @ctrlMpExecOpts.qgraph_id_option()
+@ctrlMpExecOpts.coverage_options()
 def pre_exec_init_qbb(repo: str, qgraph: str, **kwargs: Any) -> None:
     """Execute pre-exec-init on Quantum-Backed Butler.
 
@@ -273,7 +256,8 @@ def pre_exec_init_qbb(repo: str, qgraph: str, **kwargs: Any) -> None:
 
     QGRAPH is the path to a serialized Quantum Graph file.
     """
-    script.pre_exec_init_qbb(repo, qgraph, **kwargs)
+    with coverage_context(kwargs):
+        script.pre_exec_init_qbb(repo, qgraph, **kwargs)
 
 
 @click.command(cls=PipetaskCommand)
@@ -285,8 +269,7 @@ def pre_exec_init_qbb(repo: str, qgraph: str, **kwargs: Any) -> None:
 @processes_option()
 @ctrlMpExecOpts.pdb_option()
 @ctrlMpExecOpts.profile_option()
-@ctrlMpExecOpts.coverage_option()
-@ctrlMpExecOpts.coverage_packages_option()
+@ctrlMpExecOpts.coverage_options()
 @ctrlMpExecOpts.debug_option()
 @ctrlMpExecOpts.start_method_option()
 @ctrlMpExecOpts.timeout_option()
@@ -300,16 +283,8 @@ def run_qbb(repo: str, qgraph: str, **kwargs: Any) -> None:
 
     QGRAPH is the path to a serialized Quantum Graph file.
     """
-    coverage = kwargs.pop("coverage", False)
-    coverage_packages = kwargs.pop("cov_packages", ())
-    if coverage:
-        cov = _start_coverage(coverage_packages)
-
-    try:
+    with coverage_context(kwargs):
         script.run_qbb(repo, qgraph, **kwargs)
-    finally:
-        if coverage:
-            _stop_coverage(cov)
 
 
 @click.command(cls=PipetaskCommand)
