@@ -129,11 +129,12 @@ class DotToolsTestCase(unittest.TestCase):
         # It's hard to validate complete output, just checking few basic
         # things, even that is not terribly stable.
         lines = file.getvalue().strip().split("\n")
+        nglobals = 3
         ndatasets = 10
         ntasks = 6
         nedges = 16
         nextra = 2  # graph header and closing
-        self.assertEqual(len(lines), ndatasets + ntasks + nedges + nextra)
+        self.assertEqual(len(lines), nglobals + ndatasets + ntasks + nedges + nextra)
 
         # make sure that all node names are quoted
         nodeRe = re.compile(r"^([^ ]+) \[.+\];$")
@@ -142,8 +143,9 @@ class DotToolsTestCase(unittest.TestCase):
             match = nodeRe.match(line)
             if match:
                 node = match.group(1)
-                self.assertEqual(node[0] + node[-1], '""')
-                continue
+                if node not in ["graph", "node", "edge"]:
+                    self.assertEqual(node[0] + node[-1], '""')
+                    continue
             match = edgeRe.match(line)
             if match:
                 for group in (1, 2):
@@ -152,7 +154,7 @@ class DotToolsTestCase(unittest.TestCase):
                 continue
 
         # make sure components are connected appropriately
-        self.assertIn('"D" -> "D.C";', file.getvalue())
+        self.assertIn('"D" -> "D.C"', file.getvalue())
 
         # make sure there is a connection created for metadata if someone
         # tries to read it in

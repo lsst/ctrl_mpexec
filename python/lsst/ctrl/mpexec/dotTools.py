@@ -30,6 +30,7 @@ __all__ = ["graph2dot", "pipeline2dot"]
 # -------------------------------
 #  Imports of standard modules --
 # -------------------------------
+import html
 import io
 import re
 from collections.abc import Iterable
@@ -49,32 +50,52 @@ if TYPE_CHECKING:
 #  Local non-exported definitions --
 # ----------------------------------
 
-# Node styles indexed by node type.
-_STYLES = dict(
-    task=dict(shape="box", style="filled,bold", fillcolor="gray70"),
-    quantum=dict(shape="box", style="filled,bold", fillcolor="gray70"),
-    dsType=dict(shape="box", style="rounded,filled", fillcolor="gray90"),
-    dataset=dict(shape="box", style="rounded,filled", fillcolor="gray90"),
+# Attributes applied to directed graph objects.
+_NODELABELPOINTSIZE = "18"
+_ATTRIBS = dict(
+    defaultGraph=dict(splines="ortho", nodesep="0.5", ranksep="0.75", pad="0.5"),
+    defaultNode=dict(shape="box", fontname="Monospace", fontsize="14", margin="0.2,0.1", penwidth="3"),
+    defaultEdge=dict(color="black", arrowsize="1.5", penwidth="1.5"),
+    task=dict(style="filled", color="black", fillcolor="#B1F2EF"),
+    quantum=dict(style="filled", color="black", fillcolor="#B1F2EF"),
+    dsType=dict(style="rounded,filled,bold", color="#00BABC", fillcolor="#F5F5F5"),
+    dataset=dict(style="rounded,filled,bold", color="#00BABC", fillcolor="#F5F5F5"),
 )
+
+
+def _renderDefault(type: str, attribs: dict[str, str], file: io.TextIOBase) -> None:
+    """Set default attributes for a given type."""
+    default_attribs = ", ".join([f'{key}="{val}"' for key, val in attribs.items()])
+    print(f"{type} [{default_attribs}];", file=file)
 
 
 def _renderNode(file: io.TextIOBase, nodeName: str, style: str, labels: list[str]) -> None:
     """Render GV node"""
-    label = r"\n".join(labels)
-    attrib_dict = dict(_STYLES[style], label=label)
-    attrib = ", ".join([f'{key}="{val}"' for key, val in attrib_dict.items()])
+    label = r"</TD></TR><TR><TD>".join(labels)
+    attrib_dict = dict(_ATTRIBS[style], label=label)
+    pre = '<<TABLE BORDER="0" CELLPADDING="5"><TR><TD>'
+    post = "</TD></TR></TABLE>>"
+    attrib = ", ".join(
+        [
+            f'{key}="{val}"' if key != "label" else f"{key}={pre}{val}{post}"
+            for key, val in attrib_dict.items()
+        ]
+    )
     print(f'"{nodeName}" [{attrib}];', file=file)
 
 
 def _renderTaskNode(nodeName: str, taskDef: TaskDef, file: io.TextIOBase, idx: Any = None) -> None:
     """Render GV node for a task"""
-    labels = [taskDef.label, taskDef.taskName]
+    labels = [
+        f'<B><FONT POINT-SIZE="{_NODELABELPOINTSIZE}">' + html.escape(taskDef.label) + "</FONT></B>",
+        html.escape(taskDef.taskName),
+    ]
     if idx is not None:
-        labels.append(f"index: {idx}")
+        labels.append(f"<I>index:</I>&nbsp;{idx}")
     if taskDef.connections:
         # don't print collection of str directly to avoid visually noisy quotes
         dimensions_str = ", ".join(sorted(taskDef.connections.dimensions))
-        labels.append(f"dimensions: {dimensions_str}")
+        labels.append(f"<I>dimensions:</I>&nbsp;{html.escape(dimensions_str)}")
     _renderNode(file, nodeName, "task", labels)
 
 
@@ -82,7 +103,7 @@ def _renderQuantumNode(
     nodeName: str, taskDef: TaskDef, quantumNode: QuantumNode, file: io.TextIOBase
 ) -> None:
     """Render GV node for a quantum"""
-    labels = [f"{quantumNode.nodeId}", taskDef.label]
+    labels = [f"{quantumNode.nodeId}", html.escape(taskDef.label)]
     dataId = quantumNode.quantum.dataId
     assert dataId is not None, "Quantum DataId cannot be None"
     labels.extend(f"{key} = {dataId[key]}" for key in sorted(dataId.keys()))
@@ -91,15 +112,15 @@ def _renderQuantumNode(
 
 def _renderDSTypeNode(name: str, dimensions: list[str], file: io.TextIOBase) -> None:
     """Render GV node for a dataset type"""
-    labels = [name]
+    labels = [f'<B><FONT POINT-SIZE="{_NODELABELPOINTSIZE}">' + html.escape(name) + "</FONT></B>"]
     if dimensions:
-        labels.append("Dimensions: " + ", ".join(sorted(dimensions)))
+        labels.append("<I>dimensions:</I>&nbsp;" + html.escape(", ".join(sorted(dimensions))))
     _renderNode(file, name, "dsType", labels)
 
 
 def _renderDSNode(nodeName: str, dsRef: DatasetRef, file: io.TextIOBase) -> None:
     """Render GV node for a dataset"""
-    labels = [dsRef.datasetType.name, f"run: {dsRef.run!r}"]
+    labels = [html.escape(dsRef.datasetType.name), f"run: {dsRef.run!r}"]
     labels.extend(f"{key} = {dsRef.dataId[key]}" for key in sorted(dsRef.dataId.keys()))
     _renderNode(file, nodeName, "dataset", labels)
 
@@ -165,6 +186,9 @@ def graph2dot(qgraph: QuantumGraph, file: Any) -> None:
         close = True
 
     print("digraph QuantumGraph {", file=file)
+    _renderDefault("graph", _ATTRIBS["defaultGraph"], file)
+    _renderDefault("node", _ATTRIBS["defaultNode"], file)
+    _renderDefault("edge", _ATTRIBS["defaultEdge"], file)
 
     allDatasetRefs: dict[str, str] = {}
     for taskId, taskDef in enumerate(qgraph.taskGraph):
@@ -242,6 +266,9 @@ def pipeline2dot(pipeline: Pipeline | Iterable[TaskDef], file: Any) -> None:
         close = True
 
     print("digraph Pipeline {", file=file)
+    _renderDefault("graph", _ATTRIBS["defaultGraph"], file)
+    _renderDefault("node", _ATTRIBS["defaultNode"], file)
+    _renderDefault("edge", _ATTRIBS["defaultEdge"], file)
 
     allDatasets: set[str | tuple[str, str]] = set()
     if isinstance(pipeline, Pipeline):
