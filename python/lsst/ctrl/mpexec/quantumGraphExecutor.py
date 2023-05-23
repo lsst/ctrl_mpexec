@@ -56,12 +56,7 @@ class QuantumExecutor(ABC):
         Returns
         -------
         quantum : `Quantum`
-            The quantum actually executed.  At present this quantum will
-            contain only unresolved `DatasetRef` instances for output datasets,
-            reflecting the state of the quantum just before it was run (but
-            after any adjustments for predicted but now missing inputs).  This
-            may change in the future to include resolved output `DatasetRef`
-            objects.
+            The quantum actually executed.
 
         Notes
         -----

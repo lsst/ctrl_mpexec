@@ -175,16 +175,7 @@ class LogCapture:
                 " and execution"
             ) from exc
 
-        if self.full_butler is None:
-            # If full butler is not available then we need fully
-            # resolved reference for limited butler.
-            if ref.id is None:
-                raise InvalidQuantumError(
-                    f"Quantum contains unresolved reference for task log output dataset type {dataset_type}."
-                )
-            self.butler.put(log_handler.records, ref)
-        else:
-            self.full_butler.put(log_handler.records, ref)
+        self.butler.put(log_handler.records, ref)
 
     def _ingest_log_records(self, quantum: Quantum, dataset_type: str, filename: str) -> None:
         # If we are logging to an external file we must always try to

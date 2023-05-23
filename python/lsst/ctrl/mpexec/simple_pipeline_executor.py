@@ -260,11 +260,7 @@ class SimplePipelineExecutor:
         Returns
         -------
         quanta : `List` [ `Quantum` ]
-            Executed quanta.  At present, these will contain only unresolved
-            `DatasetRef` instances for output datasets, reflecting the state of
-            the quantum just before it was run (but after any adjustments for
-            predicted but now missing inputs).  This may change in the future
-            to include resolved output `DatasetRef` objects.
+            Executed quanta.
 
         Notes
         -----
@@ -295,12 +291,7 @@ class SimplePipelineExecutor:
         Returns
         -------
         quanta : `Iterator` [ `Quantum` ]
-            Executed quanta.  At present, these will contain only unresolved
-            `DatasetRef` instances for output datasets, reflecting the state of
-            the quantum just before it was run (but after any adjustments for
-            predicted but now missing inputs).  This may change in the future
-            to include resolved output `DatasetRef` objects.
-
+            Executed quanta.
 
         Notes
         -----
