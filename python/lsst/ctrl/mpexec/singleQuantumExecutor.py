@@ -507,13 +507,11 @@ class SingleQuantumExecutor(QuantumExecutor):
             Task definition structure.
         """
         # Create a butler that operates in the context of a quantum
-        if self.butler is None:
-            butlerQC = ButlerQuantumContext.from_limited(limited_butler, quantum)
+        if not self.mock:
+            butlerQC = ButlerQuantumContext(limited_butler, quantum)
         else:
-            if self.mock:
-                butlerQC = MockButlerQuantumContext(self.butler, quantum)
-            else:
-                butlerQC = ButlerQuantumContext.from_full(self.butler, quantum)
+            assert self.butler is not None, "Full Butler instance requred for mock execution"
+            butlerQC = MockButlerQuantumContext(self.butler, quantum)
 
         # Get the input and output references for the task
         inputRefs, outputRefs = taskDef.connections.buildDatasetRefs(quantum)
