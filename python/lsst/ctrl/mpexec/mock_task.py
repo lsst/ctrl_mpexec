@@ -60,7 +60,7 @@ class MockButlerQuantumContext(ButlerQuantumContext):
     """
 
     def __init__(self, butler: Butler, quantum: Quantum):
-        super().__init__(butler=butler, limited=butler, quantum=quantum)
+        super().__init__(butler, quantum)
         self.butler = butler
         self.registry = butler.registry
 

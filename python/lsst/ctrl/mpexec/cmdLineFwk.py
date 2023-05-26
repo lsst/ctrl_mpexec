@@ -831,10 +831,10 @@ class CmdLineFwk:
         predicted_outputs: set[DatasetId] = set()
         for taskDef in qgraph.iterTaskGraph():
             if (refs := qgraph.initInputRefs(taskDef)) is not None:
-                predicted_inputs.update(ref.getCheckedId() for ref in refs)
+                predicted_inputs.update(ref.id for ref in refs)
             if (refs := qgraph.initOutputRefs(taskDef)) is not None:
-                predicted_outputs.update(ref.getCheckedId() for ref in refs)
-        predicted_outputs.update(ref.getCheckedId() for ref in qgraph.globalInitOutputRefs())
+                predicted_outputs.update(ref.id for ref in refs)
+        predicted_outputs.update(ref.id for ref in qgraph.globalInitOutputRefs())
         # remove intermediates from inputs
         predicted_inputs -= predicted_outputs
 
