@@ -32,7 +32,7 @@ import datetime
 import getpass
 import logging
 import shutil
-from collections.abc import Iterable, Sequence
+from collections.abc import Iterable, Mapping, Sequence
 from types import SimpleNamespace
 from typing import TYPE_CHECKING, Optional, Tuple
 
@@ -66,7 +66,15 @@ from .preExecInit import PreExecInit, PreExecInitLimited
 from .singleQuantumExecutor import SingleQuantumExecutor
 
 if TYPE_CHECKING:
-    from lsst.daf.butler import DatastoreRecordData, LimitedButler, Quantum, Registry
+    from lsst.daf.butler import (
+        Config,
+        DatasetType,
+        DatastoreRecordData,
+        DimensionUniverse,
+        LimitedButler,
+        Quantum,
+        Registry,
+    )
     from lsst.pipe.base import TaskDef, TaskFactory
 
 
@@ -458,6 +466,26 @@ class _ButlerFactory:
     inputs: Tuple[str, ...]
     """Input collections provided directly by the user (`tuple` [ `str` ]).
     """
+
+
+class _QBBFactory:
+    """Class which is a callable for making QBB instances."""
+
+    def __init__(
+        self, butler_config: Config, dimensions: DimensionUniverse, dataset_types: Mapping[str, DatasetType]
+    ):
+        self.butler_config = butler_config
+        self.dimensions = dimensions
+        self.dataset_types = dataset_types
+
+    def __call__(self, quantum: Quantum) -> LimitedButler:
+        """Factory method to create QuantumBackedButler instances."""
+        return QuantumBackedButler.initialize(
+            config=self.butler_config,
+            quantum=quantum,
+            dimensions=self.dimensions,
+            dataset_types=self.dataset_types,
+        )
 
 
 # ------------------------
@@ -874,14 +902,11 @@ class CmdLineFwk:
 
         dataset_types = {dstype.name: dstype for dstype in qgraph.registryDatasetTypes()}
 
-        def _butler_factory(quantum: Quantum) -> LimitedButler:
-            """Factory method to create QuantumBackedButler instances."""
-            return QuantumBackedButler.initialize(
-                config=args.butler_config,
-                quantum=quantum,
-                dimensions=qgraph.universe,
-                dataset_types=dataset_types,
-            )
+        _butler_factory = _QBBFactory(
+            butler_config=args.butler_config,
+            dimensions=qgraph.universe,
+            dataset_types=dataset_types,
+        )
 
         # make special quantum executor
         quantumExecutor = SingleQuantumExecutor(
