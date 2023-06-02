@@ -334,11 +334,11 @@ class SingleQuantumExecutor(QuantumExecutor):
             # run was successful and should be skipped.
             [metadata_ref] = quantum.outputs[taskDef.metadataDatasetName]
             if metadata_ref is not None:
-                if limited_butler.datastore.exists(metadata_ref):
+                if limited_butler.stored(metadata_ref):
                     return True
 
         # Find and prune (partial) outputs if `self.clobberOutputs` is set.
-        ref_dict = self.butler.datastore.mexists(chain.from_iterable(quantum.outputs.values()))
+        ref_dict = self.butler.stored_many(chain.from_iterable(quantum.outputs.values()))
         existingRefs = [ref for ref, exists in ref_dict.items() if exists]
         missingRefs = [ref for ref, exists in ref_dict.items() if not exists]
         if existingRefs:
@@ -406,16 +406,15 @@ class SingleQuantumExecutor(QuantumExecutor):
         updatedInputs: defaultdict[DatasetType, list] = defaultdict(list)
         for key, refsForDatasetType in quantum.inputs.items():
             newRefsForDatasetType = updatedInputs[key]
+            stored = limited_butler.stored_many(refsForDatasetType)
             for ref in refsForDatasetType:
                 # Inputs may already be resolved even if they do not exist, but
                 # we have to re-resolve them because IDs are ignored on output.
                 # Check datastore for existence first to cover calibration
                 # dataset types, as they would need a timespan for findDataset.
                 resolvedRef: DatasetRef | None
-                checked_datastore = False
-                if limited_butler.datastore.exists(ref):
+                if stored[ref]:
                     resolvedRef = ref
-                    checked_datastore = True
                 elif self.butler is not None:
                     # This branch is for mock execution only which does not
                     # generate actual outputs, only adds datasets to registry.
@@ -447,7 +446,11 @@ class SingleQuantumExecutor(QuantumExecutor):
                         # means that mock dataset type is not there and this
                         # should be a pre-existing dataset
                         _LOG.debug("No mock dataset type for %s", ref)
-                        if self.butler.datastore.exists(resolvedRef):
+                        # Only check datastore if we have not already checked
+                        # it for this ref.
+                        if (ref_stored := stored.get(resolvedRef)) or (
+                            ref_stored is None and self.butler.stored(resolvedRef)
+                        ):
                             newRefsForDatasetType.append(resolvedRef)
                     else:
                         resolvedMockRef = self.butler.registry.findDataset(
@@ -459,14 +462,19 @@ class SingleQuantumExecutor(QuantumExecutor):
                             ref.dataId,
                             resolvedMockRef,
                         )
-                        if resolvedMockRef is not None and self.butler.datastore.exists(resolvedMockRef):
+                        if resolvedMockRef is not None and self.butler.stored(resolvedMockRef):
                             _LOG.debug("resolvedMockRef dataset exists")
                             newRefsForDatasetType.append(resolvedRef)
-                elif checked_datastore or limited_butler.datastore.exists(resolvedRef):
+                elif (ref_stored := stored.get(resolvedRef)) or (
+                    ref_stored is None and limited_butler.stored(resolvedRef)
+                ):
                     # We need to ask datastore if the dataset actually exists
                     # because the Registry of a local "execution butler"
                     # cannot know this (because we prepopulate it with all of
-                    # the datasets that might be created).
+                    # the datasets that might be created). Either we have
+                    # already checked and know the answer, or the resolved
+                    # ref differed from the original and we have to ask
+                    # explicitly for that.
                     newRefsForDatasetType.append(resolvedRef)
 
             if len(newRefsForDatasetType) != len(refsForDatasetType):
