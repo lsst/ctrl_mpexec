@@ -329,7 +329,7 @@ class SingleQuantumExecutor(QuantumExecutor):
             # Skip/prune logic only works for full butler.
             return False
 
-        if self.skipExisting and taskDef.metadataDatasetName is not None:
+        if self.skipExisting:
             # Metadata output exists; this is sufficient to assume the previous
             # run was successful and should be skipped.
             [metadata_ref] = quantum.outputs[taskDef.metadataDatasetName]
@@ -539,17 +539,16 @@ class SingleQuantumExecutor(QuantumExecutor):
     def writeMetadata(
         self, quantum: Quantum, metadata: Any, taskDef: TaskDef, limited_butler: LimitedButler
     ) -> None:
-        if taskDef.metadataDatasetName is not None:
-            # DatasetRef has to be in the Quantum outputs, can lookup by name
-            try:
-                [ref] = quantum.outputs[taskDef.metadataDatasetName]
-            except LookupError as exc:
-                raise InvalidQuantumError(
-                    f"Quantum outputs is missing metadata dataset type {taskDef.metadataDatasetName};"
-                    " this could happen due to inconsistent options between QuantumGraph generation"
-                    " and execution"
-                ) from exc
-            limited_butler.put(metadata, ref)
+        # DatasetRef has to be in the Quantum outputs, can lookup by name
+        try:
+            [ref] = quantum.outputs[taskDef.metadataDatasetName]
+        except LookupError as exc:
+            raise InvalidQuantumError(
+                f"Quantum outputs is missing metadata dataset type {taskDef.metadataDatasetName};"
+                " this could happen due to inconsistent options between QuantumGraph generation"
+                " and execution"
+            ) from exc
+        limited_butler.put(metadata, ref)
 
     def initGlobals(self, quantum: Quantum) -> None:
         """Initialize global state needed for task execution.
