@@ -94,9 +94,6 @@ tasks:
             ShowInfoCmp(
                 "config",
                 """### Configuration for task `task'
-# Flag to enable/disable metadata saving for a task, enabled by default.
-config.saveMetadata=True
-
 # Flag to enable/disable saving of log output for a task, enabled by default.
 config.saveLogOutput=True
 
