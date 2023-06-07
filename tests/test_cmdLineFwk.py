@@ -833,10 +833,10 @@ class CmdLineFwkTestCaseWithButler(unittest.TestCase):
         initOutNameRe = re.compile("packages|task.*_config|add_init_output.*")
         for ref in refs:
             if initOutNameRe.fullmatch(ref.datasetType.name):
-                butler.get(ref, collections="output/run2")
+                butler.get(ref)
             else:
                 with self.assertRaises(FileNotFoundError):
-                    butler.get(ref, collections="output/run2")
+                    butler.get(ref)
 
         # re-run with --replace-run and --prune-replaced=purge
         # This time also remove --input; passing the same inputs that we
