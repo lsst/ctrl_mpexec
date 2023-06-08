@@ -40,6 +40,7 @@ from astropy.table import Table
 from lsst.daf.butler import (
     Butler,
     CollectionType,
+    DataCoordinate,
     DatasetId,
     DatasetRef,
     DatastoreCacheManager,
@@ -595,6 +596,15 @@ class CmdLineFwk:
                 from lsst.pipe.base.tests.mocks import mock_task_defs
 
                 task_defs = mock_task_defs(task_defs, unmocked_dataset_types=args.unmocked_dataset_types)
+            instrument_class: type | None = None
+            instrument_class_name = pipeline.getInstrument()
+            dataId = DataCoordinate.makeEmpty(butler.dimensions)
+            if instrument_class_name is not None:
+                instrument_class = doImportType(instrument_class_name)
+                if instrument_class is not None:
+                    dataId = DataCoordinate.standardize(
+                        instrument=instrument_class.getName(), universe=butler.dimensions
+                    )
             # make execution plan (a.k.a. DAG) for pipeline
             graphBuilder = GraphBuilder(
                 butler.registry,
@@ -623,6 +633,7 @@ class CmdLineFwk:
                 args.data_query,
                 metadata=metadata,
                 datasetQueryConstraint=args.dataset_query_constraint,
+                dataId=dataId,
             )
             if args.show_qgraph_header:
                 qgraph.buildAndPrintHeader()
