@@ -22,6 +22,7 @@
 
 __all__ = (
     "butler_options",
+    "coverage_options",
     "execution_options",
     "meta_info_options",
     "pipeline_build_options",
@@ -70,6 +71,18 @@ class pipeline_build_options(OptionGroup):  # noqa: N801
         ]
 
 
+class coverage_options(OptionGroup):  # noqa: N801
+    """Decorator to add options to the command function for test coverage."""
+
+    def __init__(self) -> None:
+        self.decorators = [
+            option_section(sectionText="Coverage options:"),
+            ctrlMpExecOpts.coverage_option(),
+            ctrlMpExecOpts.coverage_report_option(),
+            ctrlMpExecOpts.coverage_packages_option(),
+        ]
+
+
 class qgraph_options(OptionGroup):  # noqa: N801
     """Decorator to add options to a command function for creating a quantum
     graph."""
@@ -99,6 +112,9 @@ class qgraph_options(OptionGroup):  # noqa: N801
             ),
             ctrlMpExecOpts.dataset_query_constraint(),
             ctrlMpExecOpts.qgraph_header_data_option(),
+            ctrlMpExecOpts.mock_option(),
+            coverage_options(),
+            ctrlMpExecOpts.unmocked_dataset_types_option(),
         ]
 
 
@@ -135,7 +151,6 @@ class execution_options(OptionGroup):  # noqa: N801
             ctrlMpExecOpts.timeout_option(),
             ctrlMpExecOpts.fail_fast_option(),
             ctrlMpExecOpts.graph_fixup_option(),
-            ctrlMpExecOpts.mock_option(),
             ctrlMpExecOpts.summary_option(),
             ctrlMpExecOpts.enable_implicit_threading_option(),
         ]
@@ -162,14 +177,13 @@ class run_options(OptionGroup):  # noqa: N801
         self.decorators = [
             click.pass_context,
             ctrlMpExecOpts.debug_option(),
-            ctrlMpExecOpts.coverage_option(),
-            ctrlMpExecOpts.coverage_packages_option(),
             ctrlMpExecOpts.show_option(),
             pipeline_build_options(),
             qgraph_options(),
             butler_options(),
             execution_options(),
             meta_info_options(),
+            coverage_options(),
             option_section(sectionText=""),
             dafButlerOpts.options_file_option(),
         ]

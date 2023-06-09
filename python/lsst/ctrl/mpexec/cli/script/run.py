@@ -54,7 +54,7 @@ def run(  # type: ignore
     clobber_outputs,
     summary,
     mock,
-    mock_configs,
+    unmocked_dataset_types,
     enable_implicit_threading,
     **kwargs,
 ):
@@ -146,9 +146,11 @@ def run(  # type: ignore
     summary : `str`
         File path to store job report in JSON format.
     mock : `bool`, optional
-        If `True` then run mock pipeline instead of real one.
-    mock_configs : `list` [ `PipelineAction` ]
-        A list of config overrides for mock tasks.
+        If `True` then run mock pipeline instead of real one.  Ignored if an
+        existing QuantumGraph is provided.
+    unmocked_dataset_types : `collections.abc.Sequence` [ `str` ]
+        List of overall-input dataset types that should not be mocked.
+        Ignored if an existing QuantumGraph is provided.
     enable_implicit_threading : `bool`, optional
         If `True`, do not disable implicit threading by third-party libraries.
         Implicit threading is always disabled during actual quantum execution
@@ -184,7 +186,7 @@ def run(  # type: ignore
         clobber_outputs=clobber_outputs,
         summary=summary,
         mock=mock,
-        mock_configs=mock_configs,
+        unmocked_dataset_types=unmocked_dataset_types,
         enable_implicit_threading=enable_implicit_threading,
     )
 

@@ -56,6 +56,8 @@ def qgraph(  # type: ignore
     clobber_outputs,
     dataset_query_constraint,
     show_qgraph_header=False,
+    mock=False,
+    unmocked_dataset_types=(),
     **kwargs,
 ):
     """Implements the command line interface `pipetask qgraph` subcommand,
@@ -154,6 +156,10 @@ def qgraph(  # type: ignore
     show_qgraph_header : bool, optional
         Controls if the headerData of a QuantumGraph should be printed to the
         terminal. Defaults to False.
+    mock : `bool`, optional
+        If True, use a mocked version of the pipeline.
+    unmocked_dataset_types : `collections.abc.Sequence` [ `str` ], optional
+        List of overall-input dataset types that should not be mocked.
     kwargs : `dict` [`str`, `str`]
         Ignored; click commands may accept options for more than one script
         function and pass all the option kwargs to each of the script functions
@@ -190,6 +196,8 @@ def qgraph(  # type: ignore
         clobber_outputs=clobber_outputs,
         dataset_query_constraint=dataset_query_constraint,
         show_qgraph_header=show_qgraph_header,
+        mock=mock,
+        unmocked_dataset_types=list(unmocked_dataset_types),
     )
 
     f = CmdLineFwk()

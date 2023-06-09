@@ -38,6 +38,12 @@ debug_option = MWOptionDecorator(
 
 coverage_option = MWOptionDecorator("--coverage", help="Enable coverage output.", is_flag=True)
 
+coverage_report_option = MWOptionDecorator(
+    "--cov-report/--no-cov-report",
+    help="If coverage is enabled, controls whether to produce an HTML coverage report.",
+    default=True,
+)
+
 coverage_packages_option = MWOptionDecorator(
     "--cov-packages",
     help=unwrap(
@@ -423,6 +429,15 @@ mock_option = MWOptionDecorator(
     "--mock",
     help=unwrap("""Mock pipeline execution."""),
     is_flag=True,
+)
+
+unmocked_dataset_types_option = MWOptionDecorator(
+    "--unmocked-dataset-types",
+    callback=split_commas,
+    default=None,
+    metavar="COLLECTION",
+    multiple=True,
+    help=unwrap("""Names of input dataset types that should not be mocked."""),
 )
 
 clobber_execution_butler_option = MWOptionDecorator(

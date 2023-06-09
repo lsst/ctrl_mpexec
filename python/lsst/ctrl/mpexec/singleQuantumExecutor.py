@@ -25,7 +25,6 @@ __all__ = ["SingleQuantumExecutor"]
 #  Imports of standard modules --
 # -------------------------------
 import logging
-import os
 import sys
 import time
 from collections import defaultdict
@@ -54,7 +53,6 @@ from lsst.pipe.base import (
     TaskDef,
     TaskFactory,
 )
-from lsst.pipe.base.configOverrides import ConfigOverrides
 
 # During metadata transition phase, determine metadata class by
 # asking pipe_base
@@ -64,9 +62,7 @@ from lsst.utils.timer import logInfo
 # -----------------------------
 #  Imports for other modules --
 # -----------------------------
-from .cli.utils import _PipelineAction
 from .log_capture import LogCapture
-from .mock_task import MockButlerQuantumContext, MockPipelineTask
 from .quantumGraphExecutor import QuantumExecutor
 from .reports import QuantumReport
 
@@ -106,10 +102,6 @@ class SingleQuantumExecutor(QuantumExecutor):
         known exceptions, after printing a traceback, instead of letting the
         exception propagate up to calling.  This is always the behavior for
         InvalidQuantumError.
-    mock : `bool`, optional
-        If `True` then mock task execution.
-    mock_configs : `list` [ `_PipelineAction` ], optional
-        Optional config overrides for mock tasks.
     limited_butler_factory : `Callable`, optional
         A method that creates a `~lsst.daf.butler.LimitedButler` instance
         for a given Quantum. This parameter must be defined if ``butler`` is
@@ -124,8 +116,6 @@ class SingleQuantumExecutor(QuantumExecutor):
         clobberOutputs: bool = False,
         enableLsstDebug: bool = False,
         exitOnKnownError: bool = False,
-        mock: bool = False,
-        mock_configs: list[_PipelineAction] | None = None,
         limited_butler_factory: Callable[[Quantum], LimitedButler] | None = None,
     ):
         self.butler = butler
@@ -133,13 +123,10 @@ class SingleQuantumExecutor(QuantumExecutor):
         self.enableLsstDebug = enableLsstDebug
         self.clobberOutputs = clobberOutputs
         self.exitOnKnownError = exitOnKnownError
-        self.mock = mock
-        self.mock_configs = mock_configs if mock_configs is not None else []
         self.limited_butler_factory = limited_butler_factory
         self.report: Optional[QuantumReport] = None
 
         if self.butler is None:
-            assert not self.mock, "Mock execution only possible with full butler"
             assert limited_butler_factory is not None, "limited_butler_factory is needed when butler is None"
 
         # Find whether output run is in skipExistingIn.
@@ -252,12 +239,7 @@ class SingleQuantumExecutor(QuantumExecutor):
             task = self.taskFactory.makeTask(taskDef, limited_butler, init_input_refs)
             logInfo(None, "start", metadata=quantumMetadata)  # type: ignore[arg-type]
             try:
-                if self.mock:
-                    # Use mock task instance to execute method.
-                    runTask = self._makeMockTask(taskDef)
-                else:
-                    runTask = task
-                self.runQuantum(runTask, quantum, taskDef, limited_butler)
+                self.runQuantum(task, quantum, taskDef, limited_butler)
             except Exception as e:
                 _LOG.error(
                     "Execution of task '%s' on quantum %s failed. Exception %s: %s",
@@ -279,25 +261,6 @@ class SingleQuantumExecutor(QuantumExecutor):
                 stopTime - startTime,
             )
         return quantum
-
-    def _makeMockTask(self, taskDef: TaskDef) -> PipelineTask:
-        """Make an instance of mock task for given TaskDef."""
-        # Make config instance and apply overrides
-        overrides = ConfigOverrides()
-        for action in self.mock_configs:
-            if action.label == taskDef.label + "-mock":
-                if action.action == "config":
-                    key, _, value = action.value.partition("=")
-                    overrides.addValueOverride(key, value)
-                elif action.action == "configfile":
-                    overrides.addFileOverride(os.path.expandvars(action.value))
-                else:
-                    raise ValueError(f"Unexpected action for mock task config overrides: {action}")
-        config = MockPipelineTask.ConfigClass()
-        overrides.applyTo(config)
-
-        task = MockPipelineTask(config=config, name=taskDef.label)
-        return task
 
     def checkExistingOutputs(self, quantum: Quantum, taskDef: TaskDef, limited_butler: LimitedButler) -> bool:
         """Decide whether this quantum needs to be executed.
@@ -429,43 +392,7 @@ class SingleQuantumExecutor(QuantumExecutor):
                     _LOG.info("No dataset found for %s", ref)
                     continue
 
-                # In case of mock execution we check that mock dataset exists
-                # instead. Mock execution is only possible with full butler.
-                if self.mock and self.butler is not None:
-                    try:
-                        typeName, component = ref.datasetType.nameAndComponent()
-                        if component is not None:
-                            mockDatasetTypeName = MockButlerQuantumContext.mockDatasetTypeName(typeName)
-                        else:
-                            mockDatasetTypeName = MockButlerQuantumContext.mockDatasetTypeName(
-                                ref.datasetType.name
-                            )
-
-                        mockDatasetType = self.butler.registry.getDatasetType(mockDatasetTypeName)
-                    except KeyError:
-                        # means that mock dataset type is not there and this
-                        # should be a pre-existing dataset
-                        _LOG.debug("No mock dataset type for %s", ref)
-                        # Only check datastore if we have not already checked
-                        # it for this ref.
-                        if (ref_stored := stored.get(resolvedRef)) or (
-                            ref_stored is None and self.butler.stored(resolvedRef)
-                        ):
-                            newRefsForDatasetType.append(resolvedRef)
-                    else:
-                        resolvedMockRef = self.butler.registry.findDataset(
-                            mockDatasetType, ref.dataId, collections=self.butler.collections
-                        )
-                        _LOG.debug(
-                            "mockRef=(%s, %s) resolvedMockRef=%s",
-                            mockDatasetType,
-                            ref.dataId,
-                            resolvedMockRef,
-                        )
-                        if resolvedMockRef is not None and self.butler.stored(resolvedMockRef):
-                            _LOG.debug("resolvedMockRef dataset exists")
-                            newRefsForDatasetType.append(resolvedRef)
-                elif (ref_stored := stored.get(resolvedRef)) or (
+                if (ref_stored := stored.get(resolvedRef)) or (
                     ref_stored is None and limited_butler.stored(resolvedRef)
                 ):
                     # We need to ask datastore if the dataset actually exists
@@ -515,11 +442,7 @@ class SingleQuantumExecutor(QuantumExecutor):
             Task definition structure.
         """
         # Create a butler that operates in the context of a quantum
-        if not self.mock:
-            butlerQC = ButlerQuantumContext(limited_butler, quantum)
-        else:
-            assert self.butler is not None, "Full Butler instance requred for mock execution"
-            butlerQC = MockButlerQuantumContext(self.butler, quantum)
+        butlerQC = ButlerQuantumContext(limited_butler, quantum)
 
         # Get the input and output references for the task
         inputRefs, outputRefs = taskDef.connections.buildDatasetRefs(quantum)
