@@ -898,7 +898,7 @@ class CmdLineFwkTestCaseWithButler(unittest.TestCase):
 
         with (
             makeTmpFile(suffix=".qgraph") as tmpname,
-            makeSQLiteRegistry(universe=butler.registry.dimensions) as registryConfig,
+            makeSQLiteRegistry(universe=butler.dimensions) as registryConfig,
         ):
             with open(tmpname, "wb") as saveFile:
                 qgraph.save(saveFile)

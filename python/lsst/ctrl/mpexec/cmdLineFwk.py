@@ -580,9 +580,7 @@ class CmdLineFwk:
         if args.qgraph:
             # click passes empty tuple as default value for qgraph_node_id
             nodes = args.qgraph_node_id or None
-            qgraph = QuantumGraph.loadUri(
-                args.qgraph, butler.registry.dimensions, nodes=nodes, graphID=args.qgraph_id
-            )
+            qgraph = QuantumGraph.loadUri(args.qgraph, butler.dimensions, nodes=nodes, graphID=args.qgraph_id)
 
             # pipeline can not be provided in this case
             if pipeline:
