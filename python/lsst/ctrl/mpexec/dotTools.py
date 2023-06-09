@@ -32,7 +32,8 @@ __all__ = ["graph2dot", "pipeline2dot"]
 # -------------------------------
 import io
 import re
-from typing import TYPE_CHECKING, Any, Iterable, Union
+from collections.abc import Iterable
+from typing import TYPE_CHECKING, Any
 
 # -----------------------------
 #  Imports for other modules --
@@ -190,7 +191,7 @@ def graph2dot(qgraph: QuantumGraph, file: Any) -> None:
         file.close()
 
 
-def pipeline2dot(pipeline: Union[Pipeline, Iterable[TaskDef]], file: Any) -> None:
+def pipeline2dot(pipeline: Pipeline | Iterable[TaskDef], file: Any) -> None:
     """Convert Pipeline into GraphViz digraph.
 
     This method is mostly for documentation/presentation purposes.
@@ -242,7 +243,7 @@ def pipeline2dot(pipeline: Union[Pipeline, Iterable[TaskDef]], file: Any) -> Non
 
     print("digraph Pipeline {", file=file)
 
-    allDatasets: set[Union[str, tuple[str, str]]] = set()
+    allDatasets: set[str | tuple[str, str]] = set()
     if isinstance(pipeline, Pipeline):
         pipeline = pipeline.toExpandedPipeline()
 

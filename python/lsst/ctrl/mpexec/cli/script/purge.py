@@ -21,7 +21,7 @@
 
 
 import itertools
-from typing import Any, Optional, Union
+from typing import Any
 
 from lsst.daf.butler import Butler, CollectionType
 from lsst.daf.butler.registry import MissingCollectionError
@@ -123,17 +123,17 @@ class PurgeResult(ConfirmableResult):
 
     def fail(
         self,
-        failure: Union[
-            ChildHasMultipleParentsFailure,
-            TopCollectionHasParentsFailure,
-            TopCollectionIsNotChianedFailure,
-            TopCollectionNotFoundFailure,
-        ],
+        failure: (
+            ChildHasMultipleParentsFailure
+            | TopCollectionHasParentsFailure
+            | TopCollectionIsNotChianedFailure
+            | TopCollectionNotFoundFailure
+        ),
     ) -> None:
         self.failure = failure
 
 
-def check_parents(butler: Butler, child: str, expected_parents: list[str]) -> Optional[list[str]]:
+def check_parents(butler: Butler, child: str, expected_parents: list[str]) -> list[str] | None:
     """Check that the parents of a child collection match
     the provided expected parents.
 

@@ -24,7 +24,7 @@ from __future__ import annotations
 __all__ = ("SimplePipelineExecutor",)
 
 from collections.abc import Iterable, Iterator, Mapping
-from typing import Any, List, Optional, Type, Union
+from typing import Any
 
 from lsst.daf.butler import Butler, CollectionType, Quantum
 from lsst.pex.config import Config
@@ -73,7 +73,7 @@ class SimplePipelineExecutor:
         root: str,
         inputs: Iterable[str],
         output: str,
-        output_run: Optional[str] = None,
+        output_run: str | None = None,
     ) -> Butler:
         """Helper method for creating `Butler` instances with collections
         appropriate for processing.
@@ -119,7 +119,7 @@ class SimplePipelineExecutor:
         pipeline_filename: str,
         *,
         where: str = "",
-        bind: Optional[Mapping[str, Any]] = None,
+        bind: Mapping[str, Any] | None = None,
         butler: Butler,
     ) -> SimplePipelineExecutor:
         """Create an executor by building a QuantumGraph from an on-disk
@@ -150,12 +150,12 @@ class SimplePipelineExecutor:
     @classmethod
     def from_task_class(
         cls,
-        task_class: Type[PipelineTask],
-        config: Optional[Config] = None,
-        label: Optional[str] = None,
+        task_class: type[PipelineTask],
+        config: Config | None = None,
+        label: str | None = None,
         *,
         where: str = "",
-        bind: Optional[Mapping[str, Any]] = None,
+        bind: Mapping[str, Any] | None = None,
         butler: Butler,
     ) -> SimplePipelineExecutor:
         """Create an executor by building a QuantumGraph from a pipeline
@@ -201,10 +201,10 @@ class SimplePipelineExecutor:
     @classmethod
     def from_pipeline(
         cls,
-        pipeline: Union[Pipeline, Iterable[TaskDef]],
+        pipeline: Pipeline | Iterable[TaskDef],
         *,
         where: str = "",
-        bind: Optional[Mapping[str, Any]] = None,
+        bind: Mapping[str, Any] | None = None,
         butler: Butler,
         **kwargs: Any,
     ) -> SimplePipelineExecutor:
@@ -242,7 +242,7 @@ class SimplePipelineExecutor:
         )
         return cls(quantum_graph=quantum_graph, butler=butler)
 
-    def run(self, register_dataset_types: bool = False, save_versions: bool = True) -> List[Quantum]:
+    def run(self, register_dataset_types: bool = False, save_versions: bool = True) -> list[Quantum]:
         """Run all the quanta in the `QuantumGraph` in topological order.
 
         Use this method to run all quanta in the graph.  Use

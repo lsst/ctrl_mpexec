@@ -30,7 +30,7 @@ import time
 from collections import defaultdict
 from collections.abc import Callable
 from itertools import chain
-from typing import Any, Optional
+from typing import Any
 
 from lsst.daf.butler import (
     Butler,
@@ -124,7 +124,7 @@ class SingleQuantumExecutor(QuantumExecutor):
         self.clobberOutputs = clobberOutputs
         self.exitOnKnownError = exitOnKnownError
         self.limited_butler_factory = limited_butler_factory
-        self.report: Optional[QuantumReport] = None
+        self.report: QuantumReport | None = None
 
         if self.butler is None:
             assert limited_butler_factory is not None, "limited_butler_factory is needed when butler is None"
@@ -516,7 +516,7 @@ class SingleQuantumExecutor(QuantumExecutor):
                         oneInstrument = instrument
                         Instrument.fromName(instrument, self.butler.registry)
 
-    def getReport(self) -> Optional[QuantumReport]:
+    def getReport(self) -> QuantumReport | None:
         # Docstring inherited from base class
         if self.report is None:
             raise RuntimeError("getReport() called before execute()")

@@ -34,7 +34,7 @@ import threading
 import time
 from collections.abc import Iterable
 from enum import Enum
-from typing import Literal, Optional
+from typing import Literal
 
 from lsst.daf.butler.cli.cliLog import CliLog
 from lsst.pipe.base import InvalidQuantumError, TaskDef
@@ -69,10 +69,10 @@ class _Job:
 
     def __init__(self, qnode: QuantumNode):
         self.qnode = qnode
-        self.process: Optional[multiprocessing.process.BaseProcess] = None
+        self.process: multiprocessing.process.BaseProcess | None = None
         self._state = JobState.PENDING
         self.started: float = 0.0
-        self._rcv_conn: Optional[multiprocessing.connection.Connection] = None
+        self._rcv_conn: multiprocessing.connection.Connection | None = None
         self._terminated = False
 
     @property
@@ -375,8 +375,8 @@ class MPGraphExecutor(QuantumGraphExecutor):
         *,
         startMethod: Literal["spawn"] | Literal["fork"] | Literal["forkserver"] | None = None,
         failFast: bool = False,
-        pdb: Optional[str] = None,
-        executionGraphFixup: Optional[ExecutionGraphFixup] = None,
+        pdb: str | None = None,
+        executionGraphFixup: ExecutionGraphFixup | None = None,
     ):
         self.numProc = numProc
         self.timeout = timeout
@@ -384,7 +384,7 @@ class MPGraphExecutor(QuantumGraphExecutor):
         self.failFast = failFast
         self.pdb = pdb
         self.executionGraphFixup = executionGraphFixup
-        self.report: Optional[Report] = None
+        self.report: Report | None = None
 
         # We set default start method as spawn for MacOS and fork for Linux;
         # None for all other platforms to use multiprocessing default.
@@ -674,7 +674,7 @@ class MPGraphExecutor(QuantumGraphExecutor):
             else:
                 raise MPGraphExecutorError("One or more tasks failed or timed out during execution.")
 
-    def getReport(self) -> Optional[Report]:
+    def getReport(self) -> Report | None:
         # Docstring inherited from base class
         if self.report is None:
             raise RuntimeError("getReport() called before execute()")
