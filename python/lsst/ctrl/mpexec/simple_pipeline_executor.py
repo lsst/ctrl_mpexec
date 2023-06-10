@@ -267,7 +267,7 @@ class SimplePipelineExecutor:
 
         Returns
         -------
-        quanta : `List` [ `~lsst.daf.butler.Quantum` ]
+        quanta : `list` [ `~lsst.daf.butler.Quantum` ]
             Executed quanta.
 
         Notes
@@ -299,7 +299,7 @@ class SimplePipelineExecutor:
 
         Returns
         -------
-        quanta : `Iterator` [ `~lsst.daf.butler.Quantum` ]
+        quanta : `~collections.abc.Iterator` [ `~lsst.daf.butler.Quantum` ]
             Executed quanta.
 
         Notes

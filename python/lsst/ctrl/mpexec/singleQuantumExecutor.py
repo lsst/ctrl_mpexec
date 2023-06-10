@@ -165,7 +165,7 @@ class SingleQuantumExecutor(QuantumExecutor):
             raise
 
     def _execute(self, taskDef: TaskDef, quantum: Quantum) -> Quantum:
-        """Execute the quantum
+        """Execute the quantum.
 
         Internal implementation of `execute()`.
         """

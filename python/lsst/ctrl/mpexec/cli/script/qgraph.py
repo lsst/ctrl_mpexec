@@ -127,7 +127,7 @@ def qgraph(  # type: ignore
         development, but it does not delete the datasets associated with the
         replaced run unless `prune-replaced` is also True. Requires `output`,
         and `extend_run` must be `None`.
-    prune_replaced : `str`
+    prune_replaced : `str` or `None`
         If not `None`, delete the datasets in the collection replaced by
         `replace_run`, either just from the datastore ("unstore") or by
         removing them and the RUN completely ("purge"). Requires
