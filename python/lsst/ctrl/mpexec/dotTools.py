@@ -215,7 +215,7 @@ def pipeline2dot(pipeline: Pipeline | Iterable[TaskDef], file: Any) -> None:
     universe = DimensionUniverse()
 
     def expand_dimensions(connection: connectionTypes.BaseConnection) -> list[str]:
-        """Returns expanded list of dimensions, with special skypix treatment.
+        """Return expanded list of dimensions, with special skypix treatment.
 
         Parameters
         ----------

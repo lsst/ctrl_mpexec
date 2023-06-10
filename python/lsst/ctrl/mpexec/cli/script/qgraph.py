@@ -60,13 +60,14 @@ def qgraph(  # type: ignore
     unmocked_dataset_types=(),
     **kwargs,
 ):
-    """Implements the command line interface `pipetask qgraph` subcommand,
-    should only be called by command line tools and unit test code that test
+    """Implement the command line interface `pipetask qgraph` subcommand.
+
+    Should only be called by command line tools and unit test code that test
     this function.
 
     Parameters
     ----------
-    pipelineObj : `pipe.base.Pipeline` or None.
+    pipelineObj : `lsst.pipe.base.Pipeline` or None.
         The pipeline object used to generate a qgraph. If this is not `None`
         then `qgraph` should be `None`.
     qgraph : `str` or `None`
@@ -126,10 +127,11 @@ def qgraph(  # type: ignore
         development, but it does not delete the datasets associated with the
         replaced run unless `prune-replaced` is also True. Requires `output`,
         and `extend_run` must be `None`.
-    prune_replaced : "unstore", "purge", or `None`.
+    prune_replaced : `str`
         If not `None`, delete the datasets in the collection replaced by
         `replace_run`, either just from the datastore ("unstore") or by
-        removing them and the RUN completely ("purge"). Requires `replace_run`.
+        removing them and the RUN completely ("purge"). Requires
+        ``replace_run`` to be `True`.
     data_query : `str`
         User query selection expression.
     show : `lsst.ctrl.mpexec.showInfo.ShowInfo`
@@ -163,7 +165,7 @@ def qgraph(  # type: ignore
     kwargs : `dict` [`str`, `str`]
         Ignored; click commands may accept options for more than one script
         function and pass all the option kwargs to each of the script functions
-        which ingore these unused kwargs.
+        which ignore these unused kwargs.
 
     Returns
     -------

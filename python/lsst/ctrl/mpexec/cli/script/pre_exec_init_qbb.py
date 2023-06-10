@@ -30,8 +30,10 @@ def pre_exec_init_qbb(
     qgraph_id: str | None,
     config_search_path: list[str] | None,
 ) -> None:
-    """Implements the command line interface `pipetask pre-exec-init-qbb`
-    subcommand, should only be called by command line tools and unit test code
+    """Implement the command line interface ``pipetask pre-exec-init-qbb``
+    subcommand.
+
+    Should only be called by command line tools and unit test code
     that tests this function.
 
     Parameters

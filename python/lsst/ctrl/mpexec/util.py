@@ -121,7 +121,7 @@ def printTable(rows: list[tuple], header: tuple | None) -> None:
 
 
 def filterTasks(pipeline: Pipeline, name: str | None) -> list[TaskDef]:
-    """Finds list of tasks matching given name.
+    """Find list of tasks matching given name.
 
     For matching task either task label or task name after last dot should
     be identical to `name`. If task label is non-empty then task name is not
@@ -130,12 +130,14 @@ def filterTasks(pipeline: Pipeline, name: str | None) -> list[TaskDef]:
     Parameters
     ----------
     pipeline : `Pipeline`
-    name : str or none
-        If empty or None then all tasks are returned
+        Pipeline to examine.
+    name : `str` or `None`
+        If empty or `None` then all tasks are returned.
 
     Returns
     -------
-    Lsit of `TaskDef` instances.
+    tasks : `list` [ `lsst.pipe.base.TaskDef`]
+        List of `~lsst.pipe.base.TaskDef` instances that match.
     """
     if not name:
         return list(pipeline.toExpandedPipeline())
@@ -159,7 +161,8 @@ def subTaskIter(config: pexConfig.Config) -> Iterator[tuple[str, str]]:
 
     Returns
     -------
-    Iterator which returns tuples of (configFieldPath, taskName).
+    names : `collections.abc.Iterator` [ `tuple` [ `str`, `str` ] ]
+        Iterator which returns tuples of (configFieldPath, taskName).
     """
     for fieldName, field in sorted(config.items()):
         if hasattr(field, "value") and hasattr(field, "target"):

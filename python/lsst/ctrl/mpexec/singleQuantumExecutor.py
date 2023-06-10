@@ -165,7 +165,10 @@ class SingleQuantumExecutor(QuantumExecutor):
             raise
 
     def _execute(self, taskDef: TaskDef, quantum: Quantum) -> Quantum:
-        """Internal implementation of execute()"""
+        """Execute the quantum
+
+        Internal implementation of `execute()`.
+        """
         startTime = time.time()
 
         # Make a limited butler instance if needed (which should be QBB if full

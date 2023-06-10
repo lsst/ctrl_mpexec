@@ -58,9 +58,10 @@ def run(  # type: ignore
     enable_implicit_threading,
     **kwargs,
 ):
-    """Implements the command line interface `pipetask run` subcommand, should
-    only be called by command line tools and unit test code that test this
-    function.
+    """Implement the command line interface `pipetask run` subcommand.
+
+    Should only be called by command line tools and unit test code that test
+    this function.
 
     Parameters
     ----------

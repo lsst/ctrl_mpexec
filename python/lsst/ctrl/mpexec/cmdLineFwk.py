@@ -279,7 +279,7 @@ class _ButlerFactory:
 
     @classmethod
     def _makeReadParts(cls, args: SimpleNamespace) -> tuple[Butler, Sequence[str], _ButlerFactory]:
-        """Common implementation for `makeReadButler` and
+        """Parse arguments to support implementations of `makeReadButler` and
         `makeButlerAndCollections`.
 
         Parameters
@@ -479,7 +479,10 @@ class _QBBFactory:
         self.dataset_types = dataset_types
 
     def __call__(self, quantum: Quantum) -> LimitedButler:
-        """Factory method to create QuantumBackedButler instances."""
+        """Return freshly initialized `~lsst.daf.butler.QuantumBackedButler`.
+
+        Factory method to create QuantumBackedButler instances.
+        """
         return QuantumBackedButler.initialize(
             config=self.butler_config,
             quantum=quantum,
@@ -567,7 +570,6 @@ class CmdLineFwk:
         graph : `~lsst.pipe.base.QuantumGraph` or `None`
             If resulting graph is empty then `None` is returned.
         """
-
         # make sure that --extend-run always enables --skip-existing
         if args.extend_run:
             args.skip_existing = True

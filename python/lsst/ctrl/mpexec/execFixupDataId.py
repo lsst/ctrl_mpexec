@@ -81,6 +81,7 @@ class ExecFixupDataId(ExecutionGraphFixup):
 
     def _key(self, qnode: QuantumNode) -> tuple[Any, ...]:
         """Produce comparison key for quantum data.
+
         Parameters
         ----------
         qnode : `QuantumNode`

@@ -75,8 +75,10 @@ class SimplePipelineExecutor:
         output: str,
         output_run: str | None = None,
     ) -> Butler:
-        """Helper method for creating `Butler` instances with collections
-        appropriate for processing.
+        """Return configured `~lsst.daf.butler.Butler`.
+
+        Helper method for creating `~lsst.daf.butler.Butler` instances with
+        collections appropriate for processing.
 
         Parameters
         ----------

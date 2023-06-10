@@ -211,7 +211,7 @@ class ShowInfo:
             taskDef.config.saveToStream(stream, root="config", skipImports=not dumpFullConfig)
 
     def _showConfigHistory(self, pipeline: Pipeline, showArgs: str) -> None:
-        """Show history for task configuration
+        """Show history for task configuration.
 
         Parameters
         ----------
@@ -220,7 +220,6 @@ class ShowInfo:
         showArgs : `str`
             Defines what to show
         """
-
         taskName = None
         pattern = None
         matHistory = re.search(r"^(?:(\w+)::)?(?:config[.])?(.+)", showArgs)

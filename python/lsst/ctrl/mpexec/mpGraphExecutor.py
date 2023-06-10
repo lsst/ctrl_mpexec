@@ -82,8 +82,9 @@ class _Job:
 
     @property
     def terminated(self) -> bool:
-        """Return True if job was killed by stop() method and negative exit
-        code is returned from child process. (`bool`)"""
+        """Return `True` if job was killed by stop() method and negative exit
+        code is returned from child process. (`bool`)
+        """
         if self._terminated:
             assert self.process is not None, "Process must be started"
             if self.process.exitcode is not None:
@@ -537,7 +538,6 @@ class MPGraphExecutor(QuantumGraphExecutor):
         report : `Report`
             Object for reporting execution status.
         """
-
         disable_implicit_threading()  # To prevent thread contention
 
         _LOG.debug("Using %r for multiprocessing start method", self.startMethod)

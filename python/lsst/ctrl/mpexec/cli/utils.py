@@ -77,7 +77,7 @@ class _PipelineActionType:
         return _PipelineAction(self.action, label, value)
 
     def __repr__(self) -> str:
-        """String representation of this class."""
+        """Return string representation of this class."""
         return f"_PipelineActionType(action={self.action})"
 
 
