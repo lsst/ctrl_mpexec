@@ -31,6 +31,8 @@ from lsst.daf.butler.cli.opt import (
 
 
 class PipetaskCLI(LoaderCLI):
+    """Pipetask-specific implementation of command-line loader."""
+
     localCmdPkg = "lsst.ctrl.mpexec.cli.cmd"
 
 
@@ -41,10 +43,12 @@ class PipetaskCLI(LoaderCLI):
 @log_tty_option()
 @log_label_option()
 def cli(log_level, long_log, log_file, log_tty, log_label) -> None:  # type: ignore
+    """Implement pipetask command line."""
     # log_level is handled by get_command and list_commands, and is called in
     # one of those functions before this is called.
     pass
 
 
 def main() -> None:
+    """Run pipetask command-line."""
     return cli()

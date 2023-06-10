@@ -40,8 +40,9 @@ def run_qbb(
     summary: str | None,
     enable_implicit_threading: bool,
 ) -> None:
-    """Implements the command line interface `pipetask run-qbb` subcommand,
-    should only be called by command line tools and unit test code that tests
+    """Implement the command line interface ``pipetask run-qbb`` subcommand.
+
+    Should only be called by command line tools and unit test code that tests
     this function.
 
     Parameters

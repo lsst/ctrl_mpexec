@@ -30,6 +30,8 @@ from .confirmable import ConfirmableResult
 
 
 class NoSuchCollectionFailure:
+    """Failure when there is no such collection."""
+
     def __init__(self, collection: str):
         self.collection = collection
 
@@ -38,6 +40,8 @@ class NoSuchCollectionFailure:
 
 
 class NotChainedCollectionFailure:
+    """Failure when this is not a chained collection."""
+
     def __init__(self, collection: str, type: str):
         self.collection = collection
         self.type = type
@@ -47,6 +51,8 @@ class NotChainedCollectionFailure:
 
 
 class CleanupResult(ConfirmableResult):
+    """Information containing the result of the cleanup request."""
+
     def __init__(self, butler_config: str):
         self.butler_config = butler_config
         self.runs_to_remove: list[str] = []

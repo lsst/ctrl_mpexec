@@ -21,7 +21,7 @@
 
 
 import itertools
-from typing import Any, Optional, Union
+from typing import Any
 
 from lsst.daf.butler import Butler, CollectionType
 from lsst.daf.butler.registry import MissingCollectionError
@@ -35,6 +35,8 @@ advice = (
 
 
 class ChildHasMultipleParentsFailure:
+    """Failure when the child has multiple parents."""
+
     def __init__(self, child: str, parents: list[str]):
         self.child = child
         self.parents = parents
@@ -45,6 +47,8 @@ class ChildHasMultipleParentsFailure:
 
 
 class TopCollectionHasParentsFailure:
+    """Failure when the top collection has parents."""
+
     def __init__(self, collection: str, parents: list[str]):
         self.collection = collection
         self.parents = parents
@@ -57,7 +61,9 @@ class TopCollectionHasParentsFailure:
         )
 
 
-class TopCollectionIsNotChianedFailure:
+class TopCollectionIsNotChainedFailure:
+    """Failure when the top collection is not a chain."""
+
     def __init__(self, collection: str, collection_type: CollectionType):
         self.collection = collection
         self.collection_type = collection_type
@@ -70,14 +76,18 @@ class TopCollectionIsNotChianedFailure:
 
 
 class TopCollectionNotFoundFailure:
+    """Failure when the top collection is not found."""
+
     def __init__(self, collection: str):
         self.collection = collection
 
     def __str__(self) -> str:
-        return f'The passed-in colleciton "{self.collection}" was not found.'
+        return f'The passed-in collection "{self.collection}" was not found.'
 
 
 class PurgeResult(ConfirmableResult):
+    """The results of the purge command."""
+
     def __init__(self, butler_config: str):
         self.runs_to_remove: list[str] = []
         self.chains_to_remove: list[str] = []
@@ -123,23 +133,23 @@ class PurgeResult(ConfirmableResult):
 
     def fail(
         self,
-        failure: Union[
-            ChildHasMultipleParentsFailure,
-            TopCollectionHasParentsFailure,
-            TopCollectionIsNotChianedFailure,
-            TopCollectionNotFoundFailure,
-        ],
+        failure: (
+            ChildHasMultipleParentsFailure
+            | TopCollectionHasParentsFailure
+            | TopCollectionIsNotChainedFailure
+            | TopCollectionNotFoundFailure
+        ),
     ) -> None:
         self.failure = failure
 
 
-def check_parents(butler: Butler, child: str, expected_parents: list[str]) -> Optional[list[str]]:
-    """Check that the parents of a child collection match
-    the provided expected parents.
+def check_parents(butler: Butler, child: str, expected_parents: list[str]) -> list[str] | None:
+    """Check that the parents of a child collection match the provided
+    expected parents.
 
     Parameters
     ----------
-    butler : `Butler`
+    butler : `~lsst.daf.butler.Butler`
         The butler to the current repo.
     child : `str`
         The child collection to check.
@@ -180,7 +190,7 @@ def prepare_to_remove(
         other child collections will be ignored.
     parent_collection : `str`
         The parent CHAINED collection currently being removed.
-    butler : `Butler`
+    butler : `~lsst.daf.butler.Butler`
         The butler to the repo.
     recursive : `bool`
         If True then children of the top collection that are also CHAINED
@@ -232,7 +242,7 @@ def purge(
 
     Returns
     -------
-    purge_result : PurgeResult
+    purge_result : `PurgeResult`
         The description of what datasets to remove and/or failures encountered
         while preparing to remove datasets to remove, and a completion function
         to remove the datasets after confirmation, if needed.
@@ -247,7 +257,7 @@ def purge(
         return result
 
     if collection_type != CollectionType.CHAINED:
-        result.fail(TopCollectionIsNotChianedFailure(collection, collection_type))
+        result.fail(TopCollectionIsNotChainedFailure(collection, collection_type))
     elif parents := check_parents(butler, collection, []):
         result.fail(TopCollectionHasParentsFailure(collection, parents))
     else:

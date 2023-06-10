@@ -123,6 +123,7 @@ def build(ctx: click.Context, **kwargs: Any) -> None:
 
 @contextmanager
 def coverage_context(kwargs: dict[str, Any]) -> Iterator[None]:
+    """Enable coverage recording."""
     packages = kwargs.pop("cov_packages", ())
     report = kwargs.pop("cov_report", True)
     if not kwargs.pop("coverage", False):

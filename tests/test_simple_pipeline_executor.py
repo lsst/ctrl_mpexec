@@ -131,7 +131,7 @@ class SimplePipelineExecutorTests(lsst.utils.tests.TestCase):
         self.butler.registry.registerDatasetType(
             lsst.daf.butler.DatasetType(
                 "input",
-                dimensions=self.butler.registry.dimensions.empty,
+                dimensions=self.butler.dimensions.empty,
                 storageClass="StructuredDataDict",
             )
         )
@@ -208,7 +208,7 @@ class SimplePipelineExecutorTests(lsst.utils.tests.TestCase):
         self.butler.registry.registerDatasetType(
             lsst.daf.butler.DatasetType(
                 "intermediate",
-                dimensions=self.butler.registry.dimensions.empty,
+                dimensions=self.butler.dimensions.empty,
                 storageClass="TaskMetadataLike",
             )
         )
@@ -242,7 +242,7 @@ class SimplePipelineExecutorTests(lsst.utils.tests.TestCase):
         self.butler.registry.registerDatasetType(
             lsst.daf.butler.DatasetType(
                 "output",
-                dimensions=self.butler.registry.dimensions.empty,
+                dimensions=self.butler.dimensions.empty,
                 storageClass="TaskMetadataLike",
             )
         )
@@ -282,7 +282,7 @@ class SimplePipelineExecutorTests(lsst.utils.tests.TestCase):
         self.butler.registry.registerDatasetType(
             lsst.daf.butler.DatasetType(
                 "output",
-                dimensions=self.butler.registry.dimensions.empty,
+                dimensions=self.butler.dimensions.empty,
                 storageClass="StructuredDataList",
             )
         )

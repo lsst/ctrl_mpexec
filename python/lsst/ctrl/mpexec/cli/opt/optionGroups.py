@@ -47,7 +47,8 @@ instrumentOptionHelp = (
 
 class pipeline_build_options(OptionGroup):  # noqa: N801
     """Decorator to add options to the command function for building a
-    pipeline."""
+    pipeline.
+    """
 
     def __init__(self) -> None:
         self.decorators = [
@@ -85,7 +86,8 @@ class coverage_options(OptionGroup):  # noqa: N801
 
 class qgraph_options(OptionGroup):  # noqa: N801
     """Decorator to add options to a command function for creating a quantum
-    graph."""
+    graph.
+    """
 
     def __init__(self) -> None:
         self.decorators = [
@@ -120,7 +122,8 @@ class qgraph_options(OptionGroup):  # noqa: N801
 
 class butler_options(OptionGroup):  # noqa: N801
     """Decorator to add options to a command function for configuring a
-    butler."""
+    butler.
+    """
 
     def __init__(self) -> None:
         self.decorators = [
@@ -138,7 +141,8 @@ class butler_options(OptionGroup):  # noqa: N801
 
 class execution_options(OptionGroup):  # noqa: N801
     """Decorator to add options to a command function for executing a
-    pipeline."""
+    pipeline.
+    """
 
     def __init__(self) -> None:
         self.decorators = [
@@ -158,7 +162,8 @@ class execution_options(OptionGroup):  # noqa: N801
 
 class meta_info_options(OptionGroup):  # noqa: N801
     """Decorator to add options to a command function for managing pipeline
-    meta information."""
+    meta information.
+    """
 
     def __init__(self) -> None:
         self.decorators = [

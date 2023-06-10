@@ -25,14 +25,13 @@ __all__ = ["ExecutionStatus", "Report", "QuantumReport"]
 
 import enum
 import sys
-from typing import Dict, List, Optional
 
 from lsst.daf.butler import DataCoordinate, DataId, DataIdValue
 from lsst.utils.introspection import get_full_type_name
 from pydantic import BaseModel, validator
 
 
-def _serializeDataId(dataId: DataId) -> Dict[str, DataIdValue]:
+def _serializeDataId(dataId: DataId) -> dict[str, DataIdValue]:
     if isinstance(dataId, DataCoordinate):
         return dataId.byName()
     else:
@@ -77,18 +76,18 @@ class QuantumReport(BaseModel):
     status: ExecutionStatus = ExecutionStatus.SUCCESS
     """Execution status, one of the values in `ExecutionStatus` enum."""
 
-    dataId: Dict[str, DataIdValue]
+    dataId: dict[str, DataIdValue]
     """Quantum DataId."""
 
-    taskLabel: Optional[str]
+    taskLabel: str | None
     """Label for a task executing this Quantum."""
 
-    exitCode: Optional[int] = None
+    exitCode: int | None = None
     """Exit code for a sub-process executing Quantum, None for in-process
     Quantum execution. Negative if process was killed by a signal.
     """
 
-    exceptionInfo: Optional[ExceptionInfo] = None
+    exceptionInfo: ExceptionInfo | None = None
     """Exception information if exception was raised."""
 
     def __init__(
@@ -96,8 +95,8 @@ class QuantumReport(BaseModel):
         dataId: DataId,
         taskLabel: str,
         status: ExecutionStatus = ExecutionStatus.SUCCESS,
-        exitCode: Optional[int] = None,
-        exceptionInfo: Optional[ExceptionInfo] = None,
+        exitCode: int | None = None,
+        exceptionInfo: ExceptionInfo | None = None,
     ):
         super().__init__(
             status=status,
@@ -148,22 +147,22 @@ class Report(BaseModel):
     status: ExecutionStatus = ExecutionStatus.SUCCESS
     """Job status."""
 
-    cmdLine: Optional[List[str]] = None
+    cmdLine: list[str] | None = None
     """Command line for the whole job."""
 
-    exitCode: Optional[int] = None
+    exitCode: int | None = None
     """Job exit code, this obviously cannot be set in pipetask."""
 
-    exceptionInfo: Optional[ExceptionInfo] = None
+    exceptionInfo: ExceptionInfo | None = None
     """Exception information if exception was raised."""
 
-    quantaReports: List[QuantumReport] = []
+    quantaReports: list[QuantumReport] = []
     """List of per-quantum reports, ordering is not specified. Some or all
     quanta may not produce a report.
     """
 
     @validator("cmdLine", always=True)
-    def _set_cmdLine(cls, v: Optional[List[str]]) -> List[str]:  # noqa: N805
+    def _set_cmdLine(cls, v: list[str] | None) -> list[str]:  # noqa: N805
         if v is None:
             v = sys.argv
         return v

@@ -22,7 +22,8 @@
 __all__ = ["ExecutionGraphFixup"]
 
 from collections import defaultdict
-from typing import Any, Sequence, Tuple, Union
+from collections.abc import Sequence
+from typing import Any
 
 import networkx as nx
 from lsst.pipe.base import QuantumGraph, QuantumNode
@@ -69,7 +70,7 @@ class ExecFixupDataId(ExecutionGraphFixup):
         is reversed.
     """
 
-    def __init__(self, taskLabel: str, dimensions: Union[str, Sequence[str]], reverse: bool = False):
+    def __init__(self, taskLabel: str, dimensions: str | Sequence[str], reverse: bool = False):
         self.taskLabel = taskLabel
         self.dimensions = dimensions
         self.reverse = reverse
@@ -78,8 +79,9 @@ class ExecFixupDataId(ExecutionGraphFixup):
         else:
             self.dimensions = tuple(self.dimensions)
 
-    def _key(self, qnode: QuantumNode) -> Tuple[Any, ...]:
+    def _key(self, qnode: QuantumNode) -> tuple[Any, ...]:
         """Produce comparison key for quantum data.
+
         Parameters
         ----------
         qnode : `QuantumNode`

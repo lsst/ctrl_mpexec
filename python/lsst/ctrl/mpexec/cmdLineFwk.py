@@ -34,7 +34,7 @@ import logging
 import shutil
 from collections.abc import Iterable, Mapping, Sequence
 from types import SimpleNamespace
-from typing import TYPE_CHECKING, Optional, Tuple
+from typing import TYPE_CHECKING
 
 from astropy.table import Table
 from lsst.daf.butler import (
@@ -117,7 +117,7 @@ class _OutputChainedCollectionInfo:
     """Whether this collection already exists in the registry (`bool`).
     """
 
-    chain: Tuple[str, ...]
+    chain: tuple[str, ...]
     """The definition of the collection, if it already exists (`tuple`[`str`]).
 
     Empty if the collection does not already exist.
@@ -197,8 +197,9 @@ class _ButlerFactory:
             Path to a data repository root or configuration file.
 
     writeable : `bool`
-        If `True`, a `Butler` is being initialized in a context where actual
-        writes should happens, and hence no output run is necessary.
+        If `True`, a `~lsst.daf.butler.Butler` is being initialized in a
+        context where actual writes should happens, and hence no output run
+        is necessary.
 
     Raises
     ------
@@ -279,7 +280,7 @@ class _ButlerFactory:
 
     @classmethod
     def _makeReadParts(cls, args: SimpleNamespace) -> tuple[Butler, Sequence[str], _ButlerFactory]:
-        """Common implementation for `makeReadButler` and
+        """Parse arguments to support implementations of `makeReadButler` and
         `makeButlerAndCollections`.
 
         Parameters
@@ -342,7 +343,7 @@ class _ButlerFactory:
         return Butler(butler=butler, collections=inputs)
 
     @classmethod
-    def makeButlerAndCollections(cls, args: SimpleNamespace) -> Tuple[Butler, Sequence[str], Optional[str]]:
+    def makeButlerAndCollections(cls, args: SimpleNamespace) -> tuple[Butler, Sequence[str], str | None]:
         """Return a read-only registry, a collection search path, and the name
         of the run to be used for future writes.
 
@@ -364,7 +365,7 @@ class _ButlerFactory:
             if it already exists, or `None` if it does not.
         """
         butler, inputs, self = cls._makeReadParts(args)
-        run: Optional[str] = None
+        run: str | None = None
         if args.extend_run:
             assert self.outputRun is not None, "Output collection has to be specified."
         if self.outputRun is not None:
@@ -388,7 +389,7 @@ class _ButlerFactory:
             _LOG.debug("Defining shared datastore cache directory to %s", cache_dir)
 
     @classmethod
-    def makeWriteButler(cls, args: SimpleNamespace, taskDefs: Optional[Iterable[TaskDef]] = None) -> Butler:
+    def makeWriteButler(cls, args: SimpleNamespace, taskDefs: Iterable[TaskDef] | None = None) -> Butler:
         """Return a read-write butler initialized to write to and read from
         the collections specified by the given command-line arguments.
 
@@ -453,17 +454,17 @@ class _ButlerFactory:
             butler.registry.defaults = RegistryDefaults(run=self.outputRun.name, collections=inputs)
         return butler
 
-    output: Optional[_OutputChainedCollectionInfo]
+    output: _OutputChainedCollectionInfo | None
     """Information about the output chained collection, if there is or will be
     one (`_OutputChainedCollectionInfo` or `None`).
     """
 
-    outputRun: Optional[_OutputRunCollectionInfo]
+    outputRun: _OutputRunCollectionInfo | None
     """Information about the output run collection, if there is or will be
     one (`_OutputRunCollectionInfo` or `None`).
     """
 
-    inputs: Tuple[str, ...]
+    inputs: tuple[str, ...]
     """Input collections provided directly by the user (`tuple` [ `str` ]).
     """
 
@@ -479,7 +480,10 @@ class _QBBFactory:
         self.dataset_types = dataset_types
 
     def __call__(self, quantum: Quantum) -> LimitedButler:
-        """Factory method to create QuantumBackedButler instances."""
+        """Return freshly initialized `~lsst.daf.butler.QuantumBackedButler`.
+
+        Factory method to create QuantumBackedButler instances.
+        """
         return QuantumBackedButler.initialize(
             config=self.butler_config,
             quantum=quantum,
@@ -552,7 +556,7 @@ class CmdLineFwk:
 
         return pipeline
 
-    def makeGraph(self, pipeline: Pipeline, args: SimpleNamespace) -> Optional[QuantumGraph]:
+    def makeGraph(self, pipeline: Pipeline, args: SimpleNamespace) -> QuantumGraph | None:
         """Build a graph from command line arguments.
 
         Parameters
@@ -567,7 +571,6 @@ class CmdLineFwk:
         graph : `~lsst.pipe.base.QuantumGraph` or `None`
             If resulting graph is empty then `None` is returned.
         """
-
         # make sure that --extend-run always enables --skip-existing
         if args.extend_run:
             args.skip_existing = True
@@ -580,9 +583,7 @@ class CmdLineFwk:
         if args.qgraph:
             # click passes empty tuple as default value for qgraph_node_id
             nodes = args.qgraph_node_id or None
-            qgraph = QuantumGraph.loadUri(
-                args.qgraph, butler.registry.dimensions, nodes=nodes, graphID=args.qgraph_id
-            )
+            qgraph = QuantumGraph.loadUri(args.qgraph, butler.dimensions, nodes=nodes, graphID=args.qgraph_id)
 
             # pipeline can not be provided in this case
             if pipeline:
@@ -697,13 +698,13 @@ class CmdLineFwk:
         graph: QuantumGraph,
         taskFactory: TaskFactory,
         args: SimpleNamespace,
-        butler: Optional[Butler] = None,
+        butler: Butler | None = None,
     ) -> None:
         """Execute complete QuantumGraph.
 
         Parameters
         ----------
-        graph : `QuantumGraph`
+        graph : `~lsst.pipe.base.QuantumGraph`
             Execution graph.
         taskFactory : `~lsst.pipe.base.TaskFactory`
             Task factory
@@ -819,7 +820,7 @@ class CmdLineFwk:
         qg_task_table = Table(dict(Quanta=qg_quanta, Tasks=qg_tasks))
         return qg_task_table
 
-    def _importGraphFixup(self, args: SimpleNamespace) -> Optional[ExecutionGraphFixup]:
+    def _importGraphFixup(self, args: SimpleNamespace) -> ExecutionGraphFixup | None:
         """Import/instantiate graph fixup object.
 
         Parameters

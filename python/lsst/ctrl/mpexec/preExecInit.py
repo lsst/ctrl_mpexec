@@ -297,14 +297,14 @@ class PreExecInitBase(abc.ABC):
 
         Parameters
         ----------
-        refs : `~collections.abc.Iterable` [ `DatasetRef` ]
+        refs : `~collections.abc.Iterable` [ `~lsst.daf.butler.DatasetRef` ]
             References to check for matching dataset type.
         dataset_type : `str`
-            Name of a dtaset type to look for.
+            Name of a dataset type to look for.
 
         Returns
         -------
-        ref : `DatasetRef` or `None`
+        ref : `~lsst.daf.butler.DatasetRef` or `None`
             Dataset reference or `None` if there is no matching dataset type.
         data : `Any`
             An existing object extracted from butler, `None` if ``ref`` is

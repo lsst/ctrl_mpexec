@@ -156,11 +156,11 @@ class PurgeTest(unittest.TestCase):
         )
         self.assertEqual(result.exit_code, 1, clickResultMsg(result))
         self.assertIn(
-            'The passed-in colleciton "notACollection" was not found.',
+            'The passed-in collection "notACollection" was not found.',
             result.output,
         )
 
-        # Test purging a colleciton that is not a CHAINED collection.
+        # Test purging a collection that is not a CHAINED collection.
         result = self.runner.invoke(
             pipetask_cli,
             ["purge", "-b", self.root, "ingest/run"],

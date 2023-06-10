@@ -24,7 +24,7 @@ from __future__ import annotations
 __all__ = ["QuantumExecutor", "QuantumGraphExecutor"]
 
 from abc import ABC, abstractmethod
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING
 
 from .reports import QuantumReport, Report
 
@@ -55,7 +55,7 @@ class QuantumExecutor(ABC):
 
         Returns
         -------
-        quantum : `Quantum`
+        quantum : `~lsst.daf.butler.Quantum`
             The quantum actually executed.
 
         Notes
@@ -65,7 +65,7 @@ class QuantumExecutor(ABC):
         """
         raise NotImplementedError()
 
-    def getReport(self) -> Optional[QuantumReport]:
+    def getReport(self) -> QuantumReport | None:
         """Return execution report from last call to `execute`.
 
         Returns
@@ -106,7 +106,7 @@ class QuantumGraphExecutor(ABC):
         """
         raise NotImplementedError()
 
-    def getReport(self) -> Optional[Report]:
+    def getReport(self) -> Report | None:
         """Return execution report from last call to `execute`.
 
         Returns

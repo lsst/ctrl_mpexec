@@ -32,7 +32,8 @@ import getpass
 import logging
 import math
 import multiprocessing
-from typing import Any, Iterable, Mapping, Protocol
+from collections.abc import Iterable, Mapping
+from typing import Any, Protocol
 
 import lsst.pipe.base
 import lsst.resources

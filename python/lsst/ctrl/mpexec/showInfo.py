@@ -28,7 +28,7 @@ import re
 import sys
 from collections import defaultdict
 from types import SimpleNamespace
-from typing import Any, Optional
+from typing import Any
 
 import lsst.pex.config as pexConfig
 import lsst.pex.config.history as pexConfigHistory
@@ -151,7 +151,7 @@ class ShowInfo:
                 raise RuntimeError(f"Unexpectedly tried to process command {command!r}.")
             self.handled.add(command)
 
-    def show_graph_info(self, graph: QuantumGraph, args: Optional[SimpleNamespace] = None) -> None:
+    def show_graph_info(self, graph: QuantumGraph, args: SimpleNamespace | None = None) -> None:
         """Show information associated with this graph.
 
         Parameters
@@ -211,7 +211,7 @@ class ShowInfo:
             taskDef.config.saveToStream(stream, root="config", skipImports=not dumpFullConfig)
 
     def _showConfigHistory(self, pipeline: Pipeline, showArgs: str) -> None:
-        """Show history for task configuration
+        """Show history for task configuration.
 
         Parameters
         ----------
@@ -220,7 +220,6 @@ class ShowInfo:
         showArgs : `str`
             Defines what to show
         """
-
         taskName = None
         pattern = None
         matHistory = re.search(r"^(?:(\w+)::)?(?:config[.])?(.+)", showArgs)

@@ -28,8 +28,9 @@ from ..utils import _PipelineAction
 def build(  # type: ignore
     order_pipeline, pipeline, pipeline_actions, pipeline_dot, save_pipeline, show, **kwargs
 ):
-    """Implements the command line interface `pipetask build` subcommand,
-    should only be called by command line tools and unit test code that tests
+    """Implement the command line interface `pipetask build` subcommand.
+
+    Should only be called by command line tools and unit test code that tests
     this function.
 
     Build and optionally save pipeline definition.

@@ -21,15 +21,15 @@
 
 
 from abc import ABC, abstractmethod
-from typing import Callable
+from collections.abc import Callable
 
 import click
 
 
 class ConfirmableResult(ABC):
-
     """Interface for a results class that can be used by the `confirm`
-    function."""
+    function.
+    """
 
     @abstractmethod
     def describe(self, will: bool) -> str:
@@ -47,33 +47,41 @@ class ConfirmableResult(ABC):
 
     @abstractmethod
     def on_confirmation(self) -> None:
-        """Performs the action that was returned from `describe`. This is
-        Called just after the user has confirmed (if needed)."""
+        """Perform the action that was returned from `describe`.
+
+        This is Called just after the user has confirmed (if needed).
+        """
         pass
 
     @property
     @abstractmethod
     def failed(self) -> bool:
         """Query if there was a failure preparing the ConfirmableResult,
-        before `on_confirmation` is called."""
+        before `on_confirmation` is called.
+        """
         pass
 
     @property
     @abstractmethod
     def describe_failure(self) -> str:
-        """Get a message describing the failure. This is used as the message
-        when raising a `ClickException` to stop with exit code 1."""
+        """Get a message describing the failure.
+
+        This is used as the message when raising a `~click.ClickException` to
+        stop  with exit code 1.
+        """
         pass
 
     @property
     @abstractmethod
     def can_continue(self) -> bool:
         """Query if the ConfirmableResult can continue. Returns `False` if
-        there is no work to be done."""
+        there is no work to be done.
+        """
         pass
 
 
 def confirm(script_func: Callable[[], ConfirmableResult], confirm: bool) -> ConfirmableResult:
+    """Prompt user to continue."""
     result = script_func()
     if result.failed:
         raise click.ClickException(result.describe_failure)

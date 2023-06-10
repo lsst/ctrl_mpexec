@@ -10,4 +10,4 @@ jobs:
   call-workflow:
     uses: lsst/rubin_workflows/.github/workflows/docstyle.yaml@main
     with:
-      args: "python/lsst/ctrl/mpexec/"
+      args: "python/"
