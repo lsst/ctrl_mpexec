@@ -412,13 +412,13 @@ class MPGraphExecutor(QuantumGraphExecutor):
 
         Parameters
         ----------
-        graph : `QuantumGraph`
-            `QuantumGraph` to modify
+        graph : `~lsst.pipe.base.QuantumGraph`
+            `~lsst.pipe.base.QuantumGraph` to modify
 
         Returns
         -------
-        graph : `QuantumGraph`
-            Modified `QuantumGraph`.
+        graph : `~lsst.pipe.base.QuantumGraph`
+            Modified `~lsst.pipe.base.QuantumGraph`.
 
         Raises
         ------
@@ -443,8 +443,8 @@ class MPGraphExecutor(QuantumGraphExecutor):
 
         Parameters
         ----------
-        graph : `QuantumGraph`
-            `QuantumGraph` that is to be executed
+        graph : `~lsst.pipe.base.QuantumGraph`
+            `~lsst.pipe.base.QuantumGraph` that is to be executed
         report : `Report`
             Object for reporting execution status.
         """
@@ -533,8 +533,8 @@ class MPGraphExecutor(QuantumGraphExecutor):
 
         Parameters
         ----------
-        graph : `QuantumGraph`
-            `QuantumGraph` that is to be executed.
+        graph : `~lsst.pipe.base.QuantumGraph`
+            `~lsst.pipe.base.QuantumGraph` that is to be executed.
         report : `Report`
             Object for reporting execution status.
         """

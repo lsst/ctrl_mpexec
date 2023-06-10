@@ -40,9 +40,9 @@ class SimplePipelineExecutor:
 
     Parameters
     ----------
-    quantum_graph : `QuantumGraph`
+    quantum_graph : `~lsst.pipe.base.QuantumGraph`
         Graph to be executed.
-    butler : `Butler`
+    butler : `~lsst.daf.butler.Butler`
         Object that manages all I/O.  Must be initialized with `collections`
         and `run` properties that correspond to the input and output
         collections, which must be consistent with those used to create
@@ -52,15 +52,17 @@ class SimplePipelineExecutor:
     -----
     Most callers should use one of the `classmethod` factory functions
     (`from_pipeline_filename`, `from_task_class`, `from_pipeline`) instead of
-    invoking the constructor directly; these guarantee that the `Butler` and
-    `QuantumGraph` are created consistently.
+    invoking the constructor directly; these guarantee that the
+    `~lsst.daf.butler.Butler` and `~lsst.pipe.base.QuantumGraph` are created
+    consistently.
 
     This class is intended primarily to support unit testing and small-scale
-    integration testing of `PipelineTask` classes.  It deliberately lacks many
-    features present in the command-line-only ``pipetask`` tool in order to
-    keep the implementation simple.  Python callers that need more
-    sophistication should call lower-level tools like `GraphBuilder`,
-    `PreExecInit`, and `SingleQuantumExecutor` directly.
+    integration testing of `~lsst.pipe.base.PipelineTask` classes.  It
+    deliberately lacks many features present in the command-line-only
+    ``pipetask`` tool in order to keep the implementation simple.  Python
+    callers that need more sophistication should call lower-level tools like
+    `~lsst.pipe.base.GraphBuilder`, `PreExecInit`, and `SingleQuantumExecutor`
+    directly.
     """
 
     def __init__(self, quantum_graph: QuantumGraph, butler: Butler):
@@ -97,7 +99,7 @@ class SimplePipelineExecutor:
 
         Returns
         -------
-        butler : `Butler`
+        butler : `~lsst.daf.butler.Butler`
             Butler client instance compatible with all `classmethod` factories.
             Always writeable.
         """
@@ -136,15 +138,16 @@ class SimplePipelineExecutor:
         bind : `Mapping`, optional
             Mapping containing literal values that should be injected into the
             ``where`` expression, keyed by the identifiers they replace.
-        butler : `Butler`
+        butler : `~lsst.daf.butler.Butler`
             Butler that manages all I/O.  `prep_butler` can be used to create
             one.
 
         Returns
         -------
         executor : `SimplePipelineExecutor`
-            An executor instance containing the constructed `QuantumGraph` and
-            `Butler`, ready for `run` to be called.
+            An executor instance containing the constructed
+            `~lsst.pipe.base.QuantumGraph` and `~lsst.daf.butler.Butler`,
+            ready for `run` to be called.
         """
         pipeline = Pipeline.fromFile(pipeline_filename)
         return cls.from_pipeline(pipeline, butler=butler, where=where, bind=bind)
@@ -166,7 +169,7 @@ class SimplePipelineExecutor:
         Parameters
         ----------
         task_class : `type`
-            A concrete `PipelineTask` subclass.
+            A concrete `~lsst.pipe.base.PipelineTask` subclass.
         config : `Config`, optional
             Configuration for the task.  If not provided, task-level defaults
             will be used (no per-instrument overrides).
@@ -178,15 +181,16 @@ class SimplePipelineExecutor:
         bind : `Mapping`, optional
             Mapping containing literal values that should be injected into the
             ``where`` expression, keyed by the identifiers they replace.
-        butler : `Butler`
+        butler : `~lsst.daf.butler.Butler`
             Butler that manages all I/O.  `prep_butler` can be used to create
             one.
 
         Returns
         -------
         executor : `SimplePipelineExecutor`
-            An executor instance containing the constructed `QuantumGraph` and
-            `Butler`, ready for `run` to be called.
+            An executor instance containing the constructed
+            `~lsst.pipe.base.QuantumGraph` and `~lsst.daf.butler.Butler`,
+            ready for `run` to be called.
         """
         if config is None:
             config = task_class.ConfigClass()
@@ -223,15 +227,16 @@ class SimplePipelineExecutor:
         bind : `Mapping`, optional
             Mapping containing literal values that should be injected into the
             ``where`` expression, keyed by the identifiers they replace.
-        butler : `Butler`
+        butler : `~lsst.daf.butler.Butler`
             Butler that manages all I/O.  `prep_butler` can be used to create
             one.
 
         Returns
         -------
         executor : `SimplePipelineExecutor`
-            An executor instance containing the constructed `QuantumGraph` and
-            `Butler`, ready for `run` to be called.
+            An executor instance containing the constructed
+            `~lsst.pipe.base.QuantumGraph` and `~lsst.daf.butler.Butler`,
+            ready for `run` to be called.
         """
         if isinstance(pipeline, Pipeline):
             pipeline = list(pipeline.toExpandedPipeline())
@@ -245,7 +250,8 @@ class SimplePipelineExecutor:
         return cls(quantum_graph=quantum_graph, butler=butler)
 
     def run(self, register_dataset_types: bool = False, save_versions: bool = True) -> list[Quantum]:
-        """Run all the quanta in the `QuantumGraph` in topological order.
+        """Run all the quanta in the `~lsst.pipe.base.QuantumGraph` in
+        topological order.
 
         Use this method to run all quanta in the graph.  Use
         `as_generator` to get a generator to run the quanta one at
@@ -261,7 +267,7 @@ class SimplePipelineExecutor:
 
         Returns
         -------
-        quanta : `List` [ `Quantum` ]
+        quanta : `List` [ `~lsst.daf.butler.Quantum` ]
             Executed quanta.
 
         Notes
@@ -276,7 +282,8 @@ class SimplePipelineExecutor:
     def as_generator(
         self, register_dataset_types: bool = False, save_versions: bool = True
     ) -> Iterator[Quantum]:
-        """Yield quanta in the `QuantumGraph` in topological order.
+        """Yield quanta in the `~lsst.pipe.base.QuantumGraph` in topological
+        order.
 
         These quanta will be run as the returned generator is iterated
         over.  Use this method to run the quanta one at a time.
@@ -292,7 +299,7 @@ class SimplePipelineExecutor:
 
         Returns
         -------
-        quanta : `Iterator` [ `Quantum` ]
+        quanta : `Iterator` [ `~lsst.daf.butler.Quantum` ]
             Executed quanta.
 
         Notes

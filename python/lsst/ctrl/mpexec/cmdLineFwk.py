@@ -197,8 +197,9 @@ class _ButlerFactory:
             Path to a data repository root or configuration file.
 
     writeable : `bool`
-        If `True`, a `Butler` is being initialized in a context where actual
-        writes should happens, and hence no output run is necessary.
+        If `True`, a `~lsst.daf.butler.Butler` is being initialized in a
+        context where actual writes should happens, and hence no output run
+        is necessary.
 
     Raises
     ------
@@ -703,7 +704,7 @@ class CmdLineFwk:
 
         Parameters
         ----------
-        graph : `QuantumGraph`
+        graph : `~lsst.pipe.base.QuantumGraph`
             Execution graph.
         taskFactory : `~lsst.pipe.base.TaskFactory`
             Task factory

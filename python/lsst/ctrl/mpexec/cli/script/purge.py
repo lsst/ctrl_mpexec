@@ -190,7 +190,7 @@ def prepare_to_remove(
         other child collections will be ignored.
     parent_collection : `str`
         The parent CHAINED collection currently being removed.
-    butler : `Butler`
+    butler : `~lsst.daf.butler.Butler`
         The butler to the repo.
     recursive : `bool`
         If True then children of the top collection that are also CHAINED

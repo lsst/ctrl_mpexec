@@ -55,7 +55,7 @@ class QuantumExecutor(ABC):
 
         Returns
         -------
-        quantum : `Quantum`
+        quantum : `~lsst.daf.butler.Quantum`
             The quantum actually executed.
 
         Notes
