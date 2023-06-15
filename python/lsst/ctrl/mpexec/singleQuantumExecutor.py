@@ -44,11 +44,11 @@ from lsst.daf.butler import (
 from lsst.daf.butler.registry.wildcards import CollectionWildcard
 from lsst.pipe.base import (
     AdjustQuantumHelper,
-    ButlerQuantumContext,
     Instrument,
     InvalidQuantumError,
     NoWorkFound,
     PipelineTask,
+    QuantumContext,
     RepeatableQuantumError,
     TaskDef,
     TaskFactory,
@@ -445,7 +445,7 @@ class SingleQuantumExecutor(QuantumExecutor):
             Task definition structure.
         """
         # Create a butler that operates in the context of a quantum
-        butlerQC = ButlerQuantumContext(limited_butler, quantum)
+        butlerQC = QuantumContext(limited_butler, quantum)
 
         # Get the input and output references for the task
         inputRefs, outputRefs = taskDef.connections.buildDatasetRefs(quantum)
