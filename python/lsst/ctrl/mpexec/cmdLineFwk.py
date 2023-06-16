@@ -36,6 +36,7 @@ from collections.abc import Iterable, Mapping, Sequence
 from types import SimpleNamespace
 from typing import TYPE_CHECKING
 
+import astropy.units as u
 from astropy.table import Table
 from lsst.daf.butler import (
     Butler,
@@ -48,6 +49,7 @@ from lsst.daf.butler import (
 from lsst.daf.butler.registry import MissingCollectionError, RegistryDefaults
 from lsst.daf.butler.registry.wildcards import CollectionWildcard
 from lsst.pipe.base import (
+    ExecutionResources,
     GraphBuilder,
     Instrument,
     Pipeline,
@@ -697,6 +699,44 @@ class CmdLineFwk:
 
         return qgraph
 
+    def _make_execution_resources(self, args: SimpleNamespace) -> ExecutionResources:
+        """Construct the execution resource class from arguments.
+
+        Parameters
+        ----------
+        args : `types.SimpleNamespace`
+            Parsed command line.
+
+        Returns
+        -------
+        resources : `~lsst.pipe.base.ExecutionResources`
+            The resources available to each quantum.
+        """
+        # The memory per quantum is a string that needs to be parsed.
+        mem = None
+
+        if args.memory_per_quantum:
+            try:
+                mem = int(args.memory_per_quantum)
+            except ValueError:
+                pass
+            else:
+                mem *= u.MB  # Default is for megabytes.
+
+            if mem is None:
+                try:
+                    mem = u.Quantity(args.memory_per_quantum)
+                except Exception as e:
+                    _LOG.warning(
+                        "Unable to parse the quantity from --memory-per-quantum parameter of %r. "
+                        "Ignoring the parameter. Got error: %s",
+                        args.memory_per_quantum,
+                        e,
+                    )
+
+        # This could fail if someone specifies a unit of meters or tesla, etc.
+        return ExecutionResources(num_cores=args.cores_per_quantum, max_mem=mem)
+
     def runPipeline(
         self,
         graph: QuantumGraph,
@@ -769,6 +809,7 @@ class CmdLineFwk:
 
         if not args.init_only:
             graphFixup = self._importGraphFixup(args)
+            resources = self._make_execution_resources(args)
             quantumExecutor = SingleQuantumExecutor(
                 butler,
                 taskFactory,
@@ -776,6 +817,7 @@ class CmdLineFwk:
                 clobberOutputs=args.clobber_outputs,
                 enableLsstDebug=args.enableLsstDebug,
                 exitOnKnownError=args.fail_fast,
+                resources=resources,
             )
 
             timeout = self.MP_TIMEOUT if args.timeout is None else args.timeout
@@ -918,12 +960,14 @@ class CmdLineFwk:
         )
 
         # make special quantum executor
+        resources = self._make_execution_resources(args)
         quantumExecutor = SingleQuantumExecutor(
             butler=None,
             taskFactory=task_factory,
             enableLsstDebug=args.enableLsstDebug,
             exitOnKnownError=args.fail_fast,
             limited_butler_factory=_butler_factory,
+            resources=resources,
         )
 
         timeout = self.MP_TIMEOUT if args.timeout is None else args.timeout

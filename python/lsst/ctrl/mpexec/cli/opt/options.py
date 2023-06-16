@@ -383,6 +383,30 @@ enable_implicit_threading_option = MWOptionDecorator(
     is_flag=True,
 )
 
+cores_per_quantum_option = MWOptionDecorator(
+    "-n",
+    "--cores-per-quantum",
+    default=1,
+    help=unwrap(
+        """Number of cores available to each quantum when executing.
+        If '-j' is used each subprocess will be allowed to use this number of cores."""
+    ),
+    type=click.IntRange(min=1),
+)
+
+memory_per_quantum_option = MWOptionDecorator(
+    "--memory-per-quantum",
+    default="",
+    help=unwrap(
+        """Memory allocated for each quantum to use when executing.
+        This memory allocation is not enforced by the execution system and is purely advisory.
+        If '-j' used each subprocess will be allowed to use this amount of memory.
+        Units are allowed and the default units for a plain integer are MB.
+        For example: '3GB', '3000MB' and '3000' would all result in the same
+        memory limit. Default is for no limit."""
+    ),
+    type=str,
+)
 
 task_option = MWOptionDecorator(
     "-t",

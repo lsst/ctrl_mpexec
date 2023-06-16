@@ -57,6 +57,8 @@ def run(  # type: ignore
     unmocked_dataset_types,
     mock_failure,
     enable_implicit_threading,
+    cores_per_quantum: int,
+    memory_per_quantum: str,
     **kwargs,
 ):
     """Implement the command line interface `pipetask run` subcommand.
@@ -159,6 +161,12 @@ def run(  # type: ignore
         If `True`, do not disable implicit threading by third-party libraries.
         Implicit threading is always disabled during actual quantum execution
         if ``processes > 1``.
+    cores_per_quantum : `int`
+        Number of cores that can be used by each quantum.
+    memory_per_quantum : `str`
+        Amount of memory that each quantum can be allowed to use. Empty string
+        implies no limit. The string can be either a single integer (implying
+        units of MB) or a combination of number and unit.
     kwargs : `dict` [`str`, `str`]
         Ignored; click commands may accept options for more than one script
         function and pass all the option kwargs to each of the script functions
@@ -191,6 +199,8 @@ def run(  # type: ignore
         summary=summary,
         # Mock options only used by qgraph.
         enable_implicit_threading=enable_implicit_threading,
+        cores_per_quantum=cores_per_quantum,
+        memory_per_quantum=memory_per_quantum,
     )
 
     f = CmdLineFwk()

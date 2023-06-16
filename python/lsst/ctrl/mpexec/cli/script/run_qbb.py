@@ -39,6 +39,8 @@ def run_qbb(
     fail_fast: bool,
     summary: str | None,
     enable_implicit_threading: bool,
+    cores_per_quantum: int,
+    memory_per_quantum: str,
 ) -> None:
     """Implement the command line interface ``pipetask run-qbb`` subcommand.
 
@@ -82,6 +84,12 @@ def run_qbb(
         If `True`, do not disable implicit threading by third-party libraries.
         Implicit threading is always disabled during actual quantum execution
         if ``processes > 1``.
+    cores_per_quantum : `int`
+        Number of cores that can be used by each quantum.
+    memory_per_quantum : `str`
+        Amount of memory that each quantum can be allowed to use. Empty string
+        implies no limit. The string can be either a single integer (implying
+        units of MB) or a combination of number and unit.
     """
     args = SimpleNamespace(
         butler_config=butler_config,
@@ -98,6 +106,8 @@ def run_qbb(
         fail_fast=fail_fast,
         summary=summary,
         enable_implicit_threading=enable_implicit_threading,
+        cores_per_quantum=cores_per_quantum,
+        memory_per_quantum=memory_per_quantum,
     )
 
     f = CmdLineFwk()
