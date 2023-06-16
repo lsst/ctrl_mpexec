@@ -750,7 +750,7 @@ class CmdLineFwk:
         # Enable lsstDebug debugging. Note that this is done once in the
         # main process before PreExecInit and it is also repeated before
         # running each task in SingleQuantumExecutor (which may not be
-        # needed if `multipocessing` always uses fork start method).
+        # needed if `multiprocessing` always uses fork start method).
         if args.enableLsstDebug:
             try:
                 _LOG.debug("Will try to import debug.py")
