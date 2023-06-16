@@ -58,6 +58,7 @@ def qgraph(  # type: ignore
     show_qgraph_header=False,
     mock=False,
     unmocked_dataset_types=(),
+    mock_failure=(),
     **kwargs,
 ):
     """Implement the command line interface `pipetask qgraph` subcommand.
@@ -162,6 +163,8 @@ def qgraph(  # type: ignore
         If True, use a mocked version of the pipeline.
     unmocked_dataset_types : `collections.abc.Sequence` [ `str` ], optional
         List of overall-input dataset types that should not be mocked.
+    mock_failure : `~collections.abc.Sequence`, optional
+        List of quanta that should raise exceptions.
     kwargs : `dict` [`str`, `str`]
         Ignored; click commands may accept options for more than one script
         function and pass all the option kwargs to each of the script functions
@@ -200,6 +203,7 @@ def qgraph(  # type: ignore
         show_qgraph_header=show_qgraph_header,
         mock=mock,
         unmocked_dataset_types=list(unmocked_dataset_types),
+        mock_failure=mock_failure,
     )
 
     f = CmdLineFwk()

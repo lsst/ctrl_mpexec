@@ -595,7 +595,11 @@ class CmdLineFwk:
             if args.mock:
                 from lsst.pipe.base.tests.mocks import mock_task_defs
 
-                task_defs = mock_task_defs(task_defs, unmocked_dataset_types=args.unmocked_dataset_types)
+                task_defs = mock_task_defs(
+                    task_defs,
+                    unmocked_dataset_types=args.unmocked_dataset_types,
+                    force_failures=args.mock_failure,
+                )
             # make execution plan (a.k.a. DAG) for pipeline
             graphBuilder = GraphBuilder(
                 butler.registry,
