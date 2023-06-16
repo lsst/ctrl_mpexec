@@ -44,6 +44,7 @@ from lsst.daf.butler import (
 from lsst.daf.butler.registry.wildcards import CollectionWildcard
 from lsst.pipe.base import (
     AdjustQuantumHelper,
+    ExecutionResources,
     Instrument,
     InvalidQuantumError,
     NoWorkFound,
@@ -106,6 +107,8 @@ class SingleQuantumExecutor(QuantumExecutor):
         A method that creates a `~lsst.daf.butler.LimitedButler` instance
         for a given Quantum. This parameter must be defined if ``butler`` is
         `None`. If ``butler`` is not `None` then this parameter is ignored.
+    resources : `~lsst.pipe.base.ExecutionResources`, optional
+        The resources available to this quantum when executing.
     """
 
     def __init__(
@@ -117,6 +120,7 @@ class SingleQuantumExecutor(QuantumExecutor):
         enableLsstDebug: bool = False,
         exitOnKnownError: bool = False,
         limited_butler_factory: Callable[[Quantum], LimitedButler] | None = None,
+        resources: ExecutionResources | None = None,
     ):
         self.butler = butler
         self.taskFactory = taskFactory
@@ -125,6 +129,7 @@ class SingleQuantumExecutor(QuantumExecutor):
         self.exitOnKnownError = exitOnKnownError
         self.limited_butler_factory = limited_butler_factory
         self.report: QuantumReport | None = None
+        self.resources = resources
 
         if self.butler is None:
             assert limited_butler_factory is not None, "limited_butler_factory is needed when butler is None"
@@ -445,7 +450,7 @@ class SingleQuantumExecutor(QuantumExecutor):
             Task definition structure.
         """
         # Create a butler that operates in the context of a quantum
-        butlerQC = QuantumContext(limited_butler, quantum)
+        butlerQC = QuantumContext(limited_butler, quantum, resources=self.resources)
 
         # Get the input and output references for the task
         inputRefs, outputRefs = taskDef.connections.buildDatasetRefs(quantum)
