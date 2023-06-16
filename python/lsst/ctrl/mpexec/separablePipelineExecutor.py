@@ -96,6 +96,8 @@ class SeparablePipelineExecutor:
     task_factory : `lsst.pipe.base.TaskFactory`, optional
         A custom task factory for use in pre-execution and execution. By
         default, a new instance of `lsst.ctrl.mpexec.TaskFactory` is used.
+    resources : `~lsst.pipe.base.ExecutionResources`
+        The resources available to each quantum being executed.
     """
 
     def __init__(
@@ -104,6 +106,7 @@ class SeparablePipelineExecutor:
         clobber_output: bool = False,
         skip_existing_in: Iterable[str] | None = None,
         task_factory: lsst.pipe.base.TaskFactory | None = None,
+        resources: lsst.pipe.base.ExecutionResources | None = None,
     ):
         self._butler = Butler(butler=butler, collections=butler.collections, run=butler.run)
         if not self._butler.collections:
@@ -115,6 +118,7 @@ class SeparablePipelineExecutor:
         self._skip_existing_in = list(skip_existing_in) if skip_existing_in else []
 
         self._task_factory = task_factory if task_factory else TaskFactory()
+        self.resources = resources
 
     def pre_execute_qgraph(
         self,
@@ -254,6 +258,7 @@ class SeparablePipelineExecutor:
                 self._task_factory,
                 skipExistingIn=self._skip_existing_in,
                 clobberOutputs=self._clobber_output,
+                resources=self.resources,
             )
             graph_executor = MPGraphExecutor(
                 numProc=math.ceil(0.8 * multiprocessing.cpu_count()),

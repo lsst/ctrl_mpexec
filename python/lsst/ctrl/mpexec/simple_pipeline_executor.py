@@ -28,7 +28,15 @@ from typing import Any
 
 from lsst.daf.butler import Butler, CollectionType, Quantum
 from lsst.pex.config import Config
-from lsst.pipe.base import GraphBuilder, Instrument, Pipeline, PipelineTask, QuantumGraph, TaskDef
+from lsst.pipe.base import (
+    ExecutionResources,
+    GraphBuilder,
+    Instrument,
+    Pipeline,
+    PipelineTask,
+    QuantumGraph,
+    TaskDef,
+)
 
 from .preExecInit import PreExecInit
 from .singleQuantumExecutor import SingleQuantumExecutor
@@ -47,6 +55,8 @@ class SimplePipelineExecutor:
         and `run` properties that correspond to the input and output
         collections, which must be consistent with those used to create
         ``quantum_graph``.
+    resources : `~lsst.pipe.base.ExecutionResources`
+        The resources available to each quantum being executed.
 
     Notes
     -----
@@ -65,9 +75,15 @@ class SimplePipelineExecutor:
     directly.
     """
 
-    def __init__(self, quantum_graph: QuantumGraph, butler: Butler):
+    def __init__(
+        self,
+        quantum_graph: QuantumGraph,
+        butler: Butler,
+        resources: ExecutionResources | None = None,
+    ):
         self.quantum_graph = quantum_graph
         self.butler = butler
+        self.resources = resources
 
     @classmethod
     def prep_butler(
@@ -125,6 +141,7 @@ class SimplePipelineExecutor:
         where: str = "",
         bind: Mapping[str, Any] | None = None,
         butler: Butler,
+        resources: ExecutionResources | None = None,
     ) -> SimplePipelineExecutor:
         """Create an executor by building a QuantumGraph from an on-disk
         pipeline YAML file.
@@ -141,6 +158,8 @@ class SimplePipelineExecutor:
         butler : `~lsst.daf.butler.Butler`
             Butler that manages all I/O.  `prep_butler` can be used to create
             one.
+        resources : `~lsst.pipe.base.ExecutionResources`
+            The resources available to each quantum being executed.
 
         Returns
         -------
@@ -150,7 +169,7 @@ class SimplePipelineExecutor:
             ready for `run` to be called.
         """
         pipeline = Pipeline.fromFile(pipeline_filename)
-        return cls.from_pipeline(pipeline, butler=butler, where=where, bind=bind)
+        return cls.from_pipeline(pipeline, butler=butler, where=where, bind=bind, resources=resources)
 
     @classmethod
     def from_task_class(
@@ -162,6 +181,7 @@ class SimplePipelineExecutor:
         where: str = "",
         bind: Mapping[str, Any] | None = None,
         butler: Butler,
+        resources: ExecutionResources | None = None,
     ) -> SimplePipelineExecutor:
         """Create an executor by building a QuantumGraph from a pipeline
         containing a single task.
@@ -184,6 +204,8 @@ class SimplePipelineExecutor:
         butler : `~lsst.daf.butler.Butler`
             Butler that manages all I/O.  `prep_butler` can be used to create
             one.
+        resources : `~lsst.pipe.base.ExecutionResources`
+            The resources available to each quantum being executed.
 
         Returns
         -------
@@ -202,7 +224,7 @@ class SimplePipelineExecutor:
                 f"got {type(config).__name__}."
             )
         task_def = TaskDef(taskName=task_class.__name__, config=config, label=label, taskClass=task_class)
-        return cls.from_pipeline([task_def], butler=butler, where=where, bind=bind)
+        return cls.from_pipeline([task_def], butler=butler, where=where, bind=bind, resources=resources)
 
     @classmethod
     def from_pipeline(
@@ -212,6 +234,7 @@ class SimplePipelineExecutor:
         where: str = "",
         bind: Mapping[str, Any] | None = None,
         butler: Butler,
+        resources: ExecutionResources | None = None,
         **kwargs: Any,
     ) -> SimplePipelineExecutor:
         """Create an executor by building a QuantumGraph from an in-memory
@@ -230,6 +253,8 @@ class SimplePipelineExecutor:
         butler : `~lsst.daf.butler.Butler`
             Butler that manages all I/O.  `prep_butler` can be used to create
             one.
+        resources : `~lsst.pipe.base.ExecutionResources`
+            The resources available to each quantum being executed.
 
         Returns
         -------
@@ -247,7 +272,7 @@ class SimplePipelineExecutor:
         quantum_graph = graph_builder.makeGraph(
             pipeline, collections=butler.collections, run=butler.run, userQuery=where, bind=bind
         )
-        return cls(quantum_graph=quantum_graph, butler=butler)
+        return cls(quantum_graph=quantum_graph, butler=butler, resources=resources)
 
     def run(self, register_dataset_types: bool = False, save_versions: bool = True) -> list[Quantum]:
         """Run all the quanta in the `~lsst.pipe.base.QuantumGraph` in
@@ -316,7 +341,7 @@ class SimplePipelineExecutor:
         pre_exec_init.initialize(
             graph=self.quantum_graph, registerDatasetTypes=register_dataset_types, saveVersions=save_versions
         )
-        single_quantum_executor = SingleQuantumExecutor(self.butler, task_factory)
+        single_quantum_executor = SingleQuantumExecutor(self.butler, task_factory, resources=self.resources)
         # Important that this returns a generator expression rather than being
         # a generator itself; that is what makes the PreExecInit stuff above
         # happen immediately instead of when the first quanta is executed,
