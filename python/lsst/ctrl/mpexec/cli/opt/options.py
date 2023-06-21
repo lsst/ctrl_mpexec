@@ -19,8 +19,13 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+from __future__ import annotations
+
+from collections.abc import Iterable, Mapping
+
 import click
 from lsst.daf.butler.cli.utils import MWOptionDecorator, MWPath, split_commas, unwrap
+from lsst.utils.doImport import doImportType
 
 butler_config_option = MWOptionDecorator(
     "-b", "--butler-config", help="Location of the gen3 butler/registry config file."
@@ -439,6 +444,46 @@ unmocked_dataset_types_option = MWOptionDecorator(
     multiple=True,
     help=unwrap("""Names of input dataset types that should not be mocked."""),
 )
+
+
+def parse_mock_failure(
+    ctx: click.Context, param: click.Option, value: Iterable[str] | None
+) -> Mapping[str, tuple[str, type[Exception] | None]]:
+    """Parse the --mock-failure option values into the mapping accepted by
+    `lsst.pipe.base.tests.mocks.mock_task_defs`.
+    """
+    result: dict[str, tuple[str, type[Exception] | None]] = {}
+    if value is None:
+        return result
+    for entry in value:
+        try:
+            task_label, error_type_name, where = entry.split(":", 2)
+        except ValueError:
+            raise click.UsageError(
+                f"Invalid value for --mock-failure option: {entry!r}; "
+                "expected a string of the form 'task:error:where'."
+            ) from None
+        error_type = doImportType(error_type_name) if error_type_name else None
+        result[task_label] = (where, error_type)
+    return result
+
+
+mock_failure_option = MWOptionDecorator(
+    "--mock-failure",
+    callback=parse_mock_failure,
+    metavar="LABEL:EXCEPTION:WHERE",
+    default=None,
+    multiple=True,
+    help=unwrap(
+        """Specifications for tasks that should be configured to fail
+        when mocking execution.  This is a colon-separated 3-tuple, where the
+        first entry the task label, the second the fully-qualified exception
+        type (empty for ValueError, and the third a string (which typically
+        needs to be quoted to be passed as one argument value by the shell) of
+        the form passed to --where, indicating which data IDs should fail."""
+    ),
+)
+
 
 clobber_execution_butler_option = MWOptionDecorator(
     "--clobber-execution-butler",

@@ -55,6 +55,7 @@ def run(  # type: ignore
     summary,
     mock,
     unmocked_dataset_types,
+    mock_failure,
     enable_implicit_threading,
     **kwargs,
 ):
@@ -152,6 +153,8 @@ def run(  # type: ignore
     unmocked_dataset_types : `collections.abc.Sequence` [ `str` ]
         List of overall-input dataset types that should not be mocked.
         Ignored if an existing QuantumGraph is provided.
+    mock_failure : `~collections.abc.Sequence`, optional
+        List of quanta that should raise exceptions.
     enable_implicit_threading : `bool`, optional
         If `True`, do not disable implicit threading by third-party libraries.
         Implicit threading is always disabled during actual quantum execution
@@ -186,8 +189,7 @@ def run(  # type: ignore
         fail_fast=fail_fast,
         clobber_outputs=clobber_outputs,
         summary=summary,
-        mock=mock,
-        unmocked_dataset_types=unmocked_dataset_types,
+        # Mock options only used by qgraph.
         enable_implicit_threading=enable_implicit_threading,
     )
 
