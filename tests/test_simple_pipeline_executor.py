@@ -19,6 +19,9 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+from __future__ import annotations
+
+import dataclasses
 import os
 import shutil
 import tempfile
@@ -52,11 +55,17 @@ class NoDimensionsTestConnections2(PipelineTaskConnections, dimensions=set()):
         name="output", doc="some dict-y output data for testing", storageClass="StructuredDataDict"
     )
 
+    config: NoDimensionsTestConfig2
+
+    def __init__(self, *, config: PipelineTaskConfig | None = None):
+        if self.config.outputSC != "StructuredDataDict":
+            self.output = dataclasses.replace(self.output, storageClass=self.config.outputSC)
+
 
 class NoDimensionsTestConfig2(PipelineTaskConfig, pipelineConnections=NoDimensionsTestConnections2):
     key = Field(dtype=str, doc="String key for the dict entry the task sets.", default="one")
     value = Field(dtype=int, doc="Integer value for the dict entry the task sets.", default=1)
-    outputSC = Field(dtype=str, doc="Output storage class requested", default="dict")
+    outputSC = Field(dtype=str, doc="Output storage class requested", default="StructuredDataDict")
 
 
 class NoDimensionsMetadataTestConnections(PipelineTaskConnections, dimensions=set()):
@@ -72,13 +81,19 @@ class NoDimensionsMetadataTestConnections(PipelineTaskConnections, dimensions=se
         name="output", doc="some dict-y output data for testing", storageClass="StructuredDataDict"
     )
 
+    config: NoDimensionsMetadataTestConfig
+
+    def __init__(self, *, config: PipelineTaskConfig | None = None):
+        if self.config.outputSC != "StructuredDataDict":
+            self.output = dataclasses.replace(self.output, storageClass=self.config.outputSC)
+
 
 class NoDimensionsMetadataTestConfig(
     PipelineTaskConfig, pipelineConnections=NoDimensionsMetadataTestConnections
 ):
     key = Field(dtype=str, doc="String key for the dict entry the task sets.", default="one")
     value = Field(dtype=int, doc="Integer value for the dict entry the task sets.", default=1)
-    outputSC = Field(dtype=str, doc="Output storage class requested", default="dict")
+    outputSC = Field(dtype=str, doc="Output storage class requested", default="StructuredDataDict")
 
 
 class NoDimensionsMetadataTestTask(PipelineTask):
@@ -220,13 +235,14 @@ class SimplePipelineExecutorTests(lsst.utils.tests.TestCase):
         # That does not match the storage class so it will be converted
         # on put.
         # b is given a dict, because that's what its connection asks for.
-        # b returns a TaskMetadata because that's how we configured it, but
-        # the butler expects a dict so it is converted on put.
+        # b returns a TaskMetadata because that's how we configured it, and
+        # since its output wasn't registered in advance, it will have been
+        # registered as TaskMetadata and will now be received as TaskMetadata.
         self._test_logs(cm.output, "dict", "dict", "dict", "lsst.pipe.base.TaskMetadata")
 
         self.assertEqual(len(quanta), 2)
         self.assertEqual(self.butler.get("intermediate").to_dict(), {"zero": 0, "one": 1})
-        self.assertEqual(self.butler.get("output"), {"zero": 0, "one": 1, "two": 2})
+        self.assertEqual(self.butler.get("output").to_dict(), {"zero": 0, "one": 1, "two": 2})
 
     def test_from_pipeline_output_differ(self):
         """Run pipeline but output definition in registry differs."""
