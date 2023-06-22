@@ -712,30 +712,9 @@ class CmdLineFwk:
         resources : `~lsst.pipe.base.ExecutionResources`
             The resources available to each quantum.
         """
-        # The memory per quantum is a string that needs to be parsed.
-        mem = None
-
-        if args.memory_per_quantum:
-            try:
-                mem = int(args.memory_per_quantum)
-            except ValueError:
-                pass
-            else:
-                mem *= u.MB  # Default is for megabytes.
-
-            if mem is None:
-                try:
-                    mem = u.Quantity(args.memory_per_quantum)
-                except Exception as e:
-                    _LOG.warning(
-                        "Unable to parse the quantity from --memory-per-quantum parameter of %r. "
-                        "Ignoring the parameter. Got error: %s",
-                        args.memory_per_quantum,
-                        e,
-                    )
-
-        # This could fail if someone specifies a unit of meters or tesla, etc.
-        return ExecutionResources(num_cores=args.cores_per_quantum, max_mem=mem)
+        return ExecutionResources(
+            num_cores=args.cores_per_quantum, max_mem=args.memory_per_quantum, default_mem_units=u.MB
+        )
 
     def runPipeline(
         self,

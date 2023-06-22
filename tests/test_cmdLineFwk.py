@@ -468,22 +468,16 @@ class CmdLineFwkTestCase(unittest.TestCase):
 
         for params, num_cores, max_mem in (
             ((None, None), 1, None),
-            ((5, None), 5, None),
+            ((5, ""), 5, None),
             ((None, "50"), 1, 50 * u.MB),
             ((5, "50 GB"), 5, 50 * u.GB),
-            ((None, "GB 50"), 1, None),  # Parse failure of unit.
         ):
             kwargs = {}
             for k, v in zip(("cores_per_quantum", "memory_per_quantum"), params):
                 if v is not None:
                     kwargs[k] = v
             args = _makeArgs(**kwargs)
-            if isinstance(params[1], str) and max_mem is None:
-                # Parse failure should log.
-                with self.assertLogs("lsst.ctrl.mpexec.cmdLineFwk", "WARNING"):
-                    res = fwk._make_execution_resources(args)
-            else:
-                res = fwk._make_execution_resources(args)
+            res = fwk._make_execution_resources(args)
             self.assertEqual(res.num_cores, num_cores)
             self.assertEqual(res.max_mem, max_mem)
 
