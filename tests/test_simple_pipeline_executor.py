@@ -21,7 +21,6 @@
 
 from __future__ import annotations
 
-import dataclasses
 import os
 import shutil
 import tempfile
@@ -31,72 +30,42 @@ from typing import Any, Dict
 import lsst.daf.butler
 import lsst.utils.tests
 from lsst.ctrl.mpexec import SimplePipelineExecutor
-from lsst.pex.config import Field
-from lsst.pipe.base import (
-    PipelineTask,
-    PipelineTaskConfig,
-    PipelineTaskConnections,
-    Struct,
-    TaskDef,
-    TaskMetadata,
-    connectionTypes,
+from lsst.pipe.base import Struct, TaskDef, TaskMetadata, connectionTypes
+from lsst.pipe.base.tests.no_dimensions import (
+    NoDimensionsTestConfig,
+    NoDimensionsTestConnections,
+    NoDimensionsTestTask,
 )
-from lsst.pipe.base.tests.no_dimensions import NoDimensionsTestTask
 from lsst.utils.introspection import get_full_type_name
 
 TESTDIR = os.path.abspath(os.path.dirname(__file__))
 
 
-class NoDimensionsTestConnections2(PipelineTaskConnections, dimensions=set()):
+class NoDimensionsTestConnections2(NoDimensionsTestConnections, dimensions=set()):
     input = connectionTypes.Input(
         name="input", doc="some dict-y input data for testing", storageClass="TaskMetadataLike"
     )
-    output = connectionTypes.Output(
-        name="output", doc="some dict-y output data for testing", storageClass="StructuredDataDict"
-    )
-
-    config: NoDimensionsTestConfig2
-
-    def __init__(self, *, config: PipelineTaskConfig | None = None):
-        if self.config.outputSC != "StructuredDataDict":
-            self.output = dataclasses.replace(self.output, storageClass=self.config.outputSC)
 
 
-class NoDimensionsTestConfig2(PipelineTaskConfig, pipelineConnections=NoDimensionsTestConnections2):
-    key = Field(dtype=str, doc="String key for the dict entry the task sets.", default="one")
-    value = Field(dtype=int, doc="Integer value for the dict entry the task sets.", default=1)
-    outputSC = Field(dtype=str, doc="Output storage class requested", default="StructuredDataDict")
+class NoDimensionsTestConfig2(NoDimensionsTestConfig, pipelineConnections=NoDimensionsTestConnections2):
+    pass
 
 
-class NoDimensionsMetadataTestConnections(PipelineTaskConnections, dimensions=set()):
-    input = connectionTypes.Input(
-        name="input", doc="some dict-y input data for testing", storageClass="StructuredDataDict"
-    )
+class NoDimensionsMetadataTestConnections(NoDimensionsTestConnections, dimensions=set()):
     # Deliberately choose a storage class that does not match the metadata
     # default TaskMetadata storage class.
     meta = connectionTypes.Input(
         name="a_metadata", doc="Metadata from previous task", storageClass="StructuredDataDict"
     )
-    output = connectionTypes.Output(
-        name="output", doc="some dict-y output data for testing", storageClass="StructuredDataDict"
-    )
-
-    config: NoDimensionsMetadataTestConfig
-
-    def __init__(self, *, config: PipelineTaskConfig | None = None):
-        if self.config.outputSC != "StructuredDataDict":
-            self.output = dataclasses.replace(self.output, storageClass=self.config.outputSC)
 
 
 class NoDimensionsMetadataTestConfig(
-    PipelineTaskConfig, pipelineConnections=NoDimensionsMetadataTestConnections
+    NoDimensionsTestConfig, pipelineConnections=NoDimensionsMetadataTestConnections
 ):
-    key = Field(dtype=str, doc="String key for the dict entry the task sets.", default="one")
-    value = Field(dtype=int, doc="Integer value for the dict entry the task sets.", default=1)
-    outputSC = Field(dtype=str, doc="Output storage class requested", default="StructuredDataDict")
+    pass
 
 
-class NoDimensionsMetadataTestTask(PipelineTask):
+class NoDimensionsMetadataTestTask(NoDimensionsTestTask):
     """A simple pipeline task that can take a metadata as input."""
 
     ConfigClass = NoDimensionsMetadataTestConfig
