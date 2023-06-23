@@ -36,6 +36,7 @@ from collections.abc import Iterable, Mapping, Sequence
 from types import SimpleNamespace
 from typing import TYPE_CHECKING
 
+import astropy.units as u
 from astropy.table import Table
 from lsst.daf.butler import (
     Butler,
@@ -48,6 +49,7 @@ from lsst.daf.butler import (
 from lsst.daf.butler.registry import MissingCollectionError, RegistryDefaults
 from lsst.daf.butler.registry.wildcards import CollectionWildcard
 from lsst.pipe.base import (
+    ExecutionResources,
     GraphBuilder,
     Instrument,
     Pipeline,
@@ -697,6 +699,23 @@ class CmdLineFwk:
 
         return qgraph
 
+    def _make_execution_resources(self, args: SimpleNamespace) -> ExecutionResources:
+        """Construct the execution resource class from arguments.
+
+        Parameters
+        ----------
+        args : `types.SimpleNamespace`
+            Parsed command line.
+
+        Returns
+        -------
+        resources : `~lsst.pipe.base.ExecutionResources`
+            The resources available to each quantum.
+        """
+        return ExecutionResources(
+            num_cores=args.cores_per_quantum, max_mem=args.memory_per_quantum, default_mem_units=u.MB
+        )
+
     def runPipeline(
         self,
         graph: QuantumGraph,
@@ -750,7 +769,7 @@ class CmdLineFwk:
         # Enable lsstDebug debugging. Note that this is done once in the
         # main process before PreExecInit and it is also repeated before
         # running each task in SingleQuantumExecutor (which may not be
-        # needed if `multipocessing` always uses fork start method).
+        # needed if `multiprocessing` always uses fork start method).
         if args.enableLsstDebug:
             try:
                 _LOG.debug("Will try to import debug.py")
@@ -769,6 +788,7 @@ class CmdLineFwk:
 
         if not args.init_only:
             graphFixup = self._importGraphFixup(args)
+            resources = self._make_execution_resources(args)
             quantumExecutor = SingleQuantumExecutor(
                 butler,
                 taskFactory,
@@ -776,6 +796,7 @@ class CmdLineFwk:
                 clobberOutputs=args.clobber_outputs,
                 enableLsstDebug=args.enableLsstDebug,
                 exitOnKnownError=args.fail_fast,
+                resources=resources,
             )
 
             timeout = self.MP_TIMEOUT if args.timeout is None else args.timeout
@@ -918,12 +939,14 @@ class CmdLineFwk:
         )
 
         # make special quantum executor
+        resources = self._make_execution_resources(args)
         quantumExecutor = SingleQuantumExecutor(
             butler=None,
             taskFactory=task_factory,
             enableLsstDebug=args.enableLsstDebug,
             exitOnKnownError=args.fail_fast,
             limited_butler_factory=_butler_factory,
+            resources=resources,
         )
 
         timeout = self.MP_TIMEOUT if args.timeout is None else args.timeout

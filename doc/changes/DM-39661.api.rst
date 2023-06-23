@@ -1,0 +1,2 @@
+* Added new ``resources`` parameter to ``SingleQuantumExecutor``, ``SimplePipelineExecutor``, and ``SeparablePipelineExecutor`` constructors.
+  This optional parameter is a `~lsst.pipe.base.ExecutionResources` object and allows the execution context to be passed into the `~lsst.pipe.base.PipelinesTask.runQuantum` method.

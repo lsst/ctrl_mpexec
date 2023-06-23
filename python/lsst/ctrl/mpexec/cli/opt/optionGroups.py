@@ -158,6 +158,8 @@ class execution_options(OptionGroup):  # noqa: N801
             ctrlMpExecOpts.graph_fixup_option(),
             ctrlMpExecOpts.summary_option(),
             ctrlMpExecOpts.enable_implicit_threading_option(),
+            ctrlMpExecOpts.cores_per_quantum_option(),
+            ctrlMpExecOpts.memory_per_quantum_option(),
         ]
 
 

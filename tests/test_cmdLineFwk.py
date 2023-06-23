@@ -35,6 +35,7 @@ from io import StringIO
 from types import SimpleNamespace
 from typing import NamedTuple
 
+import astropy.units as u
 import click
 import lsst.pex.config as pexConfig
 import lsst.pipe.base.connectionTypes as cT
@@ -460,6 +461,29 @@ class CmdLineFwkTestCase(unittest.TestCase):
         with self.assertRaises(ValueError) as cm:
             show.show_pipeline_info(pipeline)
         self.assertIn("Pipeline has no tasks named notask", str(cm.exception))
+
+    def test_execution_resources_parameters(self) -> None:
+        """Test creation of the ExecutionResources from command line."""
+        fwk = CmdLineFwk()
+
+        for params, num_cores, max_mem in (
+            ((None, None), 1, None),
+            ((5, ""), 5, None),
+            ((None, "50"), 1, 50 * u.MB),
+            ((5, "50 GB"), 5, 50 * u.GB),
+        ):
+            kwargs = {}
+            for k, v in zip(("cores_per_quantum", "memory_per_quantum"), params):
+                if v is not None:
+                    kwargs[k] = v
+            args = _makeArgs(**kwargs)
+            res = fwk._make_execution_resources(args)
+            self.assertEqual(res.num_cores, num_cores)
+            self.assertEqual(res.max_mem, max_mem)
+
+        args = _makeArgs(memory_per_quantum="50m")
+        with self.assertRaises(u.UnitConversionError):
+            fwk._make_execution_resources(args)
 
 
 class CmdLineFwkTestCaseWithButler(unittest.TestCase):

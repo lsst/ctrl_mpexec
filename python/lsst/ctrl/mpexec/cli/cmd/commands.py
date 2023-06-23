@@ -277,6 +277,8 @@ def pre_exec_init_qbb(repo: str, qgraph: str, **kwargs: Any) -> None:
 @ctrlMpExecOpts.fail_fast_option()
 @ctrlMpExecOpts.summary_option()
 @ctrlMpExecOpts.enable_implicit_threading_option()
+@ctrlMpExecOpts.cores_per_quantum_option()
+@ctrlMpExecOpts.memory_per_quantum_option()
 def run_qbb(repo: str, qgraph: str, **kwargs: Any) -> None:
     """Execute pipeline using Quantum-Backed Butler.
 
