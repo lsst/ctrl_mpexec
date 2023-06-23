@@ -19,6 +19,8 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+from __future__ import annotations
+
 import os
 import shutil
 import tempfile
@@ -28,60 +30,42 @@ from typing import Any, Dict
 import lsst.daf.butler
 import lsst.utils.tests
 from lsst.ctrl.mpexec import SimplePipelineExecutor
-from lsst.pex.config import Field
-from lsst.pipe.base import (
-    PipelineTask,
-    PipelineTaskConfig,
-    PipelineTaskConnections,
-    Struct,
-    TaskDef,
-    TaskMetadata,
-    connectionTypes,
+from lsst.pipe.base import Struct, TaskDef, TaskMetadata, connectionTypes
+from lsst.pipe.base.tests.no_dimensions import (
+    NoDimensionsTestConfig,
+    NoDimensionsTestConnections,
+    NoDimensionsTestTask,
 )
-from lsst.pipe.base.tests.no_dimensions import NoDimensionsTestTask
 from lsst.utils.introspection import get_full_type_name
 
 TESTDIR = os.path.abspath(os.path.dirname(__file__))
 
 
-class NoDimensionsTestConnections2(PipelineTaskConnections, dimensions=set()):
+class NoDimensionsTestConnections2(NoDimensionsTestConnections, dimensions=set()):
     input = connectionTypes.Input(
         name="input", doc="some dict-y input data for testing", storageClass="TaskMetadataLike"
     )
-    output = connectionTypes.Output(
-        name="output", doc="some dict-y output data for testing", storageClass="StructuredDataDict"
-    )
 
 
-class NoDimensionsTestConfig2(PipelineTaskConfig, pipelineConnections=NoDimensionsTestConnections2):
-    key = Field(dtype=str, doc="String key for the dict entry the task sets.", default="one")
-    value = Field(dtype=int, doc="Integer value for the dict entry the task sets.", default=1)
-    outputSC = Field(dtype=str, doc="Output storage class requested", default="dict")
+class NoDimensionsTestConfig2(NoDimensionsTestConfig, pipelineConnections=NoDimensionsTestConnections2):
+    pass
 
 
-class NoDimensionsMetadataTestConnections(PipelineTaskConnections, dimensions=set()):
-    input = connectionTypes.Input(
-        name="input", doc="some dict-y input data for testing", storageClass="StructuredDataDict"
-    )
+class NoDimensionsMetadataTestConnections(NoDimensionsTestConnections, dimensions=set()):
     # Deliberately choose a storage class that does not match the metadata
     # default TaskMetadata storage class.
     meta = connectionTypes.Input(
         name="a_metadata", doc="Metadata from previous task", storageClass="StructuredDataDict"
     )
-    output = connectionTypes.Output(
-        name="output", doc="some dict-y output data for testing", storageClass="StructuredDataDict"
-    )
 
 
 class NoDimensionsMetadataTestConfig(
-    PipelineTaskConfig, pipelineConnections=NoDimensionsMetadataTestConnections
+    NoDimensionsTestConfig, pipelineConnections=NoDimensionsMetadataTestConnections
 ):
-    key = Field(dtype=str, doc="String key for the dict entry the task sets.", default="one")
-    value = Field(dtype=int, doc="Integer value for the dict entry the task sets.", default=1)
-    outputSC = Field(dtype=str, doc="Output storage class requested", default="dict")
+    pass
 
 
-class NoDimensionsMetadataTestTask(PipelineTask):
+class NoDimensionsMetadataTestTask(NoDimensionsTestTask):
     """A simple pipeline task that can take a metadata as input."""
 
     ConfigClass = NoDimensionsMetadataTestConfig
@@ -220,13 +204,14 @@ class SimplePipelineExecutorTests(lsst.utils.tests.TestCase):
         # That does not match the storage class so it will be converted
         # on put.
         # b is given a dict, because that's what its connection asks for.
-        # b returns a TaskMetadata because that's how we configured it, but
-        # the butler expects a dict so it is converted on put.
+        # b returns a TaskMetadata because that's how we configured it, and
+        # since its output wasn't registered in advance, it will have been
+        # registered as TaskMetadata and will now be received as TaskMetadata.
         self._test_logs(cm.output, "dict", "dict", "dict", "lsst.pipe.base.TaskMetadata")
 
         self.assertEqual(len(quanta), 2)
         self.assertEqual(self.butler.get("intermediate").to_dict(), {"zero": 0, "one": 1})
-        self.assertEqual(self.butler.get("output"), {"zero": 0, "one": 1, "two": 2})
+        self.assertEqual(self.butler.get("output").to_dict(), {"zero": 0, "one": 1, "two": 2})
 
     def test_from_pipeline_output_differ(self):
         """Run pipeline but output definition in registry differs."""
