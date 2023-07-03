@@ -21,7 +21,7 @@
 
 from __future__ import annotations
 
-__all__ = ["ExecutionStatus", "Report", "QuantumReport"]
+__all__ = ["ExceptionInfo", "ExecutionStatus", "Report", "QuantumReport"]
 
 import enum
 import sys

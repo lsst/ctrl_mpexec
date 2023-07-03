@@ -36,7 +36,7 @@ class ExecutionGraphFixup(ABC):
     order of visits (e.g. AP association pipeline).
 
     Instances of this class receive pre-ordered sequence of quanta
-    (`~lsst.pipe.base.QuantumIterData` instances) and they are allowed to
+    (`~lsst.pipe.base.QuantumGraph` instances) and they are allowed to
     modify quanta data in place, for example update ``dependencies`` field to
     add additional dependencies. Returned list of quanta will be re-ordered
     once again by the graph executor to reflect new dependencies.

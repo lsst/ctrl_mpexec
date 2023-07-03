@@ -168,9 +168,9 @@ def graph2dot(qgraph: QuantumGraph, file: Any) -> None:
 
     Parameters
     ----------
-    qgraph: `pipe.base.QuantumGraph`
+    qgraph: `lsst.pipe.base.QuantumGraph`
         QuantumGraph instance.
-    file : str or file object
+    file : `str` or file object
         File where GraphViz graph (DOT language) is written, can be a file name
         or file object.
 
@@ -216,16 +216,16 @@ def graph2dot(qgraph: QuantumGraph, file: Any) -> None:
 
 
 def pipeline2dot(pipeline: Pipeline | Iterable[TaskDef], file: Any) -> None:
-    """Convert Pipeline into GraphViz digraph.
+    """Convert `~lsst.pipe.base.Pipeline` into GraphViz digraph.
 
     This method is mostly for documentation/presentation purposes.
     Unlike other methods this method does not validate graph consistency.
 
     Parameters
     ----------
-    pipeline : `pipe.base.Pipeline`
+    pipeline : `lsst.pipe.base.Pipeline`
         Pipeline description.
-    file : str or file object
+    file : `str` or file object
         File where GraphViz graph (DOT language) is written, can be a file name
         or file object.
 

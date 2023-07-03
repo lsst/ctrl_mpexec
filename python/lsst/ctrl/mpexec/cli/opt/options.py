@@ -310,17 +310,17 @@ show_option = MWOptionDecorator(
     callback=split_commas,
     help=unwrap(
         """Dump various info to standard output. Possible items are:
-                                            `config`, `config=[Task::]<PATTERN>` or
-                                            `config=[Task::]<PATTERN>:NOIGNORECASE` to dump configuration
+                                            ``config``, ``config=[Task::]<PATTERN>`` or
+                                            ``config=[Task::]<PATTERN>:NOIGNORECASE`` to dump configuration
                                             fields possibly matching given pattern and/or task label;
-                                            `history=<FIELD>` to dump configuration history for a field, field
-                                            name is specified as [Task::]<PATTERN>; `dump-config`,
-                                            `dump-config=Task` to dump complete configuration for a task given
-                                            its label or all tasks; `pipeline` to show pipeline composition;
-                                            `graph` to show information about quanta; `workflow` to show
-                                            information about quanta and their dependency; `tasks` to show
-                                            task composition; `uri` to show predicted dataset URIs of
-                                            quanta"""
+                                            ``history=<FIELD>`` to dump configuration history for a field,
+                                            field name is specified as ``[Task::]<PATTERN>;`` ``dump-config``,
+                                            ``dump-config=Task`` to dump complete configuration for a task
+                                            given its label or all tasks; ``pipeline`` to show pipeline
+                                            composition; ``graph`` to show information about quanta;
+                                            ``workflow`` to show information about quanta and their
+                                            dependency; ``tasks`` to show task composition; ``uri`` to show
+                                            predicted dataset URIs of quanta"""
     ),
     metavar="ITEM|ITEM=VALUE",
     multiple=True,
@@ -533,9 +533,9 @@ dataset_query_constraint = MWOptionDecorator(
         """When constructing a quantum graph constrain by
                                                           pre-existence of specified dataset types. Valid
                                                           values are `all` for all inputs dataset types in
-                                                          pipeline, `off` to not consider dataset type
+                                                          pipeline, ``off`` to not consider dataset type
                                                           existance as a constraint, single or comma
-                                                          separated list of dataset type names"""
+                                                          separated list of dataset type names."""
     ),
     default="all",
 )
