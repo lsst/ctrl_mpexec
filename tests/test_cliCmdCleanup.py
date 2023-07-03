@@ -79,7 +79,7 @@ class CleanupCollectionTest(unittest.TestCase):
         self.assertIn("Done.", result.output)
 
         butler = Butler(self.root)
-        self.assertEqual(set(butler.registry.queryCollections()), set(["in", "ingest/run"]))
+        self.assertEqual(set(butler.registry.queryCollections()), {"in", "ingest/run"})
 
     def test_nonExistantCollection(self):
         """Test running cleanup on a collection that has never existed."""
