@@ -94,7 +94,7 @@ How to view the current pipeline
 --------------------------------
 
 A pipeline can be built up from many ingredients and it can be hard to determine exactly the pipeline that you are going to execute.
-For example the pipeline used for the ``pipeline_check`` package currently looks like:
+For example the pipeline used for the ``pipeline_check`` package, ``$DRP_PIPE_DIR/pipelines/HSC/pipelines_check.yaml``, currently looks like:
 
 .. code-block:: yaml
 
@@ -102,7 +102,7 @@ For example the pipeline used for the ``pipeline_check`` package currently looks
      A tiny subset of the DRP pipeline used by the pipelines_check CI package.
    instrument: lsst.obs.subaru.HyperSuprimeCam
    imports:
-     location: "$DRP_PIPE_DIR/ingredients/HSC/DRP.yaml"
+     location: "$DRP_PIPE_DIR/pipelines/_ingredients/HSC/DRP.yaml"
      include:
        - processCcd
 
