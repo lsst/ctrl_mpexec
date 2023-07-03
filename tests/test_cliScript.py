@@ -34,7 +34,8 @@ from lsst.pipe.base import Pipeline
 
 class BuildTestCase(unittest.TestCase):
     """Test a few of the inputs to the build script function to test basic
-    funcitonality."""
+    funcitonality.
+    """
 
     @staticmethod
     def buildArgs(**kwargs):
@@ -159,7 +160,8 @@ config.connections.out_tmpl='_out'""",
 class QgraphTestCase(unittest.TestCase):
     def testMissingOption(self):
         """Test that if options for the qgraph script are missing that it
-        fails."""
+        fails.
+        """
 
         @click.command()
         @opt.pipeline_build_options()
@@ -176,7 +178,8 @@ class QgraphTestCase(unittest.TestCase):
 class RunTestCase(unittest.TestCase):
     def testMissingOption(self):
         """Test that if options for the run script are missing that it
-        fails."""
+        fails.
+        """
 
         @click.command()
         @opt.pipeline_build_options()

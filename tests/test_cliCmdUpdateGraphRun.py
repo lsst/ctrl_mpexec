@@ -48,7 +48,6 @@ class UpdateGraphRunTest(unittest.TestCase):
 
     def test_update(self):
         """Test for updating output run in a graph."""
-
         nQuanta = 3
         metadata = {"output_run": "run"}
         _, qgraph = makeSimpleQGraph(

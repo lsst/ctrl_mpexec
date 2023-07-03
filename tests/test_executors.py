@@ -237,7 +237,6 @@ class MPGraphExecutorTestCase(unittest.TestCase):
 
     def test_mpexec_nomp(self):
         """Make simple graph and execute"""
-
         taskDef = TaskDefMock()
         qgraph = QuantumGraphMock(
             [QuantumIterDataMock(index=i, taskDef=taskDef, detector=i) for i in range(3)]
@@ -260,7 +259,6 @@ class MPGraphExecutorTestCase(unittest.TestCase):
 
     def test_mpexec_mp(self):
         """Make simple graph and execute"""
-
         taskDef = TaskDefMock()
         qgraph = QuantumGraphMock(
             [QuantumIterDataMock(index=i, taskDef=taskDef, detector=i) for i in range(3)]
@@ -291,7 +289,6 @@ class MPGraphExecutorTestCase(unittest.TestCase):
 
     def test_mpexec_nompsupport(self):
         """Try to run MP for task that has no MP support which should fail"""
-
         taskDef = TaskDefMock(taskClass=TaskMockNoMP)
         qgraph = QuantumGraphMock(
             [QuantumIterDataMock(index=i, taskDef=taskDef, detector=i) for i in range(3)]
@@ -307,7 +304,6 @@ class MPGraphExecutorTestCase(unittest.TestCase):
         """Make simple graph and execute, add dependencies by executing fixup
         code.
         """
-
         taskDef = TaskDefMock()
 
         for reverse in (False, True):
@@ -327,7 +323,6 @@ class MPGraphExecutorTestCase(unittest.TestCase):
 
     def test_mpexec_timeout(self):
         """Fail due to timeout"""
-
         taskDef = TaskDefMock()
         taskDefSleep = TaskDefMock(taskClass=TaskMockLongSleep)
         qgraph = QuantumGraphMock(
@@ -373,7 +368,6 @@ class MPGraphExecutorTestCase(unittest.TestCase):
 
     def test_mpexec_failure(self):
         """Failure in one task should not stop other tasks"""
-
         taskDef = TaskDefMock()
         taskDefFail = TaskDefMock(taskClass=TaskMockFail)
         qgraph = QuantumGraphMock(
@@ -402,7 +396,6 @@ class MPGraphExecutorTestCase(unittest.TestCase):
 
     def test_mpexec_failure_dep(self):
         """Failure in one task should skip dependents"""
-
         taskDef = TaskDefMock()
         taskDefFail = TaskDefMock(taskClass=TaskMockFail)
         qdata = [
@@ -438,7 +431,6 @@ class MPGraphExecutorTestCase(unittest.TestCase):
 
     def test_mpexec_failure_dep_nomp(self):
         """Failure in one task should skip dependents, in-process version"""
-
         taskDef = TaskDefMock()
         taskDefFail = TaskDefMock(taskClass=TaskMockFail)
         qdata = [
@@ -478,7 +470,6 @@ class MPGraphExecutorTestCase(unittest.TestCase):
         Timing delay of task #3 should be sufficient to process
         failure and raise exception.
         """
-
         taskDef = TaskDefMock()
         taskDefFail = TaskDefMock(taskClass=TaskMockFail)
         taskDefLongSleep = TaskDefMock(taskClass=TaskMockLongSleep)
@@ -514,7 +505,6 @@ class MPGraphExecutorTestCase(unittest.TestCase):
 
     def test_mpexec_crash(self):
         """Check task crash due to signal"""
-
         taskDef = TaskDefMock()
         taskDefCrash = TaskDefMock(taskClass=TaskMockCrash)
         qgraph = QuantumGraphMock(
@@ -543,7 +533,6 @@ class MPGraphExecutorTestCase(unittest.TestCase):
 
     def test_mpexec_crash_failfast(self):
         """Check task crash due to signal with --fail-fast"""
-
         taskDef = TaskDefMock()
         taskDefCrash = TaskDefMock(taskClass=TaskMockCrash)
         qgraph = QuantumGraphMock(
@@ -569,7 +558,6 @@ class MPGraphExecutorTestCase(unittest.TestCase):
 
     def test_mpexec_num_fd(self):
         """Check that number of open files stays reasonable"""
-
         taskDef = TaskDefMock()
         qgraph = QuantumGraphMock(
             [QuantumIterDataMock(index=i, taskDef=taskDef, detector=i) for i in range(20)]
@@ -603,7 +591,6 @@ class SingleQuantumExecutorTestCase(unittest.TestCase):
 
     def test_simple_execute(self) -> None:
         """Run execute() method in simplest setup."""
-
         nQuanta = 1
         butler, qgraph = makeSimpleQGraph(nQuanta, root=self.root, instrument=self.instrument)
 
@@ -622,7 +609,6 @@ class SingleQuantumExecutorTestCase(unittest.TestCase):
 
     def test_skip_existing_execute(self) -> None:
         """Run execute() method twice, with skip_existing_in."""
-
         nQuanta = 1
         butler, qgraph = makeSimpleQGraph(nQuanta, root=self.root, instrument=self.instrument)
 
@@ -652,7 +638,6 @@ class SingleQuantumExecutorTestCase(unittest.TestCase):
 
     def test_clobber_outputs_execute(self) -> None:
         """Run execute() method twice, with clobber_outputs."""
-
         nQuanta = 1
         butler, qgraph = makeSimpleQGraph(nQuanta, root=self.root, instrument=self.instrument)
 

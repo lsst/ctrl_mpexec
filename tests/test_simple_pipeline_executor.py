@@ -135,7 +135,6 @@ class SimplePipelineExecutorTests(lsst.utils.tests.TestCase):
 
     def _configure_pipeline(self, config_a_cls, config_b_cls, storageClass_a=None, storageClass_b=None):
         """Configure a pipeline with from_pipeline."""
-
         config_a = config_a_cls()
         config_a.connections.output = "intermediate"
         if storageClass_a:
@@ -244,7 +243,6 @@ class SimplePipelineExecutorTests(lsst.utils.tests.TestCase):
 
     def test_from_pipeline_input_differ(self):
         """Run pipeline but input definition in registry differs."""
-
         # This config declares that the pipeline takes a TaskMetadata
         # as input but registry already thinks it has a StructureDataDict.
         executor = self._configure_pipeline(NoDimensionsTestConfig2, NoDimensionsTestTask.ConfigClass)

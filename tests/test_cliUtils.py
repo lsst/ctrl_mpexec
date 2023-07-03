@@ -30,7 +30,8 @@ from lsst.ctrl.mpexec.cli.utils import _PipelineAction, makePipelineActions
 class PipelineActionTestCase(unittest.TestCase):
     def test_makePipelineActions(self):
         """Test converting each CLI option flag to its associated pipeline
-        action type."""
+        action type.
+        """
         self.assertEqual(
             makePipelineActions(["-t", "foo"]), [_PipelineAction(action="new_task", label=None, value="foo")]
         )
@@ -69,7 +70,8 @@ class PipelineActionTestCase(unittest.TestCase):
 
     def test_nonActions(self):
         """Test that args with a flag that does not represent an action works;
-        that arg should be ignored."""
+        that arg should be ignored.
+        """
         self.assertEqual(makePipelineActions(["-n"]), [])
         self.assertEqual(
             makePipelineActions(["-n", "-t", "foo"]),
