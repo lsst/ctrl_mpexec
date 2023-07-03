@@ -60,7 +60,7 @@ class FakeConfig(PipelineTaskConfig, pipelineConnections=FakeConnections):
 
 
 def mockTaskClass():
-    """Record calls to ``__call__`.
+    """Record calls to ``__call__``.
 
     A class placeholder that records calls to __call__.
     """

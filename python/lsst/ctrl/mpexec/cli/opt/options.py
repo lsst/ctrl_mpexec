@@ -314,13 +314,13 @@ show_option = MWOptionDecorator(
                                             ``config=[Task::]<PATTERN>:NOIGNORECASE`` to dump configuration
                                             fields possibly matching given pattern and/or task label;
                                             ``history=<FIELD>`` to dump configuration history for a field,
-                                            field name is specified as ``[Task::]<PATTERN>;`` ``dump-config``,
+                                            field name is specified as ``[Task::]<PATTERN>``; ``dump-config``,
                                             ``dump-config=Task`` to dump complete configuration for a task
                                             given its label or all tasks; ``pipeline`` to show pipeline
                                             composition; ``graph`` to show information about quanta;
                                             ``workflow`` to show information about quanta and their
                                             dependency; ``tasks`` to show task composition; ``uri`` to show
-                                            predicted dataset URIs of quanta"""
+                                            predicted dataset URIs of quanta."""
     ),
     metavar="ITEM|ITEM=VALUE",
     multiple=True,

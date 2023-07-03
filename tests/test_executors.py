@@ -91,7 +91,7 @@ class QuantumExecutorMock(QuantumExecutor):
         return self.report
 
     def getDataIds(self, field):
-        """Return values for dataId field for each visited quanta"""
+        """Return values for dataId field for each visited quanta."""
         return [quantum.dataId[field] for quantum in self.quanta]
 
 
