@@ -150,7 +150,7 @@ def _makeDSNode(dsRef: DatasetRef, allDatasetRefs: dict[str, str], file: io.Text
     nodeName = allDatasetRefs.get(dsRefId)
     if nodeName is None:
         idx = len(allDatasetRefs)
-        nodeName = "dsref_{}".format(idx)
+        nodeName = f"dsref_{idx}"
         allDatasetRefs[dsRefId] = nodeName
         _renderDSNode(nodeName, dsRef, file)
     return nodeName
@@ -195,7 +195,7 @@ def graph2dot(qgraph: QuantumGraph, file: Any) -> None:
         quanta = qgraph.getNodesForTask(taskDef)
         for qId, quantumNode in enumerate(quanta):
             # node for a task
-            taskNodeName = "task_{}_{}".format(taskId, qId)
+            taskNodeName = f"task_{taskId}_{qId}"
             _renderQuantumNode(taskNodeName, taskDef, quantumNode, file)
 
             # quantum inputs
@@ -281,7 +281,7 @@ def pipeline2dot(pipeline: Pipeline | Iterable[TaskDef], file: Any) -> None:
 
     for idx, taskDef in enumerate(sorted(pipeline, key=lambda x: x.label)):
         # node for a task
-        taskNodeName = "task{}".format(idx)
+        taskNodeName = f"task{idx}"
 
         # next line is workaround until DM-29658
         labelToTaskName[taskDef.label] = taskNodeName

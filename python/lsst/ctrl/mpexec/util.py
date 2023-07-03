@@ -169,7 +169,7 @@ def subTaskIter(config: pexConfig.Config) -> Iterator[tuple[str, str]]:
             subConfig = field.value
             if isinstance(subConfig, pexConfig.Config):
                 try:
-                    taskName = "%s.%s" % (field.target.__module__, field.target.__name__)
+                    taskName = f"{field.target.__module__}.{field.target.__name__}"
                 except Exception:
                     taskName = repr(field.target)
                 yield fieldName, taskName

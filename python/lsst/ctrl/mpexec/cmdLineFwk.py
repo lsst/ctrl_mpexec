@@ -222,7 +222,7 @@ class _ButlerFactory:
                     raise ValueError("Cannot use --extend-run option with non-existing or empty output chain")
                 runName = self.output.chain[0]
             else:
-                runName = "{}/{}".format(self.output, Instrument.makeCollectionTimestamp())
+                runName = f"{self.output}/{Instrument.makeCollectionTimestamp()}"
             self.outputRun = _OutputRunCollectionInfo(registry, runName)
         elif not writeable:
             # If we're not writing yet, ok to have no output run.
