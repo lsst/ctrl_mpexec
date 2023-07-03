@@ -39,8 +39,6 @@ dynamic = ["version"]
 [project.optional-dependencies]
 test = [
     "pytest >= 3.2",
-    "flake8 >= 3.7.5",
-    "pytest-flake8 >= 1.0.4",
     "pytest-openfiles >= 0.5.0"
 ]
 
@@ -110,10 +108,6 @@ line_length = 110
 write_to = "python/lsst/ctrl/mpexec/version.py"
 
 [tool.pytest.ini_options]
-addopts = "--flake8"
-flake8-ignore = ["W503", "E203", "N802", "N803", "N806", "N812", "N815", "N816"]
-# The matplotlib test may not release font files.
-# Some unit tests open registry database in setUpClass.
 open_files_ignore = ["*.ttf", "gen3.sqlite3"]
 
 [tool.pydocstyle]
