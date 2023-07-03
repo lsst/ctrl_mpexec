@@ -128,10 +128,14 @@ def makeSQLiteRegistry(create=True, universe=None):
 
 
 class SimpleConnections(PipelineTaskConnections, dimensions=(), defaultTemplates={"template": "simple"}):
+    """Test connection class."""
+
     schema = cT.InitInput(doc="Schema", name="{template}schema", storageClass="SourceCatalog")
 
 
 class SimpleConfig(PipelineTaskConfig, pipelineConnections=SimpleConnections):
+    """Test pipeline config."""
+
     field = pexConfig.Field(dtype=str, doc="arbitrary string")
 
     def setDefaults(self):
@@ -197,11 +201,15 @@ def _makeArgs(registryConfig=None, **kwargs):
 
 
 class FakeDSType(NamedTuple):
+    """A fake `~lsst.daf.butler.DatasetType` class used for testing."""
+
     name: str
 
 
 @dataclass(frozen=True)
 class FakeDSRef:
+    """A fake `~lsst.daf.butler.DatasetRef` class used for testing."""
+
     datasetType: str
     dataId: tuple
 
@@ -995,10 +1003,11 @@ class CmdLineFwkTestCaseWithButler(unittest.TestCase):
 
 
 class MyMemoryTestCase(lsst.utils.tests.MemoryTestCase):
-    pass
+    """General file leak detection."""
 
 
 def setup_module(module):
+    """Initialize pytest module."""
     lsst.utils.tests.init()
 
 

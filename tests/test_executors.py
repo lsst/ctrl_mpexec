@@ -91,11 +91,13 @@ class QuantumExecutorMock(QuantumExecutor):
         return self.report
 
     def getDataIds(self, field):
-        """Returns values for dataId field for each visited quanta"""
+        """Return values for dataId field for each visited quanta"""
         return [quantum.dataId[field] for quantum in self.quanta]
 
 
 class QuantumMock:
+    """Mock equivalent of a `~lsst.daf.butler.Quantum`."""
+
     def __init__(self, dataId):
         self.dataId = dataId
 

@@ -33,6 +33,8 @@ from lsst.pipe.base import Pipeline, PipelineTask, PipelineTaskConfig, PipelineT
 
 
 class ExamplePipelineTaskConnections(PipelineTaskConnections, dimensions=()):
+    """Connections class used for testing."""
+
     input1 = cT.Input(
         name="", dimensions=["visit", "detector"], storageClass="example", doc="Input for this task"
     )
@@ -55,11 +57,13 @@ class ExamplePipelineTaskConnections(PipelineTaskConnections, dimensions=()):
 
 
 class ExamplePipelineTaskConfig(PipelineTaskConfig, pipelineConnections=ExamplePipelineTaskConnections):
-    pass
+    """Example config used for testing."""
 
 
 def _makeConfig(inputName, outputName, pipeline, label):
-    """Factory method for config instances
+    """Add config overrides.
+
+    Factory method for config instances.
 
     inputName and outputName can be either string or tuple of strings
     with two items max.
@@ -78,6 +82,8 @@ def _makeConfig(inputName, outputName, pipeline, label):
 
 
 class ExamplePipelineTask(PipelineTask):
+    """Example pipeline task used for testing."""
+
     ConfigClass = ExamplePipelineTaskConfig
 
 
@@ -162,10 +168,11 @@ class DotToolsTestCase(unittest.TestCase):
 
 
 class MyMemoryTestCase(lsst.utils.tests.MemoryTestCase):
-    pass
+    """Generic file handle leak check."""
 
 
 def setup_module(module):
+    """Set up the module for pytest."""
     lsst.utils.tests.init()
 
 

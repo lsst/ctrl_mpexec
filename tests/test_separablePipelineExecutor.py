@@ -601,10 +601,11 @@ class SeparablePipelineExecutorTests(lsst.utils.tests.TestCase):
 
 
 class MemoryTester(lsst.utils.tests.MemoryTestCase):
-    pass
+    """Generic test for file leaks."""
 
 
 def setup_module(module):
+    """Set up the module for pytest."""
     lsst.utils.tests.init()
 
 

@@ -28,6 +28,8 @@ from lsst.ctrl.mpexec.cli.utils import _PipelineAction, makePipelineActions
 
 
 class PipelineActionTestCase(unittest.TestCase):
+    """Test command-line utility functions."""
+
     def test_makePipelineActions(self):
         """Test converting each CLI option flag to its associated pipeline
         action type.

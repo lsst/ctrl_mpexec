@@ -42,18 +42,24 @@ TESTDIR = os.path.abspath(os.path.dirname(__file__))
 
 
 class NoDimensionsTestConnections2(NoDimensionsTestConnections, dimensions=set()):
+    """A connections class used for testing."""
+
     input = connectionTypes.Input(
         name="input", doc="some dict-y input data for testing", storageClass="TaskMetadataLike"
     )
 
 
 class NoDimensionsTestConfig2(NoDimensionsTestConfig, pipelineConnections=NoDimensionsTestConnections2):
-    pass
+    """A config used for testing."""
 
 
 class NoDimensionsMetadataTestConnections(NoDimensionsTestConnections, dimensions=set()):
-    # Deliberately choose a storage class that does not match the metadata
-    # default TaskMetadata storage class.
+    """Test connection class for metadata.
+
+    Deliberately choose a storage class that does not match the metadata
+    default TaskMetadata storage class.
+    """
+
     meta = connectionTypes.Input(
         name="a_metadata", doc="Metadata from previous task", storageClass="StructuredDataDict"
     )
@@ -62,7 +68,7 @@ class NoDimensionsMetadataTestConnections(NoDimensionsTestConnections, dimension
 class NoDimensionsMetadataTestConfig(
     NoDimensionsTestConfig, pipelineConnections=NoDimensionsMetadataTestConnections
 ):
-    pass
+    """A config used for testing the metadata."""
 
 
 class NoDimensionsMetadataTestTask(NoDimensionsTestTask):
@@ -329,10 +335,11 @@ class SimplePipelineExecutorTests(lsst.utils.tests.TestCase):
 
 
 class MemoryTester(lsst.utils.tests.MemoryTestCase):
-    pass
+    """Generic tests for file leaks."""
 
 
 def setup_module(module):
+    """Set up the module for pytest."""
     lsst.utils.tests.init()
 
 

@@ -158,6 +158,8 @@ config.connections.out_tmpl='_out'""",
 
 
 class QgraphTestCase(unittest.TestCase):
+    """Test pipetask qgraph command-line."""
+
     def testMissingOption(self):
         """Test that if options for the qgraph script are missing that it
         fails.
@@ -176,6 +178,8 @@ class QgraphTestCase(unittest.TestCase):
 
 
 class RunTestCase(unittest.TestCase):
+    """Test pipetask run command-line."""
+
     def testMissingOption(self):
         """Test that if options for the run script are missing that it
         fails.
