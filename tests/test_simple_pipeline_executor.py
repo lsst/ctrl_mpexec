@@ -25,7 +25,7 @@ import os
 import shutil
 import tempfile
 import unittest
-from typing import Any, Dict
+from typing import Any
 
 import lsst.daf.butler
 import lsst.utils.tests
@@ -77,7 +77,7 @@ class NoDimensionsMetadataTestTask(NoDimensionsTestTask):
     ConfigClass = NoDimensionsMetadataTestConfig
     _DefaultName = "noDimensionsMetadataTest"
 
-    def run(self, input: Dict[str, int], meta: Dict[str, Any]) -> Struct:
+    def run(self, input: dict[str, int], meta: dict[str, Any]) -> Struct:
         """Run the task, adding the configured key-value pair to the input
         argument and returning it as the output.
 
