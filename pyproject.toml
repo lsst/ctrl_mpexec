@@ -27,7 +27,7 @@ dependencies = [
     "lsst-pipe-base",
     "click",
     "astropy",
-    "pydantic",
+    "pydantic <3.0",
     "networkx",
     "psutil"
 ]
