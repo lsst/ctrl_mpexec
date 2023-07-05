@@ -56,7 +56,8 @@ class PurgeTest(unittest.TestCase):
 
     def test_singleChain_yesNo(self):
         """Test removing a chain with one child, and the yes/no
-        confirmation."""
+        confirmation.
+        """
         # add the collection ingest/run to a CHAINED collection called "in"
         result = self.runner.invoke(butler_cli, ["collection-chain", self.root, "in", "ingest/run"])
         self.assertEqual(result.exit_code, 0, clickResultMsg(result))
@@ -79,7 +80,6 @@ class PurgeTest(unittest.TestCase):
         """Test removing a chain with children and grandchildren, and the
         --no-confirm option.
         """
-
         # add the collection ingest/run to a CHAINED collection called "ing"
         result = self.runner.invoke(butler_cli, ["collection-chain", self.root, "ing", "ingest/run"])
         self.assertEqual(result.exit_code, 0, clickResultMsg(result))
@@ -99,7 +99,6 @@ class PurgeTest(unittest.TestCase):
 
     def test_topParentWithParent(self):
         """Test that purging a chain with a parent fails."""
-
         # add the collection ingest/run to a CHAINED collection called "ing"
         result = self.runner.invoke(butler_cli, ["collection-chain", self.root, "ing", "ingest/run"])
         self.assertEqual(result.exit_code, 0, clickResultMsg(result))

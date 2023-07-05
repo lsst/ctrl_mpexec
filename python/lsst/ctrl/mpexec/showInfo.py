@@ -204,10 +204,10 @@ class ShowInfo:
 
         tasks = util.filterTasks(pipeline, taskName)
         if not tasks:
-            raise ValueError("Pipeline has no tasks named {}".format(taskName))
+            raise ValueError(f"Pipeline has no tasks named {taskName}")
 
         for taskDef in tasks:
-            print("### Configuration for task `{}'".format(taskDef.label), file=self.stream)
+            print(f"### Configuration for task `{taskDef.label}'", file=self.stream)
             taskDef.config.saveToStream(stream, root="config", skipImports=not dumpFullConfig)
 
     def _showConfigHistory(self, pipeline: Pipeline, showArgs: str) -> None:
@@ -276,10 +276,10 @@ class ShowInfo:
             Pipeline definition.
         """
         for taskDef in pipeline.toExpandedPipeline():
-            print("### Subtasks for task `{}'".format(taskDef.taskName), file=self.stream)
+            print(f"### Subtasks for task `{taskDef.taskName}'", file=self.stream)
 
             for configName, taskName in util.subTaskIter(taskDef.config):
-                print("{}: {}".format(configName, taskName), file=self.stream)
+                print(f"{configName}: {taskName}", file=self.stream)
 
     def _showGraph(self, graph: QuantumGraph) -> None:
         """Print quanta information to stdout
@@ -293,14 +293,14 @@ class ShowInfo:
             print(taskNode, file=self.stream)
 
             for iq, quantum in enumerate(graph.getQuantaForTask(taskNode)):
-                print("  Quantum {}:".format(iq), file=self.stream)
+                print(f"  Quantum {iq}:", file=self.stream)
                 print("    inputs:", file=self.stream)
                 for key, refs in quantum.inputs.items():
-                    dataIds = ["DataId({})".format(ref.dataId) for ref in refs]
+                    dataIds = [f"DataId({ref.dataId})" for ref in refs]
                     print("      {}: [{}]".format(key, ", ".join(dataIds)), file=self.stream)
                 print("    outputs:", file=self.stream)
                 for key, refs in quantum.outputs.items():
-                    dataIds = ["DataId({})".format(ref.dataId) for ref in refs]
+                    dataIds = [f"DataId({ref.dataId})" for ref in refs]
                     print("      {}: [{}]".format(key, ", ".join(dataIds)), file=self.stream)
 
     def _showWorkflow(self, graph: QuantumGraph) -> None:

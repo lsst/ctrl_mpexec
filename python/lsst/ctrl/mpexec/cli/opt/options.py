@@ -86,19 +86,13 @@ extend_run_option = MWOptionDecorator(
 
 graph_fixup_option = MWOptionDecorator(
     "--graph-fixup",
-    help=unwrap(
-        """Name of the class or factory method which makes an
-                                                   instance used for execution graph fixup."""
-    ),
+    help="Name of the class or factory method which makes an instance used for execution graph fixup.",
 )
 
 
 init_only_option = MWOptionDecorator(
     "--init-only",
-    help=unwrap(
-        """Do not actually run; just register dataset types and/or
-                                                 save init outputs. """
-    ),
+    help="Do not actually run; just register dataset types and/or save init outputs.",
     is_flag=True,
 )
 
@@ -108,7 +102,7 @@ input_option = MWOptionDecorator(
     "--input",
     callback=split_commas,
     default=list(),
-    help=unwrap("""Comma-separated names of the input collection(s)."""),
+    help="Comma-separated names of the input collection(s).",
     metavar="COLLECTION",
     multiple=True,
 )
@@ -122,8 +116,8 @@ order_pipeline_option = MWOptionDecorator(
     "--order-pipeline",
     help=unwrap(
         """Order tasks in pipeline based on their data
-                                          dependencies, ordering is performed as last step before saving or
-                                          executing pipeline."""
+        dependencies, ordering is performed as last step before saving or
+        executing pipeline."""
     ),
     is_flag=True,
 )
@@ -134,11 +128,11 @@ output_option = MWOptionDecorator(
     "--output",
     help=unwrap(
         """Name of the output CHAINED collection. This may either be an
-                                              existing CHAINED collection to use as both input and output
-                                              (incompatible with --input), or a new CHAINED collection created
-                                              to include all inputs (requires --input). In both cases, the
-                                              collection's children will start with an output RUN collection
-                                              that directly holds all new datasets (see --output-run)."""
+        existing CHAINED collection to use as both input and output
+        (incompatible with --input), or a new CHAINED collection created
+        to include all inputs (requires --input). In both cases, the
+        collection's children will start with an output RUN collection
+        that directly holds all new datasets (see --output-run)."""
     ),
     metavar="COLL",
 )
@@ -148,10 +142,10 @@ output_run_option = MWOptionDecorator(
     "--output-run",
     help=unwrap(
         """Name of the new output RUN collection. If not provided
-                                                  then --output must be provided and a new RUN collection will
-                                                  be created by appending a timestamp to the value passed with
-                                                  --output. If this collection already exists then
-                                                  --extend-run must be passed."""
+        then --output must be provided and a new RUN collection will
+        be created by appending a timestamp to the value passed with
+        --output. If this collection already exists then
+        --extend-run must be passed."""
     ),
     metavar="COLL",
 )
@@ -167,10 +161,7 @@ pipeline_option = MWOptionDecorator(
 
 pipeline_dot_option = MWOptionDecorator(
     "--pipeline-dot",
-    help=unwrap(
-        """"Location for storing GraphViz DOT representation of a
-                                                    pipeline."""
-    ),
+    help="Location for storing GraphViz DOT representation of a pipeline.",
     type=MWPath(writable=True, file_okay=True, dir_okay=False),
 )
 
@@ -184,9 +175,9 @@ prune_replaced_option = MWOptionDecorator(
     "--prune-replaced",
     help=unwrap(
         """Delete the datasets in the collection replaced by
-                                                      --replace-run, either just from the datastore
-                                                      ('unstore') or by removing them and the RUN completely
-                                                      ('purge'). Requires --replace-run."""
+        --replace-run, either just from the datastore
+        ('unstore') or by removing them and the RUN completely
+        ('purge'). Requires --replace-run."""
     ),
     type=click.Choice(choices=("unstore", "purge"), case_sensitive=False),
 )
@@ -197,8 +188,8 @@ qgraph_option = MWOptionDecorator(
     "--qgraph",
     help=unwrap(
         """Location for a serialized quantum graph definition (pickle
-                                              file). If this option is given then all input data options and
-                                              pipeline-building options cannot be used.  Can be a URI."""
+        file). If this option is given then all input data options and
+        pipeline-building options cannot be used.  Can be a URI."""
     ),
 )
 
@@ -207,8 +198,8 @@ qgraph_id_option = MWOptionDecorator(
     "--qgraph-id",
     help=unwrap(
         """Quantum graph identifier, if specified must match the
-                                                 identifier of the graph loaded from a file. Ignored if graph
-                                                 is not loaded from a file."""
+        identifier of the graph loaded from a file. Ignored if graph
+        is not loaded from a file."""
     ),
 )
 
@@ -232,10 +223,10 @@ qgraph_node_id_option = MWOptionDecorator(
     multiple=True,
     help=unwrap(
         """Only load a specified set of nodes when graph is
-                                                      loaded from a file, nodes are identified by UUID
-                                                      values. One or more comma-separated integers are
-                                                      accepted. By default all nodes are loaded. Ignored if
-                                                      graph is not loaded from a file."""
+        loaded from a file, nodes are identified by UUID
+        values. One or more comma-separated integers are
+        accepted. By default all nodes are loaded. Ignored if
+        graph is not loaded from a file."""
     ),
 )
 
@@ -243,18 +234,12 @@ qgraph_header_data_option = MWOptionDecorator(
     "--show-qgraph-header",
     is_flag=True,
     default=False,
-    help=unwrap(
-        """Print the headerData for Quantum Graph to the
-                                                           console"""
-    ),
+    help="Print the headerData for Quantum Graph to the console",
 )
 
 qgraph_dot_option = MWOptionDecorator(
     "--qgraph-dot",
-    help=unwrap(
-        """Location for storing GraphViz DOT representation of a
-                                                  quantum graph."""
-    ),
+    help="Location for storing GraphViz DOT representation of a quantum graph.",
     type=MWPath(writable=True, file_okay=True, dir_okay=False),
 )
 
@@ -263,12 +248,12 @@ replace_run_option = MWOptionDecorator(
     "--replace-run",
     help=unwrap(
         """Before creating a new RUN collection in an existing
-                                                   CHAINED collection, remove the first child collection
-                                                   (which must be of type RUN). This can be used to repeatedly
-                                                   write to the same (parent) collection during development,
-                                                   but it does not delete the datasets associated with the
-                                                   replaced run unless --prune-replaced is also passed.
-                                                   Requires --output, and incompatible with --extend-run."""
+        CHAINED collection, remove the first child collection
+        (which must be of type RUN). This can be used to repeatedly
+        write to the same (parent) collection during development,
+        but it does not delete the datasets associated with the
+        replaced run unless --prune-replaced is also passed.
+        Requires --output, and incompatible with --extend-run."""
     ),
     is_flag=True,
 )
@@ -277,20 +262,14 @@ replace_run_option = MWOptionDecorator(
 save_pipeline_option = MWOptionDecorator(
     "-s",
     "--save-pipeline",
-    help=unwrap(
-        """Location for storing resulting pipeline definition in
-                                                     YAML format."""
-    ),
+    help="Location for storing resulting pipeline definition in YAML format.",
     type=MWPath(dir_okay=False, file_okay=True, writable=True),
 )
 
 save_qgraph_option = MWOptionDecorator(
     "-q",
     "--save-qgraph",
-    help=unwrap(
-        """URI location for storing a serialized quantum graph
-                                                   definition (pickle file)."""
-    ),
+    help="URI location for storing a serialized quantum graph definition (pickle file).",
 )
 
 
@@ -298,9 +277,9 @@ save_single_quanta_option = MWOptionDecorator(
     "--save-single-quanta",
     help=unwrap(
         """Format string of locations for storing individual
-                                                          quantum graph definition (pickle files). The curly
-                                                          brace {} in the input string will be replaced by a
-                                                          quantum number. Can be a URI."""
+        quantum graph definition (pickle files). The curly
+        brace {} in the input string will be replaced by a
+        quantum number. Can be a URI."""
     ),
 )
 
@@ -310,17 +289,17 @@ show_option = MWOptionDecorator(
     callback=split_commas,
     help=unwrap(
         """Dump various info to standard output. Possible items are:
-                                            `config`, `config=[Task::]<PATTERN>` or
-                                            `config=[Task::]<PATTERN>:NOIGNORECASE` to dump configuration
-                                            fields possibly matching given pattern and/or task label;
-                                            `history=<FIELD>` to dump configuration history for a field, field
-                                            name is specified as [Task::]<PATTERN>; `dump-config`,
-                                            `dump-config=Task` to dump complete configuration for a task given
-                                            its label or all tasks; `pipeline` to show pipeline composition;
-                                            `graph` to show information about quanta; `workflow` to show
-                                            information about quanta and their dependency; `tasks` to show
-                                            task composition; `uri` to show predicted dataset URIs of
-                                            quanta"""
+        ``config``, ``config=[Task::]<PATTERN>`` or
+        ``config=[Task::]<PATTERN>:NOIGNORECASE`` to dump configuration
+        fields possibly matching given pattern and/or task label;
+        ``history=<FIELD>`` to dump configuration history for a field,
+        field name is specified as ``[Task::]<PATTERN>``; ``dump-config``,
+        ``dump-config=Task`` to dump complete configuration for a task
+        given its label or all tasks; ``pipeline`` to show pipeline
+        composition; ``graph`` to show information about quanta;
+        ``workflow`` to show information about quanta and their
+        dependency; ``tasks`` to show task composition; ``uri`` to show
+        predicted dataset URIs of quanta."""
     ),
     metavar="ITEM|ITEM=VALUE",
     multiple=True,
@@ -414,9 +393,9 @@ task_option = MWOptionDecorator(
     callback=split_commas,
     help=unwrap(
         """Task name to add to pipeline, must be a fully qualified task
-                                            name. Task name can be followed by colon and label name, if label
-                                            is not given then task base name (class name) is used as
-                                            label."""
+        name. Task name can be followed by colon and label name, if label
+        is not given then task base name (class name) is used as
+        label."""
     ),
     metavar="TASK[:LABEL]",
     multiple=True,
@@ -438,25 +417,18 @@ start_method_option = MWOptionDecorator(
 
 fail_fast_option = MWOptionDecorator(
     "--fail-fast",
-    help=unwrap(
-        """Stop processing at first error, default is to process
-                                                 as many tasks as possible."""
-    ),
+    help="Stop processing at first error, default is to process as many tasks as possible.",
     is_flag=True,
 )
 
 save_execution_butler_option = MWOptionDecorator(
     "--save-execution-butler",
-    help=unwrap(
-        """Export location for an
-                                                             execution-specific butler after making
-                                                             QuantumGraph"""
-    ),
+    help="Export location for an execution-specific butler after making QuantumGraph",
 )
 
 mock_option = MWOptionDecorator(
     "--mock",
-    help=unwrap("""Mock pipeline execution."""),
+    help="Mock pipeline execution.",
     is_flag=True,
 )
 
@@ -466,7 +438,7 @@ unmocked_dataset_types_option = MWOptionDecorator(
     default=None,
     metavar="COLLECTION",
     multiple=True,
-    help=unwrap("""Names of input dataset types that should not be mocked."""),
+    help="Names of input dataset types that should not be mocked.",
 )
 
 
@@ -531,11 +503,11 @@ dataset_query_constraint = MWOptionDecorator(
     "--dataset-query-constraint",
     help=unwrap(
         """When constructing a quantum graph constrain by
-                                                          pre-existence of specified dataset types. Valid
-                                                          values are `all` for all inputs dataset types in
-                                                          pipeline, `off` to not consider dataset type
-                                                          existance as a constraint, single or comma
-                                                          separated list of dataset type names"""
+        pre-existence of specified dataset types. Valid
+        values are `all` for all inputs dataset types in
+        pipeline, ``off`` to not consider dataset type
+        existence as a constraint, single or comma
+        separated list of dataset type names."""
     ),
     default="all",
 )

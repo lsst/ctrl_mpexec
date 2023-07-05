@@ -39,6 +39,8 @@ _FAKE_STORAGE_CLASS = "StructuredDataDict"
 
 
 class FakeConnections(PipelineTaskConnections, dimensions=set()):
+    """Fake connections class used for testing."""
+
     initInput = connectionTypes.InitInput(name="fakeInitInput", doc="test", storageClass=_FAKE_STORAGE_CLASS)
     initOutput = connectionTypes.InitOutput(
         name="fakeInitOutput", doc="test", storageClass=_FAKE_STORAGE_CLASS
@@ -52,16 +54,23 @@ class FakeConnections(PipelineTaskConnections, dimensions=set()):
 
 
 class FakeConfig(PipelineTaskConfig, pipelineConnections=FakeConnections):
+    """Config class used along with fake connections class."""
+
     widget = pexConfig.Field(dtype=float, doc="test", default=1.0)
 
 
 def mockTaskClass():
-    """A class placeholder that records calls to __call__."""
+    """Record calls to ``__call__``.
+
+    A class placeholder that records calls to __call__.
+    """
     mock = unittest.mock.Mock(__name__="_TaskMock", _DefaultName="FakeTask", ConfigClass=FakeConfig)
     return mock
 
 
 class TaskFactoryTestCase(unittest.TestCase):
+    """Tests for `TaskFactory`."""
+
     @classmethod
     def setUpClass(cls) -> None:
         super().setUpClass()

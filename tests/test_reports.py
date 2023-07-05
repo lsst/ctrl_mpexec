@@ -29,7 +29,6 @@ class ReportsTestCase(unittest.TestCase):
 
     def test_quantumReport(self):
         """Test for QuantumReport class"""
-
         dataId = {"instrument": "LSST"}
         taskLabel = "task"
 
@@ -69,7 +68,6 @@ class ReportsTestCase(unittest.TestCase):
 
     def test_report(self):
         """Test for Report class"""
-
         report = Report()
         self.assertEqual(report.status, ExecutionStatus.SUCCESS)
         self.assertIsNotNone(report.cmdLine)
@@ -93,7 +91,6 @@ class ReportsTestCase(unittest.TestCase):
 
     def test_json(self):
         """Test for conversion to/from json"""
-
         dataId = {"instrument": "LSST"}
         taskLabel = "task"
 

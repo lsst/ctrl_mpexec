@@ -57,7 +57,8 @@ class CleanupCollectionTest(unittest.TestCase):
 
     def test_cleanup_yesNo(self):
         """Test cleaning up a non-chained collection and that other collections
-        in the chain remian. Verify the yes/no dialog works."""
+        in the chain remian. Verify the yes/no dialog works.
+        """
         # add the collection ingest/run to a CHAINED collection called "in"
         result = self.runner.invoke(butler_cli, ["collection-chain", self.root, "in", "ingest/run"])
         self.assertEqual(result.exit_code, 0, clickResultMsg(result))
@@ -78,7 +79,7 @@ class CleanupCollectionTest(unittest.TestCase):
         self.assertIn("Done.", result.output)
 
         butler = Butler(self.root)
-        self.assertEqual(set(butler.registry.queryCollections()), set(["in", "ingest/run"]))
+        self.assertEqual(set(butler.registry.queryCollections()), {"in", "ingest/run"})
 
     def test_nonExistantCollection(self):
         """Test running cleanup on a collection that has never existed."""

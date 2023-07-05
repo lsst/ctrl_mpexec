@@ -103,15 +103,15 @@ class SimplePipelineExecutor:
         root : `str`
             Root of the butler data repository; must already exist, with all
             necessary input data.
-        inputs : `Iterable` [ `str` ]
+        inputs : `~collections.abc.Iterable` [ `str` ]
             Collections to search for all input datasets, in search order.
         output : `str`
-            Name of a new output `~CollectionType.CHAINED` collection to create
-            that will combine both inputs and outputs.
+            Name of a new output `~lsst.daf.butler.CollectionType.CHAINED`
+            collection to create that will combine both inputs and outputs.
         output_run : `str`, optional
-            Name of the output `~CollectionType.RUN` that will directly hold
-            all output datasets.  If not provided, a name will be created from
-            ``output`` and a timestamp.
+            Name of the output `~lsst.daf.butler.CollectionType.RUN` that will
+            directly hold all output datasets.  If not provided, a name will
+            be created from ``output`` and a timestamp.
 
         Returns
         -------
@@ -152,7 +152,7 @@ class SimplePipelineExecutor:
             Name of the YAML file to load the pipeline definition from.
         where : `str`, optional
             Data ID query expression that constraints the quanta generated.
-        bind : `Mapping`, optional
+        bind : `~collections.abc.Mapping`, optional
             Mapping containing literal values that should be injected into the
             ``where`` expression, keyed by the identifiers they replace.
         butler : `~lsst.daf.butler.Butler`
@@ -190,7 +190,7 @@ class SimplePipelineExecutor:
         ----------
         task_class : `type`
             A concrete `~lsst.pipe.base.PipelineTask` subclass.
-        config : `Config`, optional
+        config : `~lsst.pex.config.Config`, optional
             Configuration for the task.  If not provided, task-level defaults
             will be used (no per-instrument overrides).
         label : `str`, optional
@@ -198,7 +198,7 @@ class SimplePipelineExecutor:
             ``task_class._DefaultName``.
         where : `str`, optional
             Data ID query expression that constraints the quanta generated.
-        bind : `Mapping`, optional
+        bind : `~collections.abc.Mapping`, optional
             Mapping containing literal values that should be injected into the
             ``where`` expression, keyed by the identifiers they replace.
         butler : `~lsst.daf.butler.Butler`
@@ -242,12 +242,13 @@ class SimplePipelineExecutor:
 
         Parameters
         ----------
-        pipeline : `Pipeline` or `Iterable` [ `TaskDef` ]
+        pipeline : `~lsst.pipe.base.Pipeline` or \
+                `~collections.abc.Iterable` [ `~lsst.pipe.base.TaskDef` ]
             A Python object describing the tasks to run, along with their
             labels and configuration.
         where : `str`, optional
             Data ID query expression that constraints the quanta generated.
-        bind : `Mapping`, optional
+        bind : `~collections.abc.Mapping`, optional
             Mapping containing literal values that should be injected into the
             ``where`` expression, keyed by the identifiers they replace.
         butler : `~lsst.daf.butler.Butler`

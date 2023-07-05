@@ -25,7 +25,7 @@ import os
 import shutil
 import tempfile
 import unittest
-from typing import Any, Dict
+from typing import Any
 
 import lsst.daf.butler
 import lsst.utils.tests
@@ -42,18 +42,24 @@ TESTDIR = os.path.abspath(os.path.dirname(__file__))
 
 
 class NoDimensionsTestConnections2(NoDimensionsTestConnections, dimensions=set()):
+    """A connections class used for testing."""
+
     input = connectionTypes.Input(
         name="input", doc="some dict-y input data for testing", storageClass="TaskMetadataLike"
     )
 
 
 class NoDimensionsTestConfig2(NoDimensionsTestConfig, pipelineConnections=NoDimensionsTestConnections2):
-    pass
+    """A config used for testing."""
 
 
 class NoDimensionsMetadataTestConnections(NoDimensionsTestConnections, dimensions=set()):
-    # Deliberately choose a storage class that does not match the metadata
-    # default TaskMetadata storage class.
+    """Test connection class for metadata.
+
+    Deliberately choose a storage class that does not match the metadata
+    default TaskMetadata storage class.
+    """
+
     meta = connectionTypes.Input(
         name="a_metadata", doc="Metadata from previous task", storageClass="StructuredDataDict"
     )
@@ -62,7 +68,7 @@ class NoDimensionsMetadataTestConnections(NoDimensionsTestConnections, dimension
 class NoDimensionsMetadataTestConfig(
     NoDimensionsTestConfig, pipelineConnections=NoDimensionsMetadataTestConnections
 ):
-    pass
+    """A config used for testing the metadata."""
 
 
 class NoDimensionsMetadataTestTask(NoDimensionsTestTask):
@@ -71,7 +77,7 @@ class NoDimensionsMetadataTestTask(NoDimensionsTestTask):
     ConfigClass = NoDimensionsMetadataTestConfig
     _DefaultName = "noDimensionsMetadataTest"
 
-    def run(self, input: Dict[str, int], meta: Dict[str, Any]) -> Struct:
+    def run(self, input: dict[str, int], meta: dict[str, Any]) -> Struct:
         """Run the task, adding the configured key-value pair to the input
         argument and returning it as the output.
 
@@ -135,7 +141,6 @@ class SimplePipelineExecutorTests(lsst.utils.tests.TestCase):
 
     def _configure_pipeline(self, config_a_cls, config_b_cls, storageClass_a=None, storageClass_b=None):
         """Configure a pipeline with from_pipeline."""
-
         config_a = config_a_cls()
         config_a.connections.output = "intermediate"
         if storageClass_a:
@@ -244,7 +249,6 @@ class SimplePipelineExecutorTests(lsst.utils.tests.TestCase):
 
     def test_from_pipeline_input_differ(self):
         """Run pipeline but input definition in registry differs."""
-
         # This config declares that the pipeline takes a TaskMetadata
         # as input but registry already thinks it has a StructureDataDict.
         executor = self._configure_pipeline(NoDimensionsTestConfig2, NoDimensionsTestTask.ConfigClass)
@@ -331,10 +335,11 @@ class SimplePipelineExecutorTests(lsst.utils.tests.TestCase):
 
 
 class MemoryTester(lsst.utils.tests.MemoryTestCase):
-    pass
+    """Generic tests for file leaks."""
 
 
 def setup_module(module):
+    """Set up the module for pytest."""
     lsst.utils.tests.init()
 
 
