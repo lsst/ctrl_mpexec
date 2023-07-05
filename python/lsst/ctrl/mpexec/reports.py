@@ -32,7 +32,7 @@ from lsst.utils.introspection import get_full_type_name
 try:
     from pydantic.v1 import BaseModel, validator
 except ModuleNotFoundError:
-    from pydantic import BaseModel, validator
+    from pydantic import BaseModel, validator  # type: ignore
 
 
 def _serializeDataId(dataId: DataId) -> dict[str, DataIdValue]:
