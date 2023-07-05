@@ -1,7 +1,7 @@
 click
 astropy
 psutil
-pydantic < 2
+pydantic < 3.0
 networkx
 git+https://github.com/lsst/resources@main#egg=lsst-resources
 git+https://github.com/lsst/daf_butler@main#egg=lsst-daf-butler
