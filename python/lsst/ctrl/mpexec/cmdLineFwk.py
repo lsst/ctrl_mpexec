@@ -607,7 +607,7 @@ class CmdLineFwk:
                 butler.registry,
                 skipExistingIn=args.skip_existing_in,
                 clobberOutputs=args.clobber_outputs,
-                datastore=butler.datastore if args.qgraph_datastore_records else None,
+                datastore=butler._datastore if args.qgraph_datastore_records else None,
             )
             # accumulate metadata
             metadata = {
