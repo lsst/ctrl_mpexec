@@ -100,7 +100,7 @@ class ReportsTestCase(unittest.TestCase):
         report = Report(status=ExecutionStatus.FAILURE, exitCode=-1)
         report.set_exception(RuntimeError("runtime error"))
         report.quantaReports.append(qr)
-        json = report.json(exclude_none=True, indent=2)
+        json = report.json(exclude_none=True)
         self.assertIsInstance(json, str)
 
         report = Report.parse_raw(json)
