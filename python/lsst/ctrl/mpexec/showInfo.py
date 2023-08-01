@@ -27,12 +27,13 @@ import fnmatch
 import re
 import sys
 from collections import defaultdict
+from collections.abc import Mapping
 from types import SimpleNamespace
 from typing import Any
 
 import lsst.pex.config as pexConfig
 import lsst.pex.config.history as pexConfigHistory
-from lsst.daf.butler import DatasetRef
+from lsst.daf.butler import DatasetRef, DatasetType, DatastoreRecordData, NamedKeyMapping
 from lsst.pipe.base import Pipeline, QuantumGraph
 
 from . import util
@@ -289,19 +290,39 @@ class ShowInfo:
         graph : `lsst.pipe.base.QuantumGraph`
             Execution graph.
         """
-        for taskNode in graph.taskGraph:
+
+        def _print_refs(
+            mapping: NamedKeyMapping[DatasetType, tuple[DatasetRef, ...]],
+            datastore_records: Mapping[str, DatastoreRecordData],
+        ) -> None:
+            """Print complete information on quantum input or output refs."""
+            for key, refs in mapping.items():
+                if refs:
+                    print(f"      {key}:", file=self.stream)
+                    for ref in refs:
+                        print(f"        - {ref}", file=self.stream)
+                        for datastore_name, record_data in datastore_records.items():
+                            if record_map := record_data.records.get(ref.id):
+                                print(f"          records for {datastore_name}:", file=self.stream)
+                                for table_name, records in record_map.items():
+                                    print(f"            - {table_name}:", file=self.stream)
+                                    for record in records:
+                                        print(f"              - {record}:", file=self.stream)
+                else:
+                    print(f"      {key}: []", file=self.stream)
+
+        for taskNode in graph.iterTaskGraph():
             print(taskNode, file=self.stream)
 
-            for iq, quantum in enumerate(graph.getQuantaForTask(taskNode)):
-                print(f"  Quantum {iq}:", file=self.stream)
+            for iq, quantum_node in enumerate(graph.getNodesForTask(taskNode)):
+                quantum = quantum_node.quantum
+                print(
+                    f"  Quantum {iq} dataId={quantum.dataId} nodeId={quantum_node.nodeId}:", file=self.stream
+                )
                 print("    inputs:", file=self.stream)
-                for key, refs in quantum.inputs.items():
-                    dataIds = [f"DataId({ref.dataId})" for ref in refs]
-                    print("      {}: [{}]".format(key, ", ".join(dataIds)), file=self.stream)
+                _print_refs(quantum.inputs, quantum.datastore_records)
                 print("    outputs:", file=self.stream)
-                for key, refs in quantum.outputs.items():
-                    dataIds = [f"DataId({ref.dataId})" for ref in refs]
-                    print("      {}: [{}]".format(key, ", ".join(dataIds)), file=self.stream)
+                _print_refs(quantum.outputs, quantum.datastore_records)
 
     def _showWorkflow(self, graph: QuantumGraph) -> None:
         """Print quanta information and dependency to stdout
