@@ -39,7 +39,7 @@ from typing import Any
 
 import lsst.pex.config as pexConfig
 import lsst.pex.config.history as pexConfigHistory
-from lsst.daf.butler import DatasetRef, DatasetType, DatastoreRecordData, NamedKeyMapping
+from lsst.daf.butler import Butler, DatasetRef, DatasetType, DatastoreRecordData, NamedKeyMapping
 from lsst.pipe.base import Pipeline, QuantumGraph
 from lsst.pipe.base.pipeline_graph import visualization
 
@@ -137,7 +137,7 @@ class ShowInfo:
         """Return the commands that have not yet been processed."""
         return frozenset(set(self.commands) - self.handled)
 
-    def show_pipeline_info(self, pipeline: Pipeline) -> None:
+    def show_pipeline_info(self, pipeline: Pipeline, butler: Butler | None) -> None:
         """Display useful information about the pipeline.
 
         Parameters
@@ -145,6 +145,10 @@ class ShowInfo:
         pipeline : `lsst.pipe.base.Pipeline`
             The pipeline to use when reporting information.
         """
+        if butler is not None:
+            registry = butler.registry
+        else:
+            registry = None
         for command in self.pipeline_commands:
             if command not in self.commands:
                 continue
@@ -165,9 +169,9 @@ class ShowInfo:
                 case "tasks":
                     self._showTaskHierarchy(pipeline)
                 case "pipeline-graph":
-                    visualization.show(pipeline.to_graph(), self.stream, dataset_types=True)
+                    visualization.show(pipeline.to_graph(registry), self.stream, dataset_types=True)
                 case "task-graph":
-                    visualization.show(pipeline.to_graph(), self.stream, dataset_types=False)
+                    visualization.show(pipeline.to_graph(registry), self.stream, dataset_types=False)
                 case _:
                     raise RuntimeError(f"Unexpectedly tried to process command {command!r}.")
             self.handled.add(command)

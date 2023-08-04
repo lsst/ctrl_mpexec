@@ -429,7 +429,7 @@ class CmdLineFwkTestCase(unittest.TestCase):
             ["pipeline", "config", "history=task::addend", "tasks", "dump-config", "config=task::add*"],
             stream=stream,
         )
-        show.show_pipeline_info(pipeline)
+        show.show_pipeline_info(pipeline, None)
         self.assertEqual(show.unhandled, frozenset({}))
         stream.seek(0)
         output = stream.read()
@@ -438,44 +438,44 @@ class CmdLineFwkTestCase(unittest.TestCase):
         self.assertIn("class: lsst.pipe.base.tests.simpleQGraph.AddTask", output)  # pipeline
 
         show = ShowInfo(["pipeline", "uri"], stream=stream)
-        show.show_pipeline_info(pipeline)
+        show.show_pipeline_info(pipeline, None)
         self.assertEqual(show.unhandled, frozenset({"uri"}))
         self.assertEqual(show.handled, {"pipeline"})
 
         stream = StringIO()
         show = ShowInfo(["config=task::addend.missing"], stream=stream)  # No match
-        show.show_pipeline_info(pipeline)
+        show.show_pipeline_info(pipeline, None)
         stream.seek(0)
         output = stream.read().strip()
         self.assertEqual("### Configuration for task `task'", output)
 
         stream = StringIO()
         show = ShowInfo(["config=task::addEnd:NOIGNORECASE"], stream=stream)  # No match
-        show.show_pipeline_info(pipeline)
+        show.show_pipeline_info(pipeline, None)
         stream.seek(0)
         output = stream.read().strip()
         self.assertEqual("### Configuration for task `task'", output)
 
         stream = StringIO()
         show = ShowInfo(["config=task::addEnd"], stream=stream)  # Match but warns
-        show.show_pipeline_info(pipeline)
+        show.show_pipeline_info(pipeline, None)
         stream.seek(0)
         output = stream.read().strip()
         self.assertIn("NOIGNORECASE", output)
 
         show = ShowInfo(["dump-config=notask"])
         with self.assertRaises(ValueError) as cm:
-            show.show_pipeline_info(pipeline)
+            show.show_pipeline_info(pipeline, None)
         self.assertIn("Pipeline has no tasks named notask", str(cm.exception))
 
         show = ShowInfo(["history"])
         with self.assertRaises(ValueError) as cm:
-            show.show_pipeline_info(pipeline)
+            show.show_pipeline_info(pipeline, None)
         self.assertIn("Please provide a value", str(cm.exception))
 
         show = ShowInfo(["history=notask::param"])
         with self.assertRaises(ValueError) as cm:
-            show.show_pipeline_info(pipeline)
+            show.show_pipeline_info(pipeline, None)
         self.assertIn("Pipeline has no tasks named notask", str(cm.exception))
 
     def test_execution_resources_parameters(self) -> None:
