@@ -108,7 +108,7 @@ class ExecFixupDataId(ExecutionGraphFixup):
         keys = sorted(keyQuanta.keys(), reverse=self.reverse)
         networkGraph = graph.graph
 
-        for prev_key, key in zip(keys, keys[1:]):
+        for prev_key, key in zip(keys, keys[1:], strict=True):
             for prev_node in keyQuanta[prev_key]:
                 for node in keyQuanta[key]:
                     # remove any existing edges between the two nodes, but

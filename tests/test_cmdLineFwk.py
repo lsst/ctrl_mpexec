@@ -481,7 +481,7 @@ class CmdLineFwkTestCase(unittest.TestCase):
             ((5, "50 GB"), 5, 50 * u.GB),
         ):
             kwargs = {}
-            for k, v in zip(("cores_per_quantum", "memory_per_quantum"), params):
+            for k, v in zip(("cores_per_quantum", "memory_per_quantum"), params, strict=True):
                 if v is not None:
                     kwargs[k] = v
             args = _makeArgs(**kwargs)
