@@ -41,6 +41,7 @@ import lsst.pex.config as pexConfig
 import lsst.pex.config.history as pexConfigHistory
 from lsst.daf.butler import DatasetRef, DatasetType, DatastoreRecordData, NamedKeyMapping
 from lsst.pipe.base import Pipeline, QuantumGraph
+from lsst.pipe.base.pipeline_graph import visualization
 
 from . import util
 from .cmdLineFwk import _ButlerFactory
@@ -101,7 +102,15 @@ class ShowInfo:
         Raised if some show commands are not recognized.
     """
 
-    pipeline_commands = {"pipeline", "config", "history", "tasks", "dump-config"}
+    pipeline_commands = {
+        "pipeline",
+        "config",
+        "history",
+        "tasks",
+        "dump-config",
+        "pipeline-graph",
+        "task-graph",
+    }
     graph_commands = {"graph", "workflow", "uri"}
 
     def __init__(self, show: list[str], stream: Any = None) -> None:
@@ -155,6 +164,10 @@ class ShowInfo:
                         self._showConfigHistory(pipeline, arg)
                 case "tasks":
                     self._showTaskHierarchy(pipeline)
+                case "pipeline-graph":
+                    visualization.show(pipeline.to_graph(), self.stream, dataset_types=True)
+                case "task-graph":
+                    visualization.show(pipeline.to_graph(), self.stream, dataset_types=False)
                 case _:
                     raise RuntimeError(f"Unexpectedly tried to process command {command!r}.")
             self.handled.add(command)

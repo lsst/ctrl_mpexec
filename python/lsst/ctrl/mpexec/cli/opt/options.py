@@ -313,7 +313,9 @@ show_option = MWOptionDecorator(
         composition; ``graph`` to show information about quanta;
         ``workflow`` to show information about quanta and their
         dependency; ``tasks`` to show task composition; ``uri`` to show
-        predicted dataset URIs of quanta."""
+        predicted dataset URIs of quanta; ``pipeline-graph`` for a
+        text-based visualization of the pipeline (tasks and dataset types);
+        ``task-graph`` for a text-based visualization of just the tasks."""
     ),
     metavar="ITEM|ITEM=VALUE",
     multiple=True,
