@@ -61,12 +61,12 @@ class BuildTestCase(unittest.TestCase):
         """Test pipeline serialization."""
         with tempfile.TemporaryDirectory() as tempdir:
             # make empty pipeline and store it in a file
-            filename = os.path.join(tempdir, "pipeline")
-            pipeline = script.build(**self.buildArgs(filename=filename))
+            filename = os.path.join(tempdir, "pipeline_file.yaml")
+            pipeline = script.build(**self.buildArgs(save_pipeline=filename))
             self.assertIsInstance(pipeline, Pipeline)
-
+            self.assertTrue(os.path.isfile(filename))
             # read pipeline from a file
-            pipeline = script.build(**self.buildArgs(filename=filename))
+            pipeline = script.build(**self.buildArgs(pipeline=filename))
             self.assertIsInstance(pipeline, Pipeline)
             self.assertIsInstance(pipeline, Pipeline)
             self.assertEqual(len(pipeline), 0)
