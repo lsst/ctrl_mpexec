@@ -101,7 +101,7 @@ input_option = MWOptionDecorator(
     "-i",
     "--input",
     callback=split_commas,
-    default=list(),
+    default=[],
     help="Comma-separated names of the input collection(s).",
     metavar="COLLECTION",
     multiple=True,
@@ -530,7 +530,7 @@ recursive_option = MWOptionDecorator(
 config_search_path_option = MWOptionDecorator(
     "--config-search-path",
     callback=split_commas,
-    default=list(),
+    default=[],
     help="Additional search paths for butler configuration.",
     metavar="PATH",
     multiple=True,
