@@ -141,21 +141,22 @@ class ShowInfo:
                 continue
             args = self.commands[command]
 
-            if command == "pipeline":
-                print(pipeline, file=self.stream)
-            elif command == "config":
-                for arg in args:
-                    self._showConfig(pipeline, arg, False)
-            elif command == "dump-config":
-                for arg in args:
-                    self._showConfig(pipeline, arg, True)
-            elif command == "history":
-                for arg in args:
-                    self._showConfigHistory(pipeline, arg)
-            elif command == "tasks":
-                self._showTaskHierarchy(pipeline)
-            else:
-                raise RuntimeError(f"Unexpectedly tried to process command {command!r}.")
+            match command:
+                case "pipeline":
+                    print(pipeline, file=self.stream)
+                case "config":
+                    for arg in args:
+                        self._showConfig(pipeline, arg, False)
+                case "dump-config":
+                    for arg in args:
+                        self._showConfig(pipeline, arg, True)
+                case "history":
+                    for arg in args:
+                        self._showConfigHistory(pipeline, arg)
+                case "tasks":
+                    self._showTaskHierarchy(pipeline)
+                case _:
+                    raise RuntimeError(f"Unexpectedly tried to process command {command!r}.")
             self.handled.add(command)
 
     def show_graph_info(self, graph: QuantumGraph, args: SimpleNamespace | None = None) -> None:
@@ -172,16 +173,17 @@ class ShowInfo:
         for command in self.graph_commands:
             if command not in self.commands:
                 continue
-            if command == "graph":
-                self._showGraph(graph)
-            elif command == "uri":
-                if args is None:
-                    raise ValueError("The uri option requires additional command line arguments.")
-                self._showUri(graph, args)
-            elif command == "workflow":
-                self._showWorkflow(graph)
-            else:
-                raise RuntimeError(f"Unexpectedly tried to process command {command!r}.")
+            match command:
+                case "graph":
+                    self._showGraph(graph)
+                case "uri":
+                    if args is None:
+                        raise ValueError("The uri option requires additional command line arguments.")
+                    self._showUri(graph, args)
+                case "workflow":
+                    self._showWorkflow(graph)
+                case _:
+                    raise RuntimeError(f"Unexpectedly tried to process command {command!r}.")
             self.handled.add(command)
 
     def _showConfig(self, pipeline: Pipeline, showArgs: str, dumpFullConfig: bool) -> None:
