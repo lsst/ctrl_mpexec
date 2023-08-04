@@ -173,7 +173,7 @@ class _Job:
         assert self.process is not None, "Process must be started"
         self.process.terminate()
         # give it 1 second to finish or KILL
-        for i in range(10):
+        for _ in range(10):
             time.sleep(0.1)
             if not self.process.is_alive():
                 break
