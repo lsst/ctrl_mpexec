@@ -28,7 +28,7 @@ import os
 import shutil
 import tempfile
 from collections.abc import Iterator
-from contextlib import contextmanager
+from contextlib import contextmanager, suppress
 from logging import FileHandler
 
 from lsst.daf.butler import Butler, FileDataset, LimitedButler, Quantum
@@ -212,7 +212,5 @@ class LogCapture:
         finally:
             # remove file if it is not ingested
             if not ingested:
-                try:
+                with suppress(OSError):
                     os.remove(filename)
-                except OSError:
-                    pass

@@ -21,6 +21,7 @@
 
 __all__ = ["ExecutionGraphFixup"]
 
+import contextlib
 from collections import defaultdict
 from collections.abc import Sequence
 from typing import Any
@@ -115,9 +116,8 @@ class ExecFixupDataId(ExecutionGraphFixup):
                     # don't fail if there are not any. Both directions need
                     # tried because in a directed graph, order maters
                     for edge in ((node, prev_node), (prev_node, node)):
-                        try:
+                        with contextlib.suppress(nx.NetworkXException):
                             networkGraph.remove_edge(*edge)
-                        except nx.NetworkXException:
-                            pass
+
                     networkGraph.add_edge(prev_node, node)
         return graph

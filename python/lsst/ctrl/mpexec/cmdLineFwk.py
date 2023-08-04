@@ -27,6 +27,7 @@ from __future__ import annotations
 __all__ = ["CmdLineFwk"]
 
 import atexit
+import contextlib
 import copy
 import datetime
 import getpass
@@ -679,10 +680,8 @@ class CmdLineFwk:
             # files if it exists in the repo.
             all_inputs = args.input
             if args.output is not None:
-                try:
+                with contextlib.suppress(MissingCollectionError):
                     all_inputs += (next(iter(butler.registry.queryCollections(args.output))),)
-                except MissingCollectionError:
-                    pass
 
             _LOG.debug("Calling buildExecutionButler with collections=%s", all_inputs)
             buildExecutionButler(
