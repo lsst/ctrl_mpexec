@@ -251,7 +251,7 @@ class _ButlerFactory:
             # Passing the same inputs that were used to initialize the output
             # collection is allowed; this means they must _end_ with the same
             # collections, because we push new runs to the front of the chain.
-            for c1, c2 in zip(self.inputs[::-1], self.output.chain[::-1], strict=True):
+            for c1, c2 in zip(self.inputs[::-1], self.output.chain[::-1], strict=False):
                 if c1 != c2:
                     raise ValueError(
                         f"Output CHAINED collection {self.output.name!r} exists, but it ends with "
