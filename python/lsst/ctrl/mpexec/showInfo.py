@@ -258,7 +258,7 @@ class ShowInfo:
                     hconfig = None
 
                 # Sometimes we end up with a non-Config so skip those
-                if isinstance(hconfig, (pexConfig.Config, pexConfig.ConfigurableInstance)) and hasattr(
+                if isinstance(hconfig, pexConfig.Config | pexConfig.ConfigurableInstance) and hasattr(
                     hconfig, cname
                 ):
                     print(f"### Configuration field for task `{taskDef.label}'", file=self.stream)
