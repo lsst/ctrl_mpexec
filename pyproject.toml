@@ -4,6 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "lsst-ctrl-mpexec"
+requires-python = ">=3.10.0"
 description = "Pipeline execution infrastructure for the Rubin Observatory LSST Science Pipelines."
 license = {text = "GPLv3+ License"}
 readme = "README.rst"
