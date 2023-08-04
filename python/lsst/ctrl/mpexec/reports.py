@@ -25,14 +25,12 @@ __all__ = ["ExceptionInfo", "ExecutionStatus", "Report", "QuantumReport"]
 
 import enum
 import sys
+from typing import Any
 
+import pydantic
 from lsst.daf.butler import DataCoordinate, DataId, DataIdValue
+from lsst.daf.butler._compat import PYDANTIC_V2, _BaseModelCompat
 from lsst.utils.introspection import get_full_type_name
-
-try:
-    from pydantic.v1 import BaseModel, validator
-except ModuleNotFoundError:
-    from pydantic import BaseModel, validator  # type: ignore
 
 
 def _serializeDataId(dataId: DataId) -> dict[str, DataIdValue]:
@@ -57,7 +55,7 @@ class ExecutionStatus(enum.Enum):
     SKIPPED = "skipped"
 
 
-class ExceptionInfo(BaseModel):
+class ExceptionInfo(_BaseModelCompat):
     """Information about exception."""
 
     className: str
@@ -74,7 +72,7 @@ class ExceptionInfo(BaseModel):
         return cls(className=get_full_type_name(exception), message=str(exception))
 
 
-class QuantumReport(BaseModel):
+class QuantumReport(_BaseModelCompat):
     """Task execution report for a single Quantum."""
 
     status: ExecutionStatus = ExecutionStatus.SUCCESS
@@ -145,7 +143,7 @@ class QuantumReport(BaseModel):
         )
 
 
-class Report(BaseModel):
+class Report(_BaseModelCompat):
     """Execution report for the whole job with one or few quanta."""
 
     status: ExecutionStatus = ExecutionStatus.SUCCESS
@@ -165,11 +163,23 @@ class Report(BaseModel):
     quanta may not produce a report.
     """
 
-    @validator("cmdLine", always=True)
-    def _set_cmdLine(cls, v: list[str] | None) -> list[str]:  # noqa: N805
-        if v is None:
-            v = sys.argv
-        return v
+    if PYDANTIC_V2:
+        # Always want to validate the default value for cmdLine so
+        # use a model_validator.
+        @pydantic.model_validator(mode="before")  # type: ignore[attr-defined]
+        @classmethod
+        def _set_cmdLine(cls, data: Any) -> Any:
+            if data.get("cmdLine") is None:
+                data["cmdLine"] = sys.argv
+            return data
+
+    else:
+
+        @pydantic.validator("cmdLine", always=True)
+        def _set_cmdLine(cls, v: list[str] | None) -> list[str]:  # noqa: N805
+            if v is None:
+                v = sys.argv
+            return v
 
     def set_exception(self, exception: Exception) -> None:
         """Update exception information from an exception object."""
