@@ -4,6 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "lsst-ctrl-mpexec"
+requires-python = ">=3.10.0"
 description = "Pipeline execution infrastructure for the Rubin Observatory LSST Science Pipelines."
 license = {text = "GPLv3+ License"}
 readme = "README.rst"
@@ -98,7 +99,7 @@ pipetask = "lsst.ctrl.mpexec.cli.pipetask:main"
 
 [tool.black]
 line-length = 110
-target-version = ["py310"]
+target-version = ["py311"]
 
 [tool.isort]
 profile = "black"
@@ -160,7 +161,7 @@ select = [
     "W",  # pycodestyle
     "D",  # pydocstyle
 ]
-target-version = "py310"
+target-version = "py311"
 extend-select = [
     "RUF100", # Warn about unused noqa
 ]

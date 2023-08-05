@@ -21,6 +21,7 @@
 
 
 import collections
+import contextlib
 import re
 
 from lsst.daf.butler.cli.opt import config_file_option, config_option
@@ -69,10 +70,9 @@ class _PipelineActionType:
         except IndexError:
             label = None
         # if "value" group is not defined use whole string
-        try:
+        with contextlib.suppress(IndexError):
             value = match.group("value")
-        except IndexError:
-            pass
+
         value = self.valueType(value)
         return _PipelineAction(self.action, label, value)
 

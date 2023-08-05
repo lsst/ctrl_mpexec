@@ -258,7 +258,7 @@ class ShowInfo:
                     hconfig = None
 
                 # Sometimes we end up with a non-Config so skip those
-                if isinstance(hconfig, (pexConfig.Config, pexConfig.ConfigurableInstance)) and hasattr(
+                if isinstance(hconfig, pexConfig.Config | pexConfig.ConfigurableInstance) and hasattr(
                     hconfig, cname
                 ):
                     print(f"### Configuration field for task `{taskDef.label}'", file=self.stream)
@@ -361,10 +361,10 @@ class ShowInfo:
         for node in graph:
             print(f"Quantum {node.nodeId}: {node.taskDef.taskName}", file=self.stream)
             print("  inputs:", file=self.stream)
-            for key, refs in node.quantum.inputs.items():
+            for refs in node.quantum.inputs.values():
                 for ref in refs:
                     dumpURIs(ref)
             print("  outputs:", file=self.stream)
-            for key, refs in node.quantum.outputs.items():
+            for refs in node.quantum.outputs.values():
                 for ref in refs:
                     dumpURIs(ref)

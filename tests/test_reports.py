@@ -100,10 +100,10 @@ class ReportsTestCase(unittest.TestCase):
         report = Report(status=ExecutionStatus.FAILURE, exitCode=-1)
         report.set_exception(RuntimeError("runtime error"))
         report.quantaReports.append(qr)
-        json = report.json(exclude_none=True, indent=2)
+        json = report.model_dump_json(exclude_none=True, indent=2)
         self.assertIsInstance(json, str)
 
-        report = Report.parse_raw(json)
+        report = Report.model_validate_json(json)
         self.assertEqual(report.status, ExecutionStatus.FAILURE)
         self.assertEqual(report.exitCode, -1)
         self.assertEqual(report.exceptionInfo.className, "RuntimeError")

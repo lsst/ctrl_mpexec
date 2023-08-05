@@ -27,6 +27,7 @@ from __future__ import annotations
 __all__ = ["CmdLineFwk"]
 
 import atexit
+import contextlib
 import copy
 import datetime
 import getpass
@@ -250,7 +251,7 @@ class _ButlerFactory:
             # Passing the same inputs that were used to initialize the output
             # collection is allowed; this means they must _end_ with the same
             # collections, because we push new runs to the front of the chain.
-            for c1, c2 in zip(self.inputs[::-1], self.output.chain[::-1]):
+            for c1, c2 in zip(self.inputs[::-1], self.output.chain[::-1], strict=False):
                 if c1 != c2:
                     raise ValueError(
                         f"Output CHAINED collection {self.output.name!r} exists, but it ends with "
@@ -679,10 +680,8 @@ class CmdLineFwk:
             # files if it exists in the repo.
             all_inputs = args.input
             if args.output is not None:
-                try:
+                with contextlib.suppress(MissingCollectionError):
                     all_inputs += (next(iter(butler.registry.queryCollections(args.output))),)
-                except MissingCollectionError:
-                    pass
 
             _LOG.debug("Calling buildExecutionButler with collections=%s", all_inputs)
             buildExecutionButler(

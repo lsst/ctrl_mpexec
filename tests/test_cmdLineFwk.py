@@ -274,7 +274,7 @@ def _makeQGraph():
     qgraph : `~lsst.pipe.base.QuantumGraph`
     """
     universe = DimensionUniverse(config=_makeDimensionConfig())
-    fakeDSType = DatasetType("A", tuple(), storageClass="ExposureF", universe=universe)
+    fakeDSType = DatasetType("A", (), storageClass="ExposureF", universe=universe)
     taskDef = TaskDef(taskName=_TASK_CLASS, config=AddTask.ConfigClass(), taskClass=AddTask)
     quanta = [
         Quantum(
@@ -398,7 +398,7 @@ class CmdLineFwkTestCase(unittest.TestCase):
 
             # reading empty graph from pickle should work but makeGraph()
             # will return None.
-            qgraph = QuantumGraph(dict(), universe=DimensionUniverse(_makeDimensionConfig()))
+            qgraph = QuantumGraph({}, universe=DimensionUniverse(_makeDimensionConfig()))
             with open(tmpname, "wb") as saveFile:
                 qgraph.save(saveFile)
             args = _makeArgs(qgraph=tmpname, registryConfig=registryConfig, execution_butler_location=None)
@@ -481,7 +481,7 @@ class CmdLineFwkTestCase(unittest.TestCase):
             ((5, "50 GB"), 5, 50 * u.GB),
         ):
             kwargs = {}
-            for k, v in zip(("cores_per_quantum", "memory_per_quantum"), params):
+            for k, v in zip(("cores_per_quantum", "memory_per_quantum"), params, strict=True):
                 if v is not None:
                     kwargs[k] = v
             args = _makeArgs(**kwargs)

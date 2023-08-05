@@ -21,6 +21,8 @@
 
 __all__ = ["ExecutionGraphFixup"]
 
+import contextlib
+import itertools
 from collections import defaultdict
 from collections.abc import Sequence
 from typing import Any
@@ -108,16 +110,15 @@ class ExecFixupDataId(ExecutionGraphFixup):
         keys = sorted(keyQuanta.keys(), reverse=self.reverse)
         networkGraph = graph.graph
 
-        for prev_key, key in zip(keys, keys[1:]):
+        for prev_key, key in itertools.pairwise(keys):
             for prev_node in keyQuanta[prev_key]:
                 for node in keyQuanta[key]:
                     # remove any existing edges between the two nodes, but
                     # don't fail if there are not any. Both directions need
                     # tried because in a directed graph, order maters
                     for edge in ((node, prev_node), (prev_node, node)):
-                        try:
+                        with contextlib.suppress(nx.NetworkXException):
                             networkGraph.remove_edge(*edge)
-                        except nx.NetworkXException:
-                            pass
+
                     networkGraph.add_edge(prev_node, node)
         return graph
