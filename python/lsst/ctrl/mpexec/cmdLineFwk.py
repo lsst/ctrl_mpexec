@@ -636,21 +636,10 @@ class CmdLineFwk:
             if args.show_qgraph_header:
                 qgraph.buildAndPrintHeader()
 
-        # Count quanta in graph; give a warning if it's empty and return None.
-        nQuanta = len(qgraph)
-        if nQuanta == 0:
+        if len(qgraph) == 0:
+            # Nothing to do.
             return None
-        else:
-            if _LOG.isEnabledFor(logging.INFO):
-                qg_task_table = self._generateTaskTable(qgraph)
-                qg_task_table_formatted = "\n".join(qg_task_table.pformat_all())
-                _LOG.info(
-                    "QuantumGraph contains %d quanta for %d tasks, graph ID: %r\n%s",
-                    nQuanta,
-                    len(qgraph.taskGraph),
-                    qgraph.graphID,
-                    qg_task_table_formatted,
-                )
+        self._summarize_qgraph(qgraph)
 
         if args.save_qgraph:
             qgraph.saveUri(args.save_qgraph)
@@ -844,6 +833,40 @@ class CmdLineFwk:
         qg_task_table = Table(dict(Quanta=qg_quanta, Tasks=qg_tasks))
         return qg_task_table
 
+    def _summarize_qgraph(self, qgraph: QuantumGraph) -> int:
+        """Report a summary of the quanta in the graph.
+
+        Parameters
+        ----------
+        qgraph : `lsst.pipe.base.QuantumGraph`
+            The graph to be summarized.
+
+        Returns
+        -------
+        n_quanta : `int`
+            The number of quanta in the graph.
+        """
+        n_quanta = len(qgraph)
+        if n_quanta == 0:
+            _LOG.info("QuantumGraph contains no quanta.")
+        else:
+            if _LOG.isEnabledFor(logging.INFO):
+                qg_task_table = self._generateTaskTable(qgraph)
+                qg_task_table_formatted = "\n".join(qg_task_table.pformat_all())
+                quanta_str = "quantum" if n_quanta == 1 else "quanta"
+                n_tasks = len(qgraph.taskGraph)
+                n_tasks_plural = "" if n_tasks == 1 else "s"
+                _LOG.info(
+                    "QuantumGraph contains %d %s for %d task%s, graph ID: %r\n%s",
+                    n_quanta,
+                    quanta_str,
+                    n_tasks,
+                    n_tasks_plural,
+                    qgraph.graphID,
+                    qg_task_table_formatted,
+                )
+        return n_quanta
+
     def _importGraphFixup(self, args: SimpleNamespace) -> ExecutionGraphFixup | None:
         """Import/instantiate graph fixup object.
 
@@ -927,7 +950,9 @@ class CmdLineFwk:
         qgraph = QuantumGraph.loadUri(args.qgraph, nodes=nodes, graphID=args.qgraph_id)
 
         if qgraph.metadata is None:
-            raise ValueError("QuantumGraph is missing metadata, cannot ")
+            raise ValueError("QuantumGraph is missing metadata, cannot continue.")
+
+        self._summarize_qgraph(qgraph)
 
         dataset_types = {dstype.name: dstype for dstype in qgraph.registryDatasetTypes()}
 
