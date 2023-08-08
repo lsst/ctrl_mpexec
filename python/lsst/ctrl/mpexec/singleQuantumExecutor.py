@@ -195,6 +195,8 @@ class SingleQuantumExecutor(QuantumExecutor):
             quantumMetadata = _TASK_METADATA_TYPE()
             logInfo(None, "prep", metadata=quantumMetadata)  # type: ignore[arg-type]
 
+            _LOG.info("Preparing execution of quantum for label=%s dataId=%s.", taskDef.label, quantum.dataId)
+
             # check whether to skip or delete old outputs, if it returns True
             # or raises an exception do not try to store logs, as they may be
             # already in butler.
@@ -244,6 +246,12 @@ class SingleQuantumExecutor(QuantumExecutor):
             taskDef.config.freeze()
             logInfo(None, "init", metadata=quantumMetadata)  # type: ignore[arg-type]
             init_input_refs = list(quantum.initInputs.values())
+
+            _LOG.info(
+                "Constructing task and executing quantum for label=%s dataId=%s.",
+                taskDef.label,
+                quantum.dataId,
+            )
             task = self.taskFactory.makeTask(taskDef, limited_butler, init_input_refs)
             logInfo(None, "start", metadata=quantumMetadata)  # type: ignore[arg-type]
             try:
@@ -301,6 +309,11 @@ class SingleQuantumExecutor(QuantumExecutor):
             return False
 
         if self.skipExisting:
+            _LOG.debug(
+                "Checking existence of metadata from previous execution of label=%s dataId=%s.",
+                taskDef.label,
+                quantum.dataId,
+            )
             # Metadata output exists; this is sufficient to assume the previous
             # run was successful and should be skipped.
             [metadata_ref] = quantum.outputs[taskDef.metadataDatasetName]
@@ -309,6 +322,9 @@ class SingleQuantumExecutor(QuantumExecutor):
                     return True
 
         # Find and prune (partial) outputs if `self.clobberOutputs` is set.
+        _LOG.debug(
+            "Looking for existing outputs in the way for label=%s dataId=%s.", taskDef.label, quantum.dataId
+        )
         ref_dict = self.butler.stored_many(chain.from_iterable(quantum.outputs.values()))
         existingRefs = [ref for ref, exists in ref_dict.items() if exists]
         missingRefs = [ref for ref, exists in ref_dict.items() if not exists]
@@ -376,42 +392,24 @@ class SingleQuantumExecutor(QuantumExecutor):
         anyChanges = False
         updatedInputs: defaultdict[DatasetType, list] = defaultdict(list)
         for key, refsForDatasetType in quantum.inputs.items():
+            _LOG.debug(
+                "Checking existence of input '%s' for label=%s dataId=%s.",
+                key.name,
+                taskDef.label,
+                quantum.dataId,
+            )
             newRefsForDatasetType = updatedInputs[key]
             stored = limited_butler.stored_many(refsForDatasetType)
             for ref in refsForDatasetType:
-                # Inputs may already be resolved even if they do not exist, but
-                # we have to re-resolve them because IDs are ignored on output.
-                # Check datastore for existence first to cover calibration
-                # dataset types, as they would need a timespan for findDataset.
-                resolvedRef: DatasetRef | None
                 if stored[ref]:
-                    resolvedRef = ref
-                elif self.butler is not None:
-                    # This branch is for mock execution only which does not
-                    # generate actual outputs, only adds datasets to registry.
-                    resolvedRef = self.butler.registry.findDataset(ref.datasetType, ref.dataId)
-                    if resolvedRef is None:
-                        _LOG.info("No dataset found for %s", ref)
-                        continue
-                    else:
-                        _LOG.debug("Updated dataset ID for %s", ref)
+                    newRefsForDatasetType.append(ref)
                 else:
-                    # QBB with missing intermediate
-                    _LOG.info("No dataset found for %s", ref)
+                    # This should only happen if a predicted intermediate was
+                    # not actually produced upstream, but
+                    # datastore misconfigurations can unfortunately also land
+                    # us here.
+                    _LOG.info("No dataset artifact found for %s", ref)
                     continue
-
-                if (ref_stored := stored.get(resolvedRef)) or (
-                    ref_stored is None and limited_butler.stored(resolvedRef)
-                ):
-                    # We need to ask datastore if the dataset actually exists
-                    # because the Registry of a local "execution butler"
-                    # cannot know this (because we prepopulate it with all of
-                    # the datasets that might be created). Either we have
-                    # already checked and know the answer, or the resolved
-                    # ref differed from the original and we have to ask
-                    # explicitly for that.
-                    newRefsForDatasetType.append(resolvedRef)
-
             if len(newRefsForDatasetType) != len(refsForDatasetType):
                 anyChanges = True
         # If we removed any input datasets, let the task check if it has enough
@@ -424,6 +422,7 @@ class SingleQuantumExecutor(QuantumExecutor):
         namedUpdatedInputs = NamedKeyDict[DatasetType, list[DatasetRef]](updatedInputs.items())
         helper = AdjustQuantumHelper(namedUpdatedInputs, quantum.outputs)
         if anyChanges:
+            _LOG.debug("Running adjustQuantum for label=%s dataId=%s.", taskDef.label, quantum.dataId)
             assert quantum.dataId is not None, "Quantum DataId cannot be None"
             helper.adjust_in_place(taskDef.connections, label=taskDef.label, data_id=quantum.dataId)
         return Quantum(
