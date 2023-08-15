@@ -35,17 +35,23 @@ import logging
 import shutil
 from collections.abc import Iterable, Mapping, Sequence
 from types import SimpleNamespace
-from typing import TYPE_CHECKING
 
 import astropy.units as u
 from astropy.table import Table
 from lsst.daf.butler import (
     Butler,
     CollectionType,
+    Config,
     DatasetId,
     DatasetRef,
+    DatasetType,
     DatastoreCacheManager,
+    DatastoreRecordData,
+    DimensionUniverse,
+    LimitedButler,
+    Quantum,
     QuantumBackedButler,
+    Registry,
 )
 from lsst.daf.butler.registry import MissingCollectionError, RegistryDefaults
 from lsst.daf.butler.registry.wildcards import CollectionWildcard
@@ -56,6 +62,8 @@ from lsst.pipe.base import (
     Pipeline,
     PipelineDatasetTypes,
     QuantumGraph,
+    TaskDef,
+    TaskFactory,
     buildExecutionButler,
 )
 from lsst.utils import doImportType
@@ -67,19 +75,6 @@ from .executionGraphFixup import ExecutionGraphFixup
 from .mpGraphExecutor import MPGraphExecutor
 from .preExecInit import PreExecInit, PreExecInitLimited
 from .singleQuantumExecutor import SingleQuantumExecutor
-
-if TYPE_CHECKING:
-    from lsst.daf.butler import (
-        Config,
-        DatasetType,
-        DatastoreRecordData,
-        DimensionUniverse,
-        LimitedButler,
-        Quantum,
-        Registry,
-    )
-    from lsst.pipe.base import TaskDef, TaskFactory
-
 
 # ----------------------------------
 #  Local non-exported definitions --
