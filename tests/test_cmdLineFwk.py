@@ -696,7 +696,8 @@ class CmdLineFwkTestCaseWithButler(unittest.TestCase):
         taskFactory = AddTaskFactoryMock()
 
         qgraph = fwk.makeGraph(self.pipeline, args)
-        self.assertEqual(len(qgraph.taskGraph), self.nQuanta)
+        # If all quanta are skipped, the task is not included in the graph.
+        self.assertEqual(len(qgraph.taskGraph), self.nQuanta - 1)
         self.assertEqual(len(qgraph), self.nQuanta - 1)
 
         # Ensure that the output run used in the graph is also used in
@@ -746,8 +747,9 @@ class CmdLineFwkTestCaseWithButler(unittest.TestCase):
         args.extend_run = True
         qgraph = fwk.makeGraph(self.pipeline, args)
 
-        self.assertEqual(len(qgraph.taskGraph), self.nQuanta)
-        # Graph does not include quantum for first task
+        # First task has no remaining quanta, so is left out completely.
+        self.assertEqual(len(qgraph.taskGraph), self.nQuanta - 1)
+        # Graph does not include quantum for first task.
         self.assertEqual(len(qgraph), self.nQuanta - 1)
 
         # run whole thing
