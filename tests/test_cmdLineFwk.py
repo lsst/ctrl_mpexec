@@ -725,6 +725,7 @@ class CmdLineFwkTestCaseWithButler(unittest.TestCase):
                     "add_init_output1",
                     "task0_metadata",
                     "task0_log",
+                    "task0_config",
                 ],
             },
         )
