@@ -60,7 +60,7 @@ from lsst.daf.butler import (
     Registry,
 )
 from lsst.daf.butler.core.datasets.type import DatasetType
-from lsst.daf.butler.registry import ConflictingDefinitionError, RegistryConfig
+from lsst.daf.butler.registry import RegistryConfig
 from lsst.pipe.base import (
     Instrument,
     Pipeline,
@@ -590,15 +590,8 @@ class CmdLineFwkTestCaseWithButler(unittest.TestCase):
             fwk.runGraphQBB(taskFactory, args)
 
             # Transfer the datasets to the butler.
-            # TODO: DM-40392
-            # This will fail because the UUIDs are not updated by updateRun
-            with self.assertRaises(ConflictingDefinitionError):
-                n2 = transfer_from_graph(temp_graph.name, self.root, True, False, False)
-
-                # For reasons that have to be investigated the number of
-                # outputs the second time around is only 21.
-                self.assertEqual(n2, 31)
-                self.assertEqual(n1, n2)
+            n2 = transfer_from_graph(temp_graph.name, self.root, True, False, False)
+            self.assertEqual(n1, n2)
 
     def testEmptyQGraph(self):
         """Test that making an empty QG produces the right error messages."""
