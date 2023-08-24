@@ -26,6 +26,7 @@ import unittest
 
 import lsst.daf.butler
 import lsst.daf.butler.tests as butlerTests
+import lsst.pex.config
 import lsst.utils.tests
 from lsst.ctrl.mpexec import SeparablePipelineExecutor
 from lsst.pipe.base import Instrument, Pipeline, PipelineDatasetTypes, TaskMetadata
@@ -62,6 +63,7 @@ class SeparablePipelineExecutorTests(lsst.utils.tests.TestCase):
         butlerTests.addDatasetType(self.butler, "intermediate", set(), "StructuredDataDict")
         butlerTests.addDatasetType(self.butler, "a_log", set(), "ButlerLogRecords")
         butlerTests.addDatasetType(self.butler, "a_metadata", set(), "TaskMetadata")
+        butlerTests.addDatasetType(self.butler, "a_config", set(), "Config")
 
     def test_pre_execute_qgraph(self):
         # Too hard to make a quantum graph from scratch.
@@ -71,7 +73,6 @@ class SeparablePipelineExecutorTests(lsst.utils.tests.TestCase):
         graph = executor.make_quantum_graph(pipeline)
 
         butlerTests.addDatasetType(self.butler, "output", set(), "StructuredDataDict")
-        butlerTests.addDatasetType(self.butler, "a_config", set(), "Config")
         butlerTests.addDatasetType(self.butler, "b_config", set(), "Config")
         butlerTests.addDatasetType(self.butler, "b_log", set(), "ButlerLogRecords")
         butlerTests.addDatasetType(self.butler, "b_metadata", set(), "TaskMetadata")
@@ -100,7 +101,6 @@ class SeparablePipelineExecutorTests(lsst.utils.tests.TestCase):
         graph = executor.make_quantum_graph(pipeline)
 
         butlerTests.addDatasetType(self.butler, "output", set(), "StructuredDataDict")
-        butlerTests.addDatasetType(self.butler, "a_config", set(), "Config")
         butlerTests.addDatasetType(self.butler, "b_config", set(), "Config")
         butlerTests.addDatasetType(self.butler, "b_log", set(), "ButlerLogRecords")
         butlerTests.addDatasetType(self.butler, "b_metadata", set(), "TaskMetadata")
@@ -120,7 +120,6 @@ class SeparablePipelineExecutorTests(lsst.utils.tests.TestCase):
         graph = lsst.pipe.base.QuantumGraph({}, universe=self.butler.dimensions)
 
         butlerTests.addDatasetType(self.butler, "output", set(), "StructuredDataDict")
-        butlerTests.addDatasetType(self.butler, "a_config", set(), "Config")
         butlerTests.addDatasetType(self.butler, "b_config", set(), "Config")
         butlerTests.addDatasetType(self.butler, "b_log", set(), "ButlerLogRecords")
         butlerTests.addDatasetType(self.butler, "b_metadata", set(), "TaskMetadata")
@@ -163,7 +162,6 @@ class SeparablePipelineExecutorTests(lsst.utils.tests.TestCase):
         graph = executor.make_quantum_graph(pipeline)
 
         butlerTests.addDatasetType(self.butler, "output", set(), "StructuredDataDict")
-        butlerTests.addDatasetType(self.butler, "a_config", set(), "Config")
         butlerTests.addDatasetType(self.butler, "b_config", set(), "Config")
         butlerTests.addDatasetType(self.butler, "b_log", set(), "ButlerLogRecords")
         butlerTests.addDatasetType(self.butler, "b_metadata", set(), "TaskMetadata")
@@ -185,7 +183,6 @@ class SeparablePipelineExecutorTests(lsst.utils.tests.TestCase):
         graph = executor.make_quantum_graph(pipeline)
 
         butlerTests.addDatasetType(self.butler, "output", set(), "StructuredDataDict")
-        butlerTests.addDatasetType(self.butler, "a_config", set(), "Config")
         butlerTests.addDatasetType(self.butler, "b_config", set(), "Config")
         butlerTests.addDatasetType(self.butler, "b_log", set(), "ButlerLogRecords")
         butlerTests.addDatasetType(self.butler, "b_metadata", set(), "TaskMetadata")
@@ -290,6 +287,7 @@ class SeparablePipelineExecutorTests(lsst.utils.tests.TestCase):
         self.butler.put({"zero": 0}, "intermediate")
         self.butler.put(lsst.daf.butler.ButlerLogRecords.from_records([]), "a_log")
         self.butler.put(TaskMetadata(), "a_metadata")
+        self.butler.put(lsst.pex.config.Config(), "a_config")
 
         graph = executor.make_quantum_graph(pipeline)
         self.assertTrue(graph.isConnected)
@@ -366,6 +364,7 @@ class SeparablePipelineExecutorTests(lsst.utils.tests.TestCase):
         self.butler.put({"zero": 0}, "intermediate")
         self.butler.put(lsst.daf.butler.ButlerLogRecords.from_records([]), "a_log")
         self.butler.put(TaskMetadata(), "a_metadata")
+        self.butler.put(lsst.pex.config.Config(), "a_config")
 
         graph = executor.make_quantum_graph(pipeline)
         self.assertTrue(graph.isConnected)
@@ -404,6 +403,7 @@ class SeparablePipelineExecutorTests(lsst.utils.tests.TestCase):
         butlerTests.addDatasetType(self.butler, "output", set(), "StructuredDataDict")
         butlerTests.addDatasetType(self.butler, "b_log", set(), "ButlerLogRecords")
         butlerTests.addDatasetType(self.butler, "b_metadata", set(), "TaskMetadata")
+        butlerTests.addDatasetType(self.butler, "b_config", set(), "Config")
 
         self.butler.put({"zero": 0}, "input")
         self.butler.put({"zero": 0}, "intermediate")
@@ -412,6 +412,8 @@ class SeparablePipelineExecutorTests(lsst.utils.tests.TestCase):
         self.butler.put({"zero": 0}, "output")
         self.butler.put(lsst.daf.butler.ButlerLogRecords.from_records([]), "b_log")
         self.butler.put(TaskMetadata(), "b_metadata")
+        self.butler.put(lsst.pex.config.Config(), "a_config")
+        self.butler.put(lsst.pex.config.Config(), "b_config")
 
         graph = executor.make_quantum_graph(pipeline)
         self.assertEqual(len(graph), 0)
@@ -482,6 +484,7 @@ class SeparablePipelineExecutorTests(lsst.utils.tests.TestCase):
         self.butler.put({"zero": 0}, "intermediate")
         self.butler.put(lsst.daf.butler.ButlerLogRecords.from_records([]), "a_log")
         self.butler.put(TaskMetadata(), "a_metadata")
+        self.butler.put(lsst.pex.config.Config(), "a_config")
         graph = executor.make_quantum_graph(pipeline)
         executor.pre_execute_qgraph(
             graph,
@@ -564,6 +567,7 @@ class SeparablePipelineExecutorTests(lsst.utils.tests.TestCase):
         self.butler.put({"zero": 0}, "intermediate")
         self.butler.put(lsst.daf.butler.ButlerLogRecords.from_records([]), "a_log")
         self.butler.put(TaskMetadata(), "a_metadata")
+        self.butler.put(lsst.pex.config.Config(), "a_config")
         graph = executor.make_quantum_graph(pipeline)
         executor.pre_execute_qgraph(
             graph,
