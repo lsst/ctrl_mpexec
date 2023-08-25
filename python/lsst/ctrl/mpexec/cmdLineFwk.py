@@ -65,7 +65,6 @@ from lsst.daf.butler.registry import MissingCollectionError, RegistryDefaults
 from lsst.daf.butler.registry.wildcards import CollectionWildcard
 from lsst.pipe.base import (
     ExecutionResources,
-    GraphBuilder,
     Instrument,
     Pipeline,
     PipelineDatasetTypes,
@@ -74,6 +73,7 @@ from lsst.pipe.base import (
     TaskFactory,
     buildExecutionButler,
 )
+from lsst.pipe.base.all_dimensions_quantum_graph_builder import AllDimensionsQuantumGraphBuilder
 from lsst.utils import doImportType
 from lsst.utils.logging import getLogger
 from lsst.utils.threads import disable_implicit_threading
@@ -619,21 +619,25 @@ class CmdLineFwk:
             if args.show_qgraph_header:
                 print(QuantumGraph.readHeader(args.qgraph))
         else:
-            task_defs = list(pipeline.toExpandedPipeline())
+            pipeline_graph = pipeline.to_graph()
             if args.mock:
-                from lsst.pipe.base.tests.mocks import mock_task_defs
+                from lsst.pipe.base.tests.mocks import mock_pipeline_graph
 
-                task_defs = mock_task_defs(
-                    task_defs,
+                pipeline_graph = mock_pipeline_graph(
+                    pipeline_graph,
                     unmocked_dataset_types=args.unmocked_dataset_types,
                     force_failures=args.mock_failure,
                 )
             # make execution plan (a.k.a. DAG) for pipeline
-            graphBuilder = GraphBuilder(
-                butler.registry,
-                skipExistingIn=args.skip_existing_in,
-                clobberOutputs=args.clobber_outputs,
-                datastore=butler._datastore if args.qgraph_datastore_records else None,
+            graph_builder = AllDimensionsQuantumGraphBuilder(
+                pipeline_graph,
+                butler,
+                where=args.data_query,
+                skip_existing_in=args.skip_existing_in if args.skip_existing_in is not None else (),
+                clobber=args.clobber_outputs,
+                dataset_query_constraint=args.dataset_query_constraint,
+                input_collections=collections,
+                output_run=run,
             )
             # accumulate metadata
             metadata = {
@@ -649,15 +653,7 @@ class CmdLineFwk:
                 "time": f"{datetime.datetime.now()}",
             }
             assert run is not None, "Butler output run collection must be defined"
-            qgraph = graphBuilder.makeGraph(
-                task_defs,
-                collections,
-                run,
-                args.data_query,
-                metadata=metadata,
-                datasetQueryConstraint=args.dataset_query_constraint,
-                dataId=pipeline.get_data_id(butler.dimensions),
-            )
+            qgraph = graph_builder.build(metadata, attach_datastore_records=args.qgraph_datastore_records)
             if args.show_qgraph_header:
                 qgraph.buildAndPrintHeader()
 

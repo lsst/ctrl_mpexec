@@ -76,7 +76,7 @@ from lsst.pipe.base import (
     QuantumGraph,
     TaskDef,
 )
-from lsst.pipe.base.graphBuilder import DatasetQueryConstraintVariant as DQCVariant
+from lsst.pipe.base.all_dimensions_quantum_graph_builder import DatasetQueryConstraintVariant as DQCVariant
 from lsst.pipe.base.script import transfer_from_graph
 from lsst.pipe.base.tests.simpleQGraph import (
     AddTask,
