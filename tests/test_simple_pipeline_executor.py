@@ -36,7 +36,7 @@ from typing import Any
 import lsst.daf.butler
 import lsst.utils.tests
 from lsst.ctrl.mpexec import SimplePipelineExecutor
-from lsst.pipe.base import Struct, TaskDef, TaskMetadata, connectionTypes
+from lsst.pipe.base import PipelineGraph, Struct, TaskMetadata, connectionTypes
 from lsst.pipe.base.tests.no_dimensions import (
     NoDimensionsTestConfig,
     NoDimensionsTestConnections,
@@ -148,7 +148,7 @@ class SimplePipelineExecutorTests(lsst.utils.tests.TestCase):
         self.assertEqual(self.butler.get("output"), {"zero": 0, "one": 1})
 
     def _configure_pipeline(self, config_a_cls, config_b_cls, storageClass_a=None, storageClass_b=None):
-        """Configure a pipeline with from_pipeline."""
+        """Configure a pipeline with from_pipeline_graph."""
         config_a = config_a_cls()
         config_a.connections.output = "intermediate"
         if storageClass_a:
@@ -159,11 +159,10 @@ class SimplePipelineExecutorTests(lsst.utils.tests.TestCase):
             config_b.outputSC = storageClass_b
         config_b.key = "two"
         config_b.value = 2
-        task_defs = [
-            TaskDef(label="a", taskClass=NoDimensionsTestTask, config=config_a),
-            TaskDef(label="b", taskClass=NoDimensionsTestTask, config=config_b),
-        ]
-        executor = SimplePipelineExecutor.from_pipeline(task_defs, butler=self.butler)
+        pipeline_graph = PipelineGraph()
+        pipeline_graph.add_task("a", NoDimensionsTestTask, config_a)
+        pipeline_graph.add_task("b", NoDimensionsTestTask, config_b)
+        executor = SimplePipelineExecutor.from_pipeline_graph(pipeline_graph, butler=self.butler)
         return executor
 
     def _test_logs(self, log_output, input_type_a, output_type_a, input_type_b, output_type_b):
@@ -303,11 +302,10 @@ class SimplePipelineExecutorTests(lsst.utils.tests.TestCase):
         config_b.connections.input = "intermediate"
         config_b.key = "two"
         config_b.value = 2
-        task_defs = [
-            TaskDef(label="a", taskClass=NoDimensionsTestTask, config=config_a),
-            TaskDef(label="b", taskClass=NoDimensionsMetadataTestTask, config=config_b),
-        ]
-        executor = SimplePipelineExecutor.from_pipeline(task_defs, butler=self.butler)
+        pipeline_graph = PipelineGraph()
+        pipeline_graph.add_task("a", NoDimensionsTestTask, config=config_a)
+        pipeline_graph.add_task("b", NoDimensionsMetadataTestTask, config=config_b)
+        executor = SimplePipelineExecutor.from_pipeline_graph(pipeline_graph, butler=self.butler)
 
         with self.assertLogs("test_simple_pipeline_executor", level="INFO") as cm:
             quanta = executor.run(register_dataset_types=True, save_versions=False)
