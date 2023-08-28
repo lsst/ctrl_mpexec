@@ -241,7 +241,6 @@ class SimplePipelineExecutor:
         bind: Mapping[str, Any] | None = None,
         butler: Butler,
         resources: ExecutionResources | None = None,
-        **kwargs: Any,
     ) -> SimplePipelineExecutor:
         """Create an executor by building a QuantumGraph from an in-memory
         pipeline.
