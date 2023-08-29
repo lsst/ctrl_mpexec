@@ -36,6 +36,7 @@ import lsst.pex.config
 import lsst.utils.tests
 from lsst.ctrl.mpexec import SeparablePipelineExecutor
 from lsst.pipe.base import Instrument, Pipeline, PipelineDatasetTypes, TaskMetadata
+from lsst.pipe.base.quantum_graph_builder import OutputExistsError
 from lsst.resources import ResourcePath
 
 TESTDIR = os.path.abspath(os.path.dirname(__file__))
@@ -259,7 +260,7 @@ class SeparablePipelineExecutorTests(lsst.utils.tests.TestCase):
         self.butler.put(lsst.daf.butler.ButlerLogRecords.from_records([]), "a_log")
         self.butler.put(TaskMetadata(), "a_metadata")
 
-        with self.assertRaises(lsst.pipe.base.graphBuilder.OutputExistsError):
+        with self.assertRaises(OutputExistsError):
             executor.make_quantum_graph(pipeline)
 
     # TODO: need more complex task and Butler to test
@@ -312,7 +313,7 @@ class SeparablePipelineExecutorTests(lsst.utils.tests.TestCase):
         self.butler.put({"zero": 0}, "input")
         self.butler.put({"zero": 0}, "intermediate")
 
-        with self.assertRaises(lsst.pipe.base.graphBuilder.OutputExistsError):
+        with self.assertRaises(OutputExistsError):
             executor.make_quantum_graph(pipeline)
 
     def test_make_quantum_graph_nowhere_noskip_clobber(self):

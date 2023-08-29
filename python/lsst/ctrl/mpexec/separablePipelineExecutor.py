@@ -36,12 +36,19 @@ __all__ = [
 import datetime
 import getpass
 import logging
+import warnings
 from collections.abc import Iterable, Mapping
 from typing import Any, Protocol
 
 import lsst.pipe.base
 import lsst.resources
 from lsst.daf.butler import Butler
+from lsst.pipe.base.all_dimensions_quantum_graph_builder import (
+    AllDimensionsQuantumGraphBuilder,
+    DatasetQueryConstraintVariant,
+)
+from lsst.pipe.base.quantum_graph_builder import QuantumGraphBuilder
+from lsst.utils.introspection import find_outside_stacklevel
 
 from .mpGraphExecutor import MPGraphExecutor
 from .preExecInit import PreExecInit
@@ -52,10 +59,6 @@ from .taskFactory import TaskFactory
 _LOG = logging.getLogger(__name__)
 
 
-# Only way to keep black, flake8, and mypy all happy
-_dqc = lsst.pipe.base._datasetQueryConstraints
-
-
 class _GraphBuilderLike(Protocol):
     def makeGraph(
         self,
@@ -63,7 +66,7 @@ class _GraphBuilderLike(Protocol):
         collections: Any,
         run: str,
         userQuery: str | None,
-        datasetQueryConstraint: _dqc.DatasetQueryConstraintVariant = _dqc._ALL,
+        datasetQueryConstraint: DatasetQueryConstraintVariant = DatasetQueryConstraintVariant.ALL,
         metadata: Mapping[str, Any] | None = None,
         bind: Mapping[str, Any] | None = None,
     ) -> lsst.pipe.base.QuantumGraph:
@@ -176,7 +179,14 @@ class SeparablePipelineExecutor:
         return lsst.pipe.base.Pipeline.from_uri(pipeline_uri)
 
     def make_quantum_graph(
-        self, pipeline: lsst.pipe.base.Pipeline, where: str = "", builder: _GraphBuilderLike | None = None
+        self,
+        pipeline: lsst.pipe.base.Pipeline,
+        where: str = "",
+        builder: _GraphBuilderLike | None = None,
+        *,
+        builder_class: type[QuantumGraphBuilder] = AllDimensionsQuantumGraphBuilder,
+        attach_datastore_records: bool = False,
+        **kwargs: Any,
     ) -> lsst.pipe.base.QuantumGraph:
         """Build a quantum graph from a pipeline and input datasets.
 
@@ -185,11 +195,31 @@ class SeparablePipelineExecutor:
         pipeline : `lsst.pipe.base.Pipeline`
             The pipeline for which to generate a quantum graph.
         where : `str`, optional
-            A data ID query that constrains the quanta generated.
+            A data ID query that constrains the quanta generated.  Must not be
+            provided if a custom ``builder_class`` is given and that class does
+            not accept ``where`` as a construction argument.
         builder : `lsst.pipe.base.GraphBuilder`-like, optional
             A graph builder that implements a
             `~lsst.pipe.base.GraphBuilder.makeGraph` method. By default, a new
-            instance of `lsst.pipe.base.GraphBuilder` is used.
+            instance of `lsst.pipe.base.GraphBuilder` is used.  Deprecated in
+            favor of ``builder_class`` and will be removed after v26.
+        builder_class : `type` [ \
+                `lsst.pipe.base.quantum_graph_builder.QuantumGraphBuilder` ], \
+                optional
+            Quantum graph builder implementation.  Ignored if ``builder`` is
+            provided.
+        attach_datastore_records : `bool`, optional
+            Whether to attach datastore records.  These are currently used only
+            by `lsst.daf.butler.QuantumBackedButler`, which is not used by
+            `SeparablePipelineExecutor` for execution.
+        **kwargs
+            Additional keyword arguments are forwarded to ``builder_class``
+            when a quantum graph builder instance is constructed.  All
+            arguments accepted by the
+            `~lsst.pipe.base.quantum_graph_builder.QuantumGraphBuilder` base
+            class are provided automatically (from explicit arguments to this
+            method and executor attributes) and do not need to be included
+            as keyword arguments.
 
         Returns
         -------
@@ -202,13 +232,6 @@ class SeparablePipelineExecutor:
         This method does no special handling of empty quantum graphs. If
         needed, clients can use `len` to test if the returned graph is empty.
         """
-        if not builder:
-            builder = lsst.pipe.base.GraphBuilder(
-                self._butler.registry,
-                skipExistingIn=self._skip_existing_in,
-                clobberOutputs=self._clobber_output,
-            )
-
         metadata = {
             "input": self._butler.collections,
             "output_run": self._butler.run,
@@ -218,14 +241,34 @@ class SeparablePipelineExecutor:
             "user": getpass.getuser(),
             "time": str(datetime.datetime.now()),
         }
-        assert self._butler.run is not None, "Butler output run collection must be defined"
-        graph = builder.makeGraph(
-            pipeline,
-            self._butler.collections,
-            self._butler.run,
-            userQuery=where,
-            metadata=metadata,
-        )
+        if builder:
+            warnings.warn(
+                "The 'builder' argument to SeparablePipelineBuilder.make_quantum_graph "
+                "is deprecated in favor of 'builder_class', and will be removed after v26.",
+                FutureWarning,
+                find_outside_stacklevel("lsst.ctrl.mpexec"),
+            )
+            assert self._butler.run is not None, "Butler output run collection must be defined"
+            graph = builder.makeGraph(
+                pipeline,
+                self._butler.collections,
+                self._butler.run,
+                userQuery=where,
+                metadata=metadata,
+            )
+        else:
+            if where:
+                # Only pass 'where' if it's actually provided, since some
+                # QuantumGraphBuilder subclasses may not accept it.
+                kwargs["where"] = where
+            qg_builder = builder_class(
+                pipeline.to_graph(),
+                self._butler,
+                skip_existing_in=self._skip_existing_in,
+                clobber=self._clobber_output,
+                **kwargs,
+            )
+            graph = qg_builder.build(metadata=metadata, attach_datastore_records=attach_datastore_records)
         _LOG.info(
             "QuantumGraph contains %d quanta for %d tasks, graph ID: %r",
             len(graph),
