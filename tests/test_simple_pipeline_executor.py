@@ -254,8 +254,8 @@ class SimplePipelineExecutorTests(lsst.utils.tests.TestCase):
         self._test_logs(cm.output, "dict", "lsst.pipe.base.TaskMetadata", "dict", "dict")
 
         self.assertEqual(len(quanta), 2)
-        self.assertEqual(self.butler.get("intermediate"), TaskMetadata.from_dict({"zero": 0, "one": 1}))
-        self.assertEqual(self.butler.get("output"), TaskMetadata.from_dict({"zero": 0, "one": 1, "two": 2}))
+        self.assertEqual(self.butler.get("intermediate").to_dict(), {"zero": 0, "one": 1})
+        self.assertEqual(self.butler.get("output").to_dict(), {"zero": 0, "one": 1, "two": 2})
 
     def test_from_pipeline_input_differ(self):
         """Run pipeline but input definition in registry differs."""
@@ -287,6 +287,29 @@ class SimplePipelineExecutorTests(lsst.utils.tests.TestCase):
             IncompatibleDatasetTypeError, "Incompatible definition.*StructuredDataDict.*StructuredDataList.*"
         ):
             self._configure_pipeline(NoDimensionsTestTask.ConfigClass, NoDimensionsTestTask.ConfigClass)
+
+    def test_from_pipeline_registry_changed(self):
+        """Run pipeline, but change registry dataset types between making the
+        QG and executing it.
+
+        This only fails with full-butler execution; we don't have a way to
+        prevent it with QBB.
+        """
+        executor = self._configure_pipeline(
+            NoDimensionsTestTask.ConfigClass, NoDimensionsTestTask.ConfigClass
+        )
+        self.butler.registry.registerDatasetType(
+            lsst.daf.butler.DatasetType(
+                "output",
+                dimensions=self.butler.dimensions.empty,
+                storageClass="TaskMetadataLike",  # even compatible is not okay
+            )
+        )
+        with self.assertRaisesRegex(
+            lsst.daf.butler.registry.ConflictingDefinitionError,
+            ".*definition in registry has changed.*StructuredDataDict.*TaskMetadataLike.*",
+        ):
+            executor.run(register_dataset_types=True, save_versions=False)
 
     def test_from_pipeline_metadata(self):
         """Test two tasks where the output uses metadata from input."""
