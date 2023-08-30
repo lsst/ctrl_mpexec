@@ -35,7 +35,8 @@ import lsst.daf.butler.tests as butlerTests
 import lsst.pex.config
 import lsst.utils.tests
 from lsst.ctrl.mpexec import SeparablePipelineExecutor
-from lsst.pipe.base import Instrument, Pipeline, PipelineDatasetTypes, TaskMetadata
+from lsst.pipe.base import Instrument, Pipeline, TaskMetadata
+from lsst.pipe.base.automatic_connection_constants import PACKAGES_INIT_OUTPUT_NAME
 from lsst.pipe.base.quantum_graph_builder import OutputExistsError
 from lsst.resources import ResourcePath
 
@@ -83,7 +84,7 @@ class SeparablePipelineExecutorTests(lsst.utils.tests.TestCase):
         butlerTests.addDatasetType(self.butler, "b_config", set(), "Config")
         butlerTests.addDatasetType(self.butler, "b_log", set(), "ButlerLogRecords")
         butlerTests.addDatasetType(self.butler, "b_metadata", set(), "TaskMetadata")
-        butlerTests.addDatasetType(self.butler, PipelineDatasetTypes.packagesDatasetName, set(), "Packages")
+        butlerTests.addDatasetType(self.butler, PACKAGES_INIT_OUTPUT_NAME, set(), "Packages")
 
         executor.pre_execute_qgraph(
             graph,
@@ -92,7 +93,7 @@ class SeparablePipelineExecutorTests(lsst.utils.tests.TestCase):
             save_versions=False,
         )
         self.assertFalse(self.butler.exists("a_config", {}, collections=[self.butler.run]))
-        self.assertFalse(self.butler.exists(PipelineDatasetTypes.packagesDatasetName, {}))
+        self.assertFalse(self.butler.exists(PACKAGES_INIT_OUTPUT_NAME, {}))
 
     def test_pre_execute_qgraph_unconnected(self):
         # Unconnected graph; see
@@ -111,7 +112,7 @@ class SeparablePipelineExecutorTests(lsst.utils.tests.TestCase):
         butlerTests.addDatasetType(self.butler, "b_config", set(), "Config")
         butlerTests.addDatasetType(self.butler, "b_log", set(), "ButlerLogRecords")
         butlerTests.addDatasetType(self.butler, "b_metadata", set(), "TaskMetadata")
-        butlerTests.addDatasetType(self.butler, PipelineDatasetTypes.packagesDatasetName, set(), "Packages")
+        butlerTests.addDatasetType(self.butler, PACKAGES_INIT_OUTPUT_NAME, set(), "Packages")
 
         executor.pre_execute_qgraph(
             graph,
@@ -120,7 +121,7 @@ class SeparablePipelineExecutorTests(lsst.utils.tests.TestCase):
             save_versions=False,
         )
         self.assertFalse(self.butler.exists("a_config", {}, collections=[self.butler.run]))
-        self.assertFalse(self.butler.exists(PipelineDatasetTypes.packagesDatasetName, {}))
+        self.assertFalse(self.butler.exists(PACKAGES_INIT_OUTPUT_NAME, {}))
 
     def test_pre_execute_qgraph_empty(self):
         executor = SeparablePipelineExecutor(self.butler)
@@ -130,7 +131,7 @@ class SeparablePipelineExecutorTests(lsst.utils.tests.TestCase):
         butlerTests.addDatasetType(self.butler, "b_config", set(), "Config")
         butlerTests.addDatasetType(self.butler, "b_log", set(), "ButlerLogRecords")
         butlerTests.addDatasetType(self.butler, "b_metadata", set(), "TaskMetadata")
-        butlerTests.addDatasetType(self.butler, PipelineDatasetTypes.packagesDatasetName, set(), "Packages")
+        butlerTests.addDatasetType(self.butler, PACKAGES_INIT_OUTPUT_NAME, set(), "Packages")
 
         executor.pre_execute_qgraph(
             graph,
@@ -139,7 +140,7 @@ class SeparablePipelineExecutorTests(lsst.utils.tests.TestCase):
             save_versions=False,
         )
         self.assertFalse(self.butler.exists("a_config", {}, collections=[self.butler.run]))
-        self.assertFalse(self.butler.exists(PipelineDatasetTypes.packagesDatasetName, {}))
+        self.assertFalse(self.butler.exists(PACKAGES_INIT_OUTPUT_NAME, {}))
 
     def test_pre_execute_qgraph_register(self):
         executor = SeparablePipelineExecutor(self.butler)
@@ -159,7 +160,7 @@ class SeparablePipelineExecutorTests(lsst.utils.tests.TestCase):
             {"b_config", "b_log", "b_metadata"},
         )
         self.assertFalse(self.butler.exists("a_config", {}, collections=[self.butler.run]))
-        self.assertFalse(self.butler.exists(PipelineDatasetTypes.packagesDatasetName, {}))
+        self.assertFalse(self.butler.exists(PACKAGES_INIT_OUTPUT_NAME, {}))
 
     def test_pre_execute_qgraph_init_outputs(self):
         # Too hard to make a quantum graph from scratch.
@@ -172,7 +173,7 @@ class SeparablePipelineExecutorTests(lsst.utils.tests.TestCase):
         butlerTests.addDatasetType(self.butler, "b_config", set(), "Config")
         butlerTests.addDatasetType(self.butler, "b_log", set(), "ButlerLogRecords")
         butlerTests.addDatasetType(self.butler, "b_metadata", set(), "TaskMetadata")
-        butlerTests.addDatasetType(self.butler, PipelineDatasetTypes.packagesDatasetName, set(), "Packages")
+        butlerTests.addDatasetType(self.butler, PACKAGES_INIT_OUTPUT_NAME, set(), "Packages")
 
         executor.pre_execute_qgraph(
             graph,
@@ -181,7 +182,7 @@ class SeparablePipelineExecutorTests(lsst.utils.tests.TestCase):
             save_versions=False,
         )
         self.assertTrue(self.butler.exists("a_config", {}, collections=[self.butler.run]))
-        self.assertFalse(self.butler.exists(PipelineDatasetTypes.packagesDatasetName, {}))
+        self.assertFalse(self.butler.exists(PACKAGES_INIT_OUTPUT_NAME, {}))
 
     def test_pre_execute_qgraph_versions(self):
         executor = SeparablePipelineExecutor(self.butler)
@@ -193,7 +194,7 @@ class SeparablePipelineExecutorTests(lsst.utils.tests.TestCase):
         butlerTests.addDatasetType(self.butler, "b_config", set(), "Config")
         butlerTests.addDatasetType(self.butler, "b_log", set(), "ButlerLogRecords")
         butlerTests.addDatasetType(self.butler, "b_metadata", set(), "TaskMetadata")
-        butlerTests.addDatasetType(self.butler, PipelineDatasetTypes.packagesDatasetName, set(), "Packages")
+        butlerTests.addDatasetType(self.butler, PACKAGES_INIT_OUTPUT_NAME, set(), "Packages")
 
         executor.pre_execute_qgraph(
             graph,
@@ -202,7 +203,7 @@ class SeparablePipelineExecutorTests(lsst.utils.tests.TestCase):
             save_versions=True,
         )
         self.assertTrue(self.butler.exists("a_config", {}, collections=[self.butler.run]))
-        self.assertTrue(self.butler.exists(PipelineDatasetTypes.packagesDatasetName, {}))
+        self.assertTrue(self.butler.exists(PACKAGES_INIT_OUTPUT_NAME, {}))
 
     def test_init_badinput(self):
         butler = lsst.daf.butler.Butler.from_config(butler=self.butler, collections=[], run="foo")
