@@ -39,7 +39,7 @@ import datetime
 import getpass
 import logging
 import shutil
-from collections.abc import Iterable, Mapping, Sequence
+from collections.abc import Mapping, Sequence
 from types import SimpleNamespace
 
 import astropy.units as u
@@ -49,7 +49,6 @@ from lsst.daf.butler import (
     CollectionType,
     Config,
     DatasetId,
-    DatasetRef,
     DatasetType,
     DatastoreCacheManager,
     DatastoreRecordData,
@@ -65,13 +64,13 @@ from lsst.pipe.base import (
     ExecutionResources,
     Instrument,
     Pipeline,
-    PipelineDatasetTypes,
+    PipelineGraph,
     QuantumGraph,
-    TaskDef,
     TaskFactory,
     buildExecutionButler,
 )
 from lsst.pipe.base.all_dimensions_quantum_graph_builder import AllDimensionsQuantumGraphBuilder
+from lsst.pipe.base.pipeline_graph import NodeType
 from lsst.utils import doImportType
 from lsst.utils.logging import getLogger
 from lsst.utils.threads import disable_implicit_threading
@@ -415,7 +414,7 @@ class _ButlerFactory:
             _LOG.debug("Defining shared datastore cache directory to %s", cache_dir)
 
     @classmethod
-    def makeWriteButler(cls, args: SimpleNamespace, taskDefs: Iterable[TaskDef] | None = None) -> Butler:
+    def makeWriteButler(cls, args: SimpleNamespace, pipeline_graph: PipelineGraph | None = None) -> Butler:
         """Return a read-write butler initialized to write to and read from
         the collections specified by the given command-line arguments.
 
@@ -424,7 +423,7 @@ class _ButlerFactory:
         args : `types.SimpleNamespace`
             Parsed command-line arguments.  See class documentation for the
             construction parameter of the same name.
-        taskDefs : iterable of `TaskDef`, optional
+        pipeline_graph : `lsst.pipe.base.PipelineGraph`, optional
             Definitions for tasks in a pipeline. This argument is only needed
             if ``args.replace_run`` is `True` and ``args.prune_replaced`` is
             "unstore".
@@ -446,12 +445,17 @@ class _ButlerFactory:
                 if args.prune_replaced == "unstore":
                     # Remove datasets from datastore
                     with butler.transaction():
-                        refs: Iterable[DatasetRef] = butler.registry.queryDatasets(..., collections=replaced)
-                        # we want to remove regular outputs but keep
-                        # initOutputs, configs, and versions.
-                        if taskDefs is not None:
-                            initDatasetNames = set(PipelineDatasetTypes.initOutputNames(taskDefs))
-                            refs = [ref for ref in refs if ref.datasetType.name not in initDatasetNames]
+                        # we want to remove regular outputs from this pipeline,
+                        # but keep initOutputs, configs, and versions.
+                        if pipeline_graph is not None:
+                            refs = [
+                                ref
+                                for ref in butler.registry.queryDatasets(..., collections=replaced)
+                                if (
+                                    (producer := pipeline_graph.producer_of(ref.datasetType.name)) is not None
+                                    and producer.key.node_type is NodeType.TASK  # i.e. not TASK_INIT
+                                )
+                            ]
                         butler.pruneDatasets(refs, unstore=True, disassociate=False)
                 elif args.prune_replaced == "purge":
                     # Erase entire collection and all datasets, need to remove
@@ -771,7 +775,7 @@ class CmdLineFwk:
         # Make butler instance. QuantumGraph should have an output run defined,
         # but we ignore it here and let command line decide actual output run.
         if butler is None:
-            butler = _ButlerFactory.makeWriteButler(args, graph.iterTaskGraph())
+            butler = _ButlerFactory.makeWriteButler(args, graph.pipeline_graph)
 
         if args.skip_existing:
             args.skip_existing_in += (butler.run,)
