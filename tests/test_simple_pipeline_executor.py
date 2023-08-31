@@ -37,6 +37,7 @@ import lsst.daf.butler
 import lsst.utils.tests
 from lsst.ctrl.mpexec import SimplePipelineExecutor
 from lsst.pipe.base import PipelineGraph, Struct, TaskMetadata, connectionTypes
+from lsst.pipe.base.pipeline_graph import IncompatibleDatasetTypeError
 from lsst.pipe.base.tests.no_dimensions import (
     NoDimensionsTestConfig,
     NoDimensionsTestConnections,
@@ -190,12 +191,6 @@ class SimplePipelineExecutorTests(lsst.utils.tests.TestCase):
 
     def test_from_pipeline_intermediates_differ(self):
         """Run pipeline but intermediates definition in registry differs."""
-        executor = self._configure_pipeline(
-            NoDimensionsTestTask.ConfigClass,
-            NoDimensionsTestTask.ConfigClass,
-            storageClass_b="TaskMetadataLike",
-        )
-
         # Pre-define the "intermediate" storage class to be something that is
         # like a dict but is not a dict. This will fail unless storage
         # class conversion is supported in put and get.
@@ -206,7 +201,11 @@ class SimplePipelineExecutorTests(lsst.utils.tests.TestCase):
                 storageClass="TaskMetadataLike",
             )
         )
-
+        executor = self._configure_pipeline(
+            NoDimensionsTestTask.ConfigClass,
+            NoDimensionsTestTask.ConfigClass,
+            storageClass_b="TaskMetadataLike",
+        )
         with self.assertLogs("lsst", level="INFO") as cm:
             quanta = executor.run(register_dataset_types=True, save_versions=False)
         # A dict is given to task a without change.
@@ -225,12 +224,6 @@ class SimplePipelineExecutorTests(lsst.utils.tests.TestCase):
 
     def test_from_pipeline_output_differ(self):
         """Run pipeline but output definition in registry differs."""
-        executor = self._configure_pipeline(
-            NoDimensionsTestTask.ConfigClass,
-            NoDimensionsTestTask.ConfigClass,
-            storageClass_a="TaskMetadataLike",
-        )
-
         # Pre-define the "output" storage class to be something that is
         # like a dict but is not a dict. This will fail unless storage
         # class conversion is supported in put and get.
@@ -241,7 +234,11 @@ class SimplePipelineExecutorTests(lsst.utils.tests.TestCase):
                 storageClass="TaskMetadataLike",
             )
         )
-
+        executor = self._configure_pipeline(
+            NoDimensionsTestTask.ConfigClass,
+            NoDimensionsTestTask.ConfigClass,
+            storageClass_a="TaskMetadataLike",
+        )
         with self.assertLogs("lsst", level="INFO") as cm:
             quanta = executor.run(register_dataset_types=True, save_versions=False)
         # a has been told to return a TaskMetadata but will convert to dict.
@@ -268,10 +265,6 @@ class SimplePipelineExecutorTests(lsst.utils.tests.TestCase):
 
     def test_from_pipeline_incompatible(self):
         """Run pipeline but definitions are not compatible."""
-        executor = self._configure_pipeline(
-            NoDimensionsTestTask.ConfigClass, NoDimensionsTestTask.ConfigClass
-        )
-
         # Incompatible output dataset type.
         self.butler.registry.registerDatasetType(
             lsst.daf.butler.DatasetType(
@@ -282,9 +275,9 @@ class SimplePipelineExecutorTests(lsst.utils.tests.TestCase):
         )
 
         with self.assertRaisesRegex(
-            ValueError, "StructuredDataDict.*inconsistent with registry definition.*StructuredDataList"
+            IncompatibleDatasetTypeError, "Incompatible definition.*StructuredDataList.*StructuredDataDict.*"
         ):
-            executor.run(register_dataset_types=True, save_versions=False)
+            self._configure_pipeline(NoDimensionsTestTask.ConfigClass, NoDimensionsTestTask.ConfigClass)
 
     def test_from_pipeline_metadata(self):
         """Test two tasks where the output uses metadata from input."""
