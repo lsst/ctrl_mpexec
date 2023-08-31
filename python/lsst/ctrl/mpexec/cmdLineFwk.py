@@ -75,6 +75,7 @@ from lsst.pipe.base import (
     buildExecutionButler,
 )
 from lsst.utils import doImportType
+from lsst.utils.logging import getLogger
 from lsst.utils.threads import disable_implicit_threading
 
 from .dotTools import graph2dot, pipeline2dot
@@ -87,7 +88,7 @@ from .singleQuantumExecutor import SingleQuantumExecutor
 #  Local non-exported definitions --
 # ----------------------------------
 
-_LOG = logging.getLogger(__name__)
+_LOG = getLogger(__name__)
 
 
 class _OutputChainedCollectionInfo:
@@ -666,6 +667,7 @@ class CmdLineFwk:
         self._summarize_qgraph(qgraph)
 
         if args.save_qgraph:
+            _LOG.verbose("Writing QuantumGraph to %r.", args.save_qgraph)
             qgraph.saveUri(args.save_qgraph)
 
         if args.save_single_quanta:
@@ -675,9 +677,11 @@ class CmdLineFwk:
                 sqgraph.saveUri(uri)
 
         if args.qgraph_dot:
+            _LOG.verbose("Writing quantum graph DOT visualization to %r.", args.qgraph_dot)
             graph2dot(qgraph, args.qgraph_dot)
 
         if args.execution_butler_location:
+            _LOG.verbose("Writing execution butler to %r.", args.execution_butler_location)
             butler = Butler.from_config(args.butler_config)
             assert isinstance(butler, DirectButler), "Execution butler needs DirectButler"
             newArgs = copy.deepcopy(args)
