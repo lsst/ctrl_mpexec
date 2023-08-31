@@ -37,6 +37,7 @@ import lsst.daf.butler
 import lsst.utils.tests
 from lsst.ctrl.mpexec import SimplePipelineExecutor
 from lsst.pipe.base import PipelineGraph, Struct, TaskMetadata, connectionTypes
+from lsst.pipe.base.pipeline_graph import IncompatibleDatasetTypeError
 from lsst.pipe.base.tests.no_dimensions import (
     NoDimensionsTestConfig,
     NoDimensionsTestConnections,
@@ -270,15 +271,10 @@ class SimplePipelineExecutorTests(lsst.utils.tests.TestCase):
         self.assertEqual(self.butler.get("intermediate"), {"zero": 0, "one": 1})
         self.assertEqual(self.butler.get("output"), {"zero": 0, "one": 1, "two": 2})
 
-    def test_from_pipeline_inconsistent_dataset_types(self):
-        """Generate the QG (by initializing the executor), then register the
-        dataset type with a different storage class than the QG should have
-        predicted, to make sure execution fails as it should.
+    def test_from_pipeline_incompatible(self):
+        """Test that we cannot make a QG if the registry and pipeline have
+        incompatible storage classes for a dataset type.
         """
-        executor = self._configure_pipeline(
-            NoDimensionsTestTask.ConfigClass, NoDimensionsTestTask.ConfigClass
-        )
-
         # Incompatible output dataset type.
         self.butler.registry.registerDatasetType(
             lsst.daf.butler.DatasetType(
@@ -287,11 +283,10 @@ class SimplePipelineExecutorTests(lsst.utils.tests.TestCase):
                 storageClass="StructuredDataList",
             )
         )
-
         with self.assertRaisesRegex(
-            ValueError, "StructuredDataDict.*inconsistent with registry definition.*StructuredDataList"
+            IncompatibleDatasetTypeError, "Incompatible definition.*StructuredDataDict.*StructuredDataList.*"
         ):
-            executor.run(register_dataset_types=True, save_versions=False)
+            self._configure_pipeline(NoDimensionsTestTask.ConfigClass, NoDimensionsTestTask.ConfigClass)
 
     def test_from_pipeline_metadata(self):
         """Test two tasks where the output uses metadata from input."""
