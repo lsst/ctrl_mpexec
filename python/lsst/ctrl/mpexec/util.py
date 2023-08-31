@@ -42,6 +42,7 @@ from collections.abc import Iterator
 # -----------------------------
 import lsst.pex.config as pexConfig
 from lsst.pipe.base import Pipeline, TaskDef
+from lsst.utils.logging import LsstLogAdapter
 
 # ----------------------------------
 #  Local non-exported definitions --
@@ -53,7 +54,7 @@ from lsst.pipe.base import Pipeline, TaskDef
 
 
 @contextlib.contextmanager
-def profile(filename: str, log: logging.Logger | None = None) -> Iterator:
+def profile(filename: str, log: logging.Logger | LsstLogAdapter | None = None) -> Iterator:
     """Context manager for profiling with cProfile
 
     Parameters
