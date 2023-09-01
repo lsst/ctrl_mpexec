@@ -33,6 +33,7 @@ import logging
 import os
 import shutil
 import tempfile
+import warnings
 from collections.abc import Iterator
 from contextlib import contextmanager, suppress
 from logging import FileHandler
@@ -40,6 +41,8 @@ from logging import FileHandler
 from lsst.daf.butler import Butler, FileDataset, LimitedButler, Quantum
 from lsst.daf.butler.logging import ButlerLogRecordHandler, ButlerLogRecords, ButlerMDC, JsonLogFormatter
 from lsst.pipe.base import InvalidQuantumError, TaskDef
+from lsst.pipe.base.pipeline_graph import TaskNode
+from lsst.utils.introspection import find_outside_stacklevel
 
 _LOG = logging.getLogger(__name__)
 
@@ -85,13 +88,17 @@ class LogCapture:
         return cls(butler, butler)
 
     @contextmanager
-    def capture_logging(self, taskDef: TaskDef, quantum: Quantum) -> Iterator[_LogCaptureFlag]:
+    def capture_logging(
+        self, task_node: TaskDef | TaskNode, /, quantum: Quantum
+    ) -> Iterator[_LogCaptureFlag]:
         """Configure logging system to capture logs for execution of this task.
 
         Parameters
         ----------
-        taskDef : `lsst.pipe.base.TaskDef`
-            The task definition.
+        task_node : `lsst.pipe.base.TaskDef` or \
+                `~lsst.pipe.base.pipeline_graph.TaskNode`
+            The task definition.  Support for `~lsst.pipe.base.TaskDef` is
+            deprecated and will be removed after v26.
         quantum : `~lsst.daf.butler.Quantum`
             Single Quantum instance.
 
@@ -103,7 +110,7 @@ class LogCapture:
 
         .. code-block:: py
 
-           with self.capture_logging(taskDef, quantum):
+           with self.capture_logging(task_node, quantum):
                # Run quantum and capture logs.
 
         Ths method can also setup logging to attach task- or
@@ -111,15 +118,29 @@ class LogCapture:
         take into account some info from task configuration as well.
         """
         # include quantum dataId and task label into MDC
-        mdc = {"LABEL": taskDef.label, "RUN": ""}
+        mdc = {"LABEL": task_node.label, "RUN": ""}
         if quantum.dataId:
             mdc["LABEL"] += f":{quantum.dataId}"
         if self.full_butler is not None:
             mdc["RUN"] = self.full_butler.run or ""
         ctx = _LogCaptureFlag()
 
+        if isinstance(task_node, TaskDef):
+            # TODO: remove this block and associated docs and annotations on
+            # DM-40443.
+            log_dataset_name = task_node.logOutputDatasetName
+            warnings.warn(
+                "Passing TaskDef instances to LogCapture is deprecatedand will not be supported after v26.",
+                FutureWarning,
+                find_outside_stacklevel("lsst.ctrl.mpexec"),
+            )
+        else:
+            log_dataset_name = (
+                task_node.log_output.dataset_type_name if task_node.log_output is not None else None
+            )
+
         # Add a handler to the root logger to capture execution log output.
-        if taskDef.logOutputDatasetName is not None:
+        if log_dataset_name is not None:
             # Either accumulate into ButlerLogRecords or stream JSON records to
             # file and ingest that (ingest is possible only with full butler).
             if self.stream_json_logs and self.full_butler is not None:
@@ -132,7 +153,7 @@ class LogCapture:
                 tmpdir = tempfile.mkdtemp(prefix="butler-temp-logs-")
 
                 # Construct a file to receive the log records and "touch" it.
-                log_file = os.path.join(tmpdir, f"butler-log-{taskDef.label}.json")
+                log_file = os.path.join(tmpdir, f"butler-log-{task_node.label}.json")
                 with open(log_file, "w"):
                     pass
                 log_handler_file = FileHandler(log_file)
@@ -147,7 +168,7 @@ class LogCapture:
                     logging.getLogger().removeHandler(log_handler_file)
                     log_handler_file.close()
                     if ctx.store:
-                        self._ingest_log_records(quantum, taskDef.logOutputDatasetName, log_file)
+                        self._ingest_log_records(quantum, log_dataset_name, log_file)
                     shutil.rmtree(tmpdir, ignore_errors=True)
 
             else:
@@ -161,7 +182,7 @@ class LogCapture:
                     # Ensure that the logs are stored in butler.
                     logging.getLogger().removeHandler(log_handler_memory)
                     if ctx.store:
-                        self._store_log_records(quantum, taskDef.logOutputDatasetName, log_handler_memory)
+                        self._store_log_records(quantum, log_dataset_name, log_handler_memory)
                     log_handler_memory.records.clear()
 
         else:
