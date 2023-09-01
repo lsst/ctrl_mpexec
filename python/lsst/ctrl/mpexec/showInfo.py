@@ -231,13 +231,13 @@ class ShowInfo:
             if pattern:
                 stream = _FilteredStream(pattern, stream=stream)
 
-        tasks = util.filterTasks(pipeline, taskName)
+        tasks = util.filterTaskNodes(pipeline.to_graph(), taskName)
         if not tasks:
             raise ValueError(f"Pipeline has no tasks named {taskName}")
 
-        for taskDef in tasks:
-            print(f"### Configuration for task `{taskDef.label}'", file=self.stream)
-            taskDef.config.saveToStream(stream, root="config", skipImports=not dumpFullConfig)
+        for task_node in tasks:
+            print(f"### Configuration for task `{task_node.label}'", file=self.stream)
+            task_node.config.saveToStream(stream, root="config", skipImports=not dumpFullConfig)
 
     def _showConfigHistory(self, pipeline: Pipeline, showArgs: str) -> None:
         """Show history for task configuration.
@@ -258,13 +258,13 @@ class ShowInfo:
         if not pattern:
             raise ValueError("Please provide a value with --show history (e.g. history=Task::param)")
 
-        tasks = util.filterTasks(pipeline, taskName)
+        tasks = util.filterTaskNodes(pipeline.to_graph(), taskName)
         if not tasks:
             raise ValueError(f"Pipeline has no tasks named {taskName}")
 
         found = False
-        for taskDef in tasks:
-            config = taskDef.config
+        for task_node in tasks:
+            config = task_node.config
 
             # Look for any matches in the config hierarchy for this name
             for nmatch, thisName in enumerate(fnmatch.filter(config.names(), pattern)):
@@ -275,12 +275,12 @@ class ShowInfo:
                 try:
                     if not cpath:
                         # looking for top-level field
-                        hconfig = taskDef.config
+                        hconfig = task_node.config
                     else:
                         hconfig = eval("config." + cpath, {}, {"config": config})
                 except AttributeError:
                     print(
-                        f"Error: Unable to extract attribute {cpath} from task {taskDef.label}",
+                        f"Error: Unable to extract attribute {cpath} from task {task_node.label}",
                         file=sys.stderr,
                     )
                     hconfig = None
@@ -289,7 +289,7 @@ class ShowInfo:
                 if isinstance(hconfig, pexConfig.Config | pexConfig.ConfigurableInstance) and hasattr(
                     hconfig, cname
                 ):
-                    print(f"### Configuration field for task `{taskDef.label}'", file=self.stream)
+                    print(f"### Configuration field for task `{task_node.label}'", file=self.stream)
                     print(pexConfigHistory.format(hconfig, cname), file=self.stream)
                     found = True
 
