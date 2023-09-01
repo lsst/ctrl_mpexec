@@ -43,8 +43,9 @@ from enum import Enum
 from typing import Literal
 
 from lsst.daf.butler.cli.cliLog import CliLog
-from lsst.pipe.base import InvalidQuantumError, TaskDef
+from lsst.pipe.base import InvalidQuantumError
 from lsst.pipe.base.graph.graph import QuantumGraph, QuantumNode
+from lsst.pipe.base.pipeline_graph import TaskNode
 from lsst.utils.threads import disable_implicit_threading
 
 from .executionGraphFixup import ExecutionGraphFixup
@@ -114,14 +115,14 @@ class _Job:
         # Unpickling of quantum has to happen after butler/executor, this is
         # why it is pickled manually here.
         quantum_pickle = pickle.dumps(self.qnode.quantum)
-        taskDef = self.qnode.taskDef
+        task_node = self.qnode.task_node
         self._rcv_conn, snd_conn = multiprocessing.Pipe(False)
         logConfigState = CliLog.configState
 
         mp_ctx = multiprocessing.get_context(startMethod)
         self.process = mp_ctx.Process(  # type: ignore[attr-defined]
             target=_Job._executeJob,
-            args=(quantumExecutor, taskDef, quantum_pickle, logConfigState, snd_conn),
+            args=(quantumExecutor, task_node, quantum_pickle, logConfigState, snd_conn),
             name=f"task-{self.qnode.quantum.dataId}",
         )
         # mypy is getting confused by multiprocessing.
@@ -133,7 +134,7 @@ class _Job:
     @staticmethod
     def _executeJob(
         quantumExecutor: QuantumExecutor,
-        taskDef: TaskDef,
+        task_node: TaskNode,
         quantum_pickle: bytes,
         logConfigState: list,
         snd_conn: multiprocessing.connection.Connection,
@@ -144,7 +145,7 @@ class _Job:
         ----------
         quantumExecutor : `QuantumExecutor`
             Executor for single quantum.
-        taskDef : `bytes`
+        task_node : `lsst.pipe.base.pipeline_graph.TaskNode`
             Task definition structure.
         quantum_pickle : `bytes`
             Quantum for this task execution in pickled form.
@@ -167,7 +168,7 @@ class _Job:
 
         quantum = pickle.loads(quantum_pickle)
         try:
-            quantumExecutor.execute(taskDef, quantum)
+            quantumExecutor.execute(task_node, quantum)
         finally:
             # If sending fails we do not want this new exception to be exposed.
             try:
@@ -216,7 +217,7 @@ class _Job:
             report = QuantumReport.from_exit_code(
                 exitCode=exitcode,
                 dataId=self.qnode.quantum.dataId,
-                taskLabel=self.qnode.taskDef.label,
+                taskLabel=self.qnode.task_node.label,
             )
         if self.terminated:
             # Means it was killed, assume it's due to timeout
@@ -245,7 +246,7 @@ class _Job:
         return msg
 
     def __str__(self) -> str:
-        return f"<{self.qnode.taskDef} dataId={self.qnode.quantum.dataId}>"
+        return f"<{self.qnode.task_node.label} dataId={self.qnode.quantum.dataId}>"
 
 
 class _JobList:
@@ -458,31 +459,34 @@ class MPGraphExecutor(QuantumGraphExecutor):
         failedNodes: set[QuantumNode] = set()
         for qnode in graph:
             assert qnode.quantum.dataId is not None, "Quantum DataId cannot be None"
+            task_node = qnode.task_node
 
             # Any failed inputs mean that the quantum has to be skipped.
             inputNodes = graph.determineInputsToQuantumNode(qnode)
             if inputNodes & failedNodes:
                 _LOG.error(
                     "Upstream job failed for task <%s dataId=%s>, skipping this task.",
-                    qnode.taskDef,
+                    task_node.label,
                     qnode.quantum.dataId,
                 )
                 failedNodes.add(qnode)
                 failed_quantum_report = QuantumReport(
-                    status=ExecutionStatus.SKIPPED, dataId=qnode.quantum.dataId, taskLabel=qnode.taskDef.label
+                    status=ExecutionStatus.SKIPPED,
+                    dataId=qnode.quantum.dataId,
+                    taskLabel=task_node.label,
                 )
                 report.quantaReports.append(failed_quantum_report)
                 continue
 
             _LOG.debug("Executing %s", qnode)
             try:
-                self.quantumExecutor.execute(qnode.taskDef, qnode.quantum)
+                self.quantumExecutor.execute(task_node, qnode.quantum)
                 successCount += 1
             except Exception as exc:
                 if self.pdb and sys.stdin.isatty() and sys.stdout.isatty():
                     _LOG.error(
                         "Task <%s dataId=%s> failed; dropping into pdb.",
-                        qnode.taskDef,
+                        task_node.label,
                         qnode.quantum.dataId,
                         exc_info=exc,
                     )
@@ -501,14 +505,14 @@ class MPGraphExecutor(QuantumGraphExecutor):
                 report.status = ExecutionStatus.FAILURE
                 if self.failFast:
                     raise MPGraphExecutorError(
-                        f"Task <{qnode.taskDef} dataId={qnode.quantum.dataId}> failed."
+                        f"Task <{task_node.label} dataId={qnode.quantum.dataId}> failed."
                     ) from exc
                 else:
                     # Note that there could be exception safety issues, which
                     # we presently ignore.
                     _LOG.error(
                         "Task <%s dataId=%s> failed; processing will continue for remaining tasks.",
-                        qnode.taskDef,
+                        task_node.label,
                         qnode.quantum.dataId,
                         exc_info=exc,
                     )
@@ -553,10 +557,10 @@ class MPGraphExecutor(QuantumGraphExecutor):
 
         # check that all tasks can run in sub-process
         for job in jobs.jobs:
-            taskDef = job.qnode.taskDef
-            if not taskDef.taskClass.canMultiprocess:
+            task_node = job.qnode.task_node
+            if not task_node.task_class.canMultiprocess:
                 raise MPGraphExecutorError(
-                    f"Task {taskDef.taskName} does not support multiprocessing; use single process"
+                    f"Task {task_node.label!r} does not support multiprocessing; use single process"
                 )
 
         finishedCount, failedCount = 0, 0
@@ -625,7 +629,7 @@ class MPGraphExecutor(QuantumGraphExecutor):
                         quantum_report = QuantumReport(
                             status=ExecutionStatus.SKIPPED,
                             dataId=job.qnode.quantum.dataId,
-                            taskLabel=job.qnode.taskDef.label,
+                            taskLabel=job.qnode.task_node.label,
                         )
                         report.quantaReports.append(quantum_report)
                         jobs.setJobState(job, JobState.FAILED_DEP)

@@ -80,19 +80,19 @@ class QuantumExecutorMock(QuantumExecutor):
         self.report = None
         self._execute_called = False
 
-    def execute(self, taskDef, quantum):
-        _LOG.debug("QuantumExecutorMock.execute: taskDef=%s dataId=%s", taskDef, quantum.dataId)
+    def execute(self, task_node, /, quantum):
+        _LOG.debug("QuantumExecutorMock.execute: task_node=%s dataId=%s", task_node, quantum.dataId)
         self._execute_called = True
-        if taskDef.taskClass:
+        if task_node.task_class:
             try:
                 # only works for one of the TaskMock classes below
-                taskDef.taskClass().runQuantum()
-                self.report = QuantumReport(dataId=quantum.dataId, taskLabel=taskDef.label)
+                task_node.task_class().runQuantum()
+                self.report = QuantumReport(dataId=quantum.dataId, taskLabel=task_node.label)
             except Exception as exc:
                 self.report = QuantumReport.from_exception(
                     exception=exc,
                     dataId=quantum.dataId,
-                    taskLabel=taskDef.label,
+                    taskLabel=task_node.label,
                 )
                 raise
         self.quanta.append(quantum)
@@ -141,15 +141,16 @@ class QuantumIterDataMock:
     ----------
     index : `int`
         The index of this mock.
-    taskDef : `TaskDefMock`
+    task_node : `TaskNodeMock`
         Mocked task definition.
     **dataId : `~typing.Any`
         The data ID of the mocked quantum.
     """
 
-    def __init__(self, index, taskDef, **dataId):
+    def __init__(self, index, task_node, **dataId):
         self.index = index
-        self.taskDef = taskDef
+        self.taskDef = task_node
+        self.task_node = task_node
         self.quantum = QuantumMock(dataId)
         self.dependencies = set()
         self.nodeId = NodeId(index, "DummyBuildString")
@@ -179,7 +180,7 @@ class QuantumGraphMock:
 
     def findTaskDefByLabel(self, label):
         for q in self:
-            if q.taskDef.label == label:
+            if q.task_node.label == label:
                 return q.taskDef
 
     def getQuantaForTask(self, taskDef):
@@ -189,7 +190,7 @@ class QuantumGraphMock:
     def getNodesForTask(self, taskDef):
         quanta = set()
         for q in self:
-            if q.taskDef == taskDef:
+            if q.task_node.label == taskDef.label:
                 quanta.add(q)
         return quanta
 
@@ -257,29 +258,28 @@ class TaskMockNoMP:
     canMultiprocess = False
 
 
-class TaskDefMock:
-    """Simple mock class for task definition in a pipeline.
+class TaskNodeMock:
+    """Simple mock class for task definition in a pipeline graph.
 
     Parameters
     ----------
-    taskName : `str`, optional
-        The name of the task.
+    label : `str`
+        Label of the task in the pipeline.
+    task_class : `type`
+        Subclass of `lsst.pipe.base.PipelineTask`.
     config : `PipelineTaskConfig`, optional
-        Config to use for this task.
-    taskClass : `type`, optional
-        The class of the task.
-    label : `str`, optional
-        Task label.
+        Configuration for the task.
     """
 
-    def __init__(self, taskName="Task", config=None, taskClass=TaskMockMP, label="task1"):
-        self.taskName = taskName
-        self.config = config
-        self.taskClass = taskClass
+    def __init__(self, label="task1", task_class=TaskMockMP, config=None):
         self.label = label
+        # taskClass to look like TaskDef, task_class to look like TaskNode.
+        self.taskClass = task_class
+        self.task_class = task_class
+        self.config = config
 
     def __str__(self):
-        return f"TaskDefMock(taskName={self.taskName}, taskClass={self.taskClass.__name__})"
+        return f"TaskNodeMock({self.label}, {self.taskClass.__name__})"
 
 
 def _count_status(report, status):
@@ -292,9 +292,9 @@ class MPGraphExecutorTestCase(unittest.TestCase):
 
     def test_mpexec_nomp(self):
         """Make simple graph and execute."""
-        taskDef = TaskDefMock()
+        task_node = TaskNodeMock()
         qgraph = QuantumGraphMock(
-            [QuantumIterDataMock(index=i, taskDef=taskDef, detector=i) for i in range(3)]
+            [QuantumIterDataMock(index=i, task_node=task_node, detector=i) for i in range(3)]
         )
 
         # run in single-process mode
@@ -314,9 +314,9 @@ class MPGraphExecutorTestCase(unittest.TestCase):
 
     def test_mpexec_mp(self):
         """Make simple graph and execute."""
-        taskDef = TaskDefMock()
+        task_node = TaskNodeMock()
         qgraph = QuantumGraphMock(
-            [QuantumIterDataMock(index=i, taskDef=taskDef, detector=i) for i in range(3)]
+            [QuantumIterDataMock(index=i, task_node=task_node, detector=i) for i in range(3)]
         )
 
         methods = ["spawn"]
@@ -343,26 +343,26 @@ class MPGraphExecutorTestCase(unittest.TestCase):
 
     def test_mpexec_nompsupport(self):
         """Try to run MP for task that has no MP support which should fail."""
-        taskDef = TaskDefMock(taskClass=TaskMockNoMP)
+        task_node = TaskNodeMock(task_class=TaskMockNoMP)
         qgraph = QuantumGraphMock(
-            [QuantumIterDataMock(index=i, taskDef=taskDef, detector=i) for i in range(3)]
+            [QuantumIterDataMock(index=i, task_node=task_node, detector=i) for i in range(3)]
         )
 
         # run in multi-process mode
         qexec = QuantumExecutorMock()
         mpexec = MPGraphExecutor(numProc=3, timeout=100, quantumExecutor=qexec)
-        with self.assertRaisesRegex(MPGraphExecutorError, "Task Task does not support multiprocessing"):
+        with self.assertRaisesRegex(MPGraphExecutorError, "Task 'task1' does not support multiprocessing"):
             mpexec.execute(qgraph)
 
     def test_mpexec_fixup(self):
         """Make simple graph and execute, add dependencies by executing fixup
         code.
         """
-        taskDef = TaskDefMock()
+        task_node = TaskNodeMock()
 
         for reverse in (False, True):
             qgraph = QuantumGraphMock(
-                [QuantumIterDataMock(index=i, taskDef=taskDef, detector=i) for i in range(3)]
+                [QuantumIterDataMock(index=i, task_node=task_node, detector=i) for i in range(3)]
             )
 
             qexec = QuantumExecutorMock()
@@ -377,13 +377,13 @@ class MPGraphExecutorTestCase(unittest.TestCase):
 
     def test_mpexec_timeout(self):
         """Fail due to timeout."""
-        taskDef = TaskDefMock()
-        taskDefSleep = TaskDefMock(taskClass=TaskMockLongSleep)
+        task_node = TaskNodeMock()
+        task_nodeSleep = TaskNodeMock(task_class=TaskMockLongSleep)
         qgraph = QuantumGraphMock(
             [
-                QuantumIterDataMock(index=0, taskDef=taskDef, detector=0),
-                QuantumIterDataMock(index=1, taskDef=taskDefSleep, detector=1),
-                QuantumIterDataMock(index=2, taskDef=taskDef, detector=2),
+                QuantumIterDataMock(index=0, task_node=task_node, detector=0),
+                QuantumIterDataMock(index=1, task_node=task_nodeSleep, detector=1),
+                QuantumIterDataMock(index=2, task_node=task_node, detector=2),
             ]
         )
 
@@ -422,13 +422,13 @@ class MPGraphExecutorTestCase(unittest.TestCase):
 
     def test_mpexec_failure(self):
         """Failure in one task should not stop other tasks."""
-        taskDef = TaskDefMock()
-        taskDefFail = TaskDefMock(taskClass=TaskMockFail)
+        task_node = TaskNodeMock()
+        task_node_fail = TaskNodeMock(task_class=TaskMockFail)
         qgraph = QuantumGraphMock(
             [
-                QuantumIterDataMock(index=0, taskDef=taskDef, detector=0),
-                QuantumIterDataMock(index=1, taskDef=taskDefFail, detector=1),
-                QuantumIterDataMock(index=2, taskDef=taskDef, detector=2),
+                QuantumIterDataMock(index=0, task_node=task_node, detector=0),
+                QuantumIterDataMock(index=1, task_node=task_node_fail, detector=1),
+                QuantumIterDataMock(index=2, task_node=task_node, detector=2),
             ]
         )
 
@@ -450,14 +450,14 @@ class MPGraphExecutorTestCase(unittest.TestCase):
 
     def test_mpexec_failure_dep(self):
         """Failure in one task should skip dependents."""
-        taskDef = TaskDefMock()
-        taskDefFail = TaskDefMock(taskClass=TaskMockFail)
+        task_node = TaskNodeMock()
+        task_node_fail = TaskNodeMock(task_class=TaskMockFail)
         qdata = [
-            QuantumIterDataMock(index=0, taskDef=taskDef, detector=0),
-            QuantumIterDataMock(index=1, taskDef=taskDefFail, detector=1),
-            QuantumIterDataMock(index=2, taskDef=taskDef, detector=2),
-            QuantumIterDataMock(index=3, taskDef=taskDef, detector=3),
-            QuantumIterDataMock(index=4, taskDef=taskDef, detector=4),
+            QuantumIterDataMock(index=0, task_node=task_node, detector=0),
+            QuantumIterDataMock(index=1, task_node=task_node_fail, detector=1),
+            QuantumIterDataMock(index=2, task_node=task_node, detector=2),
+            QuantumIterDataMock(index=3, task_node=task_node, detector=3),
+            QuantumIterDataMock(index=4, task_node=task_node, detector=4),
         ]
         qdata[2].dependencies.add(1)
         qdata[4].dependencies.add(3)
@@ -485,14 +485,14 @@ class MPGraphExecutorTestCase(unittest.TestCase):
 
     def test_mpexec_failure_dep_nomp(self):
         """Failure in one task should skip dependents, in-process version."""
-        taskDef = TaskDefMock()
-        taskDefFail = TaskDefMock(taskClass=TaskMockFail)
+        task_node = TaskNodeMock()
+        task_node_fail = TaskNodeMock(task_class=TaskMockFail)
         qdata = [
-            QuantumIterDataMock(index=0, taskDef=taskDef, detector=0),
-            QuantumIterDataMock(index=1, taskDef=taskDefFail, detector=1),
-            QuantumIterDataMock(index=2, taskDef=taskDef, detector=2),
-            QuantumIterDataMock(index=3, taskDef=taskDef, detector=3),
-            QuantumIterDataMock(index=4, taskDef=taskDef, detector=4),
+            QuantumIterDataMock(index=0, task_node=task_node, detector=0),
+            QuantumIterDataMock(index=1, task_node=task_node_fail, detector=1),
+            QuantumIterDataMock(index=2, task_node=task_node, detector=2),
+            QuantumIterDataMock(index=3, task_node=task_node, detector=3),
+            QuantumIterDataMock(index=4, task_node=task_node, detector=4),
         ]
         qdata[2].dependencies.add(1)
         qdata[4].dependencies.add(3)
@@ -524,15 +524,15 @@ class MPGraphExecutorTestCase(unittest.TestCase):
         Timing delay of task #3 should be sufficient to process
         failure and raise exception.
         """
-        taskDef = TaskDefMock()
-        taskDefFail = TaskDefMock(taskClass=TaskMockFail)
-        taskDefLongSleep = TaskDefMock(taskClass=TaskMockLongSleep)
+        task_node = TaskNodeMock()
+        task_node_fail = TaskNodeMock(task_class=TaskMockFail)
+        task_nodeLongSleep = TaskNodeMock(task_class=TaskMockLongSleep)
         qdata = [
-            QuantumIterDataMock(index=0, taskDef=taskDef, detector=0),
-            QuantumIterDataMock(index=1, taskDef=taskDefFail, detector=1),
-            QuantumIterDataMock(index=2, taskDef=taskDef, detector=2),
-            QuantumIterDataMock(index=3, taskDef=taskDefLongSleep, detector=3),
-            QuantumIterDataMock(index=4, taskDef=taskDef, detector=4),
+            QuantumIterDataMock(index=0, task_node=task_node, detector=0),
+            QuantumIterDataMock(index=1, task_node=task_node_fail, detector=1),
+            QuantumIterDataMock(index=2, task_node=task_node, detector=2),
+            QuantumIterDataMock(index=3, task_node=task_nodeLongSleep, detector=3),
+            QuantumIterDataMock(index=4, task_node=task_node, detector=4),
         ]
         qdata[1].dependencies.add(0)
         qdata[2].dependencies.add(1)
@@ -559,13 +559,13 @@ class MPGraphExecutorTestCase(unittest.TestCase):
 
     def test_mpexec_crash(self):
         """Check task crash due to signal."""
-        taskDef = TaskDefMock()
-        taskDefCrash = TaskDefMock(taskClass=TaskMockCrash)
+        task_node = TaskNodeMock()
+        task_node_crash = TaskNodeMock(task_class=TaskMockCrash)
         qgraph = QuantumGraphMock(
             [
-                QuantumIterDataMock(index=0, taskDef=taskDef, detector=0),
-                QuantumIterDataMock(index=1, taskDef=taskDefCrash, detector=1),
-                QuantumIterDataMock(index=2, taskDef=taskDef, detector=2),
+                QuantumIterDataMock(index=0, task_node=task_node, detector=0),
+                QuantumIterDataMock(index=1, task_node=task_node_crash, detector=1),
+                QuantumIterDataMock(index=2, task_node=task_node, detector=2),
             ]
         )
 
@@ -587,13 +587,13 @@ class MPGraphExecutorTestCase(unittest.TestCase):
 
     def test_mpexec_crash_failfast(self):
         """Check task crash due to signal with --fail-fast."""
-        taskDef = TaskDefMock()
-        taskDefCrash = TaskDefMock(taskClass=TaskMockCrash)
+        task_node = TaskNodeMock()
+        task_node_crash = TaskNodeMock(task_class=TaskMockCrash)
         qgraph = QuantumGraphMock(
             [
-                QuantumIterDataMock(index=0, taskDef=taskDef, detector=0),
-                QuantumIterDataMock(index=1, taskDef=taskDefCrash, detector=1),
-                QuantumIterDataMock(index=2, taskDef=taskDef, detector=2),
+                QuantumIterDataMock(index=0, task_node=task_node, detector=0),
+                QuantumIterDataMock(index=1, task_node=task_node_crash, detector=1),
+                QuantumIterDataMock(index=2, task_node=task_node, detector=2),
             ]
         )
 
@@ -612,9 +612,9 @@ class MPGraphExecutorTestCase(unittest.TestCase):
 
     def test_mpexec_num_fd(self):
         """Check that number of open files stays reasonable."""
-        taskDef = TaskDefMock()
+        task_node = TaskNodeMock()
         qgraph = QuantumGraphMock(
-            [QuantumIterDataMock(index=i, taskDef=taskDef, detector=i) for i in range(20)]
+            [QuantumIterDataMock(index=i, task_node=task_node, detector=i) for i in range(20)]
         )
 
         this_proc = psutil.Process()
@@ -654,7 +654,7 @@ class SingleQuantumExecutorTestCase(unittest.TestCase):
 
         taskFactory = AddTaskFactoryMock()
         executor = SingleQuantumExecutor(butler, taskFactory)
-        executor.execute(node.taskDef, node.quantum)
+        executor.execute(node.task_node, node.quantum)
         self.assertEqual(taskFactory.countExec, 1)
 
         # There must be one dataset of task's output connection
@@ -672,7 +672,7 @@ class SingleQuantumExecutorTestCase(unittest.TestCase):
 
         taskFactory = AddTaskFactoryMock()
         executor = SingleQuantumExecutor(butler, taskFactory)
-        executor.execute(node.taskDef, node.quantum)
+        executor.execute(node.task_node, node.quantum)
         self.assertEqual(taskFactory.countExec, 1)
 
         refs = list(butler.registry.queryDatasets("add_dataset1", collections=butler.run))
@@ -682,7 +682,7 @@ class SingleQuantumExecutorTestCase(unittest.TestCase):
         # Re-run it with skipExistingIn, it should not run.
         assert butler.run is not None
         executor = SingleQuantumExecutor(butler, taskFactory, skipExistingIn=[butler.run])
-        executor.execute(node.taskDef, node.quantum)
+        executor.execute(node.task_node, node.quantum)
         self.assertEqual(taskFactory.countExec, 1)
 
         refs = list(butler.registry.queryDatasets("add_dataset1", collections=butler.run))
@@ -701,7 +701,7 @@ class SingleQuantumExecutorTestCase(unittest.TestCase):
 
         taskFactory = AddTaskFactoryMock()
         executor = SingleQuantumExecutor(butler, taskFactory)
-        executor.execute(node.taskDef, node.quantum)
+        executor.execute(node.task_node, node.quantum)
         self.assertEqual(taskFactory.countExec, 1)
 
         refs = list(butler.registry.queryDatasets("add_dataset1", collections=butler.run))
@@ -722,7 +722,7 @@ class SingleQuantumExecutorTestCase(unittest.TestCase):
         executor = SingleQuantumExecutor(
             butler, taskFactory, skipExistingIn=[butler.run], clobberOutputs=True
         )
-        executor.execute(node.taskDef, node.quantum)
+        executor.execute(node.task_node, node.quantum)
         self.assertEqual(taskFactory.countExec, 1)
 
         refs = list(butler.registry.queryDatasets("add_dataset1", collections=butler.run))
@@ -737,7 +737,7 @@ class SingleQuantumExecutorTestCase(unittest.TestCase):
         # clobber.
         assert butler.run is not None
         executor = SingleQuantumExecutor(butler, taskFactory, clobberOutputs=True)
-        executor.execute(node.taskDef, node.quantum)
+        executor.execute(node.task_node, node.quantum)
         self.assertEqual(taskFactory.countExec, 2)
 
         refs = list(butler.registry.queryDatasets("add_dataset1", collections=butler.run))
