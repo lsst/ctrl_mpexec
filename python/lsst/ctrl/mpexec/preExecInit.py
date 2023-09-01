@@ -185,7 +185,9 @@ class PreExecInitBase(abc.ABC):
         _LOG.debug("Will save InitOutputs for all tasks")
         for taskDef in self._task_iter(graph):
             init_input_refs = graph.initInputRefs(taskDef) or []
-            task = self.taskFactory.makeTask(taskDef, self.butler, init_input_refs)
+            task = self.taskFactory.makeTask(
+                graph.pipeline_graph.tasks[taskDef.label], self.butler, init_input_refs
+            )
             for name in taskDef.connections.initOutputs:
                 attribute = getattr(taskDef.connections, name)
                 init_output_refs = graph.initOutputRefs(taskDef) or []
