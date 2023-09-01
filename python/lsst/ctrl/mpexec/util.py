@@ -28,7 +28,7 @@
 """Few utility methods used by the rest of a package.
 """
 
-__all__ = ["profile", "printTable", "filterTasks", "subTaskIter"]
+__all__ = ["profile", "printTable", "filterTasks", "filterTaskNodes", "subTaskIter"]
 
 # -------------------------------
 #  Imports of standard modules --
@@ -37,11 +37,14 @@ import contextlib
 import logging
 from collections.abc import Iterator
 
+import lsst.pex.config as pexConfig
+
 # -----------------------------
 #  Imports for other modules --
 # -----------------------------
-import lsst.pex.config as pexConfig
-from lsst.pipe.base import Pipeline, TaskDef
+from deprecated.sphinx import deprecated
+from lsst.pipe.base import Pipeline, PipelineGraph, TaskDef
+from lsst.pipe.base.pipeline_graph import TaskNode
 from lsst.utils.logging import LsstLogAdapter
 
 # ----------------------------------
@@ -127,6 +130,12 @@ def printTable(rows: list[tuple], header: tuple | None) -> None:
         print(col1.ljust(width), col2)
 
 
+# TODO: remove on DM-40443.
+@deprecated(
+    "filterTasks is deprecated in favor of filterTaskNodes, and will be removed after v26.",
+    version="v26.0",
+    category=FutureWarning,
+)
 def filterTasks(pipeline: Pipeline, name: str | None) -> list[TaskDef]:
     """Find list of tasks matching given name.
 
@@ -155,6 +164,36 @@ def filterTasks(pipeline: Pipeline, name: str | None) -> list[TaskDef]:
                 tasks.append(taskDef)
         elif taskDef.taskName.split(".")[-1] == name:
             tasks.append(taskDef)
+    return tasks
+
+
+def filterTaskNodes(pipeline_graph: PipelineGraph, name: str | None) -> list[TaskNode]:
+    """Find list of tasks matching given name.
+
+    For matching task either task label or task name after last dot should
+    be identical to `name`. If task label is non-empty then task name is not
+    checked.
+
+    Parameters
+    ----------
+    pipeline : `~lsst.pipe.base.PipelineGraph`
+        Pipeline graph to examine.
+    name : `str` or `None`
+        If empty or `None` then all tasks are xreturned.
+
+    Returns
+    -------
+    tasks : `list` [ `lsst.pipe.base.pipeline_graph.TaskNode`]
+        List of task nodes that match.
+    """
+    if not name:
+        return list(pipeline_graph.tasks.values())
+    tasks = []
+    for task_node in pipeline_graph.tasks.values():
+        if task_node.label == name:
+            tasks.append(task_node)
+        elif task_node.task_class_name.split(".")[-1] == name:
+            tasks.append(task_node)
     return tasks
 
 
