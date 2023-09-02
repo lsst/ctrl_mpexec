@@ -33,7 +33,6 @@ __all__ = ["SingleQuantumExecutor"]
 import logging
 import sys
 import time
-import warnings
 from collections import defaultdict
 from collections.abc import Callable
 from itertools import chain
@@ -58,15 +57,13 @@ from lsst.pipe.base import (
     PipelineTask,
     QuantumContext,
     RepeatableQuantumError,
-    TaskDef,
     TaskFactory,
 )
-from lsst.pipe.base.pipeline_graph import PipelineGraph, TaskNode
+from lsst.pipe.base.pipeline_graph import TaskNode
 
 # During metadata transition phase, determine metadata class by
 # asking pipe_base
 from lsst.pipe.base.task import _TASK_FULL_METADATA_TYPE, _TASK_METADATA_TYPE
-from lsst.utils.introspection import find_outside_stacklevel
 from lsst.utils.timer import logInfo
 
 # -----------------------------
@@ -171,39 +168,16 @@ class SingleQuantumExecutor(QuantumExecutor):
                     collectionTypes=CollectionType.RUN,
                 )
 
-    def execute(
-        self, task_node: TaskNode | TaskDef, /, quantum: Quantum
-    ) -> tuple[Quantum, QuantumReport | None]:
+    def execute(self, task_node: TaskNode, /, quantum: Quantum) -> tuple[Quantum, QuantumReport | None]:
         # Docstring inherited from QuantumExecutor.execute
         assert quantum.dataId is not None, "Quantum DataId cannot be None"
 
-        task_node = self._conform_task_def(task_node)
         if self.butler is not None:
             self.butler.registry.refresh()
 
         result = self._execute(task_node, quantum)
         report = QuantumReport(dataId=quantum.dataId, taskLabel=task_node.label)
         return result, report
-
-    def _conform_task_def(self, task_node: TaskDef | TaskNode) -> TaskNode:
-        """Convert the given object to a TaskNode and emit a deprecation
-        warning if it isn't one already.
-        """
-        # TODO: remove this function and all call points on DM-40443, and
-        # fix annotations and docstrings for those methods as well.
-        if isinstance(task_node, TaskDef):
-            warnings.warn(
-                "Passing TaskDef to SingleQuantumExecutor methods is deprecated "
-                "and will not be supported after v27.",
-                FutureWarning,
-                find_outside_stacklevel("lsst.ctrl.mpexec"),
-            )
-            # Convert to a real TaskNode to avoid a warnings cascade.
-            pipeline_graph = PipelineGraph()
-            return pipeline_graph.add_task(
-                task_node.label, task_node.taskClass, task_node.config, connections=task_node.connections
-            )
-        return task_node
 
     def _execute(self, task_node: TaskNode, /, quantum: Quantum) -> Quantum:
         """Execute the quantum.
@@ -317,7 +291,7 @@ class SingleQuantumExecutor(QuantumExecutor):
         return quantum
 
     def checkExistingOutputs(
-        self, quantum: Quantum, task_node: TaskDef | TaskNode, /, limited_butler: LimitedButler
+        self, quantum: Quantum, task_node: TaskNode, /, limited_butler: LimitedButler
     ) -> bool:
         """Decide whether this quantum needs to be executed.
 
@@ -331,10 +305,8 @@ class SingleQuantumExecutor(QuantumExecutor):
         ----------
         quantum : `~lsst.daf.butler.Quantum`
             Quantum to check for existing outputs.
-        task_node : `~lsst.pipe.base.TaskDef` or \
-                `~lsst.pipe.base.pipeline_graph.TaskNode`
-            Task definition structure.  `~lsst.pipe.base.TaskDef` support is
-            deprecated and will be removed after v27.
+        task_node : `~lsst.pipe.base.pipeline_graph.TaskNode`
+            Task definition structure.
         limited_butler : `~lsst.daf.butler.LimitedButler`
             Butler to use for querying and clobbering.
 
@@ -351,8 +323,6 @@ class SingleQuantumExecutor(QuantumExecutor):
         RuntimeError
             Raised if some outputs exist and some not.
         """
-        task_node = self._conform_task_def(task_node)
-
         if self.assumeNoExistingOutputs:
             return False
 
@@ -414,7 +384,7 @@ class SingleQuantumExecutor(QuantumExecutor):
         return False
 
     def updatedQuantumInputs(
-        self, quantum: Quantum, task_node: TaskDef | TaskNode, /, limited_butler: LimitedButler
+        self, quantum: Quantum, task_node: TaskNode, /, limited_butler: LimitedButler
     ) -> Quantum:
         """Update quantum with extra information, returns a new updated
         Quantum.
@@ -428,10 +398,8 @@ class SingleQuantumExecutor(QuantumExecutor):
         ----------
         quantum : `~lsst.daf.butler.Quantum`
             Single Quantum instance.
-        task_node : `~lsst.pipe.base.TaskDef` or \
-                `~lsst.pipe.base.pipeline_graph.TaskNode`
-            Task definition structure.  `~lsst.pipe.base.TaskDef` support is
-            deprecated and will be removed after v27.
+        task_node : `~lsst.pipe.base.pipeline_graph.TaskNode`
+            Task definition structure.
         limited_butler : `~lsst.daf.butler.LimitedButler`
             Butler to use for querying.
 
@@ -440,8 +408,6 @@ class SingleQuantumExecutor(QuantumExecutor):
         update : `~lsst.daf.butler.Quantum`
             Updated Quantum instance.
         """
-        task_node = self._conform_task_def(task_node)
-
         anyChanges = False
         updatedInputs: defaultdict[DatasetType, list] = defaultdict(list)
         for key, refsForDatasetType in quantum.inputs.items():
@@ -491,7 +457,7 @@ class SingleQuantumExecutor(QuantumExecutor):
         self,
         task: PipelineTask,
         quantum: Quantum,
-        task_node: TaskDef | TaskNode,
+        task_node: TaskNode,
         /,
         limited_butler: LimitedButler,
     ) -> None:
@@ -503,15 +469,11 @@ class SingleQuantumExecutor(QuantumExecutor):
             Task object.
         quantum : `~lsst.daf.butler.Quantum`
             Single Quantum instance.
-        task_node : `~lsst.pipe.base.TaskDef` or \
-                `~lsst.pipe.base.pipeline_graph.TaskNode`
-            Task definition structure.  `~lsst.pipe.base.TaskDef` support is
-            deprecated and will be removed after v27.
+        task_node : `~lsst.pipe.base.pipeline_graph.TaskNode`
+            Task definition structure.
         limited_butler : `~lsst.daf.butler.LimitedButler`
             Butler to use for dataset I/O.
         """
-        task_node = self._conform_task_def(task_node)
-
         # Create a butler that operates in the context of a quantum
         butlerQC = QuantumContext(limited_butler, quantum, resources=self.resources)
 
@@ -539,10 +501,9 @@ class SingleQuantumExecutor(QuantumExecutor):
             sys.exit(err.EXIT_CODE)
 
     def writeMetadata(
-        self, quantum: Quantum, metadata: Any, task_node: TaskDef | TaskNode, /, limited_butler: LimitedButler
+        self, quantum: Quantum, metadata: Any, task_node: TaskNode, /, limited_butler: LimitedButler
     ) -> None:
         # DatasetRef has to be in the Quantum outputs, can lookup by name
-        task_node = self._conform_task_def(task_node)
         try:
             [ref] = quantum.outputs[task_node.metadata_output.dataset_type_name]
         except LookupError as exc:

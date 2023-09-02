@@ -169,7 +169,7 @@ class _Job:
         quantum = pickle.loads(quantum_pickle)
         report: QuantumReport | None = None
         try:
-            _, report = quantumExecutor.execute(task_node, quantum)
+            quantum, report = quantumExecutor.execute(task_node, quantum)
         except Exception as exc:
             _LOG.debug("exception from task %s dataId %s: %s", task_node.label, quantum.dataId, exc)
             report = QuantumReport.from_exception(

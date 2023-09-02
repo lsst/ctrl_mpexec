@@ -36,19 +36,14 @@ __all__ = [
 import datetime
 import getpass
 import logging
-import warnings
-from collections.abc import Iterable, Mapping
-from typing import Any, Protocol
+from collections.abc import Iterable
+from typing import Any
 
 import lsst.pipe.base
 import lsst.resources
 from lsst.daf.butler import Butler
-from lsst.pipe.base.all_dimensions_quantum_graph_builder import (
-    AllDimensionsQuantumGraphBuilder,
-    DatasetQueryConstraintVariant,
-)
+from lsst.pipe.base.all_dimensions_quantum_graph_builder import AllDimensionsQuantumGraphBuilder
 from lsst.pipe.base.quantum_graph_builder import QuantumGraphBuilder
-from lsst.utils.introspection import find_outside_stacklevel
 
 from .mpGraphExecutor import MPGraphExecutor
 from .preExecInit import PreExecInit
@@ -57,20 +52,6 @@ from .singleQuantumExecutor import SingleQuantumExecutor
 from .taskFactory import TaskFactory
 
 _LOG = logging.getLogger(__name__)
-
-
-class _GraphBuilderLike(Protocol):
-    def makeGraph(
-        self,
-        pipeline: lsst.pipe.base.Pipeline | Iterable[lsst.pipe.base.pipeline.TaskDef],
-        collections: Any,
-        run: str,
-        userQuery: str | None,
-        datasetQueryConstraint: DatasetQueryConstraintVariant = DatasetQueryConstraintVariant.ALL,
-        metadata: Mapping[str, Any] | None = None,
-        bind: Mapping[str, Any] | None = None,
-    ) -> lsst.pipe.base.QuantumGraph:
-        pass
 
 
 class SeparablePipelineExecutor:
@@ -182,7 +163,6 @@ class SeparablePipelineExecutor:
         self,
         pipeline: lsst.pipe.base.Pipeline,
         where: str = "",
-        builder: _GraphBuilderLike | None = None,
         *,
         builder_class: type[QuantumGraphBuilder] = AllDimensionsQuantumGraphBuilder,
         attach_datastore_records: bool = False,
@@ -198,11 +178,6 @@ class SeparablePipelineExecutor:
             A data ID query that constrains the quanta generated.  Must not be
             provided if a custom ``builder_class`` is given and that class does
             not accept ``where`` as a construction argument.
-        builder : `lsst.pipe.base.GraphBuilder`-like, optional
-            A graph builder that implements a
-            `~lsst.pipe.base.GraphBuilder.makeGraph` method. By default, a new
-            instance of `lsst.pipe.base.GraphBuilder` is used.  Deprecated in
-            favor of ``builder_class`` and will be removed after v27.
         builder_class : `type` [ \
                 `lsst.pipe.base.quantum_graph_builder.QuantumGraphBuilder` ], \
                 optional
@@ -241,34 +216,18 @@ class SeparablePipelineExecutor:
             "user": getpass.getuser(),
             "time": str(datetime.datetime.now()),
         }
-        if builder:
-            warnings.warn(
-                "The 'builder' argument to SeparablePipelineBuilder.make_quantum_graph "
-                "is deprecated in favor of 'builder_class', and will be removed after v27.",
-                FutureWarning,
-                find_outside_stacklevel("lsst.ctrl.mpexec"),
-            )
-            assert self._butler.run is not None, "Butler output run collection must be defined"
-            graph = builder.makeGraph(
-                pipeline,
-                self._butler.collections,
-                self._butler.run,
-                userQuery=where,
-                metadata=metadata,
-            )
-        else:
-            if where:
-                # Only pass 'where' if it's actually provided, since some
-                # QuantumGraphBuilder subclasses may not accept it.
-                kwargs["where"] = where
-            qg_builder = builder_class(
-                pipeline.to_graph(),
-                self._butler,
-                skip_existing_in=self._skip_existing_in,
-                clobber=self._clobber_output,
-                **kwargs,
-            )
-            graph = qg_builder.build(metadata=metadata, attach_datastore_records=attach_datastore_records)
+        if where:
+            # Only pass 'where' if it's actually provided, since some
+            # QuantumGraphBuilder subclasses may not accept it.
+            kwargs["where"] = where
+        qg_builder = builder_class(
+            pipeline.to_graph(),
+            self._butler,
+            skip_existing_in=self._skip_existing_in,
+            clobber=self._clobber_output,
+            **kwargs,
+        )
+        graph = qg_builder.build(metadata=metadata, attach_datastore_records=attach_datastore_records)
         _LOG.info(
             "QuantumGraph contains %d quanta for %d tasks, graph ID: %r",
             len(graph),
