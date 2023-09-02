@@ -32,11 +32,11 @@ __all__ = ["QuantumExecutor", "QuantumGraphExecutor"]
 from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING
 
-from .reports import QuantumReport, Report
+from .reports import Report
 
 if TYPE_CHECKING:
     from lsst.daf.butler import Quantum
-    from lsst.pipe.base import QuantumGraph, TaskDef
+    from lsst.pipe.base import QuantumGraph
     from lsst.pipe.base.pipeline_graph import TaskNode
 
 
@@ -50,17 +50,13 @@ class QuantumExecutor(ABC):
     """
 
     @abstractmethod
-    def execute(
-        self, task_node: TaskNode | TaskDef, /, quantum: Quantum
-    ) -> tuple[Quantum, QuantumReport | None]:
+    def execute(self, task_node: TaskNode, /, quantum: Quantum) -> Quantum:
         """Execute single quantum.
 
         Parameters
         ----------
-        task_node : `~lsst.pipe.base.TaskDef` or \
-                `~lsst.pipe.base.pipeline_graph.TaskNode`
-            Task definition structure.  `~lsst.pipe.base.TaskDef` support is
-            deprecated and will be removed after v27.
+        task_node : `~lsst.pipe.base.pipeline_graph.TaskNode`
+            Task definition structure.
         quantum : `~lsst.daf.butler.Quantum`
             Quantum for this execution.
 
