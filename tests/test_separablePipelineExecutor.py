@@ -224,9 +224,8 @@ class SeparablePipelineExecutorTests(lsst.utils.tests.TestCase):
             ResourcePath(self.pipeline_file),
             ResourcePath(self.pipeline_file).geturl(),
         ]:
-            pipeline = executor.make_pipeline(uri)
-            self.assertEqual(len(pipeline), 2)
-            self.assertEqual({t.label for t in pipeline}, {"a", "b"})
+            pipeline_graph = executor.make_pipeline(uri).to_graph()
+            self.assertEqual(set(pipeline_graph.tasks), {"a", "b"})
 
     def test_make_pipeline_subset(self):
         executor = SeparablePipelineExecutor(self.butler)
@@ -236,9 +235,8 @@ class SeparablePipelineExecutorTests(lsst.utils.tests.TestCase):
             ResourcePath(path),
             ResourcePath(path).geturl(),
         ]:
-            pipeline = executor.make_pipeline(uri)
-            self.assertEqual(len(pipeline), 1)
-            self.assertEqual({t.label for t in pipeline}, {"a"})
+            pipeline_graph = executor.make_pipeline(uri).to_graph()
+            self.assertEqual(set(pipeline_graph.tasks), {"a"})
 
     def test_make_quantum_graph_nowhere_noskip_noclobber(self):
         executor = SeparablePipelineExecutor(self.butler, skip_existing_in=None, clobber_output=False)

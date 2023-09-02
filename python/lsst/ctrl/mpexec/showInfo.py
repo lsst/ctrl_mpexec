@@ -304,10 +304,10 @@ class ShowInfo:
         pipeline : `lsst.pipe.base.Pipeline`
             Pipeline definition.
         """
-        for taskDef in pipeline.toExpandedPipeline():
-            print(f"### Subtasks for task `{taskDef.taskName}'", file=self.stream)
+        for task_node in pipeline.to_graph().tasks.values():
+            print(f"### Subtasks for task `{task_node.task_class_name}'", file=self.stream)
 
-            for configName, taskName in util.subTaskIter(taskDef.config):
+            for configName, taskName in util.subTaskIter(task_node.config):
                 print(f"{configName}: {taskName}", file=self.stream)
 
     def _showGraph(self, graph: QuantumGraph) -> None:
