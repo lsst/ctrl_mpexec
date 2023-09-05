@@ -438,8 +438,16 @@ class PreExecInit(PreExecInitBase):
                 try:
                     expected = self.full_butler.registry.getDatasetType(dataset_type.name)
                 except MissingDatasetTypeError:
-                    # Likely means that --register-dataset-types is forgotten.
-                    missing_dataset_types.add(dataset_type.name)
+                    # Likely means that --register-dataset-types is forgotten,
+                    # but we could also get here if there is a prerequisite
+                    # input that is optional and none were found in this repo;
+                    # that is not an error.  And we don't bother to check if
+                    # they are optional here, since the fact that we were able
+                    # to make the QG says that they were, since there couldn't
+                    # have been any datasets if the dataset types weren't
+                    # registered.
+                    if not graph.pipeline_graph.dataset_types[dataset_type.name].is_prerequisite:
+                        missing_dataset_types.add(dataset_type.name)
                     continue
                 if expected != dataset_type:
                     raise ConflictingDefinitionError(
