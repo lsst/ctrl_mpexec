@@ -457,6 +457,31 @@ class CmdLineFwkTestCase(unittest.TestCase):
         self.assertEqual("### Configuration for task `task'", output)
 
         stream = StringIO()
+        show = ShowInfo(["pipeline-graph"], stream=stream)  # No match
+        show.show_pipeline_info(pipeline, None)
+        stream.seek(0)
+        output = stream.read().strip()
+        self.assertEqual(
+            "\n".join(
+                [
+                    "○  add_dataset_in",
+                    "│",
+                    "■  task",
+                    "│",
+                    "◍  add_dataset_out, add2_dataset_out",
+                ]
+            ),
+            output,
+        )
+
+        stream = StringIO()
+        show = ShowInfo(["task-graph"], stream=stream)  # No match
+        show.show_pipeline_info(pipeline, None)
+        stream.seek(0)
+        output = stream.read().strip()
+        self.assertEqual("■  task", output)
+
+        stream = StringIO()
         show = ShowInfo(["config=task::addEnd"], stream=stream)  # Match but warns
         show.show_pipeline_info(pipeline, None)
         stream.seek(0)
