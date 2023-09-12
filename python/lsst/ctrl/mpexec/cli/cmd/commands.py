@@ -123,6 +123,11 @@ def build(ctx: click.Context, **kwargs: Any) -> None:
     """
     kwargs = _collectActions(ctx, **kwargs)
     show = ShowInfo(kwargs.pop("show", []))
+    if kwargs.get("butler_config") is not None and {"pipeline-graph", "task-graph"}.isdisjoint(show.commands):
+        raise click.ClickException(
+            "--butler-config was provided but nothing uses it "
+            "(only --show pipeline-graph and --show task-graph do)."
+        )
     script.build(**kwargs, show=show)
     _unhandledShow(show, "build")
 
