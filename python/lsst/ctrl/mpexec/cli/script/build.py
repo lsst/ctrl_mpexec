@@ -27,12 +27,21 @@
 
 from types import SimpleNamespace
 
+from lsst.daf.butler import Butler
+
 from ... import CmdLineFwk
 from ..utils import _PipelineAction
 
 
 def build(  # type: ignore
-    order_pipeline, pipeline, pipeline_actions, pipeline_dot, save_pipeline, show, **kwargs
+    order_pipeline,
+    pipeline,
+    pipeline_actions,
+    pipeline_dot,
+    save_pipeline,
+    show,
+    butler_config=None,
+    **kwargs,
 ):
     """Implement the command line interface `pipetask build` subcommand.
 
@@ -59,7 +68,14 @@ def build(  # type: ignore
         Path location for storing resulting pipeline definition in YAML format.
     show : `lsst.ctrl.mpexec.showInfo.ShowInfo`
         Descriptions of what to dump to stdout.
-    kwargs : `dict` [`str`, `str`]
+    butler_config : `str`, `dict`, or `lsst.daf.butler.Config`, optional
+        If `str`, `butler_config` is the path location of the gen3
+        butler/registry config file. If `dict`, `butler_config` is key value
+        pairs used to init or update the `lsst.daf.butler.Config` instance. If
+        `Config`, it is the object used to configure a Butler.
+        Only used to resolve pipeline graphs for --show pipeline-graph and
+        --show task-graph.
+    **kwargs
         Ignored; click commands may accept options for more than one script
         function and pass all the option kwargs to each of the script functions
         which ingore these unused kwargs.
@@ -93,6 +109,11 @@ def build(  # type: ignore
     # Will raise an exception if it fails to build the pipeline.
     pipeline = f.makePipeline(args)
 
-    show.show_pipeline_info(pipeline)
+    if butler_config is not None:
+        butler = Butler(butler_config, writeable=False)
+    else:
+        butler = None
+
+    show.show_pipeline_info(pipeline, butler=butler)
 
     return pipeline
