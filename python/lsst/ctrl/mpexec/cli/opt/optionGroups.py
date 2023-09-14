@@ -40,7 +40,7 @@ __all__ = (
 import click
 import lsst.daf.butler.cli.opt as dafButlerOpts
 import lsst.pipe.base.cli.opt as pipeBaseOpts
-from lsst.daf.butler.cli.opt import transfer_option
+from lsst.daf.butler.cli.opt import transfer_option_no_short
 from lsst.daf.butler.cli.utils import OptionGroup, option_section, unwrap
 
 from . import options as ctrlMpExecOpts
@@ -112,7 +112,7 @@ class qgraph_options(OptionGroup):  # noqa: N801
             ctrlMpExecOpts.save_execution_butler_option(),
             ctrlMpExecOpts.clobber_execution_butler_option(),
             ctrlMpExecOpts.target_datastore_root_option(),
-            transfer_option(
+            transfer_option_no_short(
                 help=unwrap(
                     """Data transfer mode for the execution butler datastore.
                     Defaults to "copy" if --target-datastore-root is provided.
