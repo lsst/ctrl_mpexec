@@ -1,5 +1,0 @@
-* ``SingleQuantumExecutor`` has been modified such that it no longer unresolves ``DatasetRef`` when putting the non-``PipelineTask`` datasets (such as packages and configs).
-  This has been done so that the refs in the quantum graph are preserved when they are written to a normal Butler.
-* Fixed a race condition when ``pipetask run`` creates the graph with a timestamped output run and then executes it.
-  Previously the graph creation and run execution phases calculated their own timestamped output run and it would be possible for the execution output run to be one second later than the graph run.
-  Previously this did not matter (the graph run was being ignored) but with the change to always use the ``DatasetRef`` from the graph it becomes critical that they match.
