@@ -1,2 +1,0 @@
-* Added new command line options ``--cores-per-quantum`` and ``--memory-per-quantum``.
-  These can be used to pass some execution context into a quantum, allowing that quantum to change how it executes (maybe by using multiple threads).
