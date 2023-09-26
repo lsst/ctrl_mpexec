@@ -1,1 +1,0 @@
-`pipetask` will now produce QuantumGraph with resolved output references, even with execution butler option.
