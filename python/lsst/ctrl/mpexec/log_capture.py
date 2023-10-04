@@ -38,7 +38,7 @@ from contextlib import contextmanager, suppress
 from logging import FileHandler
 
 from lsst.daf.butler import Butler, FileDataset, LimitedButler, Quantum
-from lsst.daf.butler.core.logging import ButlerLogRecordHandler, ButlerLogRecords, ButlerMDC, JsonLogFormatter
+from lsst.daf.butler.logging import ButlerLogRecordHandler, ButlerLogRecords, ButlerMDC, JsonLogFormatter
 from lsst.pipe.base import InvalidQuantumError, TaskDef
 
 _LOG = logging.getLogger(__name__)
