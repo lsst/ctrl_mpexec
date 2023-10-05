@@ -51,14 +51,14 @@ from lsst.daf.butler import (
     DatasetId,
     DatasetRef,
     DatasetType,
-    DatastoreCacheManager,
-    DatastoreRecordData,
     DimensionUniverse,
     LimitedButler,
     Quantum,
     QuantumBackedButler,
     Registry,
 )
+from lsst.daf.butler.datastore.cache_manager import DatastoreCacheManager
+from lsst.daf.butler.datastore.record_data import DatastoreRecordData
 from lsst.daf.butler.registry import MissingCollectionError, RegistryDefaults
 from lsst.daf.butler.registry.wildcards import CollectionWildcard
 from lsst.pipe.base import (
