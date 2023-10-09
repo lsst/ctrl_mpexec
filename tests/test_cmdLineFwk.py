@@ -61,12 +61,12 @@ from lsst.daf.butler import (
     Config,
     DataCoordinate,
     DatasetRef,
+    DatasetType,
     DimensionConfig,
     DimensionUniverse,
     Quantum,
     Registry,
 )
-from lsst.daf.butler.core.datasets.type import DatasetType
 from lsst.daf.butler.registry import RegistryConfig
 from lsst.pipe.base import (
     Instrument,

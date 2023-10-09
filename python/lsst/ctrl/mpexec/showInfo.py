@@ -39,7 +39,8 @@ from typing import Any
 
 import lsst.pex.config as pexConfig
 import lsst.pex.config.history as pexConfigHistory
-from lsst.daf.butler import Butler, DatasetRef, DatasetType, DatastoreRecordData, NamedKeyMapping
+from lsst.daf.butler import Butler, DatasetRef, DatasetType, NamedKeyMapping
+from lsst.daf.butler.datastore.record_data import DatastoreRecordData
 from lsst.pipe.base import Pipeline, QuantumGraph
 from lsst.pipe.base.pipeline_graph import visualization
 
