@@ -76,7 +76,7 @@ class CleanupResult(ConfirmableResult):
         return msg
 
     def on_confirmation(self) -> None:
-        butler = Butler(self.butler_config, writeable=True)
+        butler = Butler.from_config(self.butler_config, writeable=True)
         with butler.transaction():
             for collection in self.others_to_remove:
                 butler.registry.removeCollection(collection)
@@ -109,7 +109,7 @@ def cleanup(
     collection : str
         The name of the chained collection.
     """
-    butler = Butler(butler_config)
+    butler = Butler.from_config(butler_config)
     result = CleanupResult(butler_config)
     try:
         to_keep = set(butler.registry.getCollectionChain(collection))
