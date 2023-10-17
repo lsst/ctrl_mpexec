@@ -324,3 +324,19 @@ def update_graph_run(
     OUTPUT_QGRAPH is the URL to store the updated Quantum Graph.
     """
     script.update_graph_run(qgraph, run, output_qgraph, metadata_run_key, update_graph_id)
+
+
+@click.command(cls=PipetaskCommand)
+@ctrlMpExecOpts.qgraph_argument()
+@ctrlMpExecOpts.butler_config_option()
+@click.argument("output_yaml", type=click.Path(exists=False))
+@click.option("--logs/--no-logs", default=True, help="Get butler log datasets for extra information.")
+def report(qgraph: str, butler_config: str, output_yaml: str, logs: bool = True) -> None:
+    """Write a yaml file summarizing the produced and missing expected datasets
+    in a quantum graph.
+
+    QGRAPH is the URL to a serialized Quantum Graph file.
+
+    OUTPUT_YAML is the URL to store the summary report.
+    """
+    script.report(qgraph, butler_config, output_yaml, logs)
