@@ -84,7 +84,7 @@ class CleanupCollectionTest(unittest.TestCase):
         self.assertIn("Will remove:\n  runs: \n  others: ingest\n", result.output)
         self.assertIn("Done.", result.output)
 
-        butler = Butler(self.root)
+        butler = Butler.from_config(self.root)
         self.assertEqual(set(butler.registry.queryCollections()), {"in", "ingest/run"})
 
     def test_nonExistantCollection(self):

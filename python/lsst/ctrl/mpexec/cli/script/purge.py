@@ -120,7 +120,7 @@ class PurgeResult(ConfirmableResult):
         if self.failure:
             # This should not happen, it is a logic error.
             raise RuntimeError("Can not purge, there were errors preparing collections.")
-        butler = Butler(self.butler_config, writeable=True)
+        butler = Butler.from_config(self.butler_config, writeable=True)
         with butler.transaction():
             for c in itertools.chain(self.others_to_remove, self.chains_to_remove):
                 butler.registry.removeCollection(c)
@@ -254,7 +254,7 @@ def purge(
         to remove the datasets after confirmation, if needed.
     """
     result = PurgeResult(butler_config)
-    butler = Butler(butler_config)
+    butler = Butler.from_config(butler_config)
 
     try:
         collection_type = butler.registry.getCollectionType(collection)

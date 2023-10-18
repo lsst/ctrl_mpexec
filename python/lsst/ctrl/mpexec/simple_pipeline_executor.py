@@ -129,7 +129,7 @@ class SimplePipelineExecutor:
             output_run = f"{output}/{Instrument.makeCollectionTimestamp()}"
         # Make initial butler with no collections, since we haven't created
         # them yet.
-        butler = Butler(root, writeable=True)
+        butler = Butler.from_config(root, writeable=True)
         butler.registry.registerCollection(output_run, CollectionType.RUN)
         butler.registry.registerCollection(output, CollectionType.CHAINED)
         collections = [output_run]
@@ -137,7 +137,7 @@ class SimplePipelineExecutor:
         butler.registry.setCollectionChain(output, collections)
         # Remake butler to let it infer default data IDs from collections, now
         # that those collections exist.
-        return Butler(butler=butler, collections=[output], run=output_run)
+        return Butler.from_config(butler=butler, collections=[output], run=output_run)
 
     @classmethod
     def from_pipeline_filename(

@@ -59,6 +59,7 @@ from lsst.daf.butler import (
 )
 from lsst.daf.butler.datastore.cache_manager import DatastoreCacheManager
 from lsst.daf.butler.datastore.record_data import DatastoreRecordData
+from lsst.daf.butler.direct_butler import DirectButler
 from lsst.daf.butler.registry import MissingCollectionError, RegistryDefaults
 from lsst.daf.butler.registry.wildcards import CollectionWildcard
 from lsst.pipe.base import (
@@ -325,7 +326,7 @@ class _ButlerFactory:
             A new `_ButlerFactory` instance representing the processed version
             of ``args``.
         """
-        butler = Butler(args.butler_config, writeable=False)
+        butler = Butler.from_config(args.butler_config, writeable=False)
         self = cls(butler.registry, args, writeable=False)
         self.check(args)
         if self.output and self.output.exists:
@@ -365,7 +366,7 @@ class _ButlerFactory:
         cls.defineDatastoreCache()  # Ensure that this butler can use a shared cache.
         butler, inputs, _ = cls._makeReadParts(args)
         _LOG.debug("Preparing butler to read from %s.", inputs)
-        return Butler(butler=butler, collections=inputs)
+        return Butler.from_config(butler=butler, collections=inputs)
 
     @classmethod
     def makeButlerAndCollections(cls, args: SimpleNamespace) -> tuple[Butler, Sequence[str], str | None]:
@@ -434,7 +435,7 @@ class _ButlerFactory:
             A read-write butler initialized according to the given arguments.
         """
         cls.defineDatastoreCache()  # Ensure that this butler can use a shared cache.
-        butler = Butler(args.butler_config, writeable=True)
+        butler = Butler.from_config(args.butler_config, writeable=True)
         self = cls(butler.registry, args, writeable=True)
         self.check(args)
         assert self.outputRun is not None, "Output collection has to be specified."  # for mypy
@@ -676,10 +677,12 @@ class CmdLineFwk:
             graph2dot(qgraph, args.qgraph_dot)
 
         if args.execution_butler_location:
-            butler = Butler(args.butler_config)
+            butler = Butler.from_config(args.butler_config)
+            assert isinstance(butler, DirectButler), "Execution butler needs DirectButler"
             newArgs = copy.deepcopy(args)
 
             def builderShim(butler: Butler) -> Butler:
+                assert isinstance(butler, DirectButler), "Execution butler needs DirectButler"
                 newArgs.butler_config = butler._config
                 # Calling makeWriteButler is done for the side effects of
                 # calling that method, maining parsing all the args into

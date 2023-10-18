@@ -110,7 +110,7 @@ def build(  # type: ignore
     pipeline = f.makePipeline(args)
 
     if butler_config is not None:
-        butler = Butler(butler_config, writeable=False)
+        butler = Butler.from_config(butler_config, writeable=False)
     else:
         butler = None
 

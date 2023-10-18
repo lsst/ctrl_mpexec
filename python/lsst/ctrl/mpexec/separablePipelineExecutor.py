@@ -114,7 +114,7 @@ class SeparablePipelineExecutor:
         task_factory: lsst.pipe.base.TaskFactory | None = None,
         resources: lsst.pipe.base.ExecutionResources | None = None,
     ):
-        self._butler = Butler(butler=butler, collections=butler.collections, run=butler.run)
+        self._butler = Butler.from_config(butler=butler, collections=butler.collections, run=butler.run)
         if not self._butler.collections:
             raise ValueError("Butler must specify input collections for pipeline.")
         if not self._butler.run:
