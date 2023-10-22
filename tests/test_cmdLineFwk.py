@@ -65,9 +65,9 @@ from lsst.daf.butler import (
     DimensionConfig,
     DimensionUniverse,
     Quantum,
-    Registry,
 )
 from lsst.daf.butler.registry import RegistryConfig
+from lsst.daf.butler.registry.sql_registry import SqlRegistry
 from lsst.pipe.base import (
     Instrument,
     Pipeline,
@@ -131,7 +131,7 @@ def makeSQLiteRegistry(create=True, universe=None):
         config = RegistryConfig()
         config["db"] = uri
         if create:
-            Registry.createFromConfig(config, dimensionConfig=dimensionConfig)
+            SqlRegistry.createFromConfig(config, dimensionConfig=dimensionConfig)
         yield config
 
 
