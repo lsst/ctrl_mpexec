@@ -431,13 +431,13 @@ class PreExecInit(PreExecInitBase):
                     self.full_butler.registry.registerDatasetType(datasetType)
                 except ConflictingDefinitionError:
                     if not _check_compatibility(
-                        datasetType, self.full_butler.registry.getDatasetType(datasetType.name), is_input
+                        datasetType, self.full_butler.get_dataset_type(datasetType.name), is_input
                     ):
                         raise
             else:
                 _LOG.debug("Checking DatasetType %s against registry", datasetType)
                 try:
-                    expected = self.full_butler.registry.getDatasetType(datasetType.name)
+                    expected = self.full_butler.get_dataset_type(datasetType.name)
                 except KeyError:
                     # Likely means that --register-dataset-types is forgotten.
                     missing_datasetTypes.add(datasetType.name)
