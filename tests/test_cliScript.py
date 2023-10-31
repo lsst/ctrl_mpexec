@@ -52,6 +52,7 @@ class BuildTestCase(unittest.TestCase):
             pipeline_actions=(),
             pipeline_dot=None,
             save_pipeline=None,
+            expand_pipeline=None,
             show=ShowInfo([]),
         )
         defaultArgs.update(kwargs)
@@ -73,6 +74,20 @@ class BuildTestCase(unittest.TestCase):
             self.assertTrue(os.path.isfile(filename))
             # read pipeline from a file
             pipeline = script.build(**self.buildArgs(pipeline=filename))
+            self.assertIsInstance(pipeline, Pipeline)
+            self.assertIsInstance(pipeline, Pipeline)
+            self.assertEqual(len(pipeline), 0)
+
+    def testExpandPipeline(self):
+        """Test expanded pipeline serialization."""
+        with tempfile.TemporaryDirectory() as tempdir:
+            # make empty pipeline and store it in a directory
+            directory = os.path.join(tempdir, "pipeline_dir")
+            pipeline = script.build(**self.buildArgs(expand_pipeline=directory))
+            self.assertIsInstance(pipeline, Pipeline)
+            self.assertTrue(os.path.isdir(directory))
+            # read pipeline from a directory
+            pipeline = script.build(**self.buildArgs(pipeline=directory))
             self.assertIsInstance(pipeline, Pipeline)
             self.assertIsInstance(pipeline, Pipeline)
             self.assertEqual(len(pipeline), 0)

@@ -72,12 +72,13 @@ from lsst.pipe.base import (
     TaskDef,
     TaskFactory,
     buildExecutionButler,
+    graph2dot,
+    pipeline2dot,
 )
 from lsst.utils import doImportType
 from lsst.utils.threads import disable_implicit_threading
 
 from . import util
-from .dotTools import graph2dot, pipeline2dot
 from .executionGraphFixup import ExecutionGraphFixup
 from .mpGraphExecutor import MPGraphExecutor
 from .preExecInit import PreExecInit, PreExecInitLimited
@@ -577,8 +578,16 @@ class CmdLineFwk:
         if args.save_pipeline:
             pipeline.write_to_uri(args.save_pipeline)
 
+        if args.expand_pipeline:
+            task_defs = list(pipeline)
+            pipeline.write_to_uri(args.expand_pipeline, expand=True, task_defs=task_defs)
+        else:
+            task_defs = None
+
         if args.pipeline_dot:
-            pipeline2dot(pipeline, args.pipeline_dot)
+            # Pass in existing task_defs if we have them to avoid re-importing
+            # and expanding everything.
+            pipeline2dot(pipeline if task_defs is None else task_defs, args.pipeline_dot)
 
         return pipeline
 
