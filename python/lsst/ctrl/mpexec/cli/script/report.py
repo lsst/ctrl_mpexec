@@ -2,7 +2,7 @@
 #
 # Developed for the LSST Data Management System.
 # This product includes software developed by the LSST Project
-# (https://www.lsst.org).
+# (http://www.lsst.org).
 # See the COPYRIGHT file at the top-level directory of this distribution
 # for details of code ownership.
 #
@@ -25,13 +25,33 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+from lsst.daf.butler import Butler
+from lsst.pipe.base import QuantumGraph
+from lsst.pipe.base.execution_reports import QuantumGraphExecutionReport
 
-from .build import build
-from .cleanup import cleanup
-from .pre_exec_init_qbb import pre_exec_init_qbb
-from .purge import PurgeResult, purge
-from .qgraph import qgraph
-from .report import report
-from .run import run
-from .run_qbb import run_qbb
-from .update_graph_run import update_graph_run
+
+def report(butler_config: str, qgraph_uri: str, output_yaml: str, logs: bool = True) -> None:
+    """Write a yaml file summarizing the produced and missing expected datasets
+    in a quantum graph.
+
+    Parameters
+    ----------
+        butler_config : `str`
+            The Butler used for this report. This should match the Butler used
+            for the run associated with the executed quantum graph.
+        qgraph_uri : `str`
+            The uri of the location of said quantum graph.
+        output_yaml : `str`
+            The name to be used for the summary yaml file.
+        logs : `bool`
+            Get butler log datasets for extra information.
+
+    See Also
+    --------
+        lsst.pipe.base.QuantumGraphExecutionReport.make_reports
+        lsst.pipe.base.QuantumGraphExecutionReport.write_summary_yaml
+    """
+    butler = Butler.from_config(butler_config, writeable=False)
+    qgraph = QuantumGraph.loadUri(qgraph_uri)
+    report = QuantumGraphExecutionReport.make_reports(butler, qgraph)
+    report.write_summary_yaml(butler, output_yaml, logs=logs)

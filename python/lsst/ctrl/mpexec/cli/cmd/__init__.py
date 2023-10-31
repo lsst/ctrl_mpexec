@@ -25,7 +25,17 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-__all__ = ["build", "cleanup", "pre_exec_init_qbb", "purge", "qgraph", "run", "run_qbb", "update_graph_run"]
+__all__ = [
+    "build",
+    "cleanup",
+    "pre_exec_init_qbb",
+    "purge",
+    "qgraph",
+    "report",
+    "run",
+    "run_qbb",
+    "update_graph_run",
+]
 
 
-from .commands import build, cleanup, pre_exec_init_qbb, purge, qgraph, run, run_qbb, update_graph_run
+from .commands import build, cleanup, pre_exec_init_qbb, purge, qgraph, report, run, run_qbb, update_graph_run
