@@ -30,7 +30,7 @@ from lsst.pipe.base import QuantumGraph
 from lsst.pipe.base.execution_reports import QuantumGraphExecutionReport
 
 
-def report(qgraph_uri: str, butler_config: str, output_yaml: str, logs: bool = True) -> None:
+def report(butler_config: str, qgraph_uri: str, output_yaml: str, logs: bool = True) -> None:
     """Write a yaml file summarizing the produced and missing expected datasets
     in a quantum graph.
 
@@ -51,7 +51,7 @@ def report(qgraph_uri: str, butler_config: str, output_yaml: str, logs: bool = T
         lsst.pipe.base.QuantumGraphExecutionReport.make_reports
         lsst.pipe.base.QuantumGraphExecutionReport.write_summary_yaml
     """
-    qgraph = QuantumGraph.loadUri(qgraph_uri)
     butler = Butler(butler_config)
+    qgraph = QuantumGraph.loadUri(qgraph_uri)
     report = QuantumGraphExecutionReport.make_reports(butler, qgraph)
     report.write_summary_yaml(butler, output_yaml, logs=logs)

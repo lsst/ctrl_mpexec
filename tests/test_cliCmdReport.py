@@ -71,7 +71,7 @@ class ReportTest(unittest.TestCase):
 
         result = self.runner.invoke(
             pipetask_cli,
-            ["report", graph_uri, "-b", self.root, test_filename, "--no-logs"],
+            ["report", self.root, graph_uri, test_filename, "--no-logs"],
             input="no",
         )
 

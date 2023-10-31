@@ -327,16 +327,18 @@ def update_graph_run(
 
 
 @click.command(cls=PipetaskCommand)
+@repo_argument()
 @ctrlMpExecOpts.qgraph_argument()
-@ctrlMpExecOpts.butler_config_option()
 @click.argument("output_yaml", type=click.Path(exists=False))
 @click.option("--logs/--no-logs", default=True, help="Get butler log datasets for extra information.")
-def report(qgraph: str, butler_config: str, output_yaml: str, logs: bool = True) -> None:
+def report(repo: str, qgraph: str, output_yaml: str, logs: bool = True) -> None:
     """Write a yaml file summarizing the produced and missing expected datasets
     in a quantum graph.
+
+    REPO is the location of the butler/registry config file.
 
     QGRAPH is the URL to a serialized Quantum Graph file.
 
     OUTPUT_YAML is the URL to store the summary report.
     """
-    script.report(qgraph, butler_config, output_yaml, logs)
+    script.report(repo, qgraph, output_yaml, logs)
