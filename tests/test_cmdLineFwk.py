@@ -860,14 +860,10 @@ class CmdLineFwkTestCaseWithButler(unittest.TestCase):
         butler.registry.refresh()
 
         # drop one of the two outputs from one task
-        ref1 = butler.registry.findDataset(
-            "add2_dataset2", collections=args.output, instrument="INSTR", detector=0
-        )
+        ref1 = butler.find_dataset("add2_dataset2", collections=args.output, instrument="INSTR", detector=0)
         self.assertIsNotNone(ref1)
         # also drop the metadata output
-        ref2 = butler.registry.findDataset(
-            "task1_metadata", collections=args.output, instrument="INSTR", detector=0
-        )
+        ref2 = butler.find_dataset("task1_metadata", collections=args.output, instrument="INSTR", detector=0)
         self.assertIsNotNone(ref2)
         butler.pruneDatasets([ref1, ref2], disassociate=True, unstore=True, purge=True)
 
@@ -912,13 +908,13 @@ class CmdLineFwkTestCaseWithButler(unittest.TestCase):
         butler.registry.refresh()
 
         # drop one of the two outputs from one task
-        ref1 = butler.registry.findDataset(
-            "add2_dataset2", collections=args.output, dataId=dict(instrument="INSTR", detector=0)
+        ref1 = butler.find_dataset(
+            "add2_dataset2", collections=args.output, data_id=dict(instrument="INSTR", detector=0)
         )
         self.assertIsNotNone(ref1)
         # also drop the metadata output
-        ref2 = butler.registry.findDataset(
-            "task1_metadata", collections=args.output, dataId=dict(instrument="INSTR", detector=0)
+        ref2 = butler.find_dataset(
+            "task1_metadata", collections=args.output, data_id=dict(instrument="INSTR", detector=0)
         )
         self.assertIsNotNone(ref2)
         butler.pruneDatasets([ref1, ref2], disassociate=True, unstore=True, purge=True)
