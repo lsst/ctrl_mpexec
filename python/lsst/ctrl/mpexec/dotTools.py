@@ -262,8 +262,8 @@ def pipeline2dot(pipeline: Pipeline | Iterable[TaskDef], file: Any) -> None:
         if "skypix" in dimension_set:
             dimension_set.remove("skypix")
             skypix_dim = ["skypix"]
-        dimension_graph = universe.extract(dimension_set)
-        return list(dimension_graph.names) + skypix_dim
+        dimensions = universe.conform(dimension_set)
+        return list(dimensions.names) + skypix_dim
 
     # open a file if needed
     close = False

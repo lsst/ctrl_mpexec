@@ -41,7 +41,7 @@ from lsst.utils.introspection import get_full_type_name
 
 def _serializeDataId(dataId: DataId) -> dict[str, DataIdValue]:
     if isinstance(dataId, DataCoordinate):
-        return dataId.byName()
+        return dict(dataId.required)
     else:
         return dataId  # type: ignore
 
