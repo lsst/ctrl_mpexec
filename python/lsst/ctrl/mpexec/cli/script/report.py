@@ -54,4 +54,4 @@ def report(butler_config: str, qgraph_uri: str, output_yaml: str, logs: bool = T
     butler = Butler.from_config(butler_config, writeable=False)
     qgraph = QuantumGraph.loadUri(qgraph_uri)
     report = QuantumGraphExecutionReport.make_reports(butler, qgraph)
-    report.write_summary_yaml(butler, output_yaml, logs=logs)
+    report.write_summary_yaml(butler, output_yaml, do_store_logs=logs)
