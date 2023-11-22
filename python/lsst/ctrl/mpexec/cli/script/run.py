@@ -185,7 +185,7 @@ def run(  # type: ignore
     # Fork option still exists for compatibility but we use spawn instead.
     if start_method == "fork":
         start_method = "spawn"
-        _log.warning("Option --start-method=fork is deprecated and unsafe, will use spawn instead.")
+        _log.warning("Option --start-method=fork is unsafe and no longer supported, will use spawn instead.")
 
     args = SimpleNamespace(
         pdb=pdb,

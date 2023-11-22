@@ -431,7 +431,7 @@ start_method_option = MWOptionDecorator(
     type=click.Choice(choices=["spawn", "fork", "forkserver"]),
     help=(
         "Multiprocessing start method, default is platform-specific. "
-        "Fork method is now deprecated, spawn is used instead if fork is selected."
+        "Fork method is no longer supported, spawn is used instead if fork is selected."
     ),
 )
 
