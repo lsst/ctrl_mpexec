@@ -36,7 +36,7 @@ import time
 from collections import defaultdict
 from collections.abc import Callable
 from itertools import chain
-from typing import Any
+from typing import Any, cast
 
 from lsst.daf.butler import (
     Butler,
@@ -519,7 +519,7 @@ class SingleQuantumExecutor(QuantumExecutor):
         for datasetRefs in chain(quantum.inputs.values(), quantum.outputs.values()):
             for datasetRef in datasetRefs:
                 dataId = datasetRef.dataId
-                instrument = dataId.get("instrument")
+                instrument = cast(str, dataId.get("instrument"))
                 if instrument is not None:
                     if oneInstrument is not None:
                         assert (  # type: ignore
