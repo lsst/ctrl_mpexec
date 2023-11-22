@@ -100,7 +100,7 @@ class _Job:
     def start(
         self,
         quantumExecutor: QuantumExecutor,
-        startMethod: Literal["spawn"] | Literal["fork"] | Literal["forkserver"] | None = None,
+        startMethod: Literal["spawn"] | Literal["forkserver"],
     ) -> None:
         """Start process which runs the task.
 
@@ -119,11 +119,13 @@ class _Job:
         logConfigState = CliLog.configState
 
         mp_ctx = multiprocessing.get_context(startMethod)
-        self.process = mp_ctx.Process(
+        self.process = mp_ctx.Process(  # type: ignore[attr-defined]
             target=_Job._executeJob,
             args=(quantumExecutor, taskDef, quantum_pickle, logConfigState, snd_conn),
             name=f"task-{self.qnode.quantum.dataId}",
         )
+        # mypy is getting confused by multiprocessing.
+        assert self.process is not None
         self.process.start()
         self.started = time.time()
         self._state = JobState.RUNNING
@@ -268,7 +270,7 @@ class _JobList:
         self,
         job: _Job,
         quantumExecutor: QuantumExecutor,
-        startMethod: Literal["spawn"] | Literal["fork"] | Literal["forkserver"] | None = None,
+        startMethod: Literal["spawn"] | Literal["forkserver"],
     ) -> None:
         """Submit one more job for execution
 
@@ -380,7 +382,7 @@ class MPGraphExecutor(QuantumGraphExecutor):
         timeout: float,
         quantumExecutor: QuantumExecutor,
         *,
-        startMethod: Literal["spawn"] | Literal["fork"] | Literal["forkserver"] | None = None,
+        startMethod: Literal["spawn"] | Literal["forkserver"] | None = None,
         failFast: bool = False,
         pdb: str | None = None,
         executionGraphFixup: ExecutionGraphFixup | None = None,
@@ -393,11 +395,9 @@ class MPGraphExecutor(QuantumGraphExecutor):
         self.executionGraphFixup = executionGraphFixup
         self.report: Report | None = None
 
-        # We set default start method as spawn for MacOS and fork for Linux;
-        # None for all other platforms to use multiprocessing default.
+        # We set default start method as spawn for all platforms.
         if startMethod is None:
-            methods = dict(linux="fork", darwin="spawn")
-            startMethod = methods.get(sys.platform)  # type: ignore
+            startMethod = "spawn"
         self.startMethod = startMethod
 
     def execute(self, graph: QuantumGraph) -> None:

@@ -25,9 +25,12 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+import logging
 from types import SimpleNamespace
 
 from ... import CmdLineFwk, TaskFactory
+
+_log = logging.getLogger(__name__)
 
 
 def run_qbb(
@@ -97,6 +100,11 @@ def run_qbb(
         implies no limit. The string can be either a single integer (implying
         units of MB) or a combination of number and unit.
     """
+    # Fork option still exists for compatibility but we use spawn instead.
+    if start_method == "fork":
+        start_method = "spawn"
+        _log.warning("Option --start-method=fork is unsafe and no longer supported, will use spawn instead.")
+
     args = SimpleNamespace(
         butler_config=butler_config,
         qgraph=qgraph,
