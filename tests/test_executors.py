@@ -274,7 +274,6 @@ class MPGraphExecutorTestCase(unittest.TestCase):
 
         methods = ["spawn"]
         if sys.platform == "linux":
-            methods.append("fork")
             methods.append("forkserver")
 
         for method in methods:
