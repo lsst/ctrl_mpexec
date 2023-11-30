@@ -30,6 +30,7 @@
 
 import faulthandler
 import logging
+import multiprocessing
 import os
 import signal
 import sys
@@ -274,7 +275,6 @@ class MPGraphExecutorTestCase(unittest.TestCase):
 
         methods = ["spawn"]
         if sys.platform == "linux":
-            methods.append("fork")
             methods.append("forkserver")
 
         for method in methods:
@@ -705,5 +705,15 @@ class SingleQuantumExecutorTestCase(unittest.TestCase):
         self.assertEqual(dataset_id_1, dataset_id_3)
 
 
+def setup_module(module):
+    """Force spawn to be used if no method given explicitly.
+
+    This can be removed when Python 3.14 changes the default.
+    """
+    multiprocessing.set_start_method("spawn", force=True)
+
+
 if __name__ == "__main__":
+    # Do not need to force start mode when running standalone.
+    multiprocessing.set_start_method("spawn")
     unittest.main()
