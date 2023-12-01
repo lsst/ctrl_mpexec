@@ -44,6 +44,7 @@ from typing import TYPE_CHECKING, Any
 from lsst.daf.butler import DatasetRef, DatasetType
 from lsst.daf.butler.registry import ConflictingDefinitionError
 from lsst.pipe.base import PipelineDatasetTypes
+from lsst.pipe.base import automatic_connection_constants as acc
 from lsst.utils.packages import Packages
 
 if TYPE_CHECKING:
@@ -389,14 +390,37 @@ class PreExecInit(PreExecInitBase):
         pipelineDatasetTypes = PipelineDatasetTypes.fromPipeline(
             pipeline, registry=self.full_butler.registry, include_configs=True, include_packages=True
         )
-
-        for datasetTypes, is_input in (
+        # The "registry dataset types" saved with the QG have had their storage
+        # classes carefully resolved by PipelineGraph, whereas the dataset
+        # types from PipelineDatasetTypes are a mess because it uses
+        # NamedValueSet and that ignores storage classes.  It will be fully
+        # removed here (and deprecated everywhere) on DM-40441.
+        # Note that these "registry dataset types" include dataset types that
+        # are not actually registered yet; they're the PipelineGraph's
+        # determination of what _should_ be registered.
+        registry_storage_classes = {
+            dataset_type.name: dataset_type.storageClass_name for dataset_type in graph.registryDatasetTypes()
+        }
+        registry_storage_classes[acc.PACKAGES_INIT_OUTPUT_NAME] = acc.PACKAGES_INIT_OUTPUT_STORAGE_CLASS
+        dataset_types: Iterable[DatasetType]
+        for dataset_types, is_input in (
             (pipelineDatasetTypes.initIntermediates, True),
             (pipelineDatasetTypes.initOutputs, False),
             (pipelineDatasetTypes.intermediates, True),
             (pipelineDatasetTypes.outputs, False),
         ):
-            self._register_output_dataset_types(registerDatasetTypes, datasetTypes, is_input)
+            dataset_types = [
+                (
+                    # The registry dataset types do not include components,
+                    # but we don't support storage class overrides for those
+                    # in other contexts anyway.
+                    dataset_type.overrideStorageClass(registry_storage_classes[dataset_type.name])
+                    if not dataset_type.isComponent()
+                    else dataset_type
+                )
+                for dataset_type in dataset_types
+            ]
+            self._register_output_dataset_types(registerDatasetTypes, dataset_types, is_input)
 
     def _register_output_dataset_types(
         self, registerDatasetTypes: bool, datasetTypes: Iterable[DatasetType], is_input: bool
