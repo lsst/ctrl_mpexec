@@ -226,12 +226,6 @@ class SimplePipelineExecutorTests(lsst.utils.tests.TestCase):
 
     def test_from_pipeline_output_differ(self):
         """Run pipeline but output definition in registry differs."""
-        executor = self._configure_pipeline(
-            NoDimensionsTestTask.ConfigClass,
-            NoDimensionsTestTask.ConfigClass,
-            storageClass_a="TaskMetadataLike",
-        )
-
         # Pre-define the "output" storage class to be something that is
         # like a dict but is not a dict. This will fail unless storage
         # class conversion is supported in put and get.
@@ -243,14 +237,21 @@ class SimplePipelineExecutorTests(lsst.utils.tests.TestCase):
             )
         )
 
+        executor = self._configure_pipeline(
+            NoDimensionsTestTask.ConfigClass,
+            NoDimensionsTestTask.ConfigClass,
+            storageClass_a="TaskMetadataLike",
+        )
+
         with self.assertLogs("lsst", level="INFO") as cm:
             quanta = executor.run(register_dataset_types=True, save_versions=False)
-        # a has been told to return a TaskMetadata but will convert to dict.
+        # a has been told to return a TaskMetadata but this will convert to
+        # dict on read by b.
         # b returns a dict and that is converted to TaskMetadata on put.
         self._test_logs(cm.output, "dict", "lsst.pipe.base.TaskMetadata", "dict", "dict")
 
         self.assertEqual(len(quanta), 2)
-        self.assertEqual(self.butler.get("intermediate"), {"zero": 0, "one": 1})
+        self.assertEqual(self.butler.get("intermediate").to_dict(), {"zero": 0, "one": 1})
         self.assertEqual(self.butler.get("output").to_dict(), {"zero": 0, "one": 1, "two": 2})
 
     def test_from_pipeline_input_differ(self):
