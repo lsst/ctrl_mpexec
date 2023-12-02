@@ -411,11 +411,12 @@ class PreExecInit(PreExecInitBase):
         ):
             dataset_types = [
                 (
-                    # The registry dataset types do not include components,
-                    # but we don't support storage class overrides for those
-                    # in other contexts anyway.
+                    # The registry dataset types do not include components, but
+                    # we don't support storage class overrides for those in
+                    # other contexts anyway, and custom-built QGs may not have
+                    # the registry dataset types field populated at all.x
                     dataset_type.overrideStorageClass(registry_storage_classes[dataset_type.name])
-                    if not dataset_type.isComponent()
+                    if dataset_type.name in registry_storage_classes
                     else dataset_type
                 )
                 for dataset_type in dataset_types
