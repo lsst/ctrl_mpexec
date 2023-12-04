@@ -28,9 +28,10 @@
 from lsst.daf.butler import Butler
 from lsst.pipe.base import QuantumGraph
 from lsst.pipe.base.execution_reports import QuantumGraphExecutionReport
+from astropy.table import Table
 
 
-def report(butler_config: str, qgraph_uri: str, output_yaml: str, logs: bool = True) -> None:
+def report(butler_config: str, qgraph_uri: str, output_yaml: str | None, logs: bool = True) -> None:
     """Write a yaml file summarizing the produced and missing expected datasets
     in a quantum graph.
 
@@ -54,4 +55,22 @@ def report(butler_config: str, qgraph_uri: str, output_yaml: str, logs: bool = T
     butler = Butler.from_config(butler_config, writeable=False)
     qgraph = QuantumGraph.loadUri(qgraph_uri)
     report = QuantumGraphExecutionReport.make_reports(butler, qgraph)
-    report.write_summary_yaml(butler, output_yaml, do_store_logs=logs)
+    if not output_yaml:
+        # this is the option to print to the command-line
+        summary_dict = report.to_summary_dict(butler, logs, human_readable=True)
+        quanta = Table()
+        datasets = Table()
+        dataset_table_rows = []
+        data_products = []
+        for task in summary_dict.keys():
+            for data_product in summary_dict[task]["outputs"]:
+                print(summary_dict[task]["outputs"][data_product])
+                dataset_table_rows.append(summary_dict[task]["outputs"][data_product])
+                data_products.append(data_product)
+        datasets = Table(dataset_table_rows)
+        datasets.add_column(data_products, index=0, name="DatasetType")
+        print(datasets)
+            # something about failed quanta outside the smaller loop
+            #print(Table(summary_dict[task]["outputs"]))
+    else:
+        report.write_summary_yaml(butler, output_yaml, do_store_logs=logs)
