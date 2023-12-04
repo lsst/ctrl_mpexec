@@ -329,9 +329,12 @@ def update_graph_run(
 @click.command(cls=PipetaskCommand)
 @repo_argument()
 @ctrlMpExecOpts.qgraph_argument()
-@click.option("--output-yaml", default='', help="Summarize report in a yaml file (pass its name here).")
+@click.option("--full-output-filename", default="", help="Summarize report in a yaml file")
 @click.option("--logs/--no-logs", default=True, help="Get butler log datasets for extra information.")
-def report(repo: str, qgraph: str, output_yaml: str='', logs: bool = True) -> None:
+@click.option("--show-errors", default=False, help="Pretty-print a dict of errors from failed quanta.")
+def report(
+    repo: str, qgraph: str, full_output_filename: str = "", logs: bool = True, show_errors: bool = False
+) -> None:
     """Write a yaml file summarizing the produced and missing expected datasets
     in a quantum graph.
 
@@ -339,4 +342,4 @@ def report(repo: str, qgraph: str, output_yaml: str='', logs: bool = True) -> No
 
     QGRAPH is the URL to a serialized Quantum Graph file.
     """
-    script.report(repo, qgraph, output_yaml, logs)
+    script.report(repo, qgraph, full_output_filename, logs)
