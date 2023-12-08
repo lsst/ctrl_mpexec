@@ -39,6 +39,7 @@ import datetime
 import getpass
 import logging
 import shutil
+import sys
 from collections.abc import Iterable, Mapping, Sequence
 from types import SimpleNamespace
 
@@ -72,8 +73,9 @@ from lsst.pipe.base import (
     QuantumGraph,
     TaskDef,
     TaskFactory,
-    buildExecutionButler,
 )
+from lsst.pipe.base import __version__ as pipeBaseVersion
+from lsst.pipe.base import buildExecutionButler
 from lsst.utils import doImportType
 from lsst.utils.threads import disable_implicit_threading
 
@@ -646,6 +648,8 @@ class CmdLineFwk:
                 "data_query": args.data_query,
                 "user": getpass.getuser(),
                 "time": f"{datetime.datetime.now()}",
+                "pipe_base_version": pipeBaseVersion,
+                "full_command": " ".join(sys.argv),
             }
             assert run is not None, "Butler output run collection must be defined"
             qgraph = graphBuilder.makeGraph(

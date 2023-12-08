@@ -1,0 +1,1 @@
+Add full command line and pipe_base __version__ to QuantumGraph's metadata. 
