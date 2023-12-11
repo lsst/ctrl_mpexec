@@ -750,6 +750,9 @@ class CmdLineFwk:
             Data Butler instance, if not defined then new instance is made
             using command line options.
         """
+        if not args.enable_implicit_threading:
+            disable_implicit_threading()
+
         # Check that output run defined on command line is consistent with
         # quantum graph.
         if args.output_run and graph.metadata:
@@ -767,9 +770,6 @@ class CmdLineFwk:
             args.skip_existing = True
         else:
             args.clobber_outputs = False
-
-        if not args.enable_implicit_threading:
-            disable_implicit_threading()
 
         # Make butler instance. QuantumGraph should have an output run defined,
         # but we ignore it here and let command line decide actual output run.
