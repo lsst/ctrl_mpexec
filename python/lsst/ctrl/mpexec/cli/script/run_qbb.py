@@ -28,6 +28,8 @@
 import logging
 from types import SimpleNamespace
 
+from lsst.utils.threads import disable_implicit_threading
+
 from ... import CmdLineFwk, TaskFactory
 
 _log = logging.getLogger(__name__)
@@ -104,6 +106,9 @@ def run_qbb(
     if start_method == "fork":
         start_method = "spawn"
         _log.warning("Option --start-method=fork is unsafe and no longer supported, will use spawn instead.")
+
+    if not enable_implicit_threading:
+        disable_implicit_threading()
 
     args = SimpleNamespace(
         butler_config=butler_config,
