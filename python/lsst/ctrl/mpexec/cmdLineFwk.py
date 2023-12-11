@@ -970,6 +970,9 @@ class CmdLineFwk:
         preExecInit.initialize(qgraph)
 
     def runGraphQBB(self, task_factory: TaskFactory, args: SimpleNamespace) -> None:
+        if not args.enable_implicit_threading:
+            disable_implicit_threading()
+
         # Load quantum graph.
         nodes = args.qgraph_node_id or None
         qgraph = QuantumGraph.loadUri(args.qgraph, nodes=nodes, graphID=args.qgraph_id)
