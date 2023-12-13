@@ -63,7 +63,13 @@ TESTDIR = os.path.abspath(os.path.dirname(__file__))
 
 
 class QuantumExecutorMock(QuantumExecutor):
-    """Mock class for QuantumExecutor"""
+    """Mock class for QuantumExecutor.
+
+    Parameters
+    ----------
+    mp : `bool`
+        Whether the mock should use multiprocessing or not.
+    """
 
     def __init__(self, mp=False):
         self.quanta = []
@@ -98,12 +104,24 @@ class QuantumExecutorMock(QuantumExecutor):
         return self.report
 
     def getDataIds(self, field):
-        """Return values for dataId field for each visited quanta."""
+        """Return values for dataId field for each visited quanta.
+
+        Parameters
+        ----------
+        field : `str`
+            Field to select.
+        """
         return [quantum.dataId[field] for quantum in self.quanta]
 
 
 class QuantumMock:
-    """Mock equivalent of a `~lsst.daf.butler.Quantum`."""
+    """Mock equivalent of a `~lsst.daf.butler.Quantum`.
+
+    Parameters
+    ----------
+    dataId : `dict`
+        The Data ID of this quantum.
+    """
 
     def __init__(self, dataId):
         self.dataId = dataId
@@ -117,7 +135,17 @@ class QuantumMock:
 
 
 class QuantumIterDataMock:
-    """Simple class to mock QuantumIterData."""
+    """Simple class to mock QuantumIterData.
+
+    Parameters
+    ----------
+    index : `int`
+        The index of this mock.
+    taskDef : `TaskDefMock`
+        Mocked task definition.
+    **dataId : `~typing.Any`
+        The data ID of the mocked quantum.
+    """
 
     def __init__(self, index, taskDef, **dataId):
         self.index = index
@@ -128,7 +156,13 @@ class QuantumIterDataMock:
 
 
 class QuantumGraphMock:
-    """Mock for quantum graph."""
+    """Mock for quantum graph.
+
+    Parameters
+    ----------
+    qdata : `~collections.abc.Iterable` of `QuantumIterDataMock`
+        The nodes of the graph.
+    """
 
     def __init__(self, qdata):
         self._graph = nx.DiGraph()
@@ -224,7 +258,19 @@ class TaskMockNoMP:
 
 
 class TaskDefMock:
-    """Simple mock class for task definition in a pipeline."""
+    """Simple mock class for task definition in a pipeline.
+
+    Parameters
+    ----------
+    taskName : `str`, optional
+        The name of the task.
+    config : `PipelineTaskConfig`, optional
+        Config to use for this task.
+    taskClass : `type`, optional
+        The class of the task.
+    label : `str`, optional
+        Task label.
+    """
 
     def __init__(self, taskName="Task", config=None, taskClass=TaskMockMP, label="task1"):
         self.taskName = taskName
@@ -242,10 +288,10 @@ def _count_status(report, status):
 
 
 class MPGraphExecutorTestCase(unittest.TestCase):
-    """A test case for MPGraphExecutor class"""
+    """A test case for MPGraphExecutor class."""
 
     def test_mpexec_nomp(self):
-        """Make simple graph and execute"""
+        """Make simple graph and execute."""
         taskDef = TaskDefMock()
         qgraph = QuantumGraphMock(
             [QuantumIterDataMock(index=i, taskDef=taskDef, detector=i) for i in range(3)]
@@ -267,7 +313,7 @@ class MPGraphExecutorTestCase(unittest.TestCase):
         self.assertTrue(all(qrep.taskLabel == "task1" for qrep in report.quantaReports))
 
     def test_mpexec_mp(self):
-        """Make simple graph and execute"""
+        """Make simple graph and execute."""
         taskDef = TaskDefMock()
         qgraph = QuantumGraphMock(
             [QuantumIterDataMock(index=i, taskDef=taskDef, detector=i) for i in range(3)]
@@ -296,7 +342,7 @@ class MPGraphExecutorTestCase(unittest.TestCase):
                 self.assertTrue(all(qrep.taskLabel == "task1" for qrep in report.quantaReports))
 
     def test_mpexec_nompsupport(self):
-        """Try to run MP for task that has no MP support which should fail"""
+        """Try to run MP for task that has no MP support which should fail."""
         taskDef = TaskDefMock(taskClass=TaskMockNoMP)
         qgraph = QuantumGraphMock(
             [QuantumIterDataMock(index=i, taskDef=taskDef, detector=i) for i in range(3)]
@@ -330,7 +376,7 @@ class MPGraphExecutorTestCase(unittest.TestCase):
             self.assertEqual(qexec.getDataIds("detector"), expected)
 
     def test_mpexec_timeout(self):
-        """Fail due to timeout"""
+        """Fail due to timeout."""
         taskDef = TaskDefMock()
         taskDefSleep = TaskDefMock(taskClass=TaskMockLongSleep)
         qgraph = QuantumGraphMock(
@@ -375,7 +421,7 @@ class MPGraphExecutorTestCase(unittest.TestCase):
         self.assertTrue(all(qrep.exceptionInfo is None for qrep in report.quantaReports))
 
     def test_mpexec_failure(self):
-        """Failure in one task should not stop other tasks"""
+        """Failure in one task should not stop other tasks."""
         taskDef = TaskDefMock()
         taskDefFail = TaskDefMock(taskClass=TaskMockFail)
         qgraph = QuantumGraphMock(
@@ -403,7 +449,7 @@ class MPGraphExecutorTestCase(unittest.TestCase):
         self.assertTrue(any(qrep.exceptionInfo is not None for qrep in report.quantaReports))
 
     def test_mpexec_failure_dep(self):
-        """Failure in one task should skip dependents"""
+        """Failure in one task should skip dependents."""
         taskDef = TaskDefMock()
         taskDefFail = TaskDefMock(taskClass=TaskMockFail)
         qdata = [
@@ -438,7 +484,7 @@ class MPGraphExecutorTestCase(unittest.TestCase):
         self.assertTrue(any(qrep.exceptionInfo is not None for qrep in report.quantaReports))
 
     def test_mpexec_failure_dep_nomp(self):
-        """Failure in one task should skip dependents, in-process version"""
+        """Failure in one task should skip dependents, in-process version."""
         taskDef = TaskDefMock()
         taskDefFail = TaskDefMock(taskClass=TaskMockFail)
         qdata = [
@@ -512,7 +558,7 @@ class MPGraphExecutorTestCase(unittest.TestCase):
         self.assertTrue(any(qrep.exceptionInfo is not None for qrep in report.quantaReports))
 
     def test_mpexec_crash(self):
-        """Check task crash due to signal"""
+        """Check task crash due to signal."""
         taskDef = TaskDefMock()
         taskDefCrash = TaskDefMock(taskClass=TaskMockCrash)
         qgraph = QuantumGraphMock(
@@ -540,7 +586,7 @@ class MPGraphExecutorTestCase(unittest.TestCase):
         self.assertTrue(all(qrep.exceptionInfo is None for qrep in report.quantaReports))
 
     def test_mpexec_crash_failfast(self):
-        """Check task crash due to signal with --fail-fast"""
+        """Check task crash due to signal with --fail-fast."""
         taskDef = TaskDefMock()
         taskDefCrash = TaskDefMock(taskClass=TaskMockCrash)
         qgraph = QuantumGraphMock(
@@ -565,7 +611,7 @@ class MPGraphExecutorTestCase(unittest.TestCase):
         self.assertTrue(all(qrep.exceptionInfo is None for qrep in report.quantaReports))
 
     def test_mpexec_num_fd(self):
-        """Check that number of open files stays reasonable"""
+        """Check that number of open files stays reasonable."""
         taskDef = TaskDefMock()
         qgraph = QuantumGraphMock(
             [QuantumIterDataMock(index=i, taskDef=taskDef, detector=i) for i in range(20)]
@@ -709,6 +755,11 @@ def setup_module(module):
     """Force spawn to be used if no method given explicitly.
 
     This can be removed when Python 3.14 changes the default.
+
+    Parameters
+    ----------
+    module : `~types.ModuleType`
+        Module to set up.
     """
     multiprocessing.set_start_method("spawn", force=True)
 

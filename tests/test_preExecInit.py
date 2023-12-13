@@ -43,6 +43,11 @@ def temporaryDirectory():
 
     Difference from `tempfile.TemporaryDirectory` is that it ignores errors
     when deleting a directory, which may happen with some filesystems.
+
+    Yields
+    ------
+    `str`
+        The temporary directory.
     """
     tmpdir = tempfile.mkdtemp()
     yield tmpdir
@@ -50,7 +55,7 @@ def temporaryDirectory():
 
 
 class PreExecInitTestCase(unittest.TestCase):
-    """A test case for PreExecInit"""
+    """A test case for PreExecInit."""
 
     def test_saveInitOutputs(self):
         taskFactory = AddTaskFactoryMock()

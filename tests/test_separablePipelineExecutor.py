@@ -615,7 +615,13 @@ class MemoryTester(lsst.utils.tests.MemoryTestCase):
 
 
 def setup_module(module):
-    """Set up the module for pytest."""
+    """Set up the module for pytest.
+
+    Parameters
+    ----------
+    module : `~types.ModuleType`
+        Module to set up.
+    """
     lsst.utils.tests.init()
 
 
