@@ -54,21 +54,21 @@ from lsst.pipe.base import Pipeline, TaskDef
 
 @contextlib.contextmanager
 def profile(filename: str, log: logging.Logger | None = None) -> Iterator:
-    """Context manager for profiling with cProfile
+    """Context manager for profiling with cProfile.
 
     Parameters
     ----------
-    filename :
+    filename : `str`
         Filename to which to write profile (profiling disabled if `None`
         or empty).
-    log :
+    log : `logging.Logger` or `None`, optional
         Log object for logging the profile operations.
 
     Yields
     ------
     profile : `cProfile.Profile` or `None`
         If profiling is enabled, the context manager returns the
-        `cProfile.Profile` object (otherwise it returns `None`)
+        `cProfile.Profile` object (otherwise it returns `None`).
 
     Notes
     -----
@@ -164,7 +164,7 @@ def subTaskIter(config: pexConfig.Config) -> Iterator[tuple[str, str]]:
     Parameters
     ----------
     config : `lsst.pex.config.Config`
-        Configuration of the task
+        Configuration of the task.
 
     Returns
     -------

@@ -75,7 +75,7 @@ def qgraph(  # type: ignore
 
     Parameters
     ----------
-    pipelineObj : `lsst.pipe.base.Pipeline` or None.
+    pipelineObj : `lsst.pipe.base.Pipeline` or None
         The pipeline object used to generate a qgraph. If this is not `None`
         then `qgraph` should be `None`.
     qgraph : `str` or `None`

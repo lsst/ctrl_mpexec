@@ -541,11 +541,12 @@ class CmdLineFwk:
         Parameters
         ----------
         args : `types.SimpleNamespace`
-            Parsed command line
+            Parsed command line.
 
         Returns
         -------
         pipeline : `~lsst.pipe.base.Pipeline`
+            Newly-constructed pipeline.
         """
         if args.pipeline:
             pipeline = Pipeline.from_uri(args.pipeline)
@@ -590,7 +591,7 @@ class CmdLineFwk:
         pipeline : `~lsst.pipe.base.Pipeline`
             Pipeline, can be empty or ``None`` if graph is read from a file.
         args : `types.SimpleNamespace`
-            Parsed command line
+            Parsed command line.
 
         Returns
         -------
@@ -743,9 +744,9 @@ class CmdLineFwk:
         graph : `~lsst.pipe.base.QuantumGraph`
             Execution graph.
         taskFactory : `~lsst.pipe.base.TaskFactory`
-            Task factory
+            Task factory.
         args : `types.SimpleNamespace`
-            Parsed command line
+            Parsed command line.
         butler : `~lsst.daf.butler.Butler`, optional
             Data Butler instance, if not defined then new instance is made
             using command line options.

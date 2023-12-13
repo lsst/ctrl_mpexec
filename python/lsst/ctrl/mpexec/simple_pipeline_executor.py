@@ -262,6 +262,8 @@ class SimplePipelineExecutor:
             one.
         resources : `~lsst.pipe.base.ExecutionResources`
             The resources available to each quantum being executed.
+        **kwargs : `~typing.Any`
+            Unused.
 
         Returns
         -------

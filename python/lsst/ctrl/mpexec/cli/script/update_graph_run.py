@@ -47,6 +47,11 @@ def update_graph_run(
         Collection name, if collection exists it must be of ``RUN`` type.
     output_graph : `~lsst.resources.ResourcePathExpression`
         Location to store updated quantum graph.
+    metadata_run_key : `str`
+        Specifies metadata key corresponding to output run name to update
+        with new run name. If metadata is missing it is not
+        updated. If metadata is present but key is missing, it will be
+        added.
     update_graph_id : `bool`
         If `True` then also update graph ID with a new unique value.
     """

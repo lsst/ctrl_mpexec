@@ -59,10 +59,11 @@ class ExecutionGraphFixup(ABC):
         Parameters
         ----------
         graph : QuantumGraph
-            Quantum Graph that will be executed by the executor
+            Quantum Graph that will be executed by the executor.
 
         Returns
         -------
         graph : QuantumGraph
+            Modified graph.
         """
         raise NotImplementedError

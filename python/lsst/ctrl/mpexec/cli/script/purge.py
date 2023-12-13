@@ -41,7 +41,15 @@ advice = (
 
 
 class ChildHasMultipleParentsFailure:
-    """Failure when the child has multiple parents."""
+    """Failure when the child has multiple parents.
+
+    Parameters
+    ----------
+    child : `str`
+        Child collection name.
+    parents : `list` [`str`]
+        Parent collections.
+    """
 
     def __init__(self, child: str, parents: list[str]):
         self.child = child
@@ -53,7 +61,15 @@ class ChildHasMultipleParentsFailure:
 
 
 class TopCollectionHasParentsFailure:
-    """Failure when the top collection has parents."""
+    """Failure when the top collection has parents.
+
+    Parameters
+    ----------
+    collection : `str`
+        Name of collection.
+    parents : `list` [`str`]
+        Parents of collection.
+    """
 
     def __init__(self, collection: str, parents: list[str]):
         self.collection = collection
@@ -68,7 +84,15 @@ class TopCollectionHasParentsFailure:
 
 
 class TopCollectionIsNotChainedFailure:
-    """Failure when the top collection is not a chain."""
+    """Failure when the top collection is not a chain.
+
+    Parameters
+    ----------
+    collection : `str`
+        Name of collection.
+    collection_type : `CollectionType`
+        Type of collection.
+    """
 
     def __init__(self, collection: str, collection_type: CollectionType):
         self.collection = collection
@@ -82,7 +106,13 @@ class TopCollectionIsNotChainedFailure:
 
 
 class TopCollectionNotFoundFailure:
-    """Failure when the top collection is not found."""
+    """Failure when the top collection is not found.
+
+    Parameters
+    ----------
+    collection : `str`
+        Name of collection.
+    """
 
     def __init__(self, collection: str):
         self.collection = collection
@@ -92,7 +122,13 @@ class TopCollectionNotFoundFailure:
 
 
 class PurgeResult(ConfirmableResult):
-    """The results of the purge command."""
+    """The results of the purge command.
+
+    Parameters
+    ----------
+    butler_config : `str`
+        Butler configuration URI.
+    """
 
     def __init__(self, butler_config: str):
         self.runs_to_remove: list[str] = []

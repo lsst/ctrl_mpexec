@@ -36,7 +36,13 @@ from .confirmable import ConfirmableResult
 
 
 class NoSuchCollectionFailure:
-    """Failure when there is no such collection."""
+    """Failure when there is no such collection.
+
+    Parameters
+    ----------
+    collection : `str`
+        Name of collection.
+    """
 
     def __init__(self, collection: str):
         self.collection = collection
@@ -46,7 +52,15 @@ class NoSuchCollectionFailure:
 
 
 class NotChainedCollectionFailure:
-    """Failure when this is not a chained collection."""
+    """Failure when this is not a chained collection.
+
+    Parameters
+    ----------
+    collection : `str`
+        Name of collection.
+    type : `str`
+        Type of collection.
+    """
 
     def __init__(self, collection: str, type: str):
         self.collection = collection
@@ -57,7 +71,13 @@ class NotChainedCollectionFailure:
 
 
 class CleanupResult(ConfirmableResult):
-    """Information containing the result of the cleanup request."""
+    """Information containing the result of the cleanup request.
+
+    Parameters
+    ----------
+    butler_config : `str`
+        Butler configuration URI.
+    """
 
     def __init__(self, butler_config: str):
         self.butler_config = butler_config

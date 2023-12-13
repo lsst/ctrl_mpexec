@@ -250,10 +250,12 @@ def pipeline2dot(pipeline: Pipeline | Iterable[TaskDef], file: Any) -> None:
         Parameters
         ----------
         connection : `list` [`str`]
+            Connection to examine.
 
         Returns
         -------
         dimensions : `list` [`str`]
+            Expanded list of dimensions.
         """
         dimension_set = set()
         if isinstance(connection, connectionTypes.DimensionedConnection):

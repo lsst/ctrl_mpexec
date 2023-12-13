@@ -55,7 +55,6 @@ class ExecFixupDataId(ExecutionGraphFixup):
             return ExecFixupDataId(taskLabel="ap_assoc",
                                    dimensions=("visit", "detector"))
 
-
     and then executing pipetask::
 
         pipetask run --graph-fixup=lsst.ap.verify.ci_fixup.assoc_fixup ...

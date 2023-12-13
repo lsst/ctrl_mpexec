@@ -86,6 +86,15 @@ def _compare_packages(old_packages: Packages, new_packages: Packages) -> None:
 class PreExecInitBase(abc.ABC):
     """Common part of the implementation of PreExecInit classes that does not
     depend on Butler type.
+
+    Parameters
+    ----------
+    butler : `~lsst.daf.butler.LimitedButler`
+        Butler to use.
+    taskFactory : `lsst.pipe.base.TaskFactory`
+        Task factory.
+    extendRun : `bool`
+        Whether extend run parameter is in use.
     """
 
     def __init__(self, butler: LimitedButler, taskFactory: TaskFactory, extendRun: bool):
@@ -221,7 +230,13 @@ class PreExecInitBase(abc.ABC):
         """
 
         def logConfigMismatch(msg: str) -> None:
-            """Log messages about configuration mismatch."""
+            """Log messages about configuration mismatch.
+
+            Parameters
+            ----------
+            msg : `str`
+                Log message to use.
+            """
             _LOG.fatal("Comparing configuration: %s", msg)
 
         _LOG.debug("Will save Configs for all tasks")
@@ -346,6 +361,11 @@ class PreExecInitBase(abc.ABC):
         """Context manager for transaction.
 
         Default implementation has no transaction support.
+
+        Yields
+        ------
+        `None`
+            No transaction support.
         """
         yield
 

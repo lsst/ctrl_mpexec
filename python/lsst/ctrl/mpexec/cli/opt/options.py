@@ -467,7 +467,16 @@ def parse_mock_failure(
     ctx: click.Context, param: click.Option, value: Iterable[str] | None
 ) -> Mapping[str, tuple[str, type[Exception] | None]]:
     """Parse the --mock-failure option values into the mapping accepted by
-    `lsst.pipe.base.tests.mocks.mock_task_defs`.
+    `~lsst.pipe.base.tests.mocks.mock_task_defs`.
+
+    Parameters
+    ----------
+    ctx : `click.Context`
+        Context provided by Click.
+    param : `click.Option`
+        Click option.
+    value : `~collections.abc.Iterable` [`str`] or `None`
+        Value from option.
     """
     result: dict[str, tuple[str, type[Exception] | None]] = {}
     if value is None:

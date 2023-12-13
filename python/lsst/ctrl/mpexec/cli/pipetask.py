@@ -48,7 +48,7 @@ class PipetaskCLI(LoaderCLI):
 @log_file_option()
 @log_tty_option()
 @log_label_option()
-def cli(log_level, long_log, log_file, log_tty, log_label) -> None:  # type: ignore
+def cli(log_level, long_log, log_file, log_tty, log_label) -> None:  # type: ignore numpydoc ignore=PR01
     """Implement pipetask command line."""
     # log_level is handled by get_command and list_commands, and is called in
     # one of those functions before this is called.
