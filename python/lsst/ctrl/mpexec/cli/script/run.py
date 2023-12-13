@@ -179,7 +179,7 @@ def run(  # type: ignore
     rebase : `bool`
         If `True` then reset output collection chain if it is inconsistent with
         the ``inputs``.
-    kwargs : `dict` [`str`, `str`]
+    **kwargs : `dict` [`str`, `str`]
         Ignored; click commands may accept options for more than one script
         function and pass all the option kwargs to each of the script functions
         which ignore these unused kwargs.

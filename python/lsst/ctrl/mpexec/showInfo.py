@@ -299,7 +299,7 @@ class ShowInfo:
 
         Parameters
         ----------
-        pipeline: `lsst.pipe.base.Pipeline`
+        pipeline : `lsst.pipe.base.Pipeline`
             Pipeline definition.
         """
         for taskDef in pipeline.toExpandedPipeline():

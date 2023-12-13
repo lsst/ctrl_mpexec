@@ -110,8 +110,9 @@ def printTable(rows: list[tuple], header: tuple | None) -> None:
     Parameters
     ----------
     rows : `list` of `tuple`
-        Each item in the list is a 2-tuple containg left and righ column values
-    header: `tuple` or `None`
+        Each item in the list is a 2-tuple containg left and righ column
+        values.
+    header : `tuple` or `None`
         If `None` then table header are not prined, otherwise it's a 2-tuple
         with column headings.
     """

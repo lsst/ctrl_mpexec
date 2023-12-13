@@ -174,7 +174,7 @@ def graph2dot(qgraph: QuantumGraph, file: Any) -> None:
 
     Parameters
     ----------
-    qgraph: `lsst.pipe.base.QuantumGraph`
+    qgraph : `lsst.pipe.base.QuantumGraph`
         QuantumGraph instance.
     file : `str` or file object
         File where GraphViz graph (DOT language) is written, can be a file name
@@ -249,7 +249,7 @@ def pipeline2dot(pipeline: Pipeline | Iterable[TaskDef], file: Any) -> None:
 
         Parameters
         ----------
-        dimensions : `list` [`str`]
+        connection : `list` [`str`]
 
         Returns
         -------
