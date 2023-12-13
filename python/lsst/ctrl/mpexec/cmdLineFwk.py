@@ -43,6 +43,7 @@ from collections.abc import Iterable, Mapping, Sequence
 from types import SimpleNamespace
 
 import astropy.units as u
+import lsst.utils.timer
 from astropy.table import Table
 from lsst.daf.butler import (
     Butler,
@@ -76,7 +77,6 @@ from lsst.pipe.base import (
 from lsst.utils import doImportType
 from lsst.utils.threads import disable_implicit_threading
 
-from . import util
 from .dotTools import graph2dot, pipeline2dot
 from .executionGraphFixup import ExecutionGraphFixup
 from .mpGraphExecutor import MPGraphExecutor
@@ -827,7 +827,7 @@ class CmdLineFwk:
             # forked processes.
             butler.registry.resetConnectionPool()
             try:
-                with util.profile(args.profile, _LOG):
+                with lsst.utils.timer.profile(args.profile, _LOG):
                     executor.execute(graph)
             finally:
                 if args.summary:
@@ -1012,7 +1012,7 @@ class CmdLineFwk:
             pdb=args.pdb,
         )
         try:
-            with util.profile(args.profile, _LOG):
+            with lsst.utils.timer.profile(args.profile, _LOG):
                 executor.execute(qgraph)
         finally:
             if args.summary:

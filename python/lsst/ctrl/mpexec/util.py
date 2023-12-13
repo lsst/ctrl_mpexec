@@ -28,80 +28,12 @@
 """Few utility methods used by the rest of a package.
 """
 
-__all__ = ["profile", "printTable", "filterTasks", "subTaskIter"]
+__all__ = ["printTable", "filterTasks", "subTaskIter"]
 
-# -------------------------------
-#  Imports of standard modules --
-# -------------------------------
-import contextlib
-import logging
 from collections.abc import Iterator
 
-# -----------------------------
-#  Imports for other modules --
-# -----------------------------
 import lsst.pex.config as pexConfig
 from lsst.pipe.base import Pipeline, TaskDef
-
-# ----------------------------------
-#  Local non-exported definitions --
-# ----------------------------------
-
-# ------------------------
-#  Exported definitions --
-# ------------------------
-
-
-@contextlib.contextmanager
-def profile(filename: str, log: logging.Logger | None = None) -> Iterator:
-    """Context manager for profiling with cProfile.
-
-    Parameters
-    ----------
-    filename : `str`
-        Filename to which to write profile (profiling disabled if `None`
-        or empty).
-    log : `logging.Logger` or `None`, optional
-        Log object for logging the profile operations.
-
-    Yields
-    ------
-    profile : `cProfile.Profile` or `None`
-        If profiling is enabled, the context manager returns the
-        `cProfile.Profile` object (otherwise it returns `None`).
-
-    Notes
-    -----
-    The returned profile object allows additional control
-    over profiling.  You can obtain this using the ``as`` clause, e.g.:
-
-    .. code-block:: py
-
-        with profile(filename) as prof:
-            runYourCodeHere()
-
-    The output cumulative profile can be printed with a command-line like:
-
-    .. code-block:: bash
-
-        python -c 'import pstats; pstats.Stats("<filename>").\
-                   sort_stats("cumtime").print_stats(30)'
-    """
-    if not filename:
-        # Nothing to do
-        yield
-        return
-    from cProfile import Profile
-
-    prof = Profile()
-    if log is not None:
-        log.info("Enabling cProfile profiling")
-    prof.enable()
-    yield prof
-    prof.disable()
-    prof.dump_stats(filename)
-    if log is not None:
-        log.info("cProfile stats written to %s" % filename)
 
 
 def printTable(rows: list[tuple], header: tuple | None) -> None:
