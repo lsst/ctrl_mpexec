@@ -112,19 +112,19 @@ def makePipelineActions(
         passed in on the command line.
     taskFlags : `list` [`str`], optional
         The option flags to use to recognize a task action, by default
-        task_option.opts()
+        task_option.opts().
     deleteFlags : `list` [`str`], optional
         The option flags to use to recognize a delete action, by default
-        delete_option.opts()
+        delete_option.opts().
     configFlags : `list` [`str`], optional
         The option flags to use to recognize a config action, by default
-        config_option.opts()
+        config_option.opts().
     configFileFlags : `list` [`str`], optional
         The option flags to use to recognize a config-file action, by default
-        config_file_option.opts()
+        config_file_option.opts().
     instrumentFlags : `list` [`str`], optional
         The option flags to use to recognize an instrument action, by default
-        instrument_option.opts()
+        instrument_option.opts().
 
     Returns
     -------

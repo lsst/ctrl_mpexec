@@ -36,20 +36,20 @@ def report(butler_config: str, qgraph_uri: str, output_yaml: str, logs: bool = T
 
     Parameters
     ----------
-        butler_config : `str`
-            The Butler used for this report. This should match the Butler used
-            for the run associated with the executed quantum graph.
-        qgraph_uri : `str`
-            The uri of the location of said quantum graph.
-        output_yaml : `str`
-            The name to be used for the summary yaml file.
-        logs : `bool`
-            Get butler log datasets for extra information.
+    butler_config : `str`
+        The Butler used for this report. This should match the Butler used
+        for the run associated with the executed quantum graph.
+    qgraph_uri : `str`
+        The uri of the location of said quantum graph.
+    output_yaml : `str`
+        The name to be used for the summary yaml file.
+    logs : `bool`
+        Get butler log datasets for extra information.
 
     See Also
     --------
-        lsst.pipe.base.QuantumGraphExecutionReport.make_reports
-        lsst.pipe.base.QuantumGraphExecutionReport.write_summary_yaml
+    lsst.pipe.base.QuantumGraphExecutionReport.make_reports : Making reports.
+    lsst.pipe.base.QuantumGraphExecutionReport.write_summary_yaml : Summaries.
     """
     butler = Butler.from_config(butler_config, writeable=False)
     qgraph = QuantumGraph.loadUri(qgraph_uri)

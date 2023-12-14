@@ -87,7 +87,20 @@ class ConfirmableResult(ABC):
 
 
 def confirm(script_func: Callable[[], ConfirmableResult], confirm: bool) -> ConfirmableResult:
-    """Prompt user to continue."""
+    """Prompt user to continue.
+
+    Parameters
+    ----------
+    script_func : `~collections.abc.Callable`
+        Script function to call.
+    confirm : `bool`
+        Whether confirmation is required.
+
+    Returns
+    -------
+    result : `ConfirmableResult`
+        Confirmation from script function.
+    """
     result = script_func()
     if result.failed:
         raise click.ClickException(result.describe_failure)

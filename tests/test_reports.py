@@ -31,10 +31,10 @@ from lsst.ctrl.mpexec import ExecutionStatus, QuantumReport, Report
 
 
 class ReportsTestCase(unittest.TestCase):
-    """A test case for reports module"""
+    """A test case for reports module."""
 
     def test_quantumReport(self):
-        """Test for QuantumReport class"""
+        """Test for QuantumReport class."""
         dataId = {"instrument": "LSST"}
         taskLabel = "task"
 
@@ -73,7 +73,7 @@ class ReportsTestCase(unittest.TestCase):
         self.assertIsNone(qr.exceptionInfo)
 
     def test_report(self):
-        """Test for Report class"""
+        """Test for Report class."""
         report = Report()
         self.assertEqual(report.status, ExecutionStatus.SUCCESS)
         self.assertIsNotNone(report.cmdLine)
@@ -96,7 +96,7 @@ class ReportsTestCase(unittest.TestCase):
         self.assertEqual(len(report.quantaReports), 1)
 
     def test_json(self):
-        """Test for conversion to/from json"""
+        """Test for conversion to/from JSON."""
         dataId = {"instrument": "LSST"}
         taskLabel = "task"
 

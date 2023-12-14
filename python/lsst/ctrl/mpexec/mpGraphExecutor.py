@@ -83,13 +83,13 @@ class _Job:
 
     @property
     def state(self) -> JobState:
-        """Job processing state (JobState)"""
+        """Job processing state (JobState)."""
         return self._state
 
     @property
     def terminated(self) -> bool:
         """Return `True` if job was killed by stop() method and negative exit
-        code is returned from child process. (`bool`)
+        code is returned from child process (`bool`).
         """
         if self._terminated:
             assert self.process is not None, "Process must be started"
@@ -224,7 +224,7 @@ class _Job:
         return report
 
     def failMessage(self) -> str:
-        """Return a message describing task failure"""
+        """Return a message describing task failure."""
         assert self.process is not None, "Process must be started"
         assert self.process.exitcode is not None, "Process has to finish"
         exitcode = self.process.exitcode
@@ -272,7 +272,7 @@ class _JobList:
         quantumExecutor: QuantumExecutor,
         startMethod: Literal["spawn"] | Literal["forkserver"],
     ) -> None:
-        """Submit one more job for execution
+        """Submit one more job for execution.
 
         Parameters
         ----------

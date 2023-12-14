@@ -75,7 +75,7 @@ def qgraph(  # type: ignore
 
     Parameters
     ----------
-    pipelineObj : `lsst.pipe.base.Pipeline` or None.
+    pipelineObj : `lsst.pipe.base.Pipeline` or None
         The pipeline object used to generate a qgraph. If this is not `None`
         then `qgraph` should be `None`.
     qgraph : `str` or `None`
@@ -175,7 +175,7 @@ def qgraph(  # type: ignore
         List of overall-input dataset types that should not be mocked.
     mock_failure : `~collections.abc.Sequence`, optional
         List of quanta that should raise exceptions.
-    kwargs : `dict` [`str`, `str`]
+    **kwargs : `dict` [`str`, `str`]
         Ignored; click commands may accept options for more than one script
         function and pass all the option kwargs to each of the script functions
         which ignore these unused kwargs.

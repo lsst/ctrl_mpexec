@@ -74,12 +74,38 @@ class ExceptionInfo(_BaseModelCompat):
 
     @classmethod
     def from_exception(cls, exception: Exception) -> ExceptionInfo:
-        """Construct instance from an exception."""
+        """Construct instance from an exception.
+
+        Parameters
+        ----------
+        exception : `Exception`
+            Exception to wrap.
+
+        Returns
+        -------
+        info : `ExceptionInfo`
+            Information about the exception.
+        """
         return cls(className=get_full_type_name(exception), message=str(exception))
 
 
 class QuantumReport(_BaseModelCompat):
-    """Task execution report for a single Quantum."""
+    """Task execution report for a single Quantum.
+
+    Parameters
+    ----------
+    dataId : `~lsst.daf.butler.DataId`
+        Quantum data ID.
+    taskLabel : `str`
+        Label for task executing this Quantum.
+    status : `ExecutionStatus`
+        Status of this quantum execution.
+    exitCode : `int` or `None`, optional
+        Exit code for sub-process executing this Quantum. `None` for
+        in-process execution. Negative if process was killed by a signal.
+    exceptionInfo : `ExceptionInfo` or `None`, optional
+        Exception information if an exception was raised.
+    """
 
     status: ExecutionStatus = ExecutionStatus.SUCCESS
     """Execution status, one of the values in `ExecutionStatus` enum."""
@@ -123,6 +149,15 @@ class QuantumReport(_BaseModelCompat):
     ) -> QuantumReport:
         """Construct report instance from an exception and other pieces of
         data.
+
+        Parameters
+        ----------
+        exception : `Exception`
+            Exception caught from processing quantum.
+        dataId : `~lsst.daf.butler.DataId`
+            Data ID of quantum.
+        taskLabel : `str`
+            Label of task.
         """
         return cls(
             status=ExecutionStatus.FAILURE,
@@ -140,6 +175,15 @@ class QuantumReport(_BaseModelCompat):
     ) -> QuantumReport:
         """Construct report instance from an exit code and other pieces of
         data.
+
+        Parameters
+        ----------
+        exitCode : `int`
+            The exit code of the subprocess.
+        dataId : `~lsst.daf.butler.DataId`
+            The quantum Data ID.
+        taskLabel : `str`
+            The task label.
         """
         return cls(
             status=ExecutionStatus.SUCCESS if exitCode == 0 else ExecutionStatus.FAILURE,
@@ -188,5 +232,11 @@ class Report(_BaseModelCompat):
             return v
 
     def set_exception(self, exception: Exception) -> None:
-        """Update exception information from an exception object."""
+        """Update exception information from an exception object.
+
+        Parameters
+        ----------
+        exception : `Exception`
+            Exception to use to extract information from.
+        """
         self.exceptionInfo = ExceptionInfo.from_exception(exception)

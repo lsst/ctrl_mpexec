@@ -90,7 +90,7 @@ class SingleQuantumExecutor(QuantumExecutor):
         instead.
     taskFactory : `~lsst.pipe.base.TaskFactory`
         Instance of a task factory.
-    skipExistingIn
+    skipExistingIn : `~typing.Any`
         Expressions representing the collections to search for existing
         output datasets. See :ref:`daf_butler_ordered_collection_searches`
         for allowed types. This class only checks for the presence of butler
@@ -293,9 +293,11 @@ class SingleQuantumExecutor(QuantumExecutor):
         Parameters
         ----------
         quantum : `~lsst.daf.butler.Quantum`
-            Quantum to check for existing outputs
+            Quantum to check for existing outputs.
         taskDef : `~lsst.pipe.base.TaskDef`
             Task definition structure.
+        limited_butler : `~lsst.daf.butler.LimitedButler`
+            Butler to use for querying.
 
         Returns
         -------
@@ -389,11 +391,13 @@ class SingleQuantumExecutor(QuantumExecutor):
             Single Quantum instance.
         taskDef : `~lsst.pipe.base.TaskDef`
             Task definition structure.
+        limited_butler : `~lsst.daf.butler.LimitedButler`
+            Butler to use for querying.
 
         Returns
         -------
         update : `~lsst.daf.butler.Quantum`
-            Updated Quantum instance
+            Updated Quantum instance.
         """
         anyChanges = False
         updatedInputs: defaultdict[DatasetType, list] = defaultdict(list)
@@ -453,6 +457,8 @@ class SingleQuantumExecutor(QuantumExecutor):
             Single Quantum instance.
         taskDef : `~lsst.pipe.base.TaskDef`
             Task definition structure.
+        limited_butler : `~lsst.daf.butler.LimitedButler`
+            Butler to use for dataset I/O.
         """
         # Create a butler that operates in the context of a quantum
         butlerQC = QuantumContext(limited_butler, quantum, resources=self.resources)

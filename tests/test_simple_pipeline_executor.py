@@ -91,6 +91,8 @@ class NoDimensionsMetadataTestTask(NoDimensionsTestTask):
         ----------
         input : `dict`
             Dictionary to update and return.
+        meta : `dict`
+            Metadata to add.
 
         Returns
         -------
@@ -350,7 +352,13 @@ class MemoryTester(lsst.utils.tests.MemoryTestCase):
 
 
 def setup_module(module):
-    """Set up the module for pytest."""
+    """Set up the module for pytest.
+
+    Parameters
+    ----------
+    module : `~types.ModuleType`
+        Module to set up.
+    """
     lsst.utils.tests.init()
 
 

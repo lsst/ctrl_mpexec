@@ -94,7 +94,7 @@ class ShowInfo:
     show : `list` [`str`]
         A list of show commands, some of which may have additional parameters
         specified using an ``=``.
-    stream : I/O stream or None.
+    stream : I/O stream or None
         The output stream to use. `None` will be treated as `sys.stdout`.
 
     Raises
@@ -145,6 +145,8 @@ class ShowInfo:
         ----------
         pipeline : `lsst.pipe.base.Pipeline`
             The pipeline to use when reporting information.
+        butler : `~lsst.daf.butler.Butler`
+            Butler to use for querying.
         """
         if butler is not None:
             registry = butler.registry
@@ -299,7 +301,7 @@ class ShowInfo:
 
         Parameters
         ----------
-        pipeline: `lsst.pipe.base.Pipeline`
+        pipeline : `lsst.pipe.base.Pipeline`
             Pipeline definition.
         """
         for taskDef in pipeline.toExpandedPipeline():

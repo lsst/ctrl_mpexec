@@ -58,12 +58,12 @@ def build(  # type: ignore
     order_pipeline : `bool`
         If true, order tasks in pipeline based on their data dependencies,
         ordering is performed as last step before saving or executing pipeline.
+    pipeline : `str`
+        Path location of a pipeline definition file in YAML format.
     pipeline_actions : `list` [`PipelineAction`]] or `PipelineAction`
         A list of pipeline actions in the order they should be executed.
     pipeline_dot : `str`
         Path location for storing GraphViz DOT representation of a pipeline.
-    pipeline : `str`
-        Path location of a pipeline definition file in YAML format.
     save_pipeline : `str`
         Path location for storing resulting pipeline definition in YAML format.
     show : `lsst.ctrl.mpexec.showInfo.ShowInfo`

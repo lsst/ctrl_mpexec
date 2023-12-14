@@ -39,7 +39,13 @@ from lsst.pipe.base import Pipeline, PipelineTask, PipelineTaskConfig, PipelineT
 
 
 class ExamplePipelineTaskConnections(PipelineTaskConnections, dimensions=()):
-    """Connections class used for testing."""
+    """Connections class used for testing.
+
+    Parameters
+    ----------
+    config : `PipelineTaskConfig`
+        The config to use for this connections class.
+    """
 
     input1 = cT.Input(
         name="", dimensions=["visit", "detector"], storageClass="example", doc="Input for this task"
@@ -121,10 +127,10 @@ def _makePipeline(tasks):
 
 
 class DotToolsTestCase(unittest.TestCase):
-    """A test case for dotTools"""
+    """A test case for dotTools."""
 
     def testPipeline2dot(self):
-        """Tests for dotTools.pipeline2dot method"""
+        """Tests for dotTools.pipeline2dot method."""
         pipeline = _makePipeline(
             [
                 ("A", ("B", "C"), "task0"),
@@ -178,7 +184,13 @@ class MyMemoryTestCase(lsst.utils.tests.MemoryTestCase):
 
 
 def setup_module(module):
-    """Set up the module for pytest."""
+    """Set up the module for pytest.
+
+    Parameters
+    ----------
+    module : `~types.ModuleType`
+        Module to set up.
+    """
     lsst.utils.tests.init()
 
 

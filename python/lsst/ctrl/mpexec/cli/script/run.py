@@ -78,7 +78,7 @@ def run(  # type: ignore
     Parameters
     ----------
     pdb : `bool`
-        Drop into pdb on exception?
+        Drop into pdb on exception or not.
     graph_fixup : `str`
         The name of the class or factory method which makes an instance used
         for execution graph fixup.
@@ -134,7 +134,7 @@ def run(  # type: ignore
         development, but it does not delete the datasets associated with the
         replaced run unless `prune-replaced` is also True. Requires `output`,
         and `extend_run` must be `None`.
-    prune_replaced : "unstore", "purge", or `None`.
+    prune_replaced : "unstore", "purge", or `None`
         If not `None`, delete the datasets in the collection replaced by
         `replace_run`, either just from the datastore ("unstore") or by
         removing them and the RUN completely ("purge"). Requires `replace_run`.
@@ -179,7 +179,7 @@ def run(  # type: ignore
     rebase : `bool`
         If `True` then reset output collection chain if it is inconsistent with
         the ``inputs``.
-    kwargs : `dict` [`str`, `str`]
+    **kwargs : `dict` [`str`, `str`]
         Ignored; click commands may accept options for more than one script
         function and pass all the option kwargs to each of the script functions
         which ignore these unused kwargs.

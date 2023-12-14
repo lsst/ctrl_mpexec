@@ -104,8 +104,15 @@ def makeTmpFile(contents=None, suffix=None):
 
     Parameters
     ----------
-    contents : `bytes`
+    contents : `bytes` or `None`, optional
         Data to write into a file.
+    suffix : `str` or `None`, optional
+        Suffix to use for temporary file.
+
+    Yields
+    ------
+    `str`
+        Name of the temporary file.
     """
     fd, tmpname = tempfile.mkstemp(suffix=suffix)
     if contents:
@@ -119,6 +126,13 @@ def makeTmpFile(contents=None, suffix=None):
 @contextlib.contextmanager
 def makeSQLiteRegistry(create=True, universe=None):
     """Context manager to create new empty registry database.
+
+    Parameters
+    ----------
+    create : `bool`, optional
+        Whether to create the registry or not.
+    universe : `~lsst.daf.butler.DimensionUniverse` or `None`, optional
+        The dimension universe to use with the registry.
 
     Yields
     ------
@@ -171,7 +185,7 @@ def _makeArgs(registryConfig=None, **kwargs):
 
     @click.command(cls=PipetaskCommand)
     @run_options()
-    def fake_run(ctx, **kwargs):
+    def fake_run(ctx, **kwargs):  # numpydoc ignore=PR01
         """Fake "pipetask run" command for gathering input arguments.
 
         The arguments & options should always match the arguments & options in
@@ -303,10 +317,10 @@ def _makeQGraph():
 
 
 class CmdLineFwkTestCase(unittest.TestCase):
-    """A test case for CmdLineFwk"""
+    """A test case for CmdLineFwk."""
 
     def testMakePipeline(self):
-        """Tests for CmdLineFwk.makePipeline method"""
+        """Tests for CmdLineFwk.makePipeline method."""
         fwk = CmdLineFwk()
 
         # make empty pipeline
@@ -528,7 +542,7 @@ class CmdLineFwkTestCase(unittest.TestCase):
 
 
 class CmdLineFwkTestCaseWithButler(unittest.TestCase):
-    """A test case for CmdLineFwk"""
+    """A test case for CmdLineFwk."""
 
     def setUp(self):
         super().setUpClass()
@@ -1150,7 +1164,13 @@ class MyMemoryTestCase(lsst.utils.tests.MemoryTestCase):
 
 
 def setup_module(module):
-    """Initialize pytest module."""
+    """Initialize pytest module.
+
+    Parameters
+    ----------
+    module : `~types.ModuleType`
+        Module to set up.
+    """
     lsst.utils.tests.init()
 
 

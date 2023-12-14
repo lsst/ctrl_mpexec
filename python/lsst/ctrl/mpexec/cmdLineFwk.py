@@ -43,6 +43,7 @@ from collections.abc import Iterable, Mapping, Sequence
 from types import SimpleNamespace
 
 import astropy.units as u
+import lsst.utils.timer
 from astropy.table import Table
 from lsst.daf.butler import (
     Butler,
@@ -76,7 +77,6 @@ from lsst.pipe.base import (
 from lsst.utils import doImportType
 from lsst.utils.threads import disable_implicit_threading
 
-from . import util
 from .dotTools import graph2dot, pipeline2dot
 from .executionGraphFixup import ExecutionGraphFixup
 from .mpGraphExecutor import MPGraphExecutor
@@ -541,11 +541,12 @@ class CmdLineFwk:
         Parameters
         ----------
         args : `types.SimpleNamespace`
-            Parsed command line
+            Parsed command line.
 
         Returns
         -------
         pipeline : `~lsst.pipe.base.Pipeline`
+            Newly-constructed pipeline.
         """
         if args.pipeline:
             pipeline = Pipeline.from_uri(args.pipeline)
@@ -590,7 +591,7 @@ class CmdLineFwk:
         pipeline : `~lsst.pipe.base.Pipeline`
             Pipeline, can be empty or ``None`` if graph is read from a file.
         args : `types.SimpleNamespace`
-            Parsed command line
+            Parsed command line.
 
         Returns
         -------
@@ -743,9 +744,9 @@ class CmdLineFwk:
         graph : `~lsst.pipe.base.QuantumGraph`
             Execution graph.
         taskFactory : `~lsst.pipe.base.TaskFactory`
-            Task factory
+            Task factory.
         args : `types.SimpleNamespace`
-            Parsed command line
+            Parsed command line.
         butler : `~lsst.daf.butler.Butler`, optional
             Data Butler instance, if not defined then new instance is made
             using command line options.
@@ -826,7 +827,7 @@ class CmdLineFwk:
             # forked processes.
             butler.registry.resetConnectionPool()
             try:
-                with util.profile(args.profile, _LOG):
+                with lsst.utils.timer.profile(args.profile, _LOG):
                     executor.execute(graph)
             finally:
                 if args.summary:
@@ -1011,7 +1012,7 @@ class CmdLineFwk:
             pdb=args.pdb,
         )
         try:
-            with util.profile(args.profile, _LOG):
+            with lsst.utils.timer.profile(args.profile, _LOG):
                 executor.execute(qgraph)
         finally:
             if args.summary:
