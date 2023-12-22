@@ -18,7 +18,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v3
         with:
-          python-version: '3.11'
+          python-version: "3.11"
           cache: "pip"
           cache-dependency-path: "setup.cfg"
 
@@ -35,7 +35,7 @@ jobs:
         run: pip install --no-deps -v .
 
       - name: Install documenteer
-        run: pip install 'documenteer[pipelines]>=0.8'
+        run: pip install 'documenteer[pipelines]==0.8.2'
 
       - name: Build documentation
         working-directory: ./doc
