@@ -35,7 +35,6 @@ from typing import Any
 
 import pydantic
 from lsst.daf.butler import DataCoordinate, DataId, DataIdValue
-from lsst.daf.butler._compat import PYDANTIC_V2, _BaseModelCompat
 from lsst.utils.introspection import get_full_type_name
 
 
@@ -61,7 +60,7 @@ class ExecutionStatus(enum.Enum):
     SKIPPED = "skipped"
 
 
-class ExceptionInfo(_BaseModelCompat):
+class ExceptionInfo(pydantic.BaseModel):
     """Information about exception."""
 
     className: str
@@ -89,7 +88,7 @@ class ExceptionInfo(_BaseModelCompat):
         return cls(className=get_full_type_name(exception), message=str(exception))
 
 
-class QuantumReport(_BaseModelCompat):
+class QuantumReport(pydantic.BaseModel):
     """Task execution report for a single Quantum.
 
     Parameters
@@ -193,7 +192,7 @@ class QuantumReport(_BaseModelCompat):
         )
 
 
-class Report(_BaseModelCompat):
+class Report(pydantic.BaseModel):
     """Execution report for the whole job with one or few quanta."""
 
     status: ExecutionStatus = ExecutionStatus.SUCCESS
@@ -213,23 +212,14 @@ class Report(_BaseModelCompat):
     quanta may not produce a report.
     """
 
-    if PYDANTIC_V2:
-        # Always want to validate the default value for cmdLine so
-        # use a model_validator.
-        @pydantic.model_validator(mode="before")  # type: ignore[attr-defined]
-        @classmethod
-        def _set_cmdLine(cls, data: Any) -> Any:
-            if data.get("cmdLine") is None:
-                data["cmdLine"] = sys.argv
-            return data
-
-    else:
-
-        @pydantic.validator("cmdLine", always=True)
-        def _set_cmdLine(cls, v: list[str] | None) -> list[str]:  # noqa: N805
-            if v is None:
-                v = sys.argv
-            return v
+    # Always want to validate the default value for cmdLine so
+    # use a model_validator.
+    @pydantic.model_validator(mode="before")
+    @classmethod
+    def _set_cmdLine(cls, data: Any) -> Any:
+        if data.get("cmdLine") is None:
+            data["cmdLine"] = sys.argv
+        return data
 
     def set_exception(self, exception: Exception) -> None:
         """Update exception information from an exception object.
