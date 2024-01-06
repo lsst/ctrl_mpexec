@@ -46,7 +46,7 @@ import click
 import lsst.pex.config as pexConfig
 import lsst.pipe.base.connectionTypes as cT
 import lsst.utils.tests
-from lsst.ctrl.mpexec import CmdLineFwk, MPGraphExecutorError
+from lsst.ctrl.mpexec import CmdLineFwk, MPGraphExecutorError, Report
 from lsst.ctrl.mpexec.cli.opt import run_options
 from lsst.ctrl.mpexec.cli.utils import (
     _ACTION_ADD_INSTRUMENT,
@@ -1157,6 +1157,33 @@ class CmdLineFwkTestCaseWithButler(unittest.TestCase):
                 )
             else:
                 self.assertEqual(quantum.datastore_records, {})
+
+    def testSummary(self):
+        """Test generating a summary report."""
+        args = _makeArgs(butler_config=self.root, input="test", output="output")
+        butler = makeSimpleButler(self.root, run=args.input, inMemory=False)
+        populateButler(self.pipeline, butler)
+
+        fwk = CmdLineFwk()
+        taskFactory = AddTaskFactoryMock()
+
+        qgraph = fwk.makeGraph(self.pipeline, args)
+        self.assertEqual(len(qgraph.taskGraph), self.nQuanta)
+        self.assertEqual(len(qgraph), self.nQuanta)
+
+        # Ensure that the output run used in the graph is also used in
+        # the pipeline execution. It is possible for makeGraph and runPipeline
+        # to calculate time-stamped runs across a second boundary.
+        args.output_run = qgraph.metadata["output_run"]
+
+        with makeTmpFile(suffix=".json") as tmpname:
+            args.summary = tmpname
+
+            # run whole thing
+            fwk.runPipeline(qgraph, taskFactory, args)
+            self.assertEqual(taskFactory.countExec, self.nQuanta)
+            with open(tmpname) as fh:
+                Report.model_validate_json(fh.read())
 
 
 class MyMemoryTestCase(lsst.utils.tests.MemoryTestCase):
