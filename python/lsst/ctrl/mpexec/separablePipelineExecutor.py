@@ -33,8 +33,6 @@ __all__ = [
 ]
 
 
-import datetime
-import getpass
 import logging
 import math
 import multiprocessing
@@ -217,8 +215,6 @@ class SeparablePipelineExecutor:
             "skip_existing_in": self._skip_existing_in,
             "skip_existing": bool(self._skip_existing_in),
             "data_query": where,
-            "user": getpass.getuser(),
-            "time": str(datetime.datetime.now()),
         }
         assert self._butler.run is not None, "Butler output run collection must be defined"
         graph = builder.makeGraph(

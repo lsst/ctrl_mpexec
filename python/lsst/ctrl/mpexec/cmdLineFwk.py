@@ -35,8 +35,6 @@ __all__ = ["CmdLineFwk"]
 import atexit
 import contextlib
 import copy
-import datetime
-import getpass
 import logging
 import shutil
 import sys
@@ -83,6 +81,7 @@ from .dotTools import graph2dot, pipeline2dot
 from .executionGraphFixup import ExecutionGraphFixup
 from .mpGraphExecutor import MPGraphExecutor
 from .preExecInit import PreExecInit, PreExecInitLimited
+from .reports import Report
 from .singleQuantumExecutor import SingleQuantumExecutor
 
 # ----------------------------------
@@ -646,8 +645,6 @@ class CmdLineFwk:
                 "skip_existing_in": args.skip_existing_in,
                 "skip_existing": args.skip_existing,
                 "data_query": args.data_query,
-                "user": getpass.getuser(),
-                "time": f"{datetime.datetime.now()}",
                 "pipe_base_version": pipeBaseVersion,
                 "full_command": " ".join(sys.argv),
             }
@@ -837,18 +834,16 @@ class CmdLineFwk:
                 if args.summary:
                     report = executor.getReport()
                     if report:
-                        with open(args.summary, "w") as out:
-                            # Do not save fields that are not set.
-                            out.write(report.model_dump_json(exclude_none=True, indent=2))
+                        report.qgraphSummary = self.report.qgraphSummary
+                    else:
+                        report = self.report
+                    with open(args.summary, "w") as out:
+                        # Do not save fields that are not set.
+                        out.write(report.model_dump_json(exclude_none=True, indent=2))
 
-    def _generateTaskTable(self, qgraph: QuantumGraph) -> Table:
+    def _generateTaskTable(self) -> Table:
         """Generate astropy table listing the number of quanta per task for a
         given quantum graph.
-
-        Parameters
-        ----------
-        qgraph : `lsst.pipe.base.graph.graph.QuantumGraph`
-            A QuantumGraph object.
 
         Returns
         -------
@@ -856,10 +851,10 @@ class CmdLineFwk:
             An astropy table containing columns: Quanta and Tasks.
         """
         qg_quanta, qg_tasks = [], []
-        for task_def in qgraph.iterTaskGraph():
-            num_qnodes = qgraph.getNumberOfQuantaForTask(task_def)
-            qg_quanta.append(num_qnodes)
-            qg_tasks.append(task_def.label)
+        for task_label, task_info in self.report.qgraphSummary.qgraphTaskSummaries.items():
+            qg_tasks.append(task_label)
+            qg_quanta.append(task_info.numQuanta)
+
         qg_task_table = Table(dict(Quanta=qg_quanta, Tasks=qg_tasks))
         return qg_task_table
 
@@ -880,8 +875,9 @@ class CmdLineFwk:
         if n_quanta == 0:
             _LOG.info("QuantumGraph contains no quanta.")
         else:
+            self.report = Report(qgraphSummary=qgraph.summary())
             if _LOG.isEnabledFor(logging.INFO):
-                qg_task_table = self._generateTaskTable(qgraph)
+                qg_task_table = self._generateTaskTable()
                 qg_task_table_formatted = "\n".join(qg_task_table.pformat_all())
                 quanta_str = "quantum" if n_quanta == 1 else "quanta"
                 n_tasks = len(qgraph.taskGraph)
@@ -1022,6 +1018,9 @@ class CmdLineFwk:
             if args.summary:
                 report = executor.getReport()
                 if report:
-                    with open(args.summary, "w") as out:
-                        # Do not save fields that are not set.
-                        out.write(report.json(exclude_none=True, indent=2))
+                    report.qgraphSummary = self.report.qgraphSummary
+                else:
+                    report = self.report
+                with open(args.summary, "w") as out:
+                    # Do not save fields that are not set.
+                    out.write(report.model_dump_json(exclude_none=True, indent=2))

@@ -186,8 +186,13 @@ def qgraph(ctx: click.Context, **kwargs: Any) -> None:
                 file=sys.stderr,
             )
             return
-        if script.qgraph(pipelineObj=pipeline, **kwargs, show=show) is None:
+        if (qgraph := script.qgraph(pipelineObj=pipeline, **kwargs, show=show)) is None:
             raise click.ClickException("QuantumGraph was empty; CRITICAL logs above should provide details.")
+
+        if summary_file := kwargs.get("summary"):
+            with open(summary_file, "w") as out:
+                # Do not save fields that are not set.
+                out.write(qgraph.summary().model_dump_json(exclude_none=True, indent=2))
         _unhandledShow(show, "qgraph")
 
 
