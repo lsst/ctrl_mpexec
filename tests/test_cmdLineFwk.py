@@ -664,7 +664,7 @@ class CmdLineFwkTestCaseWithButler(unittest.TestCase):
             fwk.runGraphQBB(taskFactory, args)
 
             # Transfer the datasets to the butler.
-            n1 = transfer_from_graph(temp_graph.name, self.root, True, False, False)
+            n1 = transfer_from_graph(temp_graph.name, self.root, True, False, False, False)
             self.assertEqual(n1, 31)
 
         self.assertEqual(taskFactory.countExec, self.nQuanta)
@@ -687,7 +687,7 @@ class CmdLineFwkTestCaseWithButler(unittest.TestCase):
             fwk.runGraphQBB(taskFactory, args)
 
             # Transfer the datasets to the butler.
-            n2 = transfer_from_graph(temp_graph.name, self.root, True, False, False)
+            n2 = transfer_from_graph(temp_graph.name, self.root, True, False, False, False)
             self.assertEqual(n1, n2)
 
     def testEmptyQGraph(self):
