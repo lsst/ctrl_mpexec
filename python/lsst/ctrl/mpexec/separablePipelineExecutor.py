@@ -36,8 +36,6 @@ __all__ = [
 import datetime
 import getpass
 import logging
-import math
-import multiprocessing
 from collections.abc import Iterable, Mapping
 from typing import Any, Protocol
 
@@ -241,6 +239,7 @@ class SeparablePipelineExecutor:
         graph: lsst.pipe.base.QuantumGraph,
         fail_fast: bool = False,
         graph_executor: QuantumGraphExecutor | None = None,
+        num_proc: int = 1,
     ) -> None:
         """Run a pipeline in the form of a prepared quantum graph.
 
@@ -252,11 +251,16 @@ class SeparablePipelineExecutor:
         graph : `lsst.pipe.base.QuantumGraph`
             The pipeline and datasets to execute.
         fail_fast : `bool`, optional
-            If `True`, abort all (parallel) execution if any task fails (only
-            used with the default graph executor).
+            If `True`, abort all execution if any task fails when
+            running with multiple processes. Only used with the default graph
+            executor).
         graph_executor : `lsst.ctrl.mpexec.QuantumGraphExecutor`, optional
             A custom graph executor. By default, a new instance of
             `lsst.ctrl.mpexec.MPGraphExecutor` is used.
+        num_proc : `int`, optional
+            The number of processes that can be used to run the pipeline. The
+            default value ensures that no subprocess is created. Only used with
+            the default graph executor.
         """
         if not graph_executor:
             quantum_executor = SingleQuantumExecutor(
@@ -267,7 +271,7 @@ class SeparablePipelineExecutor:
                 resources=self.resources,
             )
             graph_executor = MPGraphExecutor(
-                numProc=math.ceil(0.8 * multiprocessing.cpu_count()),
+                numProc=num_proc,
                 timeout=2_592_000.0,  # In practice, timeout is never helpful; set to 30 days.
                 quantumExecutor=quantum_executor,
                 failFast=fail_fast,
