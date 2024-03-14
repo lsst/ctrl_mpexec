@@ -53,7 +53,7 @@ class ReportTest(unittest.TestCase):
 
     def test_report(self):
         """Test for making a report on the produced and missing expected
-        datasets in a quantum graph. in a graph.
+        datasets in a quantum graph.
         """
         metadata = {"output_run": "run"}
         butler, qgraph = makeSimpleQGraph(
@@ -71,10 +71,9 @@ class ReportTest(unittest.TestCase):
 
         result = self.runner.invoke(
             pipetask_cli,
-            ["report", self.root, graph_uri, test_filename, "--no-logs"],
+            ["report", self.root, graph_uri, "--full-output-filename", test_filename, "--no-logs"],
             input="no",
         )
-
         # Check that we can read from the command line
         self.assertEqual(result.exit_code, 0, clickResultMsg(result))
 
@@ -83,6 +82,23 @@ class ReportTest(unittest.TestCase):
             report_output_dict = yaml.load(f, Loader=SafeLoader)
         self.assertIsNotNone(report_output_dict["task0"])
         self.assertIsNotNone(report_output_dict["task0"]["failed_quanta"])
+
+        result_hr = self.runner.invoke(
+            pipetask_cli,
+            ["report", self.root, graph_uri, "--no-logs"],
+            input="no",
+        )
+
+        # Check that we can read from the command line
+        self.assertEqual(result_hr.exit_code, 0, clickResultMsg(result_hr))
+
+        # Check that we get string output
+        self.assertIsInstance(result_hr.stdout, str)
+
+        # Check that task0 and the failed quanta for task0 exist in the string
+        self.assertIn("task0", result_hr.stdout)
+        self.assertIn("Failed Quanta", result_hr.stdout)
+        self.assertIn("{'data_id': {'instrument': 'INSTR', 'detector': 0}}", result_hr.stdout)
 
 
 if __name__ == "__main__":
