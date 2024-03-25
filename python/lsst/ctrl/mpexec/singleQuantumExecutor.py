@@ -115,6 +115,11 @@ class SingleQuantumExecutor(QuantumExecutor):
         `None`. If ``butler`` is not `None` then this parameter is ignored.
     resources : `~lsst.pipe.base.ExecutionResources`, optional
         The resources available to this quantum when executing.
+    skipExisting : `bool`, optional
+        If `True`, skip quanta whose metadata datasets are already stored.
+        Unlike ``skipExistingIn``, this works with limited butlers as well as
+        full butlers.  Always set to `True` if ``skipExistingIn`` matches
+        ``butler.run``.
     """
 
     def __init__(
@@ -127,6 +132,7 @@ class SingleQuantumExecutor(QuantumExecutor):
         exitOnKnownError: bool = False,
         limited_butler_factory: Callable[[Quantum], LimitedButler] | None = None,
         resources: ExecutionResources | None = None,
+        skipExisting: bool = False,
     ):
         self.butler = butler
         self.taskFactory = taskFactory
@@ -143,7 +149,7 @@ class SingleQuantumExecutor(QuantumExecutor):
         # Find whether output run is in skipExistingIn.
         # TODO: This duplicates logic in GraphBuilder, would be nice to have
         # better abstraction for this some day.
-        self.skipExisting = False
+        self.skipExisting = skipExisting
         if self.butler is not None and skipExistingIn:
             skip_collections_wildcard = CollectionWildcard.from_expression(skipExistingIn)
             # As optimization check in the explicit list of names first

@@ -1000,6 +1000,8 @@ class CmdLineFwk:
             exitOnKnownError=args.fail_fast,
             limited_butler_factory=_butler_factory,
             resources=resources,
+            clobberOutputs=True,
+            skipExisting=True,
         )
 
         timeout = self.MP_TIMEOUT if args.timeout is None else args.timeout
