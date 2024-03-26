@@ -85,7 +85,7 @@ class ReportTest(unittest.TestCase):
 
         result_hr = self.runner.invoke(
             pipetask_cli,
-            ["report", self.root, graph_uri, "--no-logs"],
+            ["report", self.root, graph_uri, "--no-logs", "--show-errors"],
             input="no",
         )
 

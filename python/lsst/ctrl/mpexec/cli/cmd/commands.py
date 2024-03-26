@@ -331,7 +331,14 @@ def update_graph_run(
 @ctrlMpExecOpts.qgraph_argument()
 @click.option("--full-output-filename", default="", help="Summarize report in a yaml file")
 @click.option("--logs/--no-logs", default=True, help="Get butler log datasets for extra information.")
-@click.option("--show-errors", default=False, help="Pretty-print a dict of errors from failed quanta.")
+@click.option(
+    "--show-errors",
+    is_flag=True,
+    default=False,
+    help="Pretty-print a dict of errors from failed"
+    " quanta to the screen. Note: the default is to output a yaml file with error information"
+    " (data_ids and associated messages) to the current working directory instead.",
+)
 def report(
     repo: str, qgraph: str, full_output_filename: str = "", logs: bool = True, show_errors: bool = False
 ) -> None:
@@ -342,4 +349,4 @@ def report(
 
     QGRAPH is the URL to a serialized Quantum Graph file.
     """
-    script.report(repo, qgraph, full_output_filename, logs)
+    script.report(repo, qgraph, full_output_filename, logs, show_errors)
