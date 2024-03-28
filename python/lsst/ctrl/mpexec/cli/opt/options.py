@@ -28,10 +28,17 @@
 from __future__ import annotations
 
 from collections.abc import Iterable, Mapping
+from typing import TYPE_CHECKING
 
 import click
 from lsst.daf.butler.cli.utils import MWOptionDecorator, MWPath, split_commas, unwrap
 from lsst.utils.doImport import doImportType
+
+if TYPE_CHECKING:
+    # Avoid regular module-scope import of test-only code that tinkers with the
+    # storage class singleton.
+    from lsst.pipe.base.tests.mocks import ForcedFailure
+
 
 butler_config_option = MWOptionDecorator(
     "-b", "--butler-config", help="Location of the gen3 butler/registry config file."
@@ -465,7 +472,7 @@ unmocked_dataset_types_option = MWOptionDecorator(
 
 def parse_mock_failure(
     ctx: click.Context, param: click.Option, value: Iterable[str] | None
-) -> Mapping[str, tuple[str, type[Exception] | None]]:
+) -> Mapping[str, ForcedFailure]:
     """Parse the --mock-failure option values into the mapping accepted by
     `~lsst.pipe.base.tests.mocks.mock_task_defs`.
 
@@ -478,19 +485,27 @@ def parse_mock_failure(
     value : `~collections.abc.Iterable` [`str`] or `None`
         Value from option.
     """
-    result: dict[str, tuple[str, type[Exception] | None]] = {}
+    # Avoid regular module-scope import of test-only code that tinkers with the
+    # storage class singleton.
+    from lsst.pipe.base.tests.mocks import ForcedFailure
+
+    result: dict[str, ForcedFailure] = {}
     if value is None:
         return result
     for entry in value:
         try:
-            task_label, error_type_name, where = entry.split(":", 2)
+            task_label, error_type_name, where, *rest = entry.split(":")
+            if rest:
+                (memory_required,) = rest
+            else:
+                memory_required = None
         except ValueError:
             raise click.UsageError(
                 f"Invalid value for --mock-failure option: {entry!r}; "
-                "expected a string of the form 'task:error:where'."
+                "expected a string of the form 'task:error:where[:mem]'."
             ) from None
         error_type = doImportType(error_type_name) if error_type_name else None
-        result[task_label] = (where, error_type)
+        result[task_label] = ForcedFailure(where, error_type, memory_required)
     return result
 
 
@@ -502,11 +517,16 @@ mock_failure_option = MWOptionDecorator(
     multiple=True,
     help=unwrap(
         """Specifications for tasks that should be configured to fail
-        when mocking execution.  This is a colon-separated 3-tuple, where the
-        first entry the task label, the second the fully-qualified exception
-        type (empty for ValueError, and the third a string (which typically
-        needs to be quoted to be passed as one argument value by the shell) of
-        the form passed to --where, indicating which data IDs should fail."""
+        when mocking execution.  This is a colon-separated 3-tuple or 4-tuple,
+        where the first entry the task label, the second the fully-qualified
+        exception type (empty for ValueError, and the third a string (which
+        typically needs to be quoted to be passed as one argument value by the
+        shell) of the form passed to --where, indicating which data IDs should
+        fail.  The final optional term is the memory "required" by the task
+        (with units recognized by astropy), which will cause the error to only
+        occur if the "available" memory (according to
+        ExecutionResources.max_mem) is less than this value.  Note that actual
+        memory usage is irrelevant here; this is all mock behavior."""
     ),
 )
 

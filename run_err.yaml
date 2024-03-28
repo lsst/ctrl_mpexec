@@ -1,0 +1,4 @@
+- task0:
+    data_id:
+      detector: 0
+      instrument: INSTR
