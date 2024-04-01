@@ -35,8 +35,6 @@ __all__ = ["CmdLineFwk"]
 import atexit
 import contextlib
 import copy
-import datetime
-import getpass
 import logging
 import shutil
 from collections.abc import Mapping, Sequence
@@ -653,8 +651,6 @@ class CmdLineFwk:
                 "skip_existing_in": args.skip_existing_in,
                 "skip_existing": args.skip_existing,
                 "data_query": args.data_query,
-                "user": getpass.getuser(),
-                "time": f"{datetime.datetime.now()}",
             }
             assert run is not None, "Butler output run collection must be defined"
             qgraph = graph_builder.build(metadata, attach_datastore_records=args.qgraph_datastore_records)
