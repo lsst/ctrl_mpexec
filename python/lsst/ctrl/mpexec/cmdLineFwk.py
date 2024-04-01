@@ -1026,4 +1026,4 @@ class CmdLineFwk:
                 if report:
                     with open(args.summary, "w") as out:
                         # Do not save fields that are not set.
-                        out.write(report.json(exclude_none=True, indent=2))
+                        out.write(report.model_dump_json(exclude_none=True, indent=2))
