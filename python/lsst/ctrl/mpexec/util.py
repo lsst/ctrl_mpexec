@@ -63,8 +63,8 @@ def printTable(rows: list[tuple], header: tuple | None) -> None:
 
 # TODO: remove on DM-40443.
 @deprecated(
-    "filterTasks is deprecated in favor of filterTaskNodes, and will be removed after v26.",
-    version="v26.0",
+    "filterTasks is deprecated in favor of filterTaskNodes, and will be removed after v27.",
+    version="v27.0",
     category=FutureWarning,
 )
 def filterTasks(pipeline: Pipeline, name: str | None) -> list[TaskDef]:

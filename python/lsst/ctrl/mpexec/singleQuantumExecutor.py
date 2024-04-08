@@ -194,7 +194,7 @@ class SingleQuantumExecutor(QuantumExecutor):
         if isinstance(task_node, TaskDef):
             warnings.warn(
                 "Passing TaskDef to SingleQuantumExecutor methods is deprecated "
-                "and will not be supported after v26.",
+                "and will not be supported after v27.",
                 FutureWarning,
                 find_outside_stacklevel("lsst.ctrl.mpexec"),
             )
@@ -334,7 +334,7 @@ class SingleQuantumExecutor(QuantumExecutor):
         task_node : `~lsst.pipe.base.TaskDef` or \
                 `~lsst.pipe.base.pipeline_graph.TaskNode`
             Task definition structure.  `~lsst.pipe.base.TaskDef` support is
-            deprecated and will be removed after v26.
+            deprecated and will be removed after v27.
         limited_butler : `~lsst.daf.butler.LimitedButler`
             Butler to use for querying and clobbering.
 
@@ -432,7 +432,7 @@ class SingleQuantumExecutor(QuantumExecutor):
         task_node : `~lsst.pipe.base.TaskDef` or \
                 `~lsst.pipe.base.pipeline_graph.TaskNode`
             Task definition structure.  `~lsst.pipe.base.TaskDef` support is
-            deprecated and will be removed after v26.
+            deprecated and will be removed after v27.
         limited_butler : `~lsst.daf.butler.LimitedButler`
             Butler to use for querying.
 
@@ -507,7 +507,7 @@ class SingleQuantumExecutor(QuantumExecutor):
         task_node : `~lsst.pipe.base.TaskDef` or \
                 `~lsst.pipe.base.pipeline_graph.TaskNode`
             Task definition structure.  `~lsst.pipe.base.TaskDef` support is
-            deprecated and will be removed after v26.
+            deprecated and will be removed after v27.
         limited_butler : `~lsst.daf.butler.LimitedButler`
             Butler to use for dataset I/O.
         """

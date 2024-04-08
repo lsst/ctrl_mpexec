@@ -98,7 +98,7 @@ class LogCapture:
         task_node : `lsst.pipe.base.TaskDef` or \
                 `~lsst.pipe.base.pipeline_graph.TaskNode`
             The task definition.  Support for `~lsst.pipe.base.TaskDef` is
-            deprecated and will be removed after v26.
+            deprecated and will be removed after v27.
         quantum : `~lsst.daf.butler.Quantum`
             Single Quantum instance.
 
@@ -130,7 +130,7 @@ class LogCapture:
             # DM-40443.
             log_dataset_name = task_node.logOutputDatasetName
             warnings.warn(
-                "Passing TaskDef instances to LogCapture is deprecatedand will not be supported after v26.",
+                "Passing TaskDef instances to LogCapture is deprecated and will not be supported after v27.",
                 FutureWarning,
                 find_outside_stacklevel("lsst.ctrl.mpexec"),
             )

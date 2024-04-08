@@ -65,7 +65,7 @@ class TaskFactory(BaseTaskFactory):
         if isinstance(task_node, TaskDef):
             # TODO: remove this block on DM-40443, along with type annotation.
             warnings.warn(
-                "Passing TaskDef to TaskFactory is deprecated and will not be supported after v26.",
+                "Passing TaskDef to TaskFactory is deprecated and will not be supported after v27.",
                 FutureWarning,
                 find_outside_stacklevel("lsst.pipe.base"),
             )

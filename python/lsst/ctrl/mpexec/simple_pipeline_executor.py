@@ -257,7 +257,7 @@ class SimplePipelineExecutor:
                 `~collections.abc.Iterable` [ `~lsst.pipe.base.TaskDef` ]
             A Python object describing the tasks to run, along with their
             labels and configuration.  Passing `~lsst.pipe.base.TaskDef`
-            objects is deprecated and will not be supported after v26.
+            objects is deprecated and will not be supported after v27.
         where : `str`, optional
             Data ID query expression that constraints the quanta generated.
         bind : `~collections.abc.Mapping`, optional
@@ -283,7 +283,7 @@ class SimplePipelineExecutor:
             # on DM-40443.
             warnings.warn(
                 "Passing TaskDefs to SimplePipelineExecutor.from_pipeline is deprecated "
-                "and will be removed after v26.",
+                "and will be removed after v27.",
                 category=FutureWarning,
                 stacklevel=find_outside_stacklevel("lsst.ctrl.mpexec"),
             )

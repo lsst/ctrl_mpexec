@@ -58,7 +58,7 @@ class QuantumExecutor(ABC):
         task_node : `~lsst.pipe.base.TaskDef` or \
                 `~lsst.pipe.base.pipeline_graph.TaskNode`
             Task definition structure.  `~lsst.pipe.base.TaskDef` support is
-            deprecated and will be removed after v26.
+            deprecated and will be removed after v27.
         quantum : `~lsst.daf.butler.Quantum`
             Quantum for this execution.
 

@@ -202,7 +202,7 @@ class SeparablePipelineExecutor:
             A graph builder that implements a
             `~lsst.pipe.base.GraphBuilder.makeGraph` method. By default, a new
             instance of `lsst.pipe.base.GraphBuilder` is used.  Deprecated in
-            favor of ``builder_class`` and will be removed after v26.
+            favor of ``builder_class`` and will be removed after v27.
         builder_class : `type` [ \
                 `lsst.pipe.base.quantum_graph_builder.QuantumGraphBuilder` ], \
                 optional
@@ -244,7 +244,7 @@ class SeparablePipelineExecutor:
         if builder:
             warnings.warn(
                 "The 'builder' argument to SeparablePipelineBuilder.make_quantum_graph "
-                "is deprecated in favor of 'builder_class', and will be removed after v26.",
+                "is deprecated in favor of 'builder_class', and will be removed after v27.",
                 FutureWarning,
                 find_outside_stacklevel("lsst.ctrl.mpexec"),
             )
