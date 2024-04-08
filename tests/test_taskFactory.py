@@ -35,7 +35,7 @@ from typing import TYPE_CHECKING
 import lsst.daf.butler.tests as butlerTests
 import lsst.pex.config as pexConfig
 from lsst.ctrl.mpexec import TaskFactory
-from lsst.pipe.base import PipelineTaskConfig, PipelineTaskConnections, TaskDef, connectionTypes
+from lsst.pipe.base import PipelineGraph, PipelineTaskConfig, PipelineTaskConnections, connectionTypes
 
 if TYPE_CHECKING:
     from lsst.daf.butler import Butler, DatasetRef
@@ -114,16 +114,18 @@ class TaskFactoryTestCase(unittest.TestCase):
         return butler, refs
 
     def testDefaultConfigLabel(self) -> None:
-        task_def = TaskDef(taskClass=self.constructor, label=None, config=None)
+        pipeline_graph = PipelineGraph()
+        task_node = pipeline_graph.add_task(None, self.constructor)
         butler, _ = self._tempButler()
-        self.factory.makeTask(taskDef=task_def, butler=butler, initInputRefs=[])
+        self.factory.makeTask(task_node, butler=butler, initInputRefs=[])
         self.constructor.assert_called_with(config=FakeConfig(), initInputs={}, name="FakeTask")
 
     def testAllArgs(self) -> None:
         config = self._alteredConfig()
-        task_def = TaskDef(taskClass=self.constructor, label="no-name", config=config)
+        pipeline_graph = PipelineGraph()
+        task_node = pipeline_graph.add_task("no-name", self.constructor, config=config)
         butler, refs = self._tempButler()
-        self.factory.makeTask(taskDef=task_def, butler=butler, initInputRefs=[refs["fakeInitInput"]])
+        self.factory.makeTask(task_node, butler=butler, initInputRefs=[refs["fakeInitInput"]])
         catalog = butler.get("fakeInitInput")
         self.constructor.assert_called_with(config=config, initInputs={"initInput": catalog}, name="no-name")
 

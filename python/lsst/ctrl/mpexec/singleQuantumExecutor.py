@@ -33,6 +33,7 @@ __all__ = ["SingleQuantumExecutor"]
 import logging
 import sys
 import time
+import warnings
 from collections import defaultdict
 from collections.abc import Callable
 from itertools import chain
@@ -60,10 +61,12 @@ from lsst.pipe.base import (
     TaskDef,
     TaskFactory,
 )
+from lsst.pipe.base.pipeline_graph import PipelineGraph, TaskNode
 
 # During metadata transition phase, determine metadata class by
 # asking pipe_base
 from lsst.pipe.base.task import _TASK_FULL_METADATA_TYPE, _TASK_METADATA_TYPE
+from lsst.utils.introspection import find_outside_stacklevel
 from lsst.utils.timer import logInfo
 
 # -----------------------------
@@ -161,27 +164,48 @@ class SingleQuantumExecutor(QuantumExecutor):
                     collectionTypes=CollectionType.RUN,
                 )
 
-    def execute(self, taskDef: TaskDef, quantum: Quantum) -> Quantum:
+    def execute(self, task_node: TaskDef | TaskNode, /, quantum: Quantum) -> Quantum:
         # Docstring inherited from QuantumExecutor.execute
         assert quantum.dataId is not None, "Quantum DataId cannot be None"
 
+        task_node = self._conform_task_def(task_node)
         if self.butler is not None:
             self.butler.registry.refresh()
 
         # Catch any exception and make a report based on that.
         try:
-            result = self._execute(taskDef, quantum)
-            self.report = QuantumReport(dataId=quantum.dataId, taskLabel=taskDef.label)
+            result = self._execute(task_node, quantum)
+            self.report = QuantumReport(dataId=quantum.dataId, taskLabel=task_node.label)
             return result
         except Exception as exc:
             self.report = QuantumReport.from_exception(
                 exception=exc,
                 dataId=quantum.dataId,
-                taskLabel=taskDef.label,
+                taskLabel=task_node.label,
             )
             raise
 
-    def _execute(self, taskDef: TaskDef, quantum: Quantum) -> Quantum:
+    def _conform_task_def(self, task_node: TaskDef | TaskNode) -> TaskNode:
+        """Convert the given object to a TaskNode and emit a deprecation
+        warning if it isn't one already.
+        """
+        # TODO: remove this function and all call points on DM-40443, and
+        # fix annotations and docstrings for those methods as well.
+        if isinstance(task_node, TaskDef):
+            warnings.warn(
+                "Passing TaskDef to SingleQuantumExecutor methods is deprecated "
+                "and will not be supported after v27.",
+                FutureWarning,
+                find_outside_stacklevel("lsst.ctrl.mpexec"),
+            )
+            # Convert to a real TaskNode to avoid a warnings cascade.
+            pipeline_graph = PipelineGraph()
+            return pipeline_graph.add_task(
+                task_node.label, task_node.taskClass, task_node.config, connections=task_node.connections
+            )
+        return task_node
+
+    def _execute(self, task_node: TaskNode, /, quantum: Quantum) -> Quantum:
         """Execute the quantum.
 
         Internal implementation of `execute()`.
@@ -202,32 +226,34 @@ class SingleQuantumExecutor(QuantumExecutor):
             log_capture = LogCapture.from_full(self.butler)
         else:
             log_capture = LogCapture.from_limited(limited_butler)
-        with log_capture.capture_logging(taskDef, quantum) as captureLog:
+        with log_capture.capture_logging(task_node, quantum) as captureLog:
             # Save detailed resource usage before task start to metadata.
             quantumMetadata = _TASK_METADATA_TYPE()
             logInfo(None, "prep", metadata=quantumMetadata)  # type: ignore[arg-type]
 
-            _LOG.info("Preparing execution of quantum for label=%s dataId=%s.", taskDef.label, quantum.dataId)
+            _LOG.info(
+                "Preparing execution of quantum for label=%s dataId=%s.", task_node.label, quantum.dataId
+            )
 
             # check whether to skip or delete old outputs, if it returns True
             # or raises an exception do not try to store logs, as they may be
             # already in butler.
             captureLog.store = False
-            if self.checkExistingOutputs(quantum, taskDef, limited_butler):
+            if self.checkExistingOutputs(quantum, task_node, limited_butler):
                 _LOG.info(
                     "Skipping already-successful quantum for label=%s dataId=%s.",
-                    taskDef.label,
+                    task_node.label,
                     quantum.dataId,
                 )
                 return quantum
             captureLog.store = True
 
             try:
-                quantum = self.updatedQuantumInputs(quantum, taskDef, limited_butler)
+                quantum = self.updatedQuantumInputs(quantum, task_node, limited_butler)
             except NoWorkFound as exc:
                 _LOG.info(
                     "Nothing to do for task '%s' on quantum %s; saving metadata and skipping: %s",
-                    taskDef.label,
+                    task_node.label,
                     quantum.dataId,
                     str(exc),
                 )
@@ -238,9 +264,9 @@ class SingleQuantumExecutor(QuantumExecutor):
                 # from here; we'll fix this on DM-29761.
                 logInfo(None, "end", metadata=quantumMetadata)  # type: ignore[arg-type]
                 fullMetadata = _TASK_FULL_METADATA_TYPE()
-                fullMetadata[taskDef.label] = _TASK_METADATA_TYPE()
+                fullMetadata[task_node.label] = _TASK_METADATA_TYPE()
                 fullMetadata["quantum"] = quantumMetadata
-                self.writeMetadata(quantum, fullMetadata, taskDef, limited_butler)
+                self.writeMetadata(quantum, fullMetadata, task_node, limited_butler)
                 return quantum
 
             # enable lsstDebug debugging
@@ -255,23 +281,23 @@ class SingleQuantumExecutor(QuantumExecutor):
             self.initGlobals(quantum)
 
             # Ensure that we are executing a frozen config
-            taskDef.config.freeze()
+            task_node.config.freeze()
             logInfo(None, "init", metadata=quantumMetadata)  # type: ignore[arg-type]
             init_input_refs = list(quantum.initInputs.values())
 
             _LOG.info(
                 "Constructing task and executing quantum for label=%s dataId=%s.",
-                taskDef.label,
+                task_node.label,
                 quantum.dataId,
             )
-            task = self.taskFactory.makeTask(taskDef, limited_butler, init_input_refs)
+            task = self.taskFactory.makeTask(task_node, limited_butler, init_input_refs)
             logInfo(None, "start", metadata=quantumMetadata)  # type: ignore[arg-type]
             try:
-                self.runQuantum(task, quantum, taskDef, limited_butler)
+                self.runQuantum(task, quantum, task_node, limited_butler)
             except Exception as e:
                 _LOG.error(
                     "Execution of task '%s' on quantum %s failed. Exception %s: %s",
-                    taskDef.label,
+                    task_node.label,
                     quantum.dataId,
                     e.__class__.__name__,
                     str(e),
@@ -280,17 +306,19 @@ class SingleQuantumExecutor(QuantumExecutor):
             logInfo(None, "end", metadata=quantumMetadata)  # type: ignore[arg-type]
             fullMetadata = task.getFullMetadata()
             fullMetadata["quantum"] = quantumMetadata
-            self.writeMetadata(quantum, fullMetadata, taskDef, limited_butler)
+            self.writeMetadata(quantum, fullMetadata, task_node, limited_butler)
             stopTime = time.time()
             _LOG.info(
                 "Execution of task '%s' on quantum %s took %.3f seconds",
-                taskDef.label,
+                task_node.label,
                 quantum.dataId,
                 stopTime - startTime,
             )
         return quantum
 
-    def checkExistingOutputs(self, quantum: Quantum, taskDef: TaskDef, limited_butler: LimitedButler) -> bool:
+    def checkExistingOutputs(
+        self, quantum: Quantum, task_node: TaskDef | TaskNode, /, limited_butler: LimitedButler
+    ) -> bool:
         """Decide whether this quantum needs to be executed.
 
         If only partial outputs exist then they are removed if
@@ -303,10 +331,12 @@ class SingleQuantumExecutor(QuantumExecutor):
         ----------
         quantum : `~lsst.daf.butler.Quantum`
             Quantum to check for existing outputs.
-        taskDef : `~lsst.pipe.base.TaskDef`
-            Task definition structure.
+        task_node : `~lsst.pipe.base.TaskDef` or \
+                `~lsst.pipe.base.pipeline_graph.TaskNode`
+            Task definition structure.  `~lsst.pipe.base.TaskDef` support is
+            deprecated and will be removed after v27.
         limited_butler : `~lsst.daf.butler.LimitedButler`
-            Butler to use for querying.
+            Butler to use for querying and clobbering.
 
         Returns
         -------
@@ -321,22 +351,28 @@ class SingleQuantumExecutor(QuantumExecutor):
         RuntimeError
             Raised if some outputs exist and some not.
         """
+        task_node = self._conform_task_def(task_node)
+
+        if not self.butler:
+            # Skip/prune logic only works for full butler.
+            return False
+
         if self.skipExisting:
             _LOG.debug(
                 "Checking existence of metadata from previous execution of label=%s dataId=%s.",
-                taskDef.label,
+                task_node.label,
                 quantum.dataId,
             )
             # Metadata output exists; this is sufficient to assume the previous
             # run was successful and should be skipped.
-            [metadata_ref] = quantum.outputs[taskDef.metadataDatasetName]
+            [metadata_ref] = quantum.outputs[task_node.metadata_output.dataset_type_name]
             if metadata_ref is not None:
                 if limited_butler.stored(metadata_ref):
                     return True
 
         # Find and prune (partial) outputs if `self.clobberOutputs` is set.
         _LOG.debug(
-            "Looking for existing outputs in the way for label=%s dataId=%s.", taskDef.label, quantum.dataId
+            "Looking for existing outputs in the way for label=%s dataId=%s.", task_node.label, quantum.dataId
         )
         ref_dict = limited_butler.stored_many(chain.from_iterable(quantum.outputs.values()))
         existingRefs = [ref for ref, exists in ref_dict.items() if exists]
@@ -365,7 +401,7 @@ class SingleQuantumExecutor(QuantumExecutor):
                 )
                 if self.clobberOutputs:
                     # only prune
-                    _LOG.info("Removing partial outputs for task %s: %s", taskDef, existingRefs)
+                    _LOG.info("Removing partial outputs for task %s: %s", task_node.label, existingRefs)
                     limited_butler.pruneDatasets(existingRefs, disassociate=True, unstore=True, purge=True)
                     return False
                 else:
@@ -379,7 +415,7 @@ class SingleQuantumExecutor(QuantumExecutor):
         return False
 
     def updatedQuantumInputs(
-        self, quantum: Quantum, taskDef: TaskDef, limited_butler: LimitedButler
+        self, quantum: Quantum, task_node: TaskDef | TaskNode, /, limited_butler: LimitedButler
     ) -> Quantum:
         """Update quantum with extra information, returns a new updated
         Quantum.
@@ -393,8 +429,10 @@ class SingleQuantumExecutor(QuantumExecutor):
         ----------
         quantum : `~lsst.daf.butler.Quantum`
             Single Quantum instance.
-        taskDef : `~lsst.pipe.base.TaskDef`
-            Task definition structure.
+        task_node : `~lsst.pipe.base.TaskDef` or \
+                `~lsst.pipe.base.pipeline_graph.TaskNode`
+            Task definition structure.  `~lsst.pipe.base.TaskDef` support is
+            deprecated and will be removed after v27.
         limited_butler : `~lsst.daf.butler.LimitedButler`
             Butler to use for querying.
 
@@ -403,13 +441,15 @@ class SingleQuantumExecutor(QuantumExecutor):
         update : `~lsst.daf.butler.Quantum`
             Updated Quantum instance.
         """
+        task_node = self._conform_task_def(task_node)
+
         anyChanges = False
         updatedInputs: defaultdict[DatasetType, list] = defaultdict(list)
         for key, refsForDatasetType in quantum.inputs.items():
             _LOG.debug(
                 "Checking existence of input '%s' for label=%s dataId=%s.",
                 key.name,
-                taskDef.label,
+                task_node.label,
                 quantum.dataId,
             )
             newRefsForDatasetType = updatedInputs[key]
@@ -436,9 +476,9 @@ class SingleQuantumExecutor(QuantumExecutor):
         namedUpdatedInputs = NamedKeyDict[DatasetType, list[DatasetRef]](updatedInputs.items())
         helper = AdjustQuantumHelper(namedUpdatedInputs, quantum.outputs)
         if anyChanges:
-            _LOG.debug("Running adjustQuantum for label=%s dataId=%s.", taskDef.label, quantum.dataId)
+            _LOG.debug("Running adjustQuantum for label=%s dataId=%s.", task_node.label, quantum.dataId)
             assert quantum.dataId is not None, "Quantum DataId cannot be None"
-            helper.adjust_in_place(taskDef.connections, label=taskDef.label, data_id=quantum.dataId)
+            helper.adjust_in_place(task_node.get_connections(), label=task_node.label, data_id=quantum.dataId)
         return Quantum(
             taskName=quantum.taskName,
             taskClass=quantum.taskClass,
@@ -449,7 +489,12 @@ class SingleQuantumExecutor(QuantumExecutor):
         )
 
     def runQuantum(
-        self, task: PipelineTask, quantum: Quantum, taskDef: TaskDef, limited_butler: LimitedButler
+        self,
+        task: PipelineTask,
+        quantum: Quantum,
+        task_node: TaskDef | TaskNode,
+        /,
+        limited_butler: LimitedButler,
     ) -> None:
         """Execute task on a single quantum.
 
@@ -459,16 +504,20 @@ class SingleQuantumExecutor(QuantumExecutor):
             Task object.
         quantum : `~lsst.daf.butler.Quantum`
             Single Quantum instance.
-        taskDef : `~lsst.pipe.base.TaskDef`
-            Task definition structure.
+        task_node : `~lsst.pipe.base.TaskDef` or \
+                `~lsst.pipe.base.pipeline_graph.TaskNode`
+            Task definition structure.  `~lsst.pipe.base.TaskDef` support is
+            deprecated and will be removed after v27.
         limited_butler : `~lsst.daf.butler.LimitedButler`
             Butler to use for dataset I/O.
         """
+        task_node = self._conform_task_def(task_node)
+
         # Create a butler that operates in the context of a quantum
         butlerQC = QuantumContext(limited_butler, quantum, resources=self.resources)
 
         # Get the input and output references for the task
-        inputRefs, outputRefs = taskDef.connections.buildDatasetRefs(quantum)
+        inputRefs, outputRefs = task_node.get_connections().buildDatasetRefs(quantum)
 
         # Call task runQuantum() method.  Catch a few known failure modes and
         # translate them into specific
@@ -476,29 +525,31 @@ class SingleQuantumExecutor(QuantumExecutor):
             task.runQuantum(butlerQC, inputRefs, outputRefs)
         except NoWorkFound as err:
             # Not an error, just an early exit.
-            _LOG.info("Task '%s' on quantum %s exited early: %s", taskDef.label, quantum.dataId, str(err))
+            _LOG.info("Task '%s' on quantum %s exited early: %s", task_node.label, quantum.dataId, str(err))
             pass
         except RepeatableQuantumError as err:
             if self.exitOnKnownError:
-                _LOG.warning("Caught repeatable quantum error for %s (%s):", taskDef, quantum.dataId)
+                _LOG.warning("Caught repeatable quantum error for %s (%s):", task_node.label, quantum.dataId)
                 _LOG.warning(err, exc_info=True)
                 sys.exit(err.EXIT_CODE)
             else:
                 raise
         except InvalidQuantumError as err:
-            _LOG.fatal("Invalid quantum error for %s (%s): %s", taskDef, quantum.dataId)
+            _LOG.fatal("Invalid quantum error for %s (%s): %s", task_node.label, quantum.dataId)
             _LOG.fatal(err, exc_info=True)
             sys.exit(err.EXIT_CODE)
 
     def writeMetadata(
-        self, quantum: Quantum, metadata: Any, taskDef: TaskDef, limited_butler: LimitedButler
+        self, quantum: Quantum, metadata: Any, task_node: TaskDef | TaskNode, /, limited_butler: LimitedButler
     ) -> None:
         # DatasetRef has to be in the Quantum outputs, can lookup by name
+        task_node = self._conform_task_def(task_node)
         try:
-            [ref] = quantum.outputs[taskDef.metadataDatasetName]
+            [ref] = quantum.outputs[task_node.metadata_output.dataset_type_name]
         except LookupError as exc:
             raise InvalidQuantumError(
-                f"Quantum outputs is missing metadata dataset type {taskDef.metadataDatasetName};"
+                "Quantum outputs is missing metadata dataset type "
+                f"{task_node.metadata_output.dataset_type_name};"
                 " this could happen due to inconsistent options between QuantumGraph generation"
                 " and execution"
             ) from exc

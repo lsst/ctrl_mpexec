@@ -28,7 +28,7 @@
 import logging
 from types import SimpleNamespace
 
-from lsst.pipe.base.graphBuilder import DatasetQueryConstraintVariant
+from lsst.pipe.base.all_dimensions_quantum_graph_builder import DatasetQueryConstraintVariant
 
 from ... import CmdLineFwk
 

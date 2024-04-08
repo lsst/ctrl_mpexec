@@ -39,7 +39,7 @@ import datetime
 import getpass
 import logging
 import shutil
-from collections.abc import Iterable, Mapping, Sequence
+from collections.abc import Mapping, Sequence
 from types import SimpleNamespace
 
 import astropy.units as u
@@ -50,7 +50,6 @@ from lsst.daf.butler import (
     CollectionType,
     Config,
     DatasetId,
-    DatasetRef,
     DatasetType,
     DimensionUniverse,
     LimitedButler,
@@ -65,16 +64,17 @@ from lsst.daf.butler.registry import MissingCollectionError, RegistryDefaults
 from lsst.daf.butler.registry.wildcards import CollectionWildcard
 from lsst.pipe.base import (
     ExecutionResources,
-    GraphBuilder,
     Instrument,
     Pipeline,
-    PipelineDatasetTypes,
+    PipelineGraph,
     QuantumGraph,
-    TaskDef,
     TaskFactory,
     buildExecutionButler,
 )
+from lsst.pipe.base.all_dimensions_quantum_graph_builder import AllDimensionsQuantumGraphBuilder
+from lsst.pipe.base.pipeline_graph import NodeType
 from lsst.utils import doImportType
+from lsst.utils.logging import getLogger
 from lsst.utils.threads import disable_implicit_threading
 
 from .dotTools import graph2dot, pipeline2dot
@@ -87,7 +87,7 @@ from .singleQuantumExecutor import SingleQuantumExecutor
 #  Local non-exported definitions --
 # ----------------------------------
 
-_LOG = logging.getLogger(__name__)
+_LOG = getLogger(__name__)
 
 
 class _OutputChainedCollectionInfo:
@@ -415,7 +415,7 @@ class _ButlerFactory:
             _LOG.debug("Defining shared datastore cache directory to %s", cache_dir)
 
     @classmethod
-    def makeWriteButler(cls, args: SimpleNamespace, taskDefs: Iterable[TaskDef] | None = None) -> Butler:
+    def makeWriteButler(cls, args: SimpleNamespace, pipeline_graph: PipelineGraph | None = None) -> Butler:
         """Return a read-write butler initialized to write to and read from
         the collections specified by the given command-line arguments.
 
@@ -424,7 +424,7 @@ class _ButlerFactory:
         args : `types.SimpleNamespace`
             Parsed command-line arguments.  See class documentation for the
             construction parameter of the same name.
-        taskDefs : iterable of `TaskDef`, optional
+        pipeline_graph : `lsst.pipe.base.PipelineGraph`, optional
             Definitions for tasks in a pipeline. This argument is only needed
             if ``args.replace_run`` is `True` and ``args.prune_replaced`` is
             "unstore".
@@ -446,12 +446,17 @@ class _ButlerFactory:
                 if args.prune_replaced == "unstore":
                     # Remove datasets from datastore
                     with butler.transaction():
-                        refs: Iterable[DatasetRef] = butler.registry.queryDatasets(..., collections=replaced)
-                        # we want to remove regular outputs but keep
-                        # initOutputs, configs, and versions.
-                        if taskDefs is not None:
-                            initDatasetNames = set(PipelineDatasetTypes.initOutputNames(taskDefs))
-                            refs = [ref for ref in refs if ref.datasetType.name not in initDatasetNames]
+                        # we want to remove regular outputs from this pipeline,
+                        # but keep initOutputs, configs, and versions.
+                        if pipeline_graph is not None:
+                            refs = [
+                                ref
+                                for ref in butler.registry.queryDatasets(..., collections=replaced)
+                                if (
+                                    (producer := pipeline_graph.producer_of(ref.datasetType.name)) is not None
+                                    and producer.key.node_type is NodeType.TASK  # i.e. not TASK_INIT
+                                )
+                            ]
                         butler.pruneDatasets(refs, unstore=True, disassociate=False)
                 elif args.prune_replaced == "purge":
                     # Erase entire collection and all datasets, need to remove
@@ -618,21 +623,25 @@ class CmdLineFwk:
             if args.show_qgraph_header:
                 print(QuantumGraph.readHeader(args.qgraph))
         else:
-            task_defs = list(pipeline.toExpandedPipeline())
+            pipeline_graph = pipeline.to_graph()
             if args.mock:
-                from lsst.pipe.base.tests.mocks import mock_task_defs
+                from lsst.pipe.base.tests.mocks import mock_pipeline_graph
 
-                task_defs = mock_task_defs(
-                    task_defs,
+                pipeline_graph = mock_pipeline_graph(
+                    pipeline_graph,
                     unmocked_dataset_types=args.unmocked_dataset_types,
                     force_failures=args.mock_failure,
                 )
             # make execution plan (a.k.a. DAG) for pipeline
-            graphBuilder = GraphBuilder(
-                butler.registry,
-                skipExistingIn=args.skip_existing_in,
-                clobberOutputs=args.clobber_outputs,
-                datastore=butler._datastore if args.qgraph_datastore_records else None,
+            graph_builder = AllDimensionsQuantumGraphBuilder(
+                pipeline_graph,
+                butler,
+                where=args.data_query,
+                skip_existing_in=args.skip_existing_in if args.skip_existing_in is not None else (),
+                clobber=args.clobber_outputs,
+                dataset_query_constraint=args.dataset_query_constraint,
+                input_collections=collections,
+                output_run=run,
             )
             # accumulate metadata
             metadata = {
@@ -648,15 +657,7 @@ class CmdLineFwk:
                 "time": f"{datetime.datetime.now()}",
             }
             assert run is not None, "Butler output run collection must be defined"
-            qgraph = graphBuilder.makeGraph(
-                task_defs,
-                collections,
-                run,
-                args.data_query,
-                metadata=metadata,
-                datasetQueryConstraint=args.dataset_query_constraint,
-                dataId=pipeline.get_data_id(butler.dimensions),
-            )
+            qgraph = graph_builder.build(metadata, attach_datastore_records=args.qgraph_datastore_records)
             if args.show_qgraph_header:
                 qgraph.buildAndPrintHeader()
 
@@ -666,6 +667,7 @@ class CmdLineFwk:
         self._summarize_qgraph(qgraph)
 
         if args.save_qgraph:
+            _LOG.verbose("Writing QuantumGraph to %r.", args.save_qgraph)
             qgraph.saveUri(args.save_qgraph)
 
         if args.save_single_quanta:
@@ -675,9 +677,11 @@ class CmdLineFwk:
                 sqgraph.saveUri(uri)
 
         if args.qgraph_dot:
+            _LOG.verbose("Writing quantum graph DOT visualization to %r.", args.qgraph_dot)
             graph2dot(qgraph, args.qgraph_dot)
 
         if args.execution_butler_location:
+            _LOG.verbose("Writing execution butler to %r.", args.execution_butler_location)
             butler = Butler.from_config(args.butler_config)
             assert isinstance(butler, DirectButler), "Execution butler needs DirectButler"
             newArgs = copy.deepcopy(args)
@@ -775,7 +779,7 @@ class CmdLineFwk:
         # Make butler instance. QuantumGraph should have an output run defined,
         # but we ignore it here and let command line decide actual output run.
         if butler is None:
-            butler = _ButlerFactory.makeWriteButler(args, graph.iterTaskGraph())
+            butler = _ButlerFactory.makeWriteButler(args, graph.pipeline_graph)
 
         if args.skip_existing:
             args.skip_existing_in += (butler.run,)

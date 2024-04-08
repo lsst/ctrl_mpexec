@@ -29,6 +29,7 @@ from __future__ import annotations
 
 __all__ = ("SimplePipelineExecutor",)
 
+import warnings
 from collections.abc import Iterable, Iterator, Mapping
 from typing import Any
 
@@ -36,13 +37,15 @@ from lsst.daf.butler import Butler, CollectionType, Quantum
 from lsst.pex.config import Config
 from lsst.pipe.base import (
     ExecutionResources,
-    GraphBuilder,
     Instrument,
     Pipeline,
+    PipelineGraph,
     PipelineTask,
     QuantumGraph,
     TaskDef,
 )
+from lsst.pipe.base.all_dimensions_quantum_graph_builder import AllDimensionsQuantumGraphBuilder
+from lsst.utils.introspection import find_outside_stacklevel
 
 from .preExecInit import PreExecInit
 from .singleQuantumExecutor import SingleQuantumExecutor
@@ -77,8 +80,8 @@ class SimplePipelineExecutor:
     deliberately lacks many features present in the command-line-only
     ``pipetask`` tool in order to keep the implementation simple.  Python
     callers that need more sophistication should call lower-level tools like
-    `~lsst.pipe.base.GraphBuilder`, `PreExecInit`, and `SingleQuantumExecutor`
-    directly.
+    `~lsst.pipe.base.quantum_graph_builder.QuantumGraphBuilder`, `PreExecInit`,
+    and `SingleQuantumExecutor` directly.
     """
 
     def __init__(
@@ -229,8 +232,11 @@ class SimplePipelineExecutor:
                 f"Invalid config class type: expected {task_class.ConfigClass.__name__}, "
                 f"got {type(config).__name__}."
             )
-        task_def = TaskDef(taskName=task_class.__name__, config=config, label=label, taskClass=task_class)
-        return cls.from_pipeline([task_def], butler=butler, where=where, bind=bind, resources=resources)
+        pipeline_graph = PipelineGraph()
+        pipeline_graph.add_task(label=label, task_class=task_class, config=config)
+        return cls.from_pipeline_graph(
+            pipeline_graph, butler=butler, where=where, bind=bind, resources=resources
+        )
 
     @classmethod
     def from_pipeline(
@@ -241,7 +247,6 @@ class SimplePipelineExecutor:
         bind: Mapping[str, Any] | None = None,
         butler: Butler,
         resources: ExecutionResources | None = None,
-        **kwargs: Any,
     ) -> SimplePipelineExecutor:
         """Create an executor by building a QuantumGraph from an in-memory
         pipeline.
@@ -251,7 +256,8 @@ class SimplePipelineExecutor:
         pipeline : `~lsst.pipe.base.Pipeline` or \
                 `~collections.abc.Iterable` [ `~lsst.pipe.base.TaskDef` ]
             A Python object describing the tasks to run, along with their
-            labels and configuration.
+            labels and configuration.  Passing `~lsst.pipe.base.TaskDef`
+            objects is deprecated and will not be supported after v27.
         where : `str`, optional
             Data ID query expression that constraints the quanta generated.
         bind : `~collections.abc.Mapping`, optional
@@ -262,8 +268,6 @@ class SimplePipelineExecutor:
             one.
         resources : `~lsst.pipe.base.ExecutionResources`
             The resources available to each quantum being executed.
-        **kwargs : `~typing.Any`
-            Unused.
 
         Returns
         -------
@@ -273,14 +277,67 @@ class SimplePipelineExecutor:
             ready for `run` to be called.
         """
         if isinstance(pipeline, Pipeline):
-            pipeline = list(pipeline.toExpandedPipeline())
+            pipeline_graph = pipeline.to_graph()
         else:
-            pipeline = list(pipeline)
-        graph_builder = GraphBuilder(butler.registry)
-        assert butler.run is not None, "Butler output run collection must be defined"
-        quantum_graph = graph_builder.makeGraph(
-            pipeline, collections=butler.collections, run=butler.run, userQuery=where, bind=bind
+            # TODO: disable this block and adjust docs and annotations
+            # on DM-40443.
+            warnings.warn(
+                "Passing TaskDefs to SimplePipelineExecutor.from_pipeline is deprecated "
+                "and will be removed after v27.",
+                category=FutureWarning,
+                stacklevel=find_outside_stacklevel("lsst.ctrl.mpexec"),
+            )
+            pipeline_graph = PipelineGraph()
+            for task_def in pipeline:
+                pipeline_graph.add_task(
+                    task_def.label, task_def.taskClass, task_def.config, connections=task_def.connections
+                )
+        return cls.from_pipeline_graph(
+            pipeline_graph, where=where, bind=bind, butler=butler, resources=resources
         )
+
+    @classmethod
+    def from_pipeline_graph(
+        cls,
+        pipeline_graph: PipelineGraph,
+        *,
+        where: str = "",
+        bind: Mapping[str, Any] | None = None,
+        butler: Butler,
+        resources: ExecutionResources | None = None,
+    ) -> SimplePipelineExecutor:
+        """Create an executor by building a QuantumGraph from an in-memory
+        pipeline graph.
+
+        Parameters
+        ----------
+        pipeline_graph : `~lsst.pipe.base.PipelineGraph`
+            A Python object describing the tasks to run, along with their
+            labels and configuration, in graph form.  Will be resolved against
+            the given ``butler``, with any existing resolutions ignored.
+        where : `str`, optional
+            Data ID query expression that constraints the quanta generated.
+        bind : `~collections.abc.Mapping`, optional
+            Mapping containing literal values that should be injected into the
+            ``where`` expression, keyed by the identifiers they replace.
+        butler : `~lsst.daf.butler.Butler`
+            Butler that manages all I/O.  `prep_butler` can be used to create
+            one.  Must have its `~Butler.run` and `~Butler.collections` not
+            empty and not `None`.
+        resources : `~lsst.pipe.base.ExecutionResources`
+            The resources available to each quantum being executed.
+
+        Returns
+        -------
+        executor : `SimplePipelineExecutor`
+            An executor instance containing the constructed
+            `~lsst.pipe.base.QuantumGraph` and `~lsst.daf.butler.Butler`,
+            ready for `run` to be called.
+        """
+        quantum_graph_builder = AllDimensionsQuantumGraphBuilder(
+            pipeline_graph, butler, where=where, bind=bind
+        )
+        quantum_graph = quantum_graph_builder.build(attach_datastore_records=False)
         return cls(quantum_graph=quantum_graph, butler=butler, resources=resources)
 
     def run(self, register_dataset_types: bool = False, save_versions: bool = True) -> list[Quantum]:
@@ -356,4 +413,6 @@ class SimplePipelineExecutor:
         # happen immediately instead of when the first quanta is executed,
         # which might be useful for callers who want to check the state of the
         # repo in between.
-        return (single_quantum_executor.execute(qnode.taskDef, qnode.quantum) for qnode in self.quantum_graph)
+        return (
+            single_quantum_executor.execute(qnode.task_node, qnode.quantum) for qnode in self.quantum_graph
+        )

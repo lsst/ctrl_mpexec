@@ -30,14 +30,18 @@ from __future__ import annotations
 __all__ = ["TaskFactory"]
 
 import logging
+import warnings
 from collections.abc import Iterable
 from typing import TYPE_CHECKING, Any
 
+from lsst.pipe.base import TaskDef
 from lsst.pipe.base import TaskFactory as BaseTaskFactory
+from lsst.pipe.base.pipeline_graph import TaskNode
+from lsst.utils.introspection import find_outside_stacklevel
 
 if TYPE_CHECKING:
     from lsst.daf.butler import DatasetRef, LimitedButler
-    from lsst.pipe.base import PipelineTask, TaskDef
+    from lsst.pipe.base import PipelineTask
 
 _LOG = logging.getLogger(__name__)
 
@@ -46,24 +50,39 @@ class TaskFactory(BaseTaskFactory):
     """Class instantiating PipelineTasks."""
 
     def makeTask(
-        self, taskDef: TaskDef, butler: LimitedButler, initInputRefs: Iterable[DatasetRef] | None
+        self,
+        task_node: TaskDef | TaskNode,
+        /,
+        butler: LimitedButler,
+        initInputRefs: Iterable[DatasetRef] | None,
     ) -> PipelineTask:
         # docstring inherited
-
-        config = taskDef.config
-
-        # Get init inputs from butler.
+        config = task_node.config
         init_inputs: dict[str, Any] = {}
-        if initInputRefs:
-            connections = config.connections.ConnectionsClass(config=config)
-            for name in connections.initInputs:
-                attribute = getattr(connections, name)
-                dataset_type_name = attribute.name
-                for ref in initInputRefs:
-                    if ref.datasetType.name == dataset_type_name:
-                        init_inputs[name] = butler.get(ref)
-                        break
-
+        init_input_refs_by_dataset_type = {}
+        if initInputRefs is not None:
+            init_input_refs_by_dataset_type = {ref.datasetType.name: ref for ref in initInputRefs}
+        if isinstance(task_node, TaskDef):
+            # TODO: remove this block on DM-40443, along with type annotation.
+            warnings.warn(
+                "Passing TaskDef to TaskFactory is deprecated and will not be supported after v27.",
+                FutureWarning,
+                find_outside_stacklevel("lsst.pipe.base"),
+            )
+            task_class = task_node.taskClass
+            assert task_class is not None
+            if init_input_refs_by_dataset_type:
+                connections = config.connections.ConnectionsClass(config=config)
+                for name in connections.initInputs:
+                    attribute = getattr(connections, name)
+                    init_inputs[name] = butler.get(init_input_refs_by_dataset_type[attribute.name])
+        else:
+            task_class = task_node.task_class
+            if init_input_refs_by_dataset_type:
+                for read_edge in task_node.init.inputs.values():
+                    init_inputs[read_edge.connection_name] = butler.get(
+                        init_input_refs_by_dataset_type[read_edge.dataset_type_name]
+                    )
         # make task instance
-        task = taskDef.taskClass(config=config, initInputs=init_inputs, name=taskDef.label)
+        task = task_class(config=config, initInputs=init_inputs, name=task_node.label)
         return task

@@ -76,7 +76,7 @@ from lsst.pipe.base import (
     QuantumGraph,
     TaskDef,
 )
-from lsst.pipe.base.graphBuilder import DatasetQueryConstraintVariant as DQCVariant
+from lsst.pipe.base.all_dimensions_quantum_graph_builder import DatasetQueryConstraintVariant as DQCVariant
 from lsst.pipe.base.script import transfer_from_graph
 from lsst.pipe.base.tests.simpleQGraph import (
     AddTask,
@@ -364,18 +364,18 @@ class CmdLineFwkTestCase(unittest.TestCase):
         actions = [_ACTION_ADD_TASK(f"{_TASK_CLASS}:task"), _ACTION_CONFIG("task:addend=100")]
         args = _makeArgs(pipeline_actions=actions)
         pipeline = fwk.makePipeline(args)
-        taskDefs = list(pipeline.toExpandedPipeline())
-        self.assertEqual(len(taskDefs), 1)
-        self.assertEqual(taskDefs[0].config.addend, 100)
+        pipeline_graph = pipeline.to_graph()
+        self.assertEqual(len(pipeline_graph.tasks), 1)
+        self.assertEqual(next(iter(pipeline_graph.tasks.values())).config.addend, 100)
 
         overrides = b"config.addend = 1000\n"
         with makeTmpFile(overrides) as tmpname:
             actions = [_ACTION_ADD_TASK(f"{_TASK_CLASS}:task"), _ACTION_CONFIG_FILE("task:" + tmpname)]
             args = _makeArgs(pipeline_actions=actions)
             pipeline = fwk.makePipeline(args)
-            taskDefs = list(pipeline.toExpandedPipeline())
-            self.assertEqual(len(taskDefs), 1)
-            self.assertEqual(taskDefs[0].config.addend, 1000)
+            pipeline_graph = pipeline.to_graph()
+            self.assertEqual(len(pipeline_graph.tasks), 1)
+            self.assertEqual(next(iter(pipeline_graph.tasks.values())).config.addend, 1000)
 
         # Check --instrument option, for now it only checks that it does not
         # crash.
