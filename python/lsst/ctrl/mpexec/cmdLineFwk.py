@@ -79,6 +79,7 @@ from .dotTools import graph2dot, pipeline2dot
 from .executionGraphFixup import ExecutionGraphFixup
 from .mpGraphExecutor import MPGraphExecutor
 from .preExecInit import PreExecInit, PreExecInitLimited
+from .reports import Report
 from .singleQuantumExecutor import SingleQuantumExecutor
 
 # ----------------------------------
@@ -837,14 +838,9 @@ class CmdLineFwk:
                             # Do not save fields that are not set.
                             out.write(report.model_dump_json(exclude_none=True, indent=2))
 
-    def _generateTaskTable(self, qgraph: QuantumGraph) -> Table:
+    def _generateTaskTable(self) -> Table:
         """Generate astropy table listing the number of quanta per task for a
         given quantum graph.
-
-        Parameters
-        ----------
-        qgraph : `lsst.pipe.base.graph.graph.QuantumGraph`
-            A QuantumGraph object.
 
         Returns
         -------
@@ -852,10 +848,10 @@ class CmdLineFwk:
             An astropy table containing columns: Quanta and Tasks.
         """
         qg_quanta, qg_tasks = [], []
-        for task_def in qgraph.iterTaskGraph():
-            num_qnodes = qgraph.getNumberOfQuantaForTask(task_def)
-            qg_quanta.append(num_qnodes)
-            qg_tasks.append(task_def.label)
+        for task_label, task_info in self.report.qgraphSummary.qgraphTaskSummaries.items():
+            qg_tasks.append(task_label)
+            qg_quanta.append(task_info.numQuanta)
+
         qg_task_table = Table(dict(Quanta=qg_quanta, Tasks=qg_tasks))
         return qg_task_table
 
@@ -876,8 +872,9 @@ class CmdLineFwk:
         if n_quanta == 0:
             _LOG.info("QuantumGraph contains no quanta.")
         else:
+            self.report = Report(qgraphSummary=qgraph.getSummary())
             if _LOG.isEnabledFor(logging.INFO):
-                qg_task_table = self._generateTaskTable(qgraph)
+                qg_task_table = self._generateTaskTable()
                 qg_task_table_formatted = "\n".join(qg_task_table.pformat_all())
                 quanta_str = "quantum" if n_quanta == 1 else "quanta"
                 n_tasks = len(qgraph.taskGraph)

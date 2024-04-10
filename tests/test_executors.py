@@ -52,7 +52,7 @@ from lsst.ctrl.mpexec import (
 )
 from lsst.ctrl.mpexec.execFixupDataId import ExecFixupDataId
 from lsst.daf.butler.tests.utils import makeTestTempDir, removeTestTempDir
-from lsst.pipe.base import NodeId
+from lsst.pipe.base import NodeId, QgraphSummary, QgraphTaskSummary
 from lsst.pipe.base.tests.simpleQGraph import AddTaskFactoryMock, makeSimpleQGraph
 
 logging.basicConfig(level=logging.DEBUG)
@@ -208,6 +208,30 @@ class QuantumGraphMock:
                 if otherNode.index == n:
                     result.add(otherNode)
         return result
+
+    def getSummary(self):
+        summary = QgraphSummary(
+            graphID="1712445133.605479-3902002",
+            cmdLine="mock_pipetask -a 1 -b 2 -c 3 4 5 6",
+            pipeBaseVersion="1.1.1",
+            creationUTC="",
+            inputCollection=["mock_input"],
+            outputCollection="mock_output",
+            outputRun="mock_run",
+        )
+        for q in self:
+            qts = summary.qgraphTaskSummaries.setdefault(
+                q.taskDef.label, QgraphTaskSummary(taskLabel=q.taskDef.label)
+            )
+            qts.numQuanta += 1
+
+            for k in ["in1", "in2", "in3"]:
+                qts.numInputs[k] += 1
+
+            for k in ["out1", "out2", "out3"]:
+                qts.numOutputs[k] += 1
+
+        return summary
 
 
 class TaskMockMP:
