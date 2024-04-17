@@ -404,7 +404,7 @@ class MPGraphExecutor(QuantumGraphExecutor):
     def execute(self, graph: QuantumGraph) -> None:
         # Docstring inherited from QuantumGraphExecutor.execute
         graph = self._fixupQuanta(graph)
-        self.report = Report()
+        self.report = Report(qgraphSummary=graph.getSummary())
         try:
             if self.numProc > 1:
                 self._executeQuantaMP(graph, self.report)

@@ -28,6 +28,7 @@
 import unittest
 
 from lsst.ctrl.mpexec import ExecutionStatus, QuantumReport, Report
+from lsst.pipe.base import QgraphSummary
 
 
 class ReportsTestCase(unittest.TestCase):
@@ -74,7 +75,7 @@ class ReportsTestCase(unittest.TestCase):
 
     def test_report(self):
         """Test for Report class."""
-        report = Report()
+        report = Report(qgraphSummary=QgraphSummary(graphID="uuid"))
         self.assertEqual(report.status, ExecutionStatus.SUCCESS)
         self.assertIsNotNone(report.cmdLine)
         self.assertIsNone(report.exitCode)
@@ -86,7 +87,9 @@ class ReportsTestCase(unittest.TestCase):
         qr = QuantumReport.from_exception(
             exception=RuntimeError("runtime error"), dataId=dataId, taskLabel=taskLabel
         )
-        report = Report(status=ExecutionStatus.FAILURE, exitCode=-1)
+        report = Report(
+            status=ExecutionStatus.FAILURE, exitCode=-1, qgraphSummary=QgraphSummary(graphID="uuid")
+        )
         report.set_exception(RuntimeError("runtime error"))
         report.quantaReports.append(qr)
         self.assertEqual(report.status, ExecutionStatus.FAILURE)
@@ -103,7 +106,9 @@ class ReportsTestCase(unittest.TestCase):
         qr = QuantumReport.from_exception(
             exception=RuntimeError("runtime error"), dataId=dataId, taskLabel=taskLabel
         )
-        report = Report(status=ExecutionStatus.FAILURE, exitCode=-1)
+        report = Report(
+            status=ExecutionStatus.FAILURE, exitCode=-1, qgraphSummary=QgraphSummary(graphID="uuid")
+        )
         report.set_exception(RuntimeError("runtime error"))
         report.quantaReports.append(qr)
         json = report.model_dump_json(exclude_none=True, indent=2)

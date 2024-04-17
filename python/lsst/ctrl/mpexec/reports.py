@@ -35,6 +35,7 @@ from typing import Any
 
 import pydantic
 from lsst.daf.butler import DataCoordinate, DataId, DataIdValue
+from lsst.pipe.base import QgraphSummary
 from lsst.utils.introspection import get_full_type_name
 
 
@@ -194,6 +195,9 @@ class QuantumReport(pydantic.BaseModel):
 
 class Report(pydantic.BaseModel):
     """Execution report for the whole job with one or few quanta."""
+
+    qgraphSummary: QgraphSummary
+    """Summary report about QuantumGraph."""
 
     status: ExecutionStatus = ExecutionStatus.SUCCESS
     """Job status."""

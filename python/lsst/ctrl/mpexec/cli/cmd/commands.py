@@ -35,6 +35,7 @@ from typing import Any
 import click
 import coverage
 import lsst.pipe.base.cli.opt as pipeBaseOpts
+from lsst.ctrl.mpexec import Report
 from lsst.ctrl.mpexec.showInfo import ShowInfo
 from lsst.daf.butler.cli.opt import (
     config_file_option,
@@ -177,6 +178,7 @@ concurrency = multiprocessing
 def qgraph(ctx: click.Context, **kwargs: Any) -> None:
     """Build and optionally save quantum graph."""
     kwargs = _collectActions(ctx, **kwargs)
+    summary = kwargs.pop("summary", None)
     with coverage_context(kwargs):
         show = ShowInfo(kwargs.pop("show", []))
         pipeline = script.build(**kwargs, show=show)
@@ -186,8 +188,16 @@ def qgraph(ctx: click.Context, **kwargs: Any) -> None:
                 file=sys.stderr,
             )
             return
-        if script.qgraph(pipelineObj=pipeline, **kwargs, show=show) is None:
+        if (qgraph := script.qgraph(pipelineObj=pipeline, **kwargs, show=show)) is None:
             raise click.ClickException("QuantumGraph was empty; CRITICAL logs above should provide details.")
+        # QuantumGraph-only summary call here since script.qgraph also called
+        # by run methods.
+        if summary:
+            report = Report(qgraphSummary=qgraph.getSummary())
+            with open(summary, "w") as out:
+                # Do not save fields that are not set.
+                out.write(report.model_dump_json(exclude_none=True, indent=2))
+
         _unhandledShow(show, "qgraph")
 
 

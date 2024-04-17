@@ -109,6 +109,7 @@ class qgraph_options(OptionGroup):  # noqa: N801
             ctrlMpExecOpts.save_qgraph_option(),
             ctrlMpExecOpts.save_single_quanta_option(),
             ctrlMpExecOpts.qgraph_dot_option(),
+            ctrlMpExecOpts.summary_option(),
             ctrlMpExecOpts.save_execution_butler_option(),
             ctrlMpExecOpts.clobber_execution_butler_option(),
             ctrlMpExecOpts.target_datastore_root_option(),
