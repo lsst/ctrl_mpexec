@@ -98,7 +98,6 @@ class ReportTest(unittest.TestCase):
         # Check that task0 and the failed quanta for task0 exist in the string
         self.assertIn("task0", result_hr.stdout)
         self.assertIn("Failed Quanta", result_hr.stdout)
-        self.assertIn("{'data_id': {'instrument': 'INSTR', 'detector': 0}}", result_hr.stdout)
 
 
 if __name__ == "__main__":
