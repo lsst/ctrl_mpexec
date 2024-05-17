@@ -79,14 +79,22 @@ def report(
                 dataset_table_rows.append(summary_dict[task]["outputs"][data_product])
                 data_products.append(data_product)
 
-            quanta_summary.append(
-                {
-                    "Task": task,
-                    "Failed Quanta": summary_dict[task]["failed_quanta"],
-                    "Blocked Quanta": summary_dict[task]["n_quanta_blocked"],
-                }
-            )
-
+            if len(summary_dict[task]["failed_quanta"]) > 5:
+                quanta_summary.append(
+                    {
+                        "Task": task,
+                        "Failed Quanta": len(summary_dict[task]["failed_quanta"]),
+                        "Blocked Quanta": summary_dict[task]["n_quanta_blocked"],
+                    }
+                )
+            else:
+                quanta_summary.append(
+                    {
+                        "Task": task,
+                        "Failed Quanta": summary_dict[task]["failed_quanta"],
+                        "Blocked Quanta": summary_dict[task]["n_quanta_blocked"],
+                    }
+                )
             if "errors" in summary_dict[task].keys():
                 error_summary.append({task: summary_dict[task]["errors"]})
         quanta = Table(quanta_summary)
