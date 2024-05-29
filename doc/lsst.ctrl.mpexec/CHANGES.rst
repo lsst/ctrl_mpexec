@@ -1,3 +1,65 @@
+lsst-ctrl-mpexec 27.0.0 (2024-05-29)
+====================================
+
+New Features
+------------
+
+- Be more permissive about input/output collection consistency, and provided a ``--rebase`` option to ``pipetask run`` and ``pipetask qgraph`` to force consistency.
+
+  An existing output collection is now considered consistent with a given sequence of input collections if the latter is a contiguous subsequence of the former.
+  When this is not the case, ``--rebase`` redefines the output collection such that it will be. (`DM-37140 <https://rubinobs.atlassian.net/browse/DM-37140>`_)
+- Updated the open-source license to allow for the code to be distributed with either GPLv3 or BSD 3-clause license. (`DM-37231 <https://rubinobs.atlassian.net/browse/DM-37231>`_)
+- Adde ``pipeline-graph`` and ``task-graph`` options for ``pipetask build --show``, which provide text-art visualization of pipeline graphs. (`DM-39779 <https://rubinobs.atlassian.net/browse/DM-39779>`_)
+- Added ``pipetask report`` which reads a quantum graph and reports on the outputs of failed, produced and missing quanta.
+  This is a command-line incarnation of
+  ``QuantumGraphExecutionReport.make_reports`` in combination with
+  ``QuantumGraphExecutionReport.write_summary_yaml``. (`DM-41131 <https://rubinobs.atlassian.net/browse/DM-41131>`_)
+- Added ``--summary`` option to ``pipetask qgraph``. (`DM-41542 <https://rubinobs.atlassian.net/browse/DM-41542>`_)
+- Made option to output ``pipetask report`` information to the command-line using Astropy tables and set to default.
+  Now unpack a more human-readable dictionary from
+  ``lsst.pipe.base.QuantumGraphExecutionReports.to_summary_dict`` and print summary tables of quanta and datasets to the command-line.
+  Can now save error messages and associated data ids to a YAML file in the working directory, or optionally print them to screen as well. (`DM-41606 <https://rubinobs.atlassian.net/browse/DM-41606>`_)
+
+
+API Changes
+-----------
+
+- ``SeparablePipelineExecutor.run_pipeline`` has been modified to take a ``num_proc`` parameter to specify how many subprocesses can be used to execute the pipeline.
+  The default is now ``1`` (no spawning), which is a change from the previous behavior of using 80% of the available cores. (`DM-42751 <https://rubinobs.atlassian.net/browse/DM-42751>`_)
+
+
+Bug Fixes
+---------
+
+- Removed shadowing of ``pipetask build -t`` by ``pipetask qgraph -t``.
+  ``-t`` now means ``--task`` (the original meaning) rather than ``--transfer``. (`DM-35599 <https://rubinobs.atlassian.net/browse/DM-35599>`_)
+- Fixed a storage class bug in registering dataset types in ``pipetask run``.
+
+  Prior to this fix, the presence of multiple storage classes being associated with the same dataset type in a pipeline could cause the registered dataset type's storage class to be random and nondeterministic in regular ``pipetask run`` execution (but not quantum-backed butler execution).
+  It now follows the rules set by ``PipelineGraph``, in which the definition in the task that produces the dataset wins. (`DM-41962 <https://rubinobs.atlassian.net/browse/DM-41962>`_)
+- Ensured that the implicit threading options for ``run-qbb`` is used so that implicit threading can be disabled. (`DM-42118 <https://rubinobs.atlassian.net/browse/DM-42118>`_)
+- Fixed ``dump_kwargs`` `TypeError` caused by migration to Pydantic 2. (`DM-42376 <https://rubinobs.atlassian.net/browse/DM-42376>`_)
+- Fixed the ``--show-errors`` option in ``pipetask report``.
+
+  Correctly pass the option to the function as a flag.
+  Then, in testing, use the ``--show-errors`` option to avoid saving YAML files to disk without adequate cleanup. (`DM-43363 <https://rubinobs.atlassian.net/browse/DM-43363>`_)
+- Fixed BPS auto-retry functionality broken on `DM-43060 <https://rubinobs.atlassian.net/browse/DM-43060>`_, by restoring support for repeated execution of already-successful quanta in ``pipetask run-qbb``. (`DM-43484 <https://rubinobs.atlassian.net/browse/DM-43484>`_)
+
+
+Other Changes and Additions
+---------------------------
+
+- Dropped support for Pydantic 1.x. (`DM-42302 <https://rubinobs.atlassian.net/browse/DM-42302>`_)
+
+
+An API Removal or Deprecation
+-----------------------------
+
+- Support for fork option in ``pipetask run`` has been removed as unsafe.
+  Default start option now is ``spawn``, and ``forkserver`` is also available.
+  The ``fork`` option is still present in CLI for compatibility, but is deprecated and replaced by ``spawn`` if specified. (`DM-41832 <https://rubinobs.atlassian.net/browse/DM-41832>`_)
+
+
 lsst-ctrl-mpexec v26.0.0 (2023-09-23)
 =====================================
 
