@@ -1,1 +1,0 @@
-Fix ``dump_kwargs`` `TypeError` caused by migration to Pydantic 2.
