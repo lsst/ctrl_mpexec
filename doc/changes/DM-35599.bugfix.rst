@@ -1,2 +1,0 @@
-Removed shadowing of ``pipetask build -t`` by ``pipetask qgraph -t``.
-``-t`` now means ``--task`` rather than ``--transfer``.

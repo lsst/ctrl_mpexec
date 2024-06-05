@@ -65,7 +65,7 @@ pipetask = "lsst.ctrl.mpexec.cli.pipetask:main"
     filename = "doc/lsst.ctrl.mpexec/CHANGES.rst"
     directory = "doc/changes"
     title_format = "lsst-ctrl-mpexec {version} ({project_date})"
-    issue_format = "`{issue} <https://jira.lsstcorp.org/browse/{issue}>`_"
+    issue_format = "`{issue} <https://rubinobs.atlassian.net/browse/{issue}>`_"
 
     [[tool.towncrier.type]]
         directory = "feature"
@@ -133,9 +133,13 @@ exclude_lines = [
 ]
 
 [tool.ruff]
+line-length = 110
+target-version = "py311"
 exclude = [
     "__init__.py",
 ]
+
+[tool.ruff.lint]
 ignore = [
     "N802",
     "N803",
@@ -153,7 +157,6 @@ ignore = [
     "D205",
     "D400",
 ]
-line-length = 110
 select = [
     "E",  # pycodestyle
     "F",  # pyflakes
@@ -161,15 +164,14 @@ select = [
     "W",  # pycodestyle
     "D",  # pydocstyle
 ]
-target-version = "py311"
 extend-select = [
     "RUF100", # Warn about unused noqa
 ]
 
-[tool.ruff.pycodestyle]
+[tool.ruff.lint.pycodestyle]
 max-doc-length = 79
 
-[tool.ruff.pydocstyle]
+[tool.ruff.lint.pydocstyle]
 convention = "numpy"
 
 [tool.numpydoc_validation]
