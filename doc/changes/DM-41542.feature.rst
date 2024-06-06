@@ -1,1 +1,0 @@
-Added --summary option to ``pipetask qgraph``.

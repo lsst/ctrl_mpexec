@@ -1,2 +1,0 @@
-``SeparablePipelineExecutor.run_pipeline`` has been modified to take a ``num_proc`` parameter to specify how many subprocesses can be used to execute the pipeline.
-The default is now ``1`` (no spawning), which is a change from the previous behavior of using 80% of the available cores.
