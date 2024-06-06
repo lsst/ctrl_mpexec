@@ -118,7 +118,7 @@ def build(  # type: ignore
     if pipeline_dot:
         with open(pipeline_dot, "w") as stream:
             visualization.show_dot(
-                pipeline.to_graph(butler.registry if butler is not None else None),
+                pipeline.to_graph(butler.registry if butler is not None else None, visualization_only=True),
                 stream,
                 dataset_types=True,
                 task_classes="full",
