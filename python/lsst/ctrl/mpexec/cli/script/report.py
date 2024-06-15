@@ -83,16 +83,20 @@ def report(
                 quanta_summary.append(
                     {
                         "Task": task,
-                        "Failed Quanta": len(summary_dict[task]["failed_quanta"]),
-                        "Blocked Quanta": summary_dict[task]["n_quanta_blocked"],
+                        "Failed": len(summary_dict[task]["failed_quanta"]),
+                        "Blocked": summary_dict[task]["n_quanta_blocked"],
+                        "Succeeded": summary_dict[task]["n_succeeded"],
+                        "Expected": summary_dict[task]["n_expected"],
                     }
                 )
             else:
                 quanta_summary.append(
                     {
                         "Task": task,
-                        "Failed Quanta": summary_dict[task]["failed_quanta"],
-                        "Blocked Quanta": summary_dict[task]["n_quanta_blocked"],
+                        "Failed": summary_dict[task]["failed_quanta"],
+                        "Blocked": summary_dict[task]["n_quanta_blocked"],
+                        "Succeeded": summary_dict[task]["n_succeeded"],
+                        "Expected": summary_dict[task]["n_expected"],
                     }
                 )
             if "errors" in summary_dict[task].keys():
