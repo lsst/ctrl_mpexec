@@ -24,6 +24,7 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
+from collections.abc import Sequence
 import pprint
 
 import yaml
@@ -31,6 +32,7 @@ from astropy.table import Table
 from lsst.daf.butler import Butler
 from lsst.pipe.base import QuantumGraph
 from lsst.pipe.base.execution_reports import QuantumGraphExecutionReport
+from lsst.pipe.base.quantum_provenance_graph import QuantumProvenanceGraph
 
 
 def report(
@@ -119,3 +121,28 @@ def report(
         datasets.pprint_all()
     else:
         report.write_summary_yaml(butler, full_output_filename, do_store_logs=logs)
+    
+def report_v2(butler_config: str,
+    qgraph_uris: Sequence[str],
+    collections: Sequence[str] | None,
+    where: str,
+    full_output_filename: str | None,
+    logs: bool = True,
+    show_errors: bool = False,
+    curse_failed_logs: bool = False,
+    ) -> None:
+    butler = Butler.from_config(butler_config, writeable=False)
+    qpg = QuantumProvenanceGraph()
+    output_runs = []
+    for qgraph_uri in qgraph_uris:
+        qgraph = QuantumGraph.loadUri(qgraph_uri)
+        qpg.add_new_graph(butler, qgraph)
+        output_runs.append(qgraph.metadata["output_run"])
+    if collections is None:
+        collections = reversed(output_runs)
+    qpg.resolve_duplicates(butler, collections=collections, where=where,
+                           curse_failed_logs=curse_failed_logs)
+    summary = qpg.to_summary(butler, do_store_logs=logs)
+    if full_output_filename is not None:
+        with open(full_output_filename, "w") as stream:
+                yaml.safe_dump(summary.model_dump(), stream)
