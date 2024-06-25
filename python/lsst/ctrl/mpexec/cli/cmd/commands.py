@@ -341,7 +341,9 @@ def update_graph_run(
 @click.command(cls=PipetaskCommand)
 @repo_argument()
 @click.argument()
-@click.option("--full-output-filename", default="", help="Summarize report in a yaml file")
+@click.option("--collections", default=None, help="Collections to resolve duplicate datasets in.")
+@click.option("--where", default="", help="where")
+@click.option("--full-output-filename", default="", help="Output report as a yaml file with this name.")
 @click.option("--logs/--no-logs", default=True, help="Get butler log datasets for extra information.")
 @click.option(
     "--show-errors",
@@ -350,6 +352,19 @@ def update_graph_run(
     help="Pretty-print a dict of errors from failed"
     " quanta to the screen. Note: the default is to output a yaml file with error information"
     " (data_ids and associated messages) to the current working directory instead.",
+)
+@click.option(
+    "--curse-failed-logs",
+    is_flag=True,
+    default=False,
+    help="If log datasets are missing in v2, mark them as cursed",
+)
+@click.option(
+    "--force-v2",
+    is_flag=True,
+    default=False,
+    help="Use the QuantumProvenanceGraph instead of the QuantumGraphExecutionReport, "
+    "even when there is only one qgraph.",
 )
 def report(
     repo: str,
@@ -360,7 +375,7 @@ def report(
     logs: bool = True,
     show_errors: bool = False,
     curse_failed_logs: bool = False,
-    force_v2: bool = False
+    force_v2: bool = False,
 ) -> None:
     """Write a yaml file summarizing the produced and missing expected datasets
     in a quantum graph.
@@ -370,6 +385,8 @@ def report(
     QGRAPH is the URL to a serialized Quantum Graph file.
     """
     if force_v2 or len(qgraphs) > 1 or collections is not None:
-        script.report_v2(repo, qgraphs, collections, where, full_output_filename, logs, show_errors, curse_failed_logs)
+        script.report_v2(
+            repo, qgraphs, collections, where, full_output_filename, logs, show_errors, curse_failed_logs
+        )
     else:
         script.report(repo, qgraphs, full_output_filename, logs, show_errors)
