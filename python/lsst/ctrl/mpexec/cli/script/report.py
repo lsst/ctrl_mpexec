@@ -121,8 +121,10 @@ def report(
         datasets.pprint_all()
     else:
         report.write_summary_yaml(butler, full_output_filename, do_store_logs=logs)
-    
-def report_v2(butler_config: str,
+
+
+def report_v2(
+    butler_config: str,
     qgraph_uris: Sequence[str],
     collections: Sequence[str] | None,
     where: str,
@@ -130,7 +132,9 @@ def report_v2(butler_config: str,
     logs: bool = True,
     show_errors: bool = False,
     curse_failed_logs: bool = False,
-    ) -> None:
+) -> None:
+    """Docstring
+    """
     butler = Butler.from_config(butler_config, writeable=False)
     qpg = QuantumProvenanceGraph()
     output_runs = []
@@ -140,9 +144,12 @@ def report_v2(butler_config: str,
         output_runs.append(qgraph.metadata["output_run"])
     if collections is None:
         collections = reversed(output_runs)
-    qpg.resolve_duplicates(butler, collections=collections, where=where,
-                           curse_failed_logs=curse_failed_logs)
+    qpg.resolve_duplicates(butler, collections=collections, where=where, curse_failed_logs=curse_failed_logs)
     summary = qpg.to_summary(butler, do_store_logs=logs)
+    summary_dict = summary.model_dump()
     if full_output_filename is not None:
         with open(full_output_filename, "w") as stream:
-                yaml.safe_dump(summary.model_dump(), stream)
+            yaml.safe_dump(summary_dict, stream)
+    elif not full_output_filename:
+        quanta = Table(summary_dict["tasks"])
+        quanta.pprint_all()
