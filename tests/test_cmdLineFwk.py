@@ -478,11 +478,11 @@ class CmdLineFwkTestCase(unittest.TestCase):
         self.assertEqual(
             "\n".join(
                 [
-                    "○  add_dataset_in",
+                    "○  add_dataset_in: {detector} NumpyArray",
                     "│",
-                    "■  task",
+                    "■  task: {detector}",
                     "│",
-                    "◍  add_dataset_out, add2_dataset_out",
+                    "◍  add_dataset_out, add2_dataset_out: {detector} NumpyArray",
                 ]
             ),
             output,
@@ -493,7 +493,7 @@ class CmdLineFwkTestCase(unittest.TestCase):
         show.show_pipeline_info(pipeline, None)
         stream.seek(0)
         output = stream.read().strip()
-        self.assertEqual("■  task", output)
+        self.assertEqual("■  task: {detector}", output)
 
         stream = StringIO()
         show = ShowInfo(["config=task::addEnd"], stream=stream)  # Match but warns

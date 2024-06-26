@@ -172,9 +172,13 @@ class ShowInfo:
                 case "tasks":
                     self._showTaskHierarchy(pipeline)
                 case "pipeline-graph":
-                    visualization.show(pipeline.to_graph(registry), self.stream, dataset_types=True)
+                    visualization.show(
+                        pipeline.to_graph(registry, visualization_only=True), self.stream, dataset_types=True
+                    )
                 case "task-graph":
-                    visualization.show(pipeline.to_graph(registry), self.stream, dataset_types=False)
+                    visualization.show(
+                        pipeline.to_graph(registry, visualization_only=True), self.stream, dataset_types=False
+                    )
                 case _:
                     raise RuntimeError(f"Unexpectedly tried to process command {command!r}.")
             self.handled.add(command)

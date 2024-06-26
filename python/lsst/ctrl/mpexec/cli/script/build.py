@@ -28,6 +28,7 @@
 from types import SimpleNamespace
 
 from lsst.daf.butler import Butler
+from lsst.pipe.base.pipeline_graph import visualization
 
 from ... import CmdLineFwk
 from ..utils import _PipelineAction
@@ -113,6 +114,15 @@ def build(  # type: ignore
         butler = Butler.from_config(butler_config, writeable=False)
     else:
         butler = None
+
+    if pipeline_dot:
+        with open(pipeline_dot, "w") as stream:
+            visualization.show_dot(
+                pipeline.to_graph(butler.registry if butler is not None else None, visualization_only=True),
+                stream,
+                dataset_types=True,
+                task_classes="full",
+            )
 
     show.show_pipeline_info(pipeline, butler=butler)
 
