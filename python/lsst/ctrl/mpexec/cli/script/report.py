@@ -147,7 +147,7 @@ def report_v2(
     qpg.resolve_duplicates(butler, collections=collections, where=where, curse_failed_logs=curse_failed_logs)
     summary = qpg.to_summary(butler, do_store_logs=logs)
     summary_dict = summary.model_dump()
-    if full_output_filename is not None:
+    if full_output_filename:
         with open(full_output_filename, "w") as stream:
             yaml.safe_dump(summary_dict, stream)
     elif not full_output_filename:
