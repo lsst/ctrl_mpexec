@@ -151,5 +151,50 @@ def report_v2(
         with open(full_output_filename, "w") as stream:
             yaml.safe_dump(summary_dict, stream)
     elif not full_output_filename:
-        quanta = Table(summary_dict["tasks"])
+        quanta_table = []
+        failed_quanta_table = []
+        wonky_quanta_table = []
+        for task in summary_dict["tasks"].keys():
+            if summary_dict["tasks"][task]["n_wonky"] > 0:
+                print(f"{task} has produced wonky quanta. Recommend processing cease until the issue is resolved.")
+                j=0
+                for data_id in summary_dict["tasks"][task]["wonky_quanta"]:
+                    wonky_quanta_table.append({
+                        "Task": task,
+                        "Data ID": summary_dict["tasks"][task]["wonky_quanta"][j]["data_id"],
+                        "Runs and Status": summary_dict["tasks"][task]["wonky_quanta"][j]["runs"],
+                        "Messages": summary_dict["tasks"][task]["wonky_quanta"][j]["messages"],
+                    })
+                    j+=1
+            quanta_table.append(
+                {
+                    "Task": task,
+                    "Not Attempted": summary_dict["tasks"][task]["n_not_attempted"],
+                    "Successful": summary_dict["tasks"][task]["n_successful"],
+                    "Blocked": summary_dict["tasks"][task]["n_blocked"],
+                    "Failed": summary_dict["tasks"][task]["n_failed"],
+                    "Wonky": summary_dict["tasks"][task]["n_wonky"],
+                    "TOTAL": sum([
+                        summary_dict["tasks"][task]["n_successful"],
+                        summary_dict["tasks"][task]["n_not_attempted"],
+                        summary_dict["tasks"][task]["n_blocked"],
+                        summary_dict["tasks"][task]["n_failed"],
+                        summary_dict["tasks"][task]["n_wonky"],
+                    ]),
+                    "EXPECTED": summary_dict["tasks"][task]["n_expected"]
+                }
+            )
+            if summary_dict["tasks"][task]["failed_quanta"]:
+                i=0
+                for data_id in summary_dict["tasks"][task]["failed_quanta"]:
+                    failed_quanta_table.append({
+                        "Task": task,
+                        "Data ID": summary_dict["tasks"][task]["failed_quanta"][i]["data_id"],
+                        "Runs and Status": summary_dict["tasks"][task]["failed_quanta"][i]["runs"],
+                        "Messages": summary_dict["tasks"][task]["failed_quanta"][i]["messages"],
+                    })
+                    i+=1
+        quanta = Table(quanta_table)
         quanta.pprint_all()
+        failed_quanta = Table(failed_quanta_table)
+        failed_quanta.pprint_all()
