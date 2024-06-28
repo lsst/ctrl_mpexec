@@ -82,6 +82,7 @@ class ReportTest(unittest.TestCase):
             report_output_dict = yaml.load(f, Loader=SafeLoader)
         self.assertIsNotNone(report_output_dict["task0"])
         self.assertIsNotNone(report_output_dict["task0"]["failed_quanta"])
+        self.assertIsInstance(report_output_dict["task0"]["n_expected"], int)
 
         result_hr = self.runner.invoke(
             pipetask_cli,
@@ -97,7 +98,9 @@ class ReportTest(unittest.TestCase):
 
         # Check that task0 and the failed quanta for task0 exist in the string
         self.assertIn("task0", result_hr.stdout)
-        self.assertIn("Failed Quanta", result_hr.stdout)
+        self.assertIn("Failed", result_hr.stdout)
+        self.assertIn("Expected", result_hr.stdout)
+        self.assertIn("Succeeded", result_hr.stdout)
 
 
 if __name__ == "__main__":
