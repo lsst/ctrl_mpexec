@@ -25,7 +25,7 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 from collections.abc import Sequence
-import pprint
+import pprint, time
 
 import yaml
 from astropy.table import Table
@@ -149,8 +149,8 @@ def report_v2(
     summary_dict = summary.model_dump()
     if full_output_filename:
         with open(full_output_filename, "w") as stream:
-            yaml.safe_dump(summary_dict, stream)
-    elif not full_output_filename:
+            stream.write(summary.model_dump_json(indent=2))
+    else:
         quanta_table = []
         failed_quanta_table = []
         wonky_quanta_table = []
@@ -196,5 +196,33 @@ def report_v2(
                     i+=1
         quanta = Table(quanta_table)
         quanta.pprint_all()
-        failed_quanta = Table(failed_quanta_table)
-        failed_quanta.pprint_all()
+        # Dataset loop
+        # dataset_dict = {}
+        # for dataset in summary_dict["datasets"].keys():
+        #     for producer_task in summary_dict["datasets"][dataset]["producer"]:
+        #         dataset_dict[producer_task] = summary_dict["datasets"][dataset]
+        # pprint.pprint(dataset_dict)
+        # for producer_task in dataset_dict:
+        #     task_table = []
+        #     for task in dataset_dict[producer_task].keys():
+        #         print(task)
+
+        # If there are wonky quanta, print them to the screen. People should
+        # be confronted with them immediately.
+        if wonky_quanta_table:
+            print("Wonky Quanta")
+            pprint.pprint(wonky_quanta_table)
+        if show_errors:
+            print("Failed Quanta")
+            pprint.pprint(failed_quanta_table)
+        elif not show_errors:
+            if failed_quanta_table or wonky_quanta_table:
+                timestr = time.strftime("%Y%m%d-%H%M%S")
+            if failed_quanta_table:
+                with open(f"qpg_failed_quanta_{timestr}.yaml", "w") as stream:
+                    yaml.safe_dump(failed_quanta_table, stream)
+            if wonky_quanta_table:
+                with open(f"qpg_wonky_quanta_{timestr}.yaml", "w") as stream:
+                    yaml.safe_dump(wonky_quanta_table, stream)
+
+        
