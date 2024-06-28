@@ -26,7 +26,7 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 import sys
-from collections.abc import Iterator
+from collections.abc import Iterator, Sequence
 from contextlib import contextmanager
 from functools import partial
 from tempfile import NamedTemporaryFile
@@ -340,8 +340,10 @@ def update_graph_run(
 
 @click.command(cls=PipetaskCommand)
 @repo_argument()
-@ctrlMpExecOpts.qgraph_argument()
-@click.option("--full-output-filename", default="", help="Summarize report in a yaml file")
+@click.argument("qgraphs", nargs=-1)
+@click.option("--collections", default=None, help="Collections to resolve duplicate datasets in.")
+@click.option("--where", default="", help="where")
+@click.option("--full-output-filename", default="", help="Output report as a yaml file with this name.")
 @click.option("--logs/--no-logs", default=True, help="Get butler log datasets for extra information.")
 @click.option(
     "--show-errors",
@@ -351,8 +353,29 @@ def update_graph_run(
     " quanta to the screen. Note: the default is to output a yaml file with error information"
     " (data_ids and associated messages) to the current working directory instead.",
 )
+@click.option(
+    "--curse-failed-logs",
+    is_flag=True,
+    default=False,
+    help="If log datasets are missing in v2, mark them as cursed",
+)
+@click.option(
+    "--force-v2",
+    is_flag=True,
+    default=False,
+    help="Use the QuantumProvenanceGraph instead of the QuantumGraphExecutionReport, "
+    "even when there is only one qgraph.",
+)
 def report(
-    repo: str, qgraph: str, full_output_filename: str = "", logs: bool = True, show_errors: bool = False
+    repo: str,
+    qgraphs: Sequence[str],
+    collections: Sequence[str] | None,
+    where: str,
+    full_output_filename: str = "",
+    logs: bool = True,
+    show_errors: bool = False,
+    curse_failed_logs: bool = False,
+    force_v2: bool = False,
 ) -> None:
     """Write a yaml file summarizing the produced and missing expected datasets
     in a quantum graph.
@@ -361,4 +384,10 @@ def report(
 
     QGRAPH is the URL to a serialized Quantum Graph file.
     """
-    script.report(repo, qgraph, full_output_filename, logs, show_errors)
+    if force_v2 or len(qgraphs) > 1 or collections is not None:
+        script.report_v2(
+            repo, qgraphs, collections, where, full_output_filename, logs, show_errors, curse_failed_logs
+        )
+    else:
+        assert(len(qgraphs) == 1, "Cannot make a report without a quantum graph.")
+        script.report(repo, qgraphs[0], full_output_filename, logs, show_errors)

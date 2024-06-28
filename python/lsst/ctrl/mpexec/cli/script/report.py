@@ -24,13 +24,15 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
-import pprint
+from collections.abc import Sequence
+import pprint, time
 
 import yaml
 from astropy.table import Table
 from lsst.daf.butler import Butler
 from lsst.pipe.base import QuantumGraph
 from lsst.pipe.base.execution_reports import QuantumGraphExecutionReport
+from lsst.pipe.base.quantum_provenance_graph import QuantumProvenanceGraph
 
 
 def report(
@@ -119,3 +121,108 @@ def report(
         datasets.pprint_all()
     else:
         report.write_summary_yaml(butler, full_output_filename, do_store_logs=logs)
+
+
+def report_v2(
+    butler_config: str,
+    qgraph_uris: Sequence[str],
+    collections: Sequence[str] | None,
+    where: str,
+    full_output_filename: str | None,
+    logs: bool = True,
+    show_errors: bool = False,
+    curse_failed_logs: bool = False,
+) -> None:
+    """Docstring
+    """
+    butler = Butler.from_config(butler_config, writeable=False)
+    qpg = QuantumProvenanceGraph()
+    output_runs = []
+    for qgraph_uri in qgraph_uris:
+        qgraph = QuantumGraph.loadUri(qgraph_uri)
+        qpg.add_new_graph(butler, qgraph)
+        output_runs.append(qgraph.metadata["output_run"])
+    if collections is None:
+        collections = reversed(output_runs)
+    qpg.resolve_duplicates(butler, collections=collections, where=where, curse_failed_logs=curse_failed_logs)
+    summary = qpg.to_summary(butler, do_store_logs=logs)
+    summary_dict = summary.model_dump()
+    if full_output_filename:
+        with open(full_output_filename, "w") as stream:
+            stream.write(summary.model_dump_json(indent=2))
+    else:
+        quanta_table = []
+        failed_quanta_table = []
+        wonky_quanta_table = []
+        for task in summary_dict["tasks"].keys():
+            if summary_dict["tasks"][task]["n_wonky"] > 0:
+                print(f"{task} has produced wonky quanta. Recommend processing cease until the issue is resolved.")
+                j=0
+                for data_id in summary_dict["tasks"][task]["wonky_quanta"]:
+                    wonky_quanta_table.append({
+                        "Task": task,
+                        "Data ID": summary_dict["tasks"][task]["wonky_quanta"][j]["data_id"],
+                        "Runs and Status": summary_dict["tasks"][task]["wonky_quanta"][j]["runs"],
+                        "Messages": summary_dict["tasks"][task]["wonky_quanta"][j]["messages"],
+                    })
+                    j+=1
+            quanta_table.append(
+                {
+                    "Task": task,
+                    "Not Attempted": summary_dict["tasks"][task]["n_not_attempted"],
+                    "Successful": summary_dict["tasks"][task]["n_successful"],
+                    "Blocked": summary_dict["tasks"][task]["n_blocked"],
+                    "Failed": summary_dict["tasks"][task]["n_failed"],
+                    "Wonky": summary_dict["tasks"][task]["n_wonky"],
+                    "TOTAL": sum([
+                        summary_dict["tasks"][task]["n_successful"],
+                        summary_dict["tasks"][task]["n_not_attempted"],
+                        summary_dict["tasks"][task]["n_blocked"],
+                        summary_dict["tasks"][task]["n_failed"],
+                        summary_dict["tasks"][task]["n_wonky"],
+                    ]),
+                    "EXPECTED": summary_dict["tasks"][task]["n_expected"]
+                }
+            )
+            if summary_dict["tasks"][task]["failed_quanta"]:
+                i=0
+                for data_id in summary_dict["tasks"][task]["failed_quanta"]:
+                    failed_quanta_table.append({
+                        "Task": task,
+                        "Data ID": summary_dict["tasks"][task]["failed_quanta"][i]["data_id"],
+                        "Runs and Status": summary_dict["tasks"][task]["failed_quanta"][i]["runs"],
+                        "Messages": summary_dict["tasks"][task]["failed_quanta"][i]["messages"],
+                    })
+                    i+=1
+        quanta = Table(quanta_table)
+        quanta.pprint_all()
+        # Dataset loop
+        # dataset_dict = {}
+        # for dataset in summary_dict["datasets"].keys():
+        #     for producer_task in summary_dict["datasets"][dataset]["producer"]:
+        #         dataset_dict[producer_task] = summary_dict["datasets"][dataset]
+        # pprint.pprint(dataset_dict)
+        # for producer_task in dataset_dict:
+        #     task_table = []
+        #     for task in dataset_dict[producer_task].keys():
+        #         print(task)
+
+        # If there are wonky quanta, print them to the screen. People should
+        # be confronted with them immediately.
+        if wonky_quanta_table:
+            print("Wonky Quanta")
+            pprint.pprint(wonky_quanta_table)
+        if show_errors:
+            print("Failed Quanta")
+            pprint.pprint(failed_quanta_table)
+        elif not show_errors:
+            if failed_quanta_table or wonky_quanta_table:
+                timestr = time.strftime("%Y%m%d-%H%M%S")
+            if failed_quanta_table:
+                with open(f"qpg_failed_quanta_{timestr}.yaml", "w") as stream:
+                    yaml.safe_dump(failed_quanta_table, stream)
+            if wonky_quanta_table:
+                with open(f"qpg_wonky_quanta_{timestr}.yaml", "w") as stream:
+                    yaml.safe_dump(wonky_quanta_table, stream)
+
+        
