@@ -345,10 +345,6 @@ class SingleQuantumExecutor(QuantumExecutor):
         """
         task_node = self._conform_task_def(task_node)
 
-        if not self.butler:
-            # Skip/prune logic only works for full butler.
-            return False
-
         if self.skipExisting:
             _LOG.debug(
                 "Checking existence of metadata from previous execution of label=%s dataId=%s.",
