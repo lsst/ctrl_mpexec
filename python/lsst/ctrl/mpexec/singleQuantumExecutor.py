@@ -123,6 +123,12 @@ class SingleQuantumExecutor(QuantumExecutor):
         Unlike ``skipExistingIn``, this works with limited butlers as well as
         full butlers.  Always set to `True` if ``skipExistingIn`` matches
         ``butler.run``.
+    assumeNoExistingOutputs : `bool`, optional
+        If `True`, assume preexisting outputs are impossible (e.g. because this
+        is known by higher-level code to be a new ``RUN`` collection), and do
+        not look for them.  This causes the ``skipExisting`` and
+        ``clobberOutputs`` options to be ignored, but unlike just setting both
+        of those to `False`, it also avoids all dataset existence checks.
     """
 
     def __init__(
@@ -136,6 +142,7 @@ class SingleQuantumExecutor(QuantumExecutor):
         limited_butler_factory: Callable[[Quantum], LimitedButler] | None = None,
         resources: ExecutionResources | None = None,
         skipExisting: bool = False,
+        assumeNoExistingOutputs: bool = False,
     ):
         self.butler = butler
         self.taskFactory = taskFactory
@@ -144,6 +151,7 @@ class SingleQuantumExecutor(QuantumExecutor):
         self.exitOnKnownError = exitOnKnownError
         self.limited_butler_factory = limited_butler_factory
         self.resources = resources
+        self.assumeNoExistingOutputs = assumeNoExistingOutputs
 
         if self.butler is None:
             assert limited_butler_factory is not None, "limited_butler_factory is needed when butler is None"
@@ -344,6 +352,9 @@ class SingleQuantumExecutor(QuantumExecutor):
             Raised if some outputs exist and some not.
         """
         task_node = self._conform_task_def(task_node)
+
+        if self.assumeNoExistingOutputs:
+            return False
 
         if self.skipExisting:
             _LOG.debug(
