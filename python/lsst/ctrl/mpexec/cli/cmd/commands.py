@@ -389,5 +389,5 @@ def report(
             repo, qgraphs, collections, where, full_output_filename, logs, show_errors, curse_failed_logs
         )
     else:
-        assert(len(qgraphs) == 1, "Cannot make a report without a quantum graph.")
+        assert len(qgraphs) == 1, "Cannot make a report without a quantum graph."
         script.report(repo, qgraphs[0], full_output_filename, logs, show_errors)
