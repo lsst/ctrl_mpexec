@@ -34,6 +34,7 @@ import yaml
 from lsst.ctrl.mpexec.cli.pipetask import cli as pipetask_cli
 from lsst.daf.butler.cli.utils import LogCliRunner, clickResultMsg
 from lsst.daf.butler.tests.utils import makeTestTempDir, removeTestTempDir
+from lsst.pipe.base.quantum_provenance_graph import DatasetTypeSummary, Summary, TaskSummary
 from lsst.pipe.base.tests.simpleQGraph import makeSimpleQGraph
 from lsst.pipe.base.tests.util import check_output_run
 from yaml.loader import SafeLoader
@@ -101,6 +102,339 @@ class ReportTest(unittest.TestCase):
         self.assertIn("Failed", result_hr.stdout)
         self.assertIn("Expected", result_hr.stdout)
         self.assertIn("Succeeded", result_hr.stdout)
+
+        # Test cli for the QPG
+        result_v2_show_err = self.runner.invoke(
+            pipetask_cli,
+            ["report", self.root, graph_uri, "--no-logs", "--show-errors", "--force-v2"],
+            input="no",
+        )
+
+        # Check that we can read from the command line
+        self.assertEqual(result_v2_show_err.exit_code, 0, clickResultMsg(result_v2_show_err))
+
+        # Check that we get string output
+        self.assertIsInstance(result_v2_show_err.stdout, str)
+
+        # Check that task0 and the quanta for task0 exist in the string
+        self.assertIn("task0", result_v2_show_err.stdout)
+        self.assertIn("Not Attempted", result_v2_show_err.stdout)
+        self.assertIn("Successful", result_v2_show_err.stdout)
+        self.assertIn("Blocked", result_v2_show_err.stdout)
+        self.assertIn("Failed", result_v2_show_err.stdout)
+        self.assertIn("Wonky", result_v2_show_err.stdout)
+        self.assertIn("TOTAL", result_v2_show_err.stdout)
+        self.assertIn("EXPECTED", result_v2_show_err.stdout)
+
+        # Check that title from --show-errors appears
+        self.assertIn("Unsuccessful Datasets", result_v2_show_err.stdout)
+
+        # Check that the full output option works
+        test_filename_v2 = os.path.join(self.root, "report_test.json")
+        result_v2_full = self.runner.invoke(
+            pipetask_cli,
+            [
+                "report",
+                self.root,
+                graph_uri,
+                "--no-logs",
+                "--full-output-filename",
+                test_filename_v2,
+                "--force-v2",
+            ],
+            input="no",
+        )
+
+        self.assertEqual(result.exit_code, 0, clickResultMsg(result_v2_full))
+
+        with open(test_filename_v2) as f:
+            output = f.read()
+            model = Summary.model_validate_json(output)
+            self.assertDictEqual(
+                model.tasks,
+                {
+                    "task0": TaskSummary(
+                        n_successful=0,
+                        n_blocked=0,
+                        n_not_attempted=1,
+                        n_expected=1,
+                        failed_quanta=[],
+                        recovered_quanta=[],
+                        wonky_quanta=[],
+                        n_wonky=0,
+                        n_failed=0,
+                    ),
+                    "task1": TaskSummary(
+                        n_successful=0,
+                        n_blocked=0,
+                        n_not_attempted=1,
+                        n_expected=1,
+                        failed_quanta=[],
+                        recovered_quanta=[],
+                        wonky_quanta=[],
+                        n_wonky=0,
+                        n_failed=0,
+                    ),
+                    "task2": TaskSummary(
+                        n_successful=0,
+                        n_blocked=0,
+                        n_not_attempted=1,
+                        n_expected=1,
+                        failed_quanta=[],
+                        recovered_quanta=[],
+                        wonky_quanta=[],
+                        n_wonky=0,
+                        n_failed=0,
+                    ),
+                    "task3": TaskSummary(
+                        n_successful=0,
+                        n_blocked=0,
+                        n_not_attempted=1,
+                        n_expected=1,
+                        failed_quanta=[],
+                        recovered_quanta=[],
+                        wonky_quanta=[],
+                        n_wonky=0,
+                        n_failed=0,
+                    ),
+                    "task4": TaskSummary(
+                        n_successful=0,
+                        n_blocked=0,
+                        n_not_attempted=1,
+                        n_expected=1,
+                        failed_quanta=[],
+                        recovered_quanta=[],
+                        wonky_quanta=[],
+                        n_wonky=0,
+                        n_failed=0,
+                    ),
+                },
+            )
+            self.assertDictEqual(
+                model.datasets,
+                {
+                    "add_dataset1": DatasetTypeSummary(
+                        producer="task0",
+                        n_published=0,
+                        n_unpublished=0,
+                        n_predicted_only=0,
+                        n_expected=1,
+                        cursed_datasets=[],
+                        unsuccessful_datasets=[{"instrument": "INSTR", "detector": 0}],
+                        n_cursed=0,
+                        n_unsuccessful=1,
+                    ),
+                    "add2_dataset1": DatasetTypeSummary(
+                        producer="task0",
+                        n_published=0,
+                        n_unpublished=0,
+                        n_predicted_only=0,
+                        n_expected=1,
+                        cursed_datasets=[],
+                        unsuccessful_datasets=[{"instrument": "INSTR", "detector": 0}],
+                        n_cursed=0,
+                        n_unsuccessful=1,
+                    ),
+                    "task0_metadata": DatasetTypeSummary(
+                        producer="task0",
+                        n_published=0,
+                        n_unpublished=0,
+                        n_predicted_only=0,
+                        n_expected=1,
+                        cursed_datasets=[],
+                        unsuccessful_datasets=[{"instrument": "INSTR", "detector": 0}],
+                        n_cursed=0,
+                        n_unsuccessful=1,
+                    ),
+                    "task0_log": DatasetTypeSummary(
+                        producer="task0",
+                        n_published=0,
+                        n_unpublished=0,
+                        n_predicted_only=0,
+                        n_expected=1,
+                        cursed_datasets=[],
+                        unsuccessful_datasets=[{"instrument": "INSTR", "detector": 0}],
+                        n_cursed=0,
+                        n_unsuccessful=1,
+                    ),
+                    "add_dataset2": DatasetTypeSummary(
+                        producer="task1",
+                        n_published=0,
+                        n_unpublished=0,
+                        n_predicted_only=0,
+                        n_expected=1,
+                        cursed_datasets=[],
+                        unsuccessful_datasets=[{"instrument": "INSTR", "detector": 0}],
+                        n_cursed=0,
+                        n_unsuccessful=1,
+                    ),
+                    "add2_dataset2": DatasetTypeSummary(
+                        producer="task1",
+                        n_published=0,
+                        n_unpublished=0,
+                        n_predicted_only=0,
+                        n_expected=1,
+                        cursed_datasets=[],
+                        unsuccessful_datasets=[{"instrument": "INSTR", "detector": 0}],
+                        n_cursed=0,
+                        n_unsuccessful=1,
+                    ),
+                    "task1_metadata": DatasetTypeSummary(
+                        producer="task1",
+                        n_published=0,
+                        n_unpublished=0,
+                        n_predicted_only=0,
+                        n_expected=1,
+                        cursed_datasets=[],
+                        unsuccessful_datasets=[{"instrument": "INSTR", "detector": 0}],
+                        n_cursed=0,
+                        n_unsuccessful=1,
+                    ),
+                    "task1_log": DatasetTypeSummary(
+                        producer="task1",
+                        n_published=0,
+                        n_unpublished=0,
+                        n_predicted_only=0,
+                        n_expected=1,
+                        cursed_datasets=[],
+                        unsuccessful_datasets=[{"instrument": "INSTR", "detector": 0}],
+                        n_cursed=0,
+                        n_unsuccessful=1,
+                    ),
+                    "add_dataset3": DatasetTypeSummary(
+                        producer="task2",
+                        n_published=0,
+                        n_unpublished=0,
+                        n_predicted_only=0,
+                        n_expected=1,
+                        cursed_datasets=[],
+                        unsuccessful_datasets=[{"instrument": "INSTR", "detector": 0}],
+                        n_cursed=0,
+                        n_unsuccessful=1,
+                    ),
+                    "add2_dataset3": DatasetTypeSummary(
+                        producer="task2",
+                        n_published=0,
+                        n_unpublished=0,
+                        n_predicted_only=0,
+                        n_expected=1,
+                        cursed_datasets=[],
+                        unsuccessful_datasets=[{"instrument": "INSTR", "detector": 0}],
+                        n_cursed=0,
+                        n_unsuccessful=1,
+                    ),
+                    "task2_metadata": DatasetTypeSummary(
+                        producer="task2",
+                        n_published=0,
+                        n_unpublished=0,
+                        n_predicted_only=0,
+                        n_expected=1,
+                        cursed_datasets=[],
+                        unsuccessful_datasets=[{"instrument": "INSTR", "detector": 0}],
+                        n_cursed=0,
+                        n_unsuccessful=1,
+                    ),
+                    "task2_log": DatasetTypeSummary(
+                        producer="task2",
+                        n_published=0,
+                        n_unpublished=0,
+                        n_predicted_only=0,
+                        n_expected=1,
+                        cursed_datasets=[],
+                        unsuccessful_datasets=[{"instrument": "INSTR", "detector": 0}],
+                        n_cursed=0,
+                        n_unsuccessful=1,
+                    ),
+                    "add_dataset4": DatasetTypeSummary(
+                        producer="task3",
+                        n_published=0,
+                        n_unpublished=0,
+                        n_predicted_only=0,
+                        n_expected=1,
+                        cursed_datasets=[],
+                        unsuccessful_datasets=[{"instrument": "INSTR", "detector": 0}],
+                        n_cursed=0,
+                        n_unsuccessful=1,
+                    ),
+                    "add2_dataset4": DatasetTypeSummary(
+                        producer="task3",
+                        n_published=0,
+                        n_unpublished=0,
+                        n_predicted_only=0,
+                        n_expected=1,
+                        cursed_datasets=[],
+                        unsuccessful_datasets=[{"instrument": "INSTR", "detector": 0}],
+                        n_cursed=0,
+                        n_unsuccessful=1,
+                    ),
+                    "task3_metadata": DatasetTypeSummary(
+                        producer="task3",
+                        n_published=0,
+                        n_unpublished=0,
+                        n_predicted_only=0,
+                        n_expected=1,
+                        cursed_datasets=[],
+                        unsuccessful_datasets=[{"instrument": "INSTR", "detector": 0}],
+                        n_cursed=0,
+                        n_unsuccessful=1,
+                    ),
+                    "task3_log": DatasetTypeSummary(
+                        producer="task3",
+                        n_published=0,
+                        n_unpublished=0,
+                        n_predicted_only=0,
+                        n_expected=1,
+                        cursed_datasets=[],
+                        unsuccessful_datasets=[{"instrument": "INSTR", "detector": 0}],
+                        n_cursed=0,
+                        n_unsuccessful=1,
+                    ),
+                    "add_dataset5": DatasetTypeSummary(
+                        producer="task4",
+                        n_published=0,
+                        n_unpublished=0,
+                        n_predicted_only=0,
+                        n_expected=1,
+                        cursed_datasets=[],
+                        unsuccessful_datasets=[{"instrument": "INSTR", "detector": 0}],
+                        n_cursed=0,
+                        n_unsuccessful=1,
+                    ),
+                    "add2_dataset5": DatasetTypeSummary(
+                        producer="task4",
+                        n_published=0,
+                        n_unpublished=0,
+                        n_predicted_only=0,
+                        n_expected=1,
+                        cursed_datasets=[],
+                        unsuccessful_datasets=[{"instrument": "INSTR", "detector": 0}],
+                        n_cursed=0,
+                        n_unsuccessful=1,
+                    ),
+                    "task4_metadata": DatasetTypeSummary(
+                        producer="task4",
+                        n_published=0,
+                        n_unpublished=0,
+                        n_predicted_only=0,
+                        n_expected=1,
+                        cursed_datasets=[],
+                        unsuccessful_datasets=[{"instrument": "INSTR", "detector": 0}],
+                        n_cursed=0,
+                        n_unsuccessful=1,
+                    ),
+                    "task4_log": DatasetTypeSummary(
+                        producer="task4",
+                        n_published=0,
+                        n_unpublished=0,
+                        n_predicted_only=0,
+                        n_expected=1,
+                        cursed_datasets=[],
+                        unsuccessful_datasets=[{"instrument": "INSTR", "detector": 0}],
+                        n_cursed=0,
+                        n_unsuccessful=1,
+                    ),
+                },
+            )
 
 
 if __name__ == "__main__":
