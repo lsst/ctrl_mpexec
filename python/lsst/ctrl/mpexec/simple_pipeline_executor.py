@@ -414,5 +414,5 @@ class SimplePipelineExecutor:
         # which might be useful for callers who want to check the state of the
         # repo in between.
         return (
-            single_quantum_executor.execute(qnode.task_node, qnode.quantum) for qnode in self.quantum_graph
+            single_quantum_executor.execute(qnode.task_node, qnode.quantum)[0] for qnode in self.quantum_graph
         )

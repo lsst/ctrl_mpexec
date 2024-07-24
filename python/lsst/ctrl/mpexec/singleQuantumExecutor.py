@@ -143,7 +143,6 @@ class SingleQuantumExecutor(QuantumExecutor):
         self.clobberOutputs = clobberOutputs
         self.exitOnKnownError = exitOnKnownError
         self.limited_butler_factory = limited_butler_factory
-        self.report: QuantumReport | None = None
         self.resources = resources
 
         if self.butler is None:
@@ -164,7 +163,9 @@ class SingleQuantumExecutor(QuantumExecutor):
                     collectionTypes=CollectionType.RUN,
                 )
 
-    def execute(self, task_node: TaskDef | TaskNode, /, quantum: Quantum) -> Quantum:
+    def execute(
+        self, task_node: TaskNode | TaskDef, /, quantum: Quantum
+    ) -> tuple[Quantum, QuantumReport | None]:
         # Docstring inherited from QuantumExecutor.execute
         assert quantum.dataId is not None, "Quantum DataId cannot be None"
 
@@ -172,18 +173,9 @@ class SingleQuantumExecutor(QuantumExecutor):
         if self.butler is not None:
             self.butler.registry.refresh()
 
-        # Catch any exception and make a report based on that.
-        try:
-            result = self._execute(task_node, quantum)
-            self.report = QuantumReport(dataId=quantum.dataId, taskLabel=task_node.label)
-            return result
-        except Exception as exc:
-            self.report = QuantumReport.from_exception(
-                exception=exc,
-                dataId=quantum.dataId,
-                taskLabel=task_node.label,
-            )
-            raise
+        result = self._execute(task_node, quantum)
+        report = QuantumReport(dataId=quantum.dataId, taskLabel=task_node.label)
+        return result, report
 
     def _conform_task_def(self, task_node: TaskDef | TaskNode) -> TaskNode:
         """Convert the given object to a TaskNode and emit a deprecation
@@ -589,9 +581,3 @@ class SingleQuantumExecutor(QuantumExecutor):
                     else:
                         oneInstrument = instrument
                         Instrument.fromName(instrument, self.butler.registry)
-
-    def getReport(self) -> QuantumReport | None:
-        # Docstring inherited from base class
-        if self.report is None:
-            raise RuntimeError("getReport() called before execute()")
-        return self.report
