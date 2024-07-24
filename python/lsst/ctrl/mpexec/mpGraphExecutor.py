@@ -167,15 +167,26 @@ class _Job:
             CliLog.replayConfigState(logConfigState)
 
         quantum = pickle.loads(quantum_pickle)
+        report: QuantumReport | None = None
         try:
-            quantumExecutor.execute(task_node, quantum)
+            _, report = quantumExecutor.execute(task_node, quantum)
+        except Exception as exc:
+            _LOG.debug("exception from task %s dataId %s: %s", task_node.label, quantum.dataId, exc)
+            report = QuantumReport.from_exception(
+                exception=exc,
+                dataId=quantum.dataId,
+                taskLabel=task_node.label,
+            )
+            raise
         finally:
-            # If sending fails we do not want this new exception to be exposed.
-            try:
-                report = quantumExecutor.getReport()
-                snd_conn.send(report)
-            except Exception:
-                pass
+            if report is not None:
+                # If sending fails we do not want this new exception to be
+                # exposed.
+                try:
+                    _LOG.debug("sending report for task %s dataId %s", task_node.label, quantum.dataId)
+                    snd_conn.send(report)
+                except Exception:
+                    pass
 
     def stop(self) -> None:
         """Stop the process."""
@@ -480,9 +491,18 @@ class MPGraphExecutor(QuantumGraphExecutor):
 
             _LOG.debug("Executing %s", qnode)
             try:
-                self.quantumExecutor.execute(task_node, qnode.quantum)
+                _, quantum_report = self.quantumExecutor.execute(task_node, qnode.quantum)
+                if quantum_report:
+                    report.quantaReports.append(quantum_report)
                 successCount += 1
             except Exception as exc:
+                quantum_report = QuantumReport.from_exception(
+                    exception=exc,
+                    dataId=qnode.quantum.dataId,
+                    taskLabel=task_node.label,
+                )
+                report.quantaReports.append(quantum_report)
+
                 if self.pdb and sys.stdin.isatty() and sys.stdout.isatty():
                     _LOG.error(
                         "Task <%s dataId=%s> failed; dropping into pdb.",
@@ -521,10 +541,6 @@ class MPGraphExecutor(QuantumGraphExecutor):
                 # collection cycle is run, which can happen at unpredictable
                 # times, run a collection loop here explicitly.
                 gc.collect()
-
-                quantum_report = self.quantumExecutor.getReport()
-                if quantum_report:
-                    report.quantaReports.append(quantum_report)
 
             _LOG.info(
                 "Executed %d quanta successfully, %d failed and %d remain out of total %d quanta.",

@@ -50,7 +50,9 @@ class QuantumExecutor(ABC):
     """
 
     @abstractmethod
-    def execute(self, task_node: TaskNode | TaskDef, /, quantum: Quantum) -> Quantum:
+    def execute(
+        self, task_node: TaskNode | TaskDef, /, quantum: Quantum
+    ) -> tuple[Quantum, QuantumReport | None]:
         """Execute single quantum.
 
         Parameters
@@ -66,6 +68,10 @@ class QuantumExecutor(ABC):
         -------
         quantum : `~lsst.daf.butler.Quantum`
             The quantum actually executed.
+        report : `~lsst.ctrl.mpexec.QuantumReport`
+            Structure describing the status of the execution of a quantum.
+            `None` is returned if implementation does not support this
+            feature.
 
         Notes
         -----
@@ -73,23 +79,6 @@ class QuantumExecutor(ABC):
         propagated to the caller of this method.
         """
         raise NotImplementedError()
-
-    def getReport(self) -> QuantumReport | None:
-        """Return execution report from last call to `execute`.
-
-        Returns
-        -------
-        report : `~lsst.ctrl.mpexec.QuantumReport`
-            Structure describing the status of the execution of a quantum.
-            `None` is returned if implementation does not support this
-            feature.
-
-        Raises
-        ------
-        RuntimeError
-            Raised if this method is called before `execute`.
-        """
-        return None
 
 
 class QuantumGraphExecutor(ABC):
