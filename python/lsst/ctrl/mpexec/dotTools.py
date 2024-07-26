@@ -113,7 +113,7 @@ def _renderQuantumNode(
     labels = [f"{quantumNode.nodeId}", html.escape(taskDef.label)]
     dataId = quantumNode.quantum.dataId
     assert dataId is not None, "Quantum DataId cannot be None"
-    labels.extend(f"{key} = {dataId[key]}" for key in sorted(dataId.keys()))
+    labels.extend(f"{key} = {dataId[key]}" for key in sorted(dataId.required.keys()))
     _renderNode(file, nodeName, "quantum", labels)
 
 
@@ -128,7 +128,7 @@ def _renderDSTypeNode(name: str, dimensions: list[str], file: io.TextIOBase) -> 
 def _renderDSNode(nodeName: str, dsRef: DatasetRef, file: io.TextIOBase) -> None:
     """Render GV node for a dataset"""
     labels = [html.escape(dsRef.datasetType.name), f"run: {dsRef.run!r}"]
-    labels.extend(f"{key} = {dsRef.dataId[key]}" for key in sorted(dsRef.dataId.keys()))
+    labels.extend(f"{key} = {dsRef.dataId[key]}" for key in sorted(dsRef.dataId.required.keys()))
     _renderNode(file, nodeName, "dataset", labels)
 
 
@@ -144,7 +144,7 @@ def _renderEdge(fromName: str, toName: str, file: io.TextIOBase, **kwargs: Any) 
 def _datasetRefId(dsRef: DatasetRef) -> str:
     """Make an identifying string for given ref"""
     dsId = [dsRef.datasetType.name]
-    dsId.extend(f"{key} = {dsRef.dataId[key]}" for key in sorted(dsRef.dataId.keys()))
+    dsId.extend(f"{key} = {dsRef.dataId[key]}" for key in sorted(dsRef.dataId.required.keys()))
     return ":".join(dsId)
 
 
