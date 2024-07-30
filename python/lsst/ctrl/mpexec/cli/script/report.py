@@ -25,11 +25,9 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 import pprint
-import time
 from collections.abc import Sequence
 from typing import Any
 
-import yaml
 from astropy.table import Table
 from lsst.daf.butler import Butler
 from lsst.pipe.base import QuantumGraph
@@ -42,7 +40,7 @@ def report(
     qgraph_uri: str,
     full_output_filename: str | None,
     logs: bool = True,
-    show_errors: bool = False,
+    brief: bool = False,
 ) -> None:
     """Summarize the produced and missing expected dataset in a quantum graph.
 
@@ -62,11 +60,9 @@ def report(
             command-line instead.
         logs : `bool`
             Get butler log datasets for extra information (error messages).
-        show_errors : `bool`
-            If no output yaml is provided, print error messages to the
-            command-line along with the report. By default, these messages and
-            their associated data ids are stored in a yaml file with format
-            `{run timestamp}_err.yaml` in the working directory instead.
+        brief : `bool`
+            List only the counts (or data_ids if number of failures < 5). This
+            option is good for those who just want to see totals.
     """
     butler = Butler.from_config(butler_config, writeable=False)
     qgraph = QuantumGraph.loadUri(qgraph_uri)
@@ -110,16 +106,9 @@ def report(
         datasets.add_column(data_products, index=0, name="DatasetType")
         quanta.pprint_all()
         print("\n")
-        if show_errors:
+        if not brief:
             pprint.pprint(error_summary)
             print("\n")
-        else:
-            assert qgraph.metadata is not None, "Saved QGs always have metadata."
-            collection = qgraph.metadata["output_run"]
-            collection = str(collection)
-            run_name = collection.split("/")[-1]
-            with open(f"{run_name}_err.yaml", "w") as stream:
-                yaml.safe_dump(error_summary, stream)
         datasets.pprint_all()
     else:
         report.write_summary_yaml(butler, full_output_filename, do_store_logs=logs)
@@ -132,7 +121,7 @@ def report_v2(
     where: str,
     full_output_filename: str | None,
     logs: bool = True,
-    show_errors: bool = False,
+    brief: bool = False,
     curse_failed_logs: bool = False,
 ) -> None:
     """Docstring."""
@@ -261,24 +250,10 @@ def report_v2(
         if cursed_datasets:
             print("Cursed Datasets")
             curse_table.pprint_all()
-        if show_errors:
+        if not brief:
             if failed_quanta_table:
                 print("Failed Quanta")
                 pprint.pprint(failed_quanta_table)
             if unsuccessful_datasets:
                 print("Unsuccessful Datasets")
                 pprint.pprint(unsuccessful_datasets)
-        elif not show_errors:
-            timestr = time.strftime("%Y%m%d-%H%M%S")
-            if failed_quanta_table:
-                with open(f"qpg_failed_quanta_{timestr}.yaml", "w") as stream:
-                    yaml.safe_dump(failed_quanta_table, stream)
-            if wonky_quanta_table:
-                with open(f"qpg_wonky_quanta_{timestr}.yaml", "w") as stream:
-                    yaml.safe_dump(wonky_quanta_table, stream)
-            if unsuccessful_datasets:
-                with open(f"qpg_unsuccessful_datasets_{timestr}.yaml", "w") as stream:
-                    yaml.safe_dump(unsuccessful_datasets, stream)
-            if curse_table:
-                with open(f"qpg_cursed_datasets_{timestr}.yaml", "w") as stream:
-                    yaml.safe_dump(curse_table, stream)
