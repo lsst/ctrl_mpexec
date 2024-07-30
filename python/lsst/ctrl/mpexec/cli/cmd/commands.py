@@ -346,12 +346,10 @@ def update_graph_run(
 @click.option("--full-output-filename", default="", help="Output report as a yaml file with this name.")
 @click.option("--logs/--no-logs", default=True, help="Get butler log datasets for extra information.")
 @click.option(
-    "--show-errors",
-    is_flag=True,
+    "--brief",
     default=False,
-    help="Pretty-print a dict of errors from failed"
-    " quanta to the screen. Note: the default is to output a yaml file with error information"
-    " (data_ids and associated messages) to the current working directory instead.",
+    is_flag=True,
+    help="Only show counts in report for brief " "summary (no error information",
 )
 @click.option(
     "--curse-failed-logs",
@@ -373,7 +371,7 @@ def report(
     where: str,
     full_output_filename: str = "",
     logs: bool = True,
-    show_errors: bool = False,
+    brief: bool = False,
     curse_failed_logs: bool = False,
     force_v2: bool = False,
 ) -> None:
@@ -386,8 +384,8 @@ def report(
     """
     if force_v2 or len(qgraphs) > 1 or collections is not None:
         script.report_v2(
-            repo, qgraphs, collections, where, full_output_filename, logs, show_errors, curse_failed_logs
+            repo, qgraphs, collections, where, full_output_filename, logs, brief, curse_failed_logs
         )
     else:
         assert len(qgraphs) == 1, "Cannot make a report without a quantum graph."
-        script.report(repo, qgraphs[0], full_output_filename, logs, show_errors)
+        script.report(repo, qgraphs[0], full_output_filename, logs, brief)

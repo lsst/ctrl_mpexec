@@ -87,7 +87,7 @@ class ReportTest(unittest.TestCase):
 
         result_hr = self.runner.invoke(
             pipetask_cli,
-            ["report", self.root, graph_uri, "--no-logs", "--show-errors"],
+            ["report", self.root, graph_uri, "--no-logs"],
             input="no",
         )
 
@@ -103,31 +103,68 @@ class ReportTest(unittest.TestCase):
         self.assertIn("Expected", result_hr.stdout)
         self.assertIn("Succeeded", result_hr.stdout)
 
-        # Test cli for the QPG
-        result_v2_show_err = self.runner.invoke(
+        # Check brief option for pipetask report
+        result_brief = self.runner.invoke(
             pipetask_cli,
-            ["report", self.root, graph_uri, "--no-logs", "--show-errors", "--force-v2"],
+            ["report", self.root, graph_uri, "--no-logs", "--brief"],
+            input="no",
+        )
+        self.assertIsInstance(result_brief.stdout, str)
+
+        # Check that task0 and the failed quanta for task0 exist in the string
+        self.assertIn("task0", result_brief.stdout)
+        self.assertIn("Failed", result_brief.stdout)
+        self.assertIn("Expected", result_brief.stdout)
+        self.assertIn("Succeeded", result_brief.stdout)
+
+        # Test cli for the QPG
+        result_v2_terminal_out = self.runner.invoke(
+            pipetask_cli,
+            ["report", self.root, graph_uri, "--no-logs", "--force-v2"],
             input="no",
         )
 
         # Check that we can read from the command line
-        self.assertEqual(result_v2_show_err.exit_code, 0, clickResultMsg(result_v2_show_err))
+        self.assertEqual(result_v2_terminal_out.exit_code, 0, clickResultMsg(result_v2_terminal_out))
 
         # Check that we get string output
-        self.assertIsInstance(result_v2_show_err.stdout, str)
+        self.assertIsInstance(result_v2_terminal_out.stdout, str)
 
         # Check that task0 and the quanta for task0 exist in the string
-        self.assertIn("task0", result_v2_show_err.stdout)
-        self.assertIn("Not Attempted", result_v2_show_err.stdout)
-        self.assertIn("Successful", result_v2_show_err.stdout)
-        self.assertIn("Blocked", result_v2_show_err.stdout)
-        self.assertIn("Failed", result_v2_show_err.stdout)
-        self.assertIn("Wonky", result_v2_show_err.stdout)
-        self.assertIn("TOTAL", result_v2_show_err.stdout)
-        self.assertIn("EXPECTED", result_v2_show_err.stdout)
+        self.assertIn("task0", result_v2_terminal_out.stdout)
+        self.assertIn("Not Attempted", result_v2_terminal_out.stdout)
+        self.assertIn("Successful", result_v2_terminal_out.stdout)
+        self.assertIn("Blocked", result_v2_terminal_out.stdout)
+        self.assertIn("Failed", result_v2_terminal_out.stdout)
+        self.assertIn("Wonky", result_v2_terminal_out.stdout)
+        self.assertIn("TOTAL", result_v2_terminal_out.stdout)
+        self.assertIn("EXPECTED", result_v2_terminal_out.stdout)
 
-        # Check that title from --show-errors appears
-        self.assertIn("Unsuccessful Datasets", result_v2_show_err.stdout)
+        # Check that title from the error summary appears
+        self.assertIn("Unsuccessful Datasets", result_v2_terminal_out.stdout)
+
+        # Test cli for the QPG brief option
+        result_v2_brief = self.runner.invoke(
+            pipetask_cli,
+            ["report", self.root, graph_uri, "--no-logs", "--force-v2", "--brief"],
+            input="no",
+        )
+
+        # Check that we can read from the command line
+        self.assertEqual(result_v2_brief.exit_code, 0, clickResultMsg(result_v2_brief))
+
+        # Check that we get string output
+        self.assertIsInstance(result_v2_brief.stdout, str)
+
+        # Check that task0 and the quanta for task0 exist in the string
+        self.assertIn("task0", result_v2_brief.stdout)
+        self.assertIn("Not Attempted", result_v2_brief.stdout)
+        self.assertIn("Successful", result_v2_brief.stdout)
+        self.assertIn("Blocked", result_v2_brief.stdout)
+        self.assertIn("Failed", result_v2_brief.stdout)
+        self.assertIn("Wonky", result_v2_brief.stdout)
+        self.assertIn("TOTAL", result_v2_brief.stdout)
+        self.assertIn("EXPECTED", result_v2_brief.stdout)
 
         # Check that the full output option works
         test_filename_v2 = os.path.join(self.root, "report_test.json")
