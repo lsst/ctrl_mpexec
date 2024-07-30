@@ -120,6 +120,64 @@ class SimplePipelineExecutorTests(lsst.utils.tests.TestCase):
         output = self.butler.get("output")
         self.assertEqual(output.quantum.inputs["in_metadata"][0].original_type, "lsst.pipe.base.TaskMetadata")
 
+    def test_optional_intermediate(self):
+        """Test a pipeline task with an optional regular input that is produced
+        by another task.
+        """
+        config_a = DynamicTestPipelineTaskConfig()
+        config_a.inputs["i"] = DynamicConnectionConfig(
+            dataset_type_name="input", storage_class="StructuredDataDict", mock_storage_class=False
+        )
+        config_a.fail_exception = "lsst.pipe.base.NoWorkFound"
+        config_a.fail_condition = "1=1"  # butler query expression that is true
+        config_a.outputs["o"] = DynamicConnectionConfig(
+            dataset_type_name="intermediate", storage_class="StructuredDataDict"
+        )
+        config_b = DynamicTestPipelineTaskConfig()
+        config_b.inputs["i"] = DynamicConnectionConfig(
+            dataset_type_name="intermediate", storage_class="StructuredDataDict", minimum=0
+        )
+        config_b.outputs["o"] = DynamicConnectionConfig(
+            dataset_type_name="output", storage_class="StructuredDataDict"
+        )
+        pipeline_graph = PipelineGraph()
+        pipeline_graph.add_task("a", DynamicTestPipelineTask, config_a)
+        pipeline_graph.add_task("b", DynamicTestPipelineTask, config_b)
+        executor = SimplePipelineExecutor.from_pipeline_graph(pipeline_graph, butler=self.butler)
+        quanta = executor.run(register_dataset_types=True, save_versions=False)
+        self.assertEqual(len(quanta), 2)
+        # Both quanta ran successfully (NoWorkFound is a success).
+        self.assertTrue(self.butler.exists("a_metadata"))
+        self.assertTrue(self.butler.exists("b_metadata"))
+        # The intermediate dataset was not written, but the final output was.
+        self.assertFalse(self.butler.exists("intermediate"))
+        self.assertTrue(self.butler.exists("output"))
+
+    def test_optional_input(self):
+        """Test a pipeline task with an optional regular input that is an
+        overall input to the pipeline.
+        """
+        config_a = DynamicTestPipelineTaskConfig()
+        config_a.inputs["i1"] = DynamicConnectionConfig(
+            dataset_type_name="input", storage_class="StructuredDataDict", mock_storage_class=False
+        )
+        config_a.outputs["i2"] = DynamicConnectionConfig(
+            dataset_type_name="input_2",
+            storage_class="StructuredDataDict",  # will never exist
+        )
+        config_a.outputs["o"] = DynamicConnectionConfig(
+            dataset_type_name="output", storage_class="StructuredDataDict"
+        )
+        pipeline_graph = PipelineGraph()
+        pipeline_graph.add_task("a", DynamicTestPipelineTask, config_a)
+        executor = SimplePipelineExecutor.from_pipeline_graph(pipeline_graph, butler=self.butler)
+        quanta = executor.run(register_dataset_types=True, save_versions=False)
+        self.assertEqual(len(quanta), 1)
+        # The quanta ran successfully.
+        self.assertTrue(self.butler.exists("a_metadata"))
+        # The final output was written.
+        self.assertTrue(self.butler.exists("output"))
+
     def test_from_pipeline_file(self):
         """Test executing a two quanta from different configurations of the
         same task, with an executor created by the `from_pipeline_filename`
