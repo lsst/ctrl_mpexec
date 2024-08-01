@@ -25,7 +25,8 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 import pprint
-from collections.abc import Sequence
+import time
+from collections.abc import Sequence, Iterable
 from typing import Any
 
 from astropy.table import Table
@@ -183,6 +184,13 @@ def report_v2(
     summary = qpg.to_summary(butler, do_store_logs=logs)
     print_summary(summary, full_output_filename, brief)
 
+
+def aggregate_reports(filenames: Iterable[str], full_output_filename: str | None, show_errors: bool) -> None:
+    """Docstring.
+
+    open a bunch of json files, call model_validate_json, call aggregrate, print summary
+    """
+    pass
 
 def print_summary(summary: Summary, full_output_filename: str | None, brief: bool = False) -> None:
     """Take a `QuantumProvenanceGraph.Summary` object and write it to a file
