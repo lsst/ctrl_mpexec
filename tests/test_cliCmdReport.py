@@ -53,7 +53,7 @@ class ReportTest(unittest.TestCase):
         removeTestTempDir(self.root)
 
     def test_report(self):
-        """Test for making a report on the produced and missing expected
+        """Test for making a report on the produced, missing and expected
         datasets in a quantum graph.
         """
         metadata = {"output_run": "run"}
@@ -183,7 +183,21 @@ class ReportTest(unittest.TestCase):
         )
 
         self.assertEqual(result.exit_code, 0, clickResultMsg(result_v2_full))
+        # Check the "brief" output that prints to the terminal first:
+        # Check that we get string output
+        self.assertIsInstance(result_v2_full.stdout, str)
 
+        # Check that task0 and the quanta for task0 exist in the string
+        self.assertIn("task0", result_v2_full.stdout)
+        self.assertIn("Not Attempted", result_v2_full.stdout)
+        self.assertIn("Successful", result_v2_full.stdout)
+        self.assertIn("Blocked", result_v2_full.stdout)
+        self.assertIn("Failed", result_v2_full.stdout)
+        self.assertIn("Wonky", result_v2_full.stdout)
+        self.assertIn("TOTAL", result_v2_full.stdout)
+        self.assertIn("EXPECTED", result_v2_full.stdout)
+
+        # Then validate the full output json file:
         with open(test_filename_v2) as f:
             output = f.read()
             model = Summary.model_validate_json(output)

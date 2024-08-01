@@ -341,21 +341,34 @@ def update_graph_run(
 @click.command(cls=PipetaskCommand)
 @repo_argument()
 @click.argument("qgraphs", nargs=-1)
-@click.option("--collections", default=None, help="Collections to resolve duplicate datasets in.")
-@click.option("--where", default="", help="where")
-@click.option("--full-output-filename", default="", help="Output report as a yaml file with this name.")
+@click.option(
+    "--collections",
+    default=None,
+    help="Collection(s) associated with said graphs/processing."
+    " For use in `lsst.daf.butler.registry.queryDatasets` if paring down the query would be useful.",
+)
+@click.option("--where", default="", help="A 'where' string to use to constrain the collections, if passed.")
+@click.option(
+    "--full-output-filename",
+    default="",
+    help="Output report as a file with this name. "
+    "For pipetask report on one graph, this should be a yaml file. For multiple graphs "
+    "or when using the --force-v2 option, this should be a json file. We will be "
+    "deprecating the single-graph-only (QuantumGraphExecutionReport) option soon.",
+)
 @click.option("--logs/--no-logs", default=True, help="Get butler log datasets for extra information.")
 @click.option(
     "--brief",
     default=False,
     is_flag=True,
-    help="Only show counts in report for brief " "summary (no error information",
+    help="Only show counts in report (a brief summary). Note that counts are"
+    " also printed to the screen when using the --full-output-filename option.",
 )
 @click.option(
     "--curse-failed-logs",
     is_flag=True,
     default=False,
-    help="If log datasets are missing in v2, mark them as cursed",
+    help="If log datasets are missing in v2 (QuantumProvenanceGraph), mark them as cursed",
 )
 @click.option(
     "--force-v2",
@@ -375,12 +388,20 @@ def report(
     curse_failed_logs: bool = False,
     force_v2: bool = False,
 ) -> None:
-    """Write a yaml file summarizing the produced and missing expected datasets
-    in a quantum graph.
+    """Summarize the state of executed quantum graph(s), with counts of failed,
+    successful and expected quanta, as well as counts of output datasets and
+    their publish states. Analyze one or more attempts at the same
+    processing on the same dataquery-identified "group" and resolve recoveries
+    and persistent failures. Identify mismatch errors between groups.
+
+    Save the report as a file (`--full-output-filename`) or print it to stdout
+    (default). If the terminal is overwhelmed with data_ids from failures try
+    the `--brief` option.
 
     REPO is the location of the butler/registry config file.
 
-    QGRAPH is the URL to a serialized Quantum Graph file.
+    QGRAPHS is a Sequence of links to serialized Quantum Graphs which have been
+    executed and are to be analyzed.
     """
     if force_v2 or len(qgraphs) > 1 or collections is not None:
         script.report_v2(
