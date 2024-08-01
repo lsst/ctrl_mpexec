@@ -182,7 +182,7 @@ class ReportTest(unittest.TestCase):
             input="no",
         )
 
-        self.assertEqual(result.exit_code, 0, clickResultMsg(result_v2_full))
+        self.assertEqual(result_v2_full.exit_code, 0, clickResultMsg(result_v2_full))
         # Check the "brief" output that prints to the terminal first:
         # Check that we get string output
         self.assertIsInstance(result_v2_full.stdout, str)
