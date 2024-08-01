@@ -32,7 +32,7 @@ from astropy.table import Table
 from lsst.daf.butler import Butler
 from lsst.pipe.base import QuantumGraph
 from lsst.pipe.base.execution_reports import QuantumGraphExecutionReport
-from lsst.pipe.base.quantum_provenance_graph import QuantumProvenanceGraph
+from lsst.pipe.base.quantum_provenance_graph import QuantumProvenanceGraph, Summary
 
 
 def report(
@@ -181,99 +181,115 @@ def report_v2(
         butler, collections=collections_sequence, where=where, curse_failed_logs=curse_failed_logs
     )
     summary = qpg.to_summary(butler, do_store_logs=logs)
-    summary_dict = summary.model_dump()
+    print_summary(summary, full_output_filename, brief)
+
+
+def print_summary(summary: Summary, full_output_filename: str | None, brief: bool = False) -> None:
+    """Take a `QuantumProvenanceGraph.Summary` object and write it to a file
+    and/or the screen.
+
+    Parameters
+    ----------
+    summary : `QuantumProvenanceGraph.Summary`
+            This object contains all the information derived from the
+            `QuantumProvenanceGraph`.
+    full_output_filename : `str | None`
+            Name of the JSON file in which to store summary information, if
+            passed.
+    brief : `bool`
+            Only display short (counts-only) summary on stdout. This includes
+            counts and not error messages or data_ids (similar to BPS report).
+            This option will still report all `cursed` datasets and `wonky`
+            quanta.
+    """
     quanta_table = []
     failed_quanta_table = []
     wonky_quanta_table = []
-    for task in summary_dict["tasks"].keys():
-        if summary_dict["tasks"][task]["n_wonky"] > 0:
+    for label, task_summary in summary.tasks.items():
+        if task_summary.n_wonky > 0:
             print(
-                f"{task} has produced wonky quanta. Recommend processing" "cease until the issue is resolved."
+                f"{label} has produced wonky quanta. Recommend processing cease until the issue is resolved."
             )
-            j = 0
-            for data_id in summary_dict["tasks"][task]["wonky_quanta"]:
+            for quantum_summary in task_summary.wonky_quanta:
                 wonky_quanta_table.append(
                     {
-                        "Task": task,
-                        "Data ID": summary_dict["tasks"][task]["wonky_quanta"][j]["data_id"],
-                        "Runs and Status": summary_dict["tasks"][task]["wonky_quanta"][j]["runs"],
-                        "Messages": summary_dict["tasks"][task]["wonky_quanta"][j]["messages"],
+                        "Task": label,
+                        "Data ID": quantum_summary.data_id,
+                        "Runs and Status": quantum_summary.runs,
+                        "Messages": quantum_summary.messages,
                     }
                 )
-                j += 1
         quanta_table.append(
             {
-                "Task": task,
-                "Not Attempted": summary_dict["tasks"][task]["n_not_attempted"],
-                "Successful": summary_dict["tasks"][task]["n_successful"],
-                "Blocked": summary_dict["tasks"][task]["n_blocked"],
-                "Failed": summary_dict["tasks"][task]["n_failed"],
-                "Wonky": summary_dict["tasks"][task]["n_wonky"],
+                "Task": label,
+                "Not Attempted": task_summary.n_not_attempted,
+                "Successful": task_summary.n_successful,
+                "Blocked": task_summary.n_blocked,
+                "Failed": task_summary.n_failed,
+                "Wonky": task_summary.n_wonky,
                 "TOTAL": sum(
                     [
-                        summary_dict["tasks"][task]["n_successful"],
-                        summary_dict["tasks"][task]["n_not_attempted"],
-                        summary_dict["tasks"][task]["n_blocked"],
-                        summary_dict["tasks"][task]["n_failed"],
-                        summary_dict["tasks"][task]["n_wonky"],
+                        task_summary.n_successful,
+                        task_summary.n_not_attempted,
+                        task_summary.n_blocked,
+                        task_summary.n_failed,
+                        task_summary.n_wonky,
                     ]
                 ),
-                "EXPECTED": summary_dict["tasks"][task]["n_expected"],
+                "EXPECTED": task_summary.n_expected,
             }
         )
-        if summary_dict["tasks"][task]["failed_quanta"]:
-            i = 0
-            for data_id in summary_dict["tasks"][task]["failed_quanta"]:
+        if task_summary.failed_quanta:
+            for quantum_summary in task_summary.failed_quanta:
                 failed_quanta_table.append(
                     {
-                        "Task": task,
-                        "Data ID": summary_dict["tasks"][task]["failed_quanta"][i]["data_id"],
-                        "Runs and Status": summary_dict["tasks"][task]["failed_quanta"][i]["runs"],
-                        "Messages": summary_dict["tasks"][task]["failed_quanta"][i]["messages"],
+                        "Task": label,
+                        "Data ID": quantum_summary.data_id,
+                        "Runs and Status": quantum_summary.runs,
+                        "Messages": quantum_summary.messages,
                     }
                 )
-                i += 1
     quanta = Table(quanta_table)
     quanta.pprint_all()
     # Dataset loop
     dataset_table = []
     cursed_datasets = []
     unsuccessful_datasets = {}
-    for dataset in summary_dict["datasets"]:
+    for dataset_type_name, dataset_type_summary in summary.datasets.items():
         dataset_table.append(
             {
-                "Dataset": dataset,
-                "Published": summary_dict["datasets"][dataset]["n_published"],
-                "Unpublished": summary_dict["datasets"][dataset]["n_unpublished"],
-                "Predicted Only": summary_dict["datasets"][dataset]["n_predicted_only"],
-                "Unsuccessful": summary_dict["datasets"][dataset]["n_unsuccessful"],
-                "Cursed": summary_dict["datasets"][dataset]["n_cursed"],
+                "Dataset": dataset_type_name,
+                "Published": dataset_type_summary.n_published,
+                "Unpublished": dataset_type_summary.n_unpublished,
+                "Predicted Only": dataset_type_summary.n_predicted_only,
+                "Unsuccessful": dataset_type_summary.n_unsuccessful,
+                "Cursed": dataset_type_summary.n_cursed,
                 "TOTAL": sum(
                     [
-                        summary_dict["datasets"][dataset]["n_published"],
-                        summary_dict["datasets"][dataset]["n_unpublished"],
-                        summary_dict["datasets"][dataset]["n_predicted_only"],
-                        summary_dict["datasets"][dataset]["n_unsuccessful"],
-                        summary_dict["datasets"][dataset]["n_cursed"],
+                        dataset_type_summary.n_published,
+                        dataset_type_summary.n_unpublished,
+                        dataset_type_summary.n_predicted_only,
+                        dataset_type_summary.n_unsuccessful,
+                        dataset_type_summary.n_cursed,
                     ]
                 ),
-                "EXPECTED": summary_dict["datasets"][dataset]["n_expected"],
+                "EXPECTED": dataset_type_summary.n_expected,
             }
         )
-        if summary_dict["datasets"][dataset]["n_cursed"] > 0:
-            print(
-                f"{dataset} has cursed quanta with message(s) "
-                "{summary_dict[task]['cursed_datasets']['messages']}. "
-                "Recommend processing cease until the issue is resolved."
-            )
-            cursed_datasets.append(
-                {
-                    "Dataset Type": dataset,
-                    "Parent Data Id": summary_dict["datasets"][dataset]["cursed_datasets"]["parent_data_id"],
-                }
-            )
-        if summary_dict["datasets"][dataset]["n_unsuccessful"] > 0:
-            unsuccessful_datasets[dataset] = summary_dict["datasets"][dataset]["unsuccessful_datasets"]
+        if dataset_type_summary.n_cursed > 0:
+            for cursed_dataset in dataset_type_summary.cursed_datasets:
+                print(
+                    f"{dataset_type_name} has cursed quanta with message(s) {cursed_dataset.messages}. "
+                    "Recommend processing cease until the issue is resolved."
+                )
+                cursed_datasets.append(
+                    {
+                        "Dataset Type": dataset_type_name,
+                        "Producer Data Id": cursed_dataset.producer_data_id,
+                    }
+                )
+        if dataset_type_summary.n_unsuccessful > 0:
+            unsuccessful_datasets[dataset_type_name] = dataset_type_summary.unsuccessful_datasets
     datasets = Table(dataset_table)
     datasets.pprint_all()
     curse_table = Table(cursed_datasets)
