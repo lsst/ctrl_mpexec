@@ -26,6 +26,7 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 __all__ = [
+    "aggregate_reports",
     "build",
     "cleanup",
     "pre_exec_init_qbb",
@@ -38,4 +39,4 @@ __all__ = [
 ]
 
 
-from .commands import build, cleanup, pre_exec_init_qbb, purge, qgraph, report, run, run_qbb, update_graph_run
+from .commands import aggregate_reports, build, cleanup, pre_exec_init_qbb, purge, qgraph, report, run, run_qbb, update_graph_run

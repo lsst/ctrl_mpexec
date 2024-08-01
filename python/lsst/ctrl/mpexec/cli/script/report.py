@@ -25,7 +25,9 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 import pprint
-from collections.abc import Sequence
+import time
+from collections.abc import Sequence, Iterable
+from typing import Any
 
 from astropy.table import Table
 from lsst.daf.butler import Butler
@@ -192,6 +194,20 @@ def report_v2(
     qpg.assemble_quantum_provenance_graph(butler, qgraphs, collections, where, curse_failed_logs)
     summary = qpg.to_summary(butler, do_store_logs=logs)
     print_summary(summary, full_output_filename, brief)
+
+
+def aggregate_reports(filenames: Iterable[str], full_output_filename: str | None, brief: bool = False) -> None:
+    """Docstring.
+
+    open a bunch of json files, call model_validate_json, call aggregrate, print summary
+    """
+    summaries : Iterable[Summary] = []
+    for filename in filenames:
+        with open(filename) as f:
+            model = Summary.model_validate_json(f.read())
+            summaries.append(model)
+    result = Summary.aggregate(summaries)
+    print_summary(result, full_output_filename, brief)
 
 
 def print_summary(summary: Summary, full_output_filename: str | None, brief: bool = False) -> None:
