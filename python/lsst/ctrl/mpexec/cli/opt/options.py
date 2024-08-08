@@ -287,6 +287,16 @@ save_pipeline_option = MWOptionDecorator(
     type=MWPath(dir_okay=False, file_okay=True, writable=True),
 )
 
+expand_pipeline_option = MWOptionDecorator(
+    "-s",
+    "--expand-pipeline",
+    help=unwrap(
+        """Directory location for storing the fully-expanded
+                                                       pipeline definition."""
+    ),
+    type=MWPath(dir_okay=True, file_okay=False, writable=True),
+)
+
 save_qgraph_option = MWOptionDecorator(
     "-q",
     "--save-qgraph",
