@@ -123,7 +123,7 @@ def _makePipeline(tasks):
         klass = task[3] if len(task) > 3 else ExamplePipelineTask
         pipe.addTask(klass, label)
         _makeConfig(inputs, outputs, pipe, label)
-    return list(pipe.toExpandedPipeline())
+    return list(pipe.to_graph()._iter_task_defs())
 
 
 class DotToolsTestCase(unittest.TestCase):
