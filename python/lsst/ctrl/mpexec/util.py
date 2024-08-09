@@ -28,13 +28,12 @@
 """Few utility methods used by the rest of a package.
 """
 
-__all__ = ["printTable", "filterTasks", "filterTaskNodes", "subTaskIter"]
+__all__ = ["printTable", "filterTaskNodes", "subTaskIter"]
 
 from collections.abc import Iterator
 
 import lsst.pex.config as pexConfig
-from deprecated.sphinx import deprecated
-from lsst.pipe.base import Pipeline, PipelineGraph, TaskDef
+from lsst.pipe.base import PipelineGraph
 from lsst.pipe.base.pipeline_graph import TaskNode
 
 
@@ -59,43 +58,6 @@ def printTable(rows: list[tuple], header: tuple | None) -> None:
         print("".ljust(width, "-"), "".ljust(len(header[1]), "-"))
     for col1, col2 in rows:
         print(col1.ljust(width), col2)
-
-
-# TODO: remove on DM-40443.
-@deprecated(
-    "filterTasks is deprecated in favor of filterTaskNodes, and will be removed after v27.",
-    version="v27.0",
-    category=FutureWarning,
-)
-def filterTasks(pipeline: Pipeline, name: str | None) -> list[TaskDef]:
-    """Find list of tasks matching given name.
-
-    For matching task either task label or task name after last dot should
-    be identical to `name`. If task label is non-empty then task name is not
-    checked.
-
-    Parameters
-    ----------
-    pipeline : `Pipeline`
-        Pipeline to examine.
-    name : `str` or `None`
-        If empty or `None` then all tasks are returned.
-
-    Returns
-    -------
-    tasks : `list` [ `lsst.pipe.base.TaskDef`]
-        List of `~lsst.pipe.base.TaskDef` instances that match.
-    """
-    if not name:
-        return list(pipeline.toExpandedPipeline())
-    tasks = []
-    for taskDef in pipeline.toExpandedPipeline():
-        if taskDef.label:
-            if taskDef.label == name:
-                tasks.append(taskDef)
-        elif taskDef.taskName.split(".")[-1] == name:
-            tasks.append(taskDef)
-    return tasks
 
 
 def filterTaskNodes(pipeline_graph: PipelineGraph, name: str | None) -> list[TaskNode]:

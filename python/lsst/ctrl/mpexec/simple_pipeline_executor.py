@@ -29,23 +29,13 @@ from __future__ import annotations
 
 __all__ = ("SimplePipelineExecutor",)
 
-import warnings
 from collections.abc import Iterable, Iterator, Mapping
 from typing import Any
 
 from lsst.daf.butler import Butler, CollectionType, Quantum
 from lsst.pex.config import Config
-from lsst.pipe.base import (
-    ExecutionResources,
-    Instrument,
-    Pipeline,
-    PipelineGraph,
-    PipelineTask,
-    QuantumGraph,
-    TaskDef,
-)
+from lsst.pipe.base import ExecutionResources, Instrument, Pipeline, PipelineGraph, PipelineTask, QuantumGraph
 from lsst.pipe.base.all_dimensions_quantum_graph_builder import AllDimensionsQuantumGraphBuilder
-from lsst.utils.introspection import find_outside_stacklevel
 
 from .preExecInit import PreExecInit
 from .singleQuantumExecutor import SingleQuantumExecutor
@@ -241,7 +231,7 @@ class SimplePipelineExecutor:
     @classmethod
     def from_pipeline(
         cls,
-        pipeline: Pipeline | Iterable[TaskDef],
+        pipeline: Pipeline,
         *,
         where: str = "",
         bind: Mapping[str, Any] | None = None,
@@ -256,8 +246,7 @@ class SimplePipelineExecutor:
         pipeline : `~lsst.pipe.base.Pipeline` or \
                 `~collections.abc.Iterable` [ `~lsst.pipe.base.TaskDef` ]
             A Python object describing the tasks to run, along with their
-            labels and configuration.  Passing `~lsst.pipe.base.TaskDef`
-            objects is deprecated and will not be supported after v27.
+            labels and configuration.
         where : `str`, optional
             Data ID query expression that constraints the quanta generated.
         bind : `~collections.abc.Mapping`, optional
@@ -276,22 +265,7 @@ class SimplePipelineExecutor:
             `~lsst.pipe.base.QuantumGraph` and `~lsst.daf.butler.Butler`,
             ready for `run` to be called.
         """
-        if isinstance(pipeline, Pipeline):
-            pipeline_graph = pipeline.to_graph()
-        else:
-            # TODO: disable this block and adjust docs and annotations
-            # on DM-40443.
-            warnings.warn(
-                "Passing TaskDefs to SimplePipelineExecutor.from_pipeline is deprecated "
-                "and will be removed after v27.",
-                category=FutureWarning,
-                stacklevel=find_outside_stacklevel("lsst.ctrl.mpexec"),
-            )
-            pipeline_graph = PipelineGraph()
-            for task_def in pipeline:
-                pipeline_graph.add_task(
-                    task_def.label, task_def.taskClass, task_def.config, connections=task_def.connections
-                )
+        pipeline_graph = pipeline.to_graph()
         return cls.from_pipeline_graph(
             pipeline_graph, where=where, bind=bind, butler=butler, resources=resources
         )

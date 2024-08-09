@@ -39,7 +39,6 @@ __all__ = ["graph2dot", "pipeline2dot"]
 import html
 import io
 import re
-import warnings
 from collections.abc import Iterable
 from typing import TYPE_CHECKING, Any
 
@@ -282,10 +281,8 @@ def pipeline2dot(pipeline: Pipeline | Iterable[TaskDef], file: Any) -> None:
     allDatasets: set[str | tuple[str, str]] = set()
     if isinstance(pipeline, Pipeline):
         # TODO: DM-40639 will rewrite this code and finish off the deprecation
-        # of toExpandedPipeline.
-        with warnings.catch_warnings():
-            warnings.simplefilter("ignore", category=FutureWarning)
-            pipeline = pipeline.toExpandedPipeline()
+        # of toExpandedPipeline but for now use the compatibility API.
+        pipeline = pipeline.to_graph()._iter_task_defs()
 
     # The next two lines are a workaround until DM-29658 at which time metadata
     # connections should start working with the above code
