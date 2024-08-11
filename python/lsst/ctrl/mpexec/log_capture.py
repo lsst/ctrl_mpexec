@@ -33,16 +33,14 @@ import logging
 import os
 import shutil
 import tempfile
-import warnings
 from collections.abc import Iterator
 from contextlib import contextmanager, suppress
 from logging import FileHandler
 
 from lsst.daf.butler import Butler, FileDataset, LimitedButler, Quantum
 from lsst.daf.butler.logging import ButlerLogRecordHandler, ButlerLogRecords, ButlerMDC, JsonLogFormatter
-from lsst.pipe.base import InvalidQuantumError, TaskDef
+from lsst.pipe.base import InvalidQuantumError
 from lsst.pipe.base.pipeline_graph import TaskNode
-from lsst.utils.introspection import find_outside_stacklevel
 
 _LOG = logging.getLogger(__name__)
 
@@ -88,17 +86,13 @@ class LogCapture:
         return cls(butler, butler)
 
     @contextmanager
-    def capture_logging(
-        self, task_node: TaskDef | TaskNode, /, quantum: Quantum
-    ) -> Iterator[_LogCaptureFlag]:
+    def capture_logging(self, task_node: TaskNode, /, quantum: Quantum) -> Iterator[_LogCaptureFlag]:
         """Configure logging system to capture logs for execution of this task.
 
         Parameters
         ----------
-        task_node : `lsst.pipe.base.TaskDef` or \
-                `~lsst.pipe.base.pipeline_graph.TaskNode`
-            The task definition.  Support for `~lsst.pipe.base.TaskDef` is
-            deprecated and will be removed after v27.
+        task_node : `~lsst.pipe.base.pipeline_graph.TaskNode`
+            The task definition.
         quantum : `~lsst.daf.butler.Quantum`
             Single Quantum instance.
 
@@ -124,20 +118,9 @@ class LogCapture:
         if self.full_butler is not None:
             mdc["RUN"] = self.full_butler.run or ""
         ctx = _LogCaptureFlag()
-
-        if isinstance(task_node, TaskDef):
-            # TODO: remove this block and associated docs and annotations on
-            # DM-40443.
-            log_dataset_name = task_node.logOutputDatasetName
-            warnings.warn(
-                "Passing TaskDef instances to LogCapture is deprecated and will not be supported after v27.",
-                FutureWarning,
-                find_outside_stacklevel("lsst.ctrl.mpexec"),
-            )
-        else:
-            log_dataset_name = (
-                task_node.log_output.dataset_type_name if task_node.log_output is not None else None
-            )
+        log_dataset_name = (
+            task_node.log_output.dataset_type_name if task_node.log_output is not None else None
+        )
 
         # Add a handler to the root logger to capture execution log output.
         if log_dataset_name is not None:

@@ -1,0 +1,1 @@
+Removed the deprecated support for ``TaskDef`` in some APIs.
