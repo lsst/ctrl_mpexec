@@ -26,7 +26,7 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 import sys
-from collections.abc import Iterator, Sequence, Iterable
+from collections.abc import Iterable, Iterator, Sequence
 from contextlib import contextmanager
 from functools import partial
 from tempfile import NamedTemporaryFile
@@ -417,6 +417,7 @@ def report(
         assert len(qgraphs) == 1, "Cannot make a report without a quantum graph."
         script.report(repo, qgraphs[0], full_output_filename, logs, brief)
 
+
 @click.command(cls=PipetaskCommand)
 @click.argument("filenames", nargs=-1)
 @click.option(
@@ -432,9 +433,7 @@ def report(
     " also printed to the screen when using the --full-output-filename option.",
 )
 def aggregate_reports(
-    filenames: Iterable[str],
-    full_output_filename: str | None,
-    brief: bool = False
+    filenames: Iterable[str], full_output_filename: str | None, brief: bool = False
 ) -> None:
     """Aggregate pipetask report output on disjoint data-id groups into one
     Summary over common tasks and datasets. Intended for use when the same
@@ -442,7 +441,7 @@ def aggregate_reports(
     for a given step). This functionality is only compatible with reports
     from the `QuantumProvenanceGraph`, so the reports must be run over multiple
     groups or with the `--force-v2` option.
-    
+
     Save the report as a file (`--full-output-filename`) or print it to stdout
     (default). If the terminal is overwhelmed with data_ids from failures try
     the `--brief` option.

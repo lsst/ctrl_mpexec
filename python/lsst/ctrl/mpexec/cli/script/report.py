@@ -25,8 +25,7 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 import pprint
-import time
-from collections.abc import Sequence, Iterable
+from collections.abc import Iterable, Sequence
 from typing import Any
 
 from astropy.table import Table
@@ -196,12 +195,15 @@ def report_v2(
     print_summary(summary, full_output_filename, brief)
 
 
-def aggregate_reports(filenames: Iterable[str], full_output_filename: str | None, brief: bool = False) -> None:
+def aggregate_reports(
+    filenames: Iterable[str], full_output_filename: str | None, brief: bool = False
+) -> None:
     """Docstring.
 
-    open a bunch of json files, call model_validate_json, call aggregrate, print summary
+    open a bunch of json files, call model_validate_json, call aggregrate,
+    print summary
     """
-    summaries : Iterable[Summary] = []
+    summaries: Iterable[Summary] = []
     for filename in filenames:
         with open(filename) as f:
             model = Summary.model_validate_json(f.read())
