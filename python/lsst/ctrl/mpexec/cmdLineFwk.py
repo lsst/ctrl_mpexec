@@ -807,7 +807,6 @@ class CmdLineFwk:
                 skipExistingIn=args.skip_existing_in,
                 clobberOutputs=args.clobber_outputs,
                 enableLsstDebug=args.enableLsstDebug,
-                exitOnKnownError=args.fail_fast,
                 resources=resources,
             )
 
@@ -991,7 +990,6 @@ class CmdLineFwk:
             butler=None,
             taskFactory=task_factory,
             enableLsstDebug=args.enableLsstDebug,
-            exitOnKnownError=args.fail_fast,
             limited_butler_factory=_butler_factory,
             resources=resources,
             assumeNoExistingOutputs=True,

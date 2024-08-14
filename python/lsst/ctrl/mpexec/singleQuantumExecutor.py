@@ -31,7 +31,6 @@ __all__ = ["SingleQuantumExecutor"]
 #  Imports of standard modules --
 # -------------------------------
 import logging
-import sys
 import time
 from collections import defaultdict
 from collections.abc import Callable
@@ -56,7 +55,6 @@ from lsst.pipe.base import (
     NoWorkFound,
     PipelineTask,
     QuantumContext,
-    RepeatableQuantumError,
     TaskFactory,
 )
 from lsst.pipe.base.pipeline_graph import TaskNode
@@ -104,11 +102,6 @@ class SingleQuantumExecutor(QuantumExecutor):
         a quantum will be removed. Only used when ``butler`` is not `None`.
     enableLsstDebug : `bool`, optional
         Enable debugging with ``lsstDebug`` facility for a task.
-    exitOnKnownError : `bool`, optional
-        If `True`, call `sys.exit` with the appropriate exit code for special
-        known exceptions, after printing a traceback, instead of letting the
-        exception propagate up to calling.  This is always the behavior for
-        InvalidQuantumError.
     limited_butler_factory : `Callable`, optional
         A method that creates a `~lsst.daf.butler.LimitedButler` instance
         for a given Quantum. This parameter must be defined if ``butler`` is
@@ -135,7 +128,6 @@ class SingleQuantumExecutor(QuantumExecutor):
         skipExistingIn: Any = None,
         clobberOutputs: bool = False,
         enableLsstDebug: bool = False,
-        exitOnKnownError: bool = False,
         limited_butler_factory: Callable[[Quantum], LimitedButler] | None = None,
         resources: ExecutionResources | None = None,
         skipExisting: bool = False,
@@ -145,7 +137,6 @@ class SingleQuantumExecutor(QuantumExecutor):
         self.taskFactory = taskFactory
         self.enableLsstDebug = enableLsstDebug
         self.clobberOutputs = clobberOutputs
-        self.exitOnKnownError = exitOnKnownError
         self.limited_butler_factory = limited_butler_factory
         self.resources = resources
         self.assumeNoExistingOutputs = assumeNoExistingOutputs
@@ -480,25 +471,13 @@ class SingleQuantumExecutor(QuantumExecutor):
         # Get the input and output references for the task
         inputRefs, outputRefs = task_node.get_connections().buildDatasetRefs(quantum)
 
-        # Call task runQuantum() method.  Catch a few known failure modes and
-        # translate them into specific
+        # Call task runQuantum() method.
         try:
             task.runQuantum(butlerQC, inputRefs, outputRefs)
         except NoWorkFound as err:
             # Not an error, just an early exit.
             _LOG.info("Task '%s' on quantum %s exited early: %s", task_node.label, quantum.dataId, str(err))
             pass
-        except RepeatableQuantumError as err:
-            if self.exitOnKnownError:
-                _LOG.warning("Caught repeatable quantum error for %s (%s):", task_node.label, quantum.dataId)
-                _LOG.warning(err, exc_info=True)
-                sys.exit(err.EXIT_CODE)
-            else:
-                raise
-        except InvalidQuantumError as err:
-            _LOG.fatal("Invalid quantum error for %s (%s): %s", task_node.label, quantum.dataId)
-            _LOG.fatal(err, exc_info=True)
-            sys.exit(err.EXIT_CODE)
 
     def writeMetadata(
         self, quantum: Quantum, metadata: Any, task_node: TaskNode, /, limited_butler: LimitedButler

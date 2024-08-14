@@ -43,7 +43,7 @@ from enum import Enum
 from typing import Literal
 
 from lsst.daf.butler.cli.cliLog import CliLog
-from lsst.pipe.base import InvalidQuantumError
+from lsst.pipe.base import InvalidQuantumError, RepeatableQuantumError
 from lsst.pipe.base.graph.graph import QuantumGraph, QuantumNode
 from lsst.pipe.base.pipeline_graph import TaskNode
 from lsst.utils.threads import disable_implicit_threading
@@ -74,8 +74,9 @@ class _Job:
         Quantum and some associated information.
     """
 
-    def __init__(self, qnode: QuantumNode):
+    def __init__(self, qnode: QuantumNode, fail_fast: bool = False):
         self.qnode = qnode
+        self._fail_fast = fail_fast
         self.process: multiprocessing.process.BaseProcess | None = None
         self._state = JobState.PENDING
         self.started: float = 0.0
@@ -122,7 +123,7 @@ class _Job:
         mp_ctx = multiprocessing.get_context(startMethod)
         self.process = mp_ctx.Process(  # type: ignore[attr-defined]
             target=_Job._executeJob,
-            args=(quantumExecutor, task_node, quantum_pickle, logConfigState, snd_conn),
+            args=(quantumExecutor, task_node, quantum_pickle, logConfigState, snd_conn, self._fail_fast),
             name=f"task-{self.qnode.quantum.dataId}",
         )
         # mypy is getting confused by multiprocessing.
@@ -138,6 +139,7 @@ class _Job:
         quantum_pickle: bytes,
         logConfigState: list,
         snd_conn: multiprocessing.connection.Connection,
+        fail_fast: bool,
     ) -> None:
         """Execute a job with arguments.
 
@@ -168,8 +170,33 @@ class _Job:
 
         quantum = pickle.loads(quantum_pickle)
         report: QuantumReport | None = None
+        # Catch a few known failure modes and stop the process immediately,
+        # with exception-specific exit code.
         try:
-            quantum, report = quantumExecutor.execute(task_node, quantum)
+            _, report = quantumExecutor.execute(task_node, quantum)
+        except RepeatableQuantumError as exc:
+            report = QuantumReport.from_exception(
+                exception=exc,
+                dataId=quantum.dataId,
+                taskLabel=task_node.label,
+                exitCode=exc.EXIT_CODE if fail_fast else None,
+            )
+            if fail_fast:
+                _LOG.warning("Caught repeatable quantum error for %s (%s):", task_node.label, quantum.dataId)
+                _LOG.warning(exc, exc_info=True)
+                sys.exit(exc.EXIT_CODE)
+            else:
+                raise
+        except InvalidQuantumError as exc:
+            _LOG.fatal("Invalid quantum error for %s (%s): %s", task_node.label, quantum.dataId)
+            _LOG.fatal(exc, exc_info=True)
+            report = QuantumReport.from_exception(
+                exception=exc,
+                dataId=quantum.dataId,
+                taskLabel=task_node.label,
+                exitCode=exc.EXIT_CODE,
+            )
+            sys.exit(exc.EXIT_CODE)
         except Exception as exc:
             _LOG.debug("exception from task %s dataId %s: %s", task_node.label, quantum.dataId, exc)
             report = QuantumReport.from_exception(
@@ -490,11 +517,31 @@ class MPGraphExecutor(QuantumGraphExecutor):
                 continue
 
             _LOG.debug("Executing %s", qnode)
+            fail_exit_code: int | None = None
             try:
-                _, quantum_report = self.quantumExecutor.execute(task_node, qnode.quantum)
-                if quantum_report:
-                    report.quantaReports.append(quantum_report)
-                successCount += 1
+                # For some exception types we want to exit immediately with
+                # exception-specific exit code, but we still want to start
+                # debugger before exiting if debugging is enabled.
+                try:
+                    _, quantum_report = self.quantumExecutor.execute(task_node, qnode.quantum)
+                    if quantum_report:
+                        report.quantaReports.append(quantum_report)
+                    successCount += 1
+                except RepeatableQuantumError as exc:
+                    if self.failFast:
+                        _LOG.warning(
+                            "Caught repeatable quantum error for %s (%s):",
+                            task_node.label,
+                            qnode.quantum.dataId,
+                        )
+                        _LOG.warning(exc, exc_info=True)
+                        fail_exit_code = exc.EXIT_CODE
+                    raise
+                except InvalidQuantumError as exc:
+                    _LOG.fatal("Invalid quantum error for %s (%s): %s", task_node.label, qnode.quantum.dataId)
+                    _LOG.fatal(exc, exc_info=True)
+                    fail_exit_code = exc.EXIT_CODE
+                    raise
             except Exception as exc:
                 quantum_report = QuantumReport.from_exception(
                     exception=exc,
@@ -523,6 +570,11 @@ class MPGraphExecutor(QuantumGraphExecutor):
                     pdb.post_mortem(exc.__traceback__)
                 failedNodes.add(qnode)
                 report.status = ExecutionStatus.FAILURE
+
+                # If exception specified an exit code then just exit with that
+                # code, otherwise crash if fail-fast option is enabled.
+                if fail_exit_code is not None:
+                    sys.exit(fail_exit_code)
                 if self.failFast:
                     raise MPGraphExecutorError(
                         f"Task <{task_node.label} dataId={qnode.quantum.dataId}> failed."
