@@ -146,6 +146,8 @@ class QuantumReport(pydantic.BaseModel):
         exception: Exception,
         dataId: DataId,
         taskLabel: str,
+        *,
+        exitCode: int | None = None,
     ) -> QuantumReport:
         """Construct report instance from an exception and other pieces of
         data.
@@ -158,11 +160,15 @@ class QuantumReport(pydantic.BaseModel):
             Data ID of quantum.
         taskLabel : `str`
             Label of task.
+        exitCode : `int`, optional
+            Exit code for the process, used when it is known that the process
+            will exit with that exit code.
         """
         return cls(
             status=ExecutionStatus.FAILURE,
             dataId=dataId,
             taskLabel=taskLabel,
+            exitCode=exitCode,
             exceptionInfo=ExceptionInfo.from_exception(exception),
         )
 
