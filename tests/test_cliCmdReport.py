@@ -231,7 +231,7 @@ class ReportTest(unittest.TestCase):
             for task_summary in model.tasks.values():
                 self.assertEqual(task_summary.n_successful, 0)
                 self.assertEqual(task_summary.n_blocked, 0)
-                self.assertEqual(task_summary.n_not_attempted, 1)
+                self.assertEqual(task_summary.n_unknown, 1)
                 self.assertEqual(task_summary.n_expected, 1)
                 self.assertListEqual(task_summary.failed_quanta, [])
                 self.assertListEqual(task_summary.recovered_quanta, [])
@@ -243,8 +243,8 @@ class ReportTest(unittest.TestCase):
                     dataset_type_summary.unsuccessful_datasets,
                     [{"instrument": "INSTR", "detector": 0}],
                 )
-                self.assertEqual(dataset_type_summary.n_published, 0)
-                self.assertEqual(dataset_type_summary.n_unpublished, 0)
+                self.assertEqual(dataset_type_summary.n_visible, 0)
+                self.assertEqual(dataset_type_summary.n_shadowed, 0)
                 self.assertEqual(dataset_type_summary.n_predicted_only, 0)
                 self.assertEqual(dataset_type_summary.n_expected, 1)
                 self.assertEqual(dataset_type_summary.n_cursed, 0)
@@ -327,7 +327,7 @@ class ReportTest(unittest.TestCase):
             for task_label, task_summary in agg_sum.tasks.items():
                 self.assertEqual(task_summary.n_successful, 0)
                 self.assertEqual(task_summary.n_blocked, 0)
-                self.assertEqual(task_summary.n_not_attempted, 2)
+                self.assertEqual(task_summary.n_unknown, 2)
                 self.assertEqual(task_summary.n_expected, 2)
                 self.assertListEqual(task_summary.failed_quanta, [])
                 self.assertListEqual(task_summary.recovered_quanta, [])
@@ -339,8 +339,8 @@ class ReportTest(unittest.TestCase):
                     dataset_type_summary.unsuccessful_datasets,
                     [{"instrument": "INSTR", "detector": 0}, {"instrument": "INSTR", "detector": 0}],
                 )
-                self.assertEqual(dataset_type_summary.n_published, 0)
-                self.assertEqual(dataset_type_summary.n_unpublished, 0)
+                self.assertEqual(dataset_type_summary.n_visible, 0)
+                self.assertEqual(dataset_type_summary.n_shadowed, 0)
                 self.assertEqual(dataset_type_summary.n_predicted_only, 0)
                 self.assertEqual(dataset_type_summary.n_expected, 2)
                 self.assertEqual(dataset_type_summary.n_cursed, 0)
