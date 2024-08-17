@@ -187,16 +187,32 @@ def report_v2(
 def aggregate_reports(
     filenames: Iterable[str], full_output_filename: str | None, brief: bool = False
 ) -> None:
-    """Docstring.
+    """Aggregrate multiple `QuantumProvenanceGraph` summaries on separate
+    dataquery-identified groups into one wholistic report. This is intended for
+    reports over the same tasks in the same pipeline, after `pipetask report`
+    has been resolved over all graphs associated with each group.
 
-    open a bunch of json files, call model_validate_json, call aggregrate,
-    print summary
+    Parameters
+    ----------
+    filenames : `Iterable[str]`
+        The paths to the JSON files produced by `pipetask report` (note: this
+        is only compatible with the multi-graph or `--force-v2` option). These
+        files correspond to the `QuantumProvenanceGraph.Summary` objects which
+        are produced for each group.
+    full_output_filename : `str | None`
+        The name of the JSON file in which to store the aggregate report, if
+        passed. This is passed to `print_summary` at the end of this function.
+    brief : `bool = False`
+        Only display short (counts-only) summary on stdout. This includes
+        counts and not error messages or data_ids (similar to BPS report).
+        This option will still report all `cursed` datasets and `wonky`
+        quanta. This is passed to `print_summary` at the end of this function.
     """
     summaries: Iterable[Summary] = []
     for filename in filenames:
         with open(filename) as f:
             model = Summary.model_validate_json(f.read())
-            summaries.append(model)
+            summaries.extend([model])
     result = Summary.aggregate(summaries)
     print_summary(result, full_output_filename, brief)
 
