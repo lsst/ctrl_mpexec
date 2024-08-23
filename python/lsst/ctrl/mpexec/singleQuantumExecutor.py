@@ -470,8 +470,12 @@ class SingleQuantumExecutor(QuantumExecutor):
             task.runQuantum(butlerQC, inputRefs, outputRefs)
         except NoWorkFound as err:
             # Not an error, just an early exit.
-            _LOG.info("Task '%s' on quantum %s exited early: %s", task_node.label, quantum.dataId, str(err))
-            pass
+            _LOG.info(
+                "Task '%s' on quantum %s exited early with no work found: %s.",
+                task_node.label,
+                quantum.dataId,
+                str(err),
+            )
 
     def writeMetadata(
         self, quantum: Quantum, metadata: Any, task_node: TaskNode, /, limited_butler: LimitedButler
