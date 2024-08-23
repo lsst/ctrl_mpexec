@@ -79,13 +79,18 @@ class SeparablePipelineExecutor:
     skip_existing_in : iterable [`str`], optional
         If not empty, the pipeline execution searches the listed collections
         for existing outputs, and skips any quanta that have run to completion
-        (or have no work to do). Otherwise, all tasks are attempted (subject
-        to ``clobber_output``).
+        (or have no work to do). Otherwise, all tasks are attempted (subject to
+        ``clobber_output``).
     task_factory : `lsst.pipe.base.TaskFactory`, optional
         A custom task factory for use in pre-execution and execution. By
         default, a new instance of `lsst.ctrl.mpexec.TaskFactory` is used.
     resources : `~lsst.pipe.base.ExecutionResources`
         The resources available to each quantum being executed.
+    raise_on_partial_outputs : `bool`, optional
+        If `True` raise exceptions chained by
+        `lsst.pipe.base.AnnotatedPartialOutputError` immediately, instead of
+        considering the partial result a success and continuing to run
+        downstream tasks.
     """
 
     def __init__(
@@ -95,6 +100,7 @@ class SeparablePipelineExecutor:
         skip_existing_in: Iterable[str] | None = None,
         task_factory: lsst.pipe.base.TaskFactory | None = None,
         resources: lsst.pipe.base.ExecutionResources | None = None,
+        raise_on_partial_outputs: bool = False,
     ):
         self._butler = Butler.from_config(butler=butler, collections=butler.collections, run=butler.run)
         if not self._butler.collections:
@@ -107,6 +113,7 @@ class SeparablePipelineExecutor:
 
         self._task_factory = task_factory if task_factory else TaskFactory()
         self.resources = resources
+        self.raise_on_partial_outputs = raise_on_partial_outputs
 
     def pre_execute_qgraph(
         self,
@@ -271,6 +278,7 @@ class SeparablePipelineExecutor:
                 skipExistingIn=self._skip_existing_in,
                 clobberOutputs=self._clobber_output,
                 resources=self.resources,
+                raise_on_partial_outputs=self.raise_on_partial_outputs,
             )
             graph_executor = MPGraphExecutor(
                 numProc=num_proc,
