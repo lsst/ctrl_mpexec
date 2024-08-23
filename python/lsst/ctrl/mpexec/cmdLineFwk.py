@@ -36,6 +36,7 @@ import atexit
 import contextlib
 import copy
 import logging
+import pickle
 import shutil
 from collections.abc import Mapping, Sequence
 from types import SimpleNamespace
@@ -49,6 +50,7 @@ from lsst.daf.butler import (
     Config,
     DatasetId,
     DatasetType,
+    DimensionConfig,
     DimensionUniverse,
     LimitedButler,
     Quantum,
@@ -500,7 +502,14 @@ class _ButlerFactory:
 
 
 class _QBBFactory:
-    """Class which is a callable for making QBB instances."""
+    """Class which is a callable for making QBB instances.
+
+    This class is also responsible for reconstructing correct dimension
+    universe after unpickling. When pickling multiple things that require
+    dimension universe, this class must be unpickled first. The logic in
+    MPGraphExecutor ensures that SingleQuantumExecutor is unpickled first in
+    the subprocess, which causes unpickling of this class.
+    """
 
     def __init__(
         self, butler_config: Config, dimensions: DimensionUniverse, dataset_types: Mapping[str, DatasetType]
@@ -520,6 +529,29 @@ class _QBBFactory:
             dimensions=self.dimensions,
             dataset_types=self.dataset_types,
         )
+
+    @classmethod
+    def _unpickle(
+        cls, butler_config: Config, dimensions_config: DimensionConfig | None, dataset_types_pickle: bytes
+    ) -> _QBBFactory:
+        universe = DimensionUniverse(dimensions_config)
+        dataset_types = pickle.loads(dataset_types_pickle)
+        return _QBBFactory(butler_config, universe, dataset_types)
+
+    def __reduce__(self) -> tuple:
+        # If dimension universe is not default one, we need to dump/restore
+        # its config.
+        config = self.dimensions.dimensionConfig
+        default = DimensionConfig()
+        # Only send configuration to other side if it is non-default, default
+        # will be instantiated from config=None.
+        if (config["namespace"], config["version"]) != (default["namespace"], default["version"]):
+            dimension_config = config
+        else:
+            dimension_config = None
+        # Dataset types need to be unpickled only after universe is made.
+        dataset_types_pickle = pickle.dumps(self.dataset_types)
+        return (self._unpickle, (self.butler_config, dimension_config, dataset_types_pickle))
 
 
 # ------------------------
