@@ -449,6 +449,12 @@ fail_fast_option = MWOptionDecorator(
     is_flag=True,
 )
 
+raise_on_partial_outputs_option = MWOptionDecorator(
+    "--raise-on-partial-outputs",
+    help="Consider partial outputs from a task an error instead of a qualified success.",
+    is_flag=True,
+)
+
 save_execution_butler_option = MWOptionDecorator(
     "--save-execution-butler",
     help="Export location for an execution-specific butler after making QuantumGraph",

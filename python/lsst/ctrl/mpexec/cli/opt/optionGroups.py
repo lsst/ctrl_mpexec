@@ -164,6 +164,7 @@ class execution_options(OptionGroup):  # noqa: N801
             ctrlMpExecOpts.start_method_option(),
             ctrlMpExecOpts.timeout_option(),
             ctrlMpExecOpts.fail_fast_option(),
+            ctrlMpExecOpts.raise_on_partial_outputs_option(),
             ctrlMpExecOpts.graph_fixup_option(),
             ctrlMpExecOpts.summary_option(),
             ctrlMpExecOpts.enable_implicit_threading_option(),

@@ -298,6 +298,7 @@ def pre_exec_init_qbb(repo: str, qgraph: str, **kwargs: Any) -> None:
 @ctrlMpExecOpts.start_method_option()
 @ctrlMpExecOpts.timeout_option()
 @ctrlMpExecOpts.fail_fast_option()
+@ctrlMpExecOpts.raise_on_partial_outputs_option()
 @ctrlMpExecOpts.summary_option()
 @ctrlMpExecOpts.enable_implicit_threading_option()
 @ctrlMpExecOpts.cores_per_quantum_option()

@@ -68,6 +68,7 @@ def run(  # type: ignore
     cores_per_quantum: int,
     memory_per_quantum: str,
     rebase,
+    raise_on_partial_outputs: bool,
     **kwargs,
 ):
     """Implement the command line interface `pipetask run` subcommand.
@@ -179,6 +180,8 @@ def run(  # type: ignore
     rebase : `bool`
         If `True` then reset output collection chain if it is inconsistent with
         the ``inputs``.
+    raise_on_partial_outputs : `bool`
+        Consider partial outputs an error instead of a success.
     **kwargs : `dict` [`str`, `str`]
         Ignored; click commands may accept options for more than one script
         function and pass all the option kwargs to each of the script functions
@@ -222,6 +225,7 @@ def run(  # type: ignore
         cores_per_quantum=cores_per_quantum,
         memory_per_quantum=memory_per_quantum,
         rebase=rebase,
+        raise_on_partial_outputs=raise_on_partial_outputs,
     )
 
     f = CmdLineFwk()
