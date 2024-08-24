@@ -113,17 +113,19 @@ class _Job:
         startMethod : `str`, optional
             Start method from `multiprocessing` module.
         """
-        # Unpickling of quantum has to happen after butler/executor, this is
-        # why it is pickled manually here.
+        # Unpickling of quantum has to happen after butler/executor, also we
+        # want to setup logging before unpickling anything that can generate
+        # messages, this is why things are pickled manually here.
+        qe_pickle = pickle.dumps(quantumExecutor)
+        task_node_pickle = pickle.dumps(self.qnode.task_node)
         quantum_pickle = pickle.dumps(self.qnode.quantum)
-        task_node = self.qnode.task_node
         self._rcv_conn, snd_conn = multiprocessing.Pipe(False)
         logConfigState = CliLog.configState
 
         mp_ctx = multiprocessing.get_context(startMethod)
         self.process = mp_ctx.Process(  # type: ignore[attr-defined]
             target=_Job._executeJob,
-            args=(quantumExecutor, task_node, quantum_pickle, logConfigState, snd_conn, self._fail_fast),
+            args=(qe_pickle, task_node_pickle, quantum_pickle, logConfigState, snd_conn, self._fail_fast),
             name=f"task-{self.qnode.quantum.dataId}",
         )
         # mypy is getting confused by multiprocessing.
@@ -134,8 +136,8 @@ class _Job:
 
     @staticmethod
     def _executeJob(
-        quantumExecutor: QuantumExecutor,
-        task_node: TaskNode,
+        quantumExecutor_pickle: bytes,
+        task_node_pickle: bytes,
         quantum_pickle: bytes,
         logConfigState: list,
         snd_conn: multiprocessing.connection.Connection,
@@ -145,14 +147,18 @@ class _Job:
 
         Parameters
         ----------
-        quantumExecutor : `QuantumExecutor`
-            Executor for single quantum.
-        task_node : `lsst.pipe.base.pipeline_graph.TaskNode`
-            Task definition structure.
+        quantumExecutor_pickle : `bytes`
+            Executor for single quantum, pickled.
+        task_node_pickle : `bytes`
+            Task definition structure, pickled.
         quantum_pickle : `bytes`
             Quantum for this task execution in pickled form.
+        logConfigState : `list`
+            Logging state from parent process.
         snd_conn : `multiprocessing.Connection`
             Connection to send job report to parent process.
+        fail_fast : `bool`
+            If `True` then kill subprocess on RepeatableQuantumError.
         """
         # This terrible hack is a workaround for Python threading bug:
         # https://github.com/python/cpython/issues/102512. Should be removed
@@ -168,6 +174,8 @@ class _Job:
             # re-initialize logging
             CliLog.replayConfigState(logConfigState)
 
+        quantumExecutor: QuantumExecutor = pickle.loads(quantumExecutor_pickle)
+        task_node: TaskNode = pickle.loads(task_node_pickle)
         quantum = pickle.loads(quantum_pickle)
         report: QuantumReport | None = None
         # Catch a few known failure modes and stop the process immediately,
