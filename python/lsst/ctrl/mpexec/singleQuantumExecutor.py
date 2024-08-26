@@ -268,7 +268,13 @@ class SingleQuantumExecutor(QuantumExecutor):
             try:
                 self.runQuantum(task, quantum, task_node, limited_butler)
             except Exception as e:
-                e.add_note(f"Execution of task {task_node.label!r} on quantum {quantum.dataId} failed.")
+                _LOG.error(
+                    "Execution of task '%s' on quantum %s failed. Exception %s: %s",
+                    task_node.label,
+                    quantum.dataId,
+                    e.__class__.__name__,
+                    str(e),
+                )
                 raise
             logInfo(None, "end", metadata=quantumMetadata)  # type: ignore[arg-type]
             fullMetadata = task.getFullMetadata()
