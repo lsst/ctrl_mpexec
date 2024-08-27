@@ -706,7 +706,7 @@ class CmdLineFwkTestCaseWithButler(unittest.TestCase):
         self.assertRegex(
             cm.output[0], ".*Initial data ID query returned no rows, so QuantumGraph will be empty.*"
         )
-        self.assertRegex(cm.output[1], ".*No datasets.*bad_input.*")
+        self.assertRegex(cm.output[0], ".*No datasets.*bad_input.*")
         self.assertIsNone(qgraph)
 
     def testSimpleQGraphNoSkipExisting_inputs(self):
