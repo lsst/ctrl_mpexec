@@ -493,7 +493,7 @@ class SingleQuantumExecutor(QuantumExecutor):
         except AnnotatedPartialOutputsError as caught:
             error: BaseException
             if caught.__cause__ is None:
-                _LOG.warning(
+                _LOG.error(
                     "Incorrect use of AnnotatedPartialOutputsError: no chained exception found.",
                     task_node.label,
                     quantum.dataId,
@@ -510,13 +510,13 @@ class SingleQuantumExecutor(QuantumExecutor):
                 # desired.
                 raise error from None
             else:
-                _LOG.warning(
+                _LOG.error(
                     "Task '%s' on quantum %s exited with partial outputs; "
                     "considering this a qualified success and proceeding.",
                     task_node.label,
                     quantum.dataId,
                 )
-                _LOG.warning(error, exc_info=error)
+                _LOG.error(error, exc_info=error)
 
     def writeMetadata(
         self, quantum: Quantum, metadata: Any, task_node: TaskNode, /, limited_butler: LimitedButler
