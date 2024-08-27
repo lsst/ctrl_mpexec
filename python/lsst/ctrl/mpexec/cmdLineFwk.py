@@ -664,7 +664,7 @@ class CmdLineFwk:
             graph_builder = AllDimensionsQuantumGraphBuilder(
                 pipeline_graph,
                 butler,
-                where=args.data_query,
+                where=args.data_query or "",
                 skip_existing_in=args.skip_existing_in if args.skip_existing_in is not None else (),
                 clobber=args.clobber_outputs,
                 dataset_query_constraint=args.dataset_query_constraint,
@@ -680,7 +680,7 @@ class CmdLineFwk:
                 "extend_run": args.extend_run,
                 "skip_existing_in": args.skip_existing_in,
                 "skip_existing": args.skip_existing,
-                "data_query": args.data_query,
+                "data_query": args.data_query or "",
             }
             assert run is not None, "Butler output run collection must be defined"
             qgraph = graph_builder.build(metadata, attach_datastore_records=args.qgraph_datastore_records)
