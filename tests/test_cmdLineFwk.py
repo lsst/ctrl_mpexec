@@ -701,12 +701,12 @@ class CmdLineFwkTestCaseWithButler(unittest.TestCase):
         populateButler(self.pipeline, butler)
 
         fwk = CmdLineFwk()
-        with self.assertLogs(level=logging.CRITICAL) as cm:
+        with self.assertLogs(level=logging.ERROR) as cm:
             qgraph = fwk.makeGraph(self.pipeline, args)
         self.assertRegex(
             cm.output[0], ".*Initial data ID query returned no rows, so QuantumGraph will be empty.*"
         )
-        self.assertRegex(cm.output[1], ".*No datasets.*bad_input.*")
+        self.assertRegex(cm.output[0], ".*No datasets.*bad_input.*")
         self.assertIsNone(qgraph)
 
     def testSimpleQGraphNoSkipExisting_inputs(self):
