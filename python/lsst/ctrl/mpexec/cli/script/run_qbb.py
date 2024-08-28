@@ -52,6 +52,7 @@ def run_qbb(
     enable_implicit_threading: bool,
     cores_per_quantum: int,
     memory_per_quantum: str,
+    raise_on_partial_outputs: bool,
 ) -> None:
     """Implement the command line interface ``pipetask run-qbb`` subcommand.
 
@@ -101,6 +102,8 @@ def run_qbb(
         Amount of memory that each quantum can be allowed to use. Empty string
         implies no limit. The string can be either a single integer (implying
         units of MB) or a combination of number and unit.
+    raise_on_partial_outputs : `bool`
+        Consider partial outputs an error instead of a success.
     """
     # Fork option still exists for compatibility but we use spawn instead.
     if start_method == "fork":
@@ -127,6 +130,7 @@ def run_qbb(
         enable_implicit_threading=enable_implicit_threading,
         cores_per_quantum=cores_per_quantum,
         memory_per_quantum=memory_per_quantum,
+        raise_on_partial_outputs=raise_on_partial_outputs,
     )
 
     f = CmdLineFwk()

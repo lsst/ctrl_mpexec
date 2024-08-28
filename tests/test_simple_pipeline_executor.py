@@ -35,7 +35,7 @@ import unittest
 import lsst.daf.butler
 import lsst.utils.tests
 from lsst.ctrl.mpexec import SimplePipelineExecutor
-from lsst.pipe.base import PipelineGraph
+from lsst.pipe.base import PipelineGraph, RepeatableQuantumError
 from lsst.pipe.base.tests.mocks import (
     DynamicConnectionConfig,
     DynamicTestPipelineTask,
@@ -223,6 +223,75 @@ class SimplePipelineExecutorTests(lsst.utils.tests.TestCase):
         self.assertEqual(len(quanta), 2)
         self.assertEqual(self.butler.get("intermediate").storage_class, get_mock_name("StructuredDataDict"))
         self.assertEqual(self.butler.get("output").storage_class, get_mock_name("StructuredDataDict"))
+
+    def test_partial_outputs_success(self):
+        """Test executing two quanta where the first raises
+        `lsst.pipe.base.AnnotatedPartialOutputsError` and its output is an
+        optional input to the second, while configuring the executor to
+        consider this a success.
+        """
+        config_a = DynamicTestPipelineTaskConfig()
+        config_a.inputs["i"] = DynamicConnectionConfig(
+            dataset_type_name="input", storage_class="StructuredDataDict", mock_storage_class=False
+        )
+        config_a.fail_exception = "lsst.pipe.base.AnnotatedPartialOutputsError"
+        config_a.fail_condition = "1=1"  # butler query expression that is true
+        config_a.outputs["o"] = DynamicConnectionConfig(
+            dataset_type_name="intermediate", storage_class="StructuredDataDict"
+        )
+        config_b = DynamicTestPipelineTaskConfig()
+        config_b.inputs["i"] = DynamicConnectionConfig(
+            dataset_type_name="intermediate", storage_class="StructuredDataDict", minimum=0
+        )
+        config_b.outputs["o"] = DynamicConnectionConfig(
+            dataset_type_name="output", storage_class="StructuredDataDict"
+        )
+        pipeline_graph = PipelineGraph()
+        pipeline_graph.add_task("a", DynamicTestPipelineTask, config_a)
+        pipeline_graph.add_task("b", DynamicTestPipelineTask, config_b)
+        # Default behavior is to consider the partial a success and proceed.
+        executor = SimplePipelineExecutor.from_pipeline_graph(pipeline_graph, butler=self.butler)
+        (_, _) = executor.as_generator(register_dataset_types=True)
+        self.assertFalse(self.butler.exists("intermediate"))
+        self.assertEqual(self.butler.get("output").storage_class, get_mock_name("StructuredDataDict"))
+
+    def test_partial_outputs_failure(self):
+        """Test executing two quanta where the first raises
+        `lsst.pipe.base.AnnotatedPartialOutputsError` and its output is an
+        optional input to the second, while configuring the executor to
+        consider this a failure.
+        """
+        config_a = DynamicTestPipelineTaskConfig()
+        config_a.inputs["i"] = DynamicConnectionConfig(
+            dataset_type_name="input", storage_class="StructuredDataDict", mock_storage_class=False
+        )
+        config_a.fail_exception = "lsst.pipe.base.AnnotatedPartialOutputsError"
+        config_a.fail_condition = "1=1"  # butler query expression that is true
+        config_a.outputs["o"] = DynamicConnectionConfig(
+            dataset_type_name="intermediate", storage_class="StructuredDataDict"
+        )
+        config_b = DynamicTestPipelineTaskConfig()
+        config_b.inputs["i"] = DynamicConnectionConfig(
+            dataset_type_name="intermediate", storage_class="StructuredDataDict", minimum=0
+        )
+        config_b.outputs["o"] = DynamicConnectionConfig(
+            dataset_type_name="output", storage_class="StructuredDataDict"
+        )
+        pipeline_graph = PipelineGraph()
+        pipeline_graph.add_task("a", DynamicTestPipelineTask, config_a)
+        pipeline_graph.add_task("b", DynamicTestPipelineTask, config_b)
+        executor = SimplePipelineExecutor.from_pipeline_graph(
+            pipeline_graph,
+            butler=self.butler,
+            raise_on_partial_outputs=True,
+        )
+        # The executor should raise the chained exception
+        # (RepeatableQuantumError, since that's what the mocking system in
+        # pipe_base uses here), not AnnotatedPartialOutputsError.
+        with self.assertRaises(RepeatableQuantumError):
+            executor.run(register_dataset_types=True)
+        self.assertFalse(self.butler.exists("intermediate"))
+        self.assertFalse(self.butler.exists("output"))
 
 
 class MemoryTester(lsst.utils.tests.MemoryTestCase):

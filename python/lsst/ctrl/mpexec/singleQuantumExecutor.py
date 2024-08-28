@@ -49,6 +49,7 @@ from lsst.daf.butler import (
 from lsst.daf.butler.registry.wildcards import CollectionWildcard
 from lsst.pipe.base import (
     AdjustQuantumHelper,
+    AnnotatedPartialOutputsError,
     ExecutionResources,
     Instrument,
     InvalidQuantumError,
@@ -89,12 +90,12 @@ class SingleQuantumExecutor(QuantumExecutor):
     taskFactory : `~lsst.pipe.base.TaskFactory`
         Instance of a task factory.
     skipExistingIn : `~typing.Any`
-        Expressions representing the collections to search for existing
-        output datasets. See :ref:`daf_butler_ordered_collection_searches`
-        for allowed types. This class only checks for the presence of butler
-        output run in the list of collections. If the output run is present
-        in the list then the quanta whose complete outputs exist in the output
-        run will be skipped. `None` or empty string/sequence disables skipping.
+        Expressions representing the collections to search for existing output
+        datasets. See :ref:`daf_butler_ordered_collection_searches` for allowed
+        types. This class only checks for the presence of butler output run in
+        the list of collections. If the output run is present in the list then
+        the quanta whose complete outputs exist in the output run will be
+        skipped. `None` or empty string/sequence disables skipping.
     clobberOutputs : `bool`, optional
         If `True`, then outputs from a quantum that exist in output run
         collection will be removed prior to executing a quantum. If
@@ -103,9 +104,9 @@ class SingleQuantumExecutor(QuantumExecutor):
     enableLsstDebug : `bool`, optional
         Enable debugging with ``lsstDebug`` facility for a task.
     limited_butler_factory : `Callable`, optional
-        A method that creates a `~lsst.daf.butler.LimitedButler` instance
-        for a given Quantum. This parameter must be defined if ``butler`` is
-        `None`. If ``butler`` is not `None` then this parameter is ignored.
+        A method that creates a `~lsst.daf.butler.LimitedButler` instance for a
+        given Quantum. This parameter must be defined if ``butler`` is `None`.
+        If ``butler`` is not `None` then this parameter is ignored.
     resources : `~lsst.pipe.base.ExecutionResources`, optional
         The resources available to this quantum when executing.
     skipExisting : `bool`, optional
@@ -119,6 +120,11 @@ class SingleQuantumExecutor(QuantumExecutor):
         not look for them.  This causes the ``skipExisting`` and
         ``clobberOutputs`` options to be ignored, but unlike just setting both
         of those to `False`, it also avoids all dataset existence checks.
+    raise_on_partial_outputs : `bool`, optional
+        If `True` raise exceptions chained by
+        `lsst.pipe.base.AnnotatedPartialOutputError` immediately, instead of
+        considering the partial result a success and continuing to run
+        downstream tasks.
     """
 
     def __init__(
@@ -132,6 +138,7 @@ class SingleQuantumExecutor(QuantumExecutor):
         resources: ExecutionResources | None = None,
         skipExisting: bool = False,
         assumeNoExistingOutputs: bool = False,
+        raise_on_partial_outputs: bool = False,
     ):
         self.butler = butler
         self.taskFactory = taskFactory
@@ -140,6 +147,7 @@ class SingleQuantumExecutor(QuantumExecutor):
         self.limited_butler_factory = limited_butler_factory
         self.resources = resources
         self.assumeNoExistingOutputs = assumeNoExistingOutputs
+        self.raise_on_partial_outputs = raise_on_partial_outputs
 
         if self.butler is None:
             assert limited_butler_factory is not None, "limited_butler_factory is needed when butler is None"
@@ -476,8 +484,39 @@ class SingleQuantumExecutor(QuantumExecutor):
             task.runQuantum(butlerQC, inputRefs, outputRefs)
         except NoWorkFound as err:
             # Not an error, just an early exit.
-            _LOG.info("Task '%s' on quantum %s exited early: %s", task_node.label, quantum.dataId, str(err))
-            pass
+            _LOG.info(
+                "Task '%s' on quantum %s exited early with no work found: %s.",
+                task_node.label,
+                quantum.dataId,
+                str(err),
+            )
+        except AnnotatedPartialOutputsError as caught:
+            error: BaseException
+            if caught.__cause__ is None:
+                _LOG.error(
+                    "Incorrect use of AnnotatedPartialOutputsError: no chained exception found.",
+                    task_node.label,
+                    quantum.dataId,
+                )
+                error = caught
+            else:
+                error = caught.__cause__
+            if self.raise_on_partial_outputs:
+                # Note: this is a real edge case that required some
+                # experimentation: without 'from None' below, this raise would
+                # produce a "while one exception was being handled, another was
+                # raised" traceback involving AnnotatedPartialOutputsError.
+                # With the 'from None', we get just the error chained to it, as
+                # desired.
+                raise error from None
+            else:
+                _LOG.error(
+                    "Task '%s' on quantum %s exited with partial outputs; "
+                    "considering this a qualified success and proceeding.",
+                    task_node.label,
+                    quantum.dataId,
+                )
+                _LOG.error(error, exc_info=error)
 
     def writeMetadata(
         self, quantum: Quantum, metadata: Any, task_node: TaskNode, /, limited_butler: LimitedButler

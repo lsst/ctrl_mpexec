@@ -56,6 +56,11 @@ class SimplePipelineExecutor:
         ``quantum_graph``.
     resources : `~lsst.pipe.base.ExecutionResources`
         The resources available to each quantum being executed.
+    raise_on_partial_outputs : `bool`, optional
+        If `True` raise exceptions chained by
+        `lsst.pipe.base.AnnotatedPartialOutputError` immediately, instead of
+        considering the partial result a success and continuing to run
+        downstream tasks.
 
     Notes
     -----
@@ -79,10 +84,12 @@ class SimplePipelineExecutor:
         quantum_graph: QuantumGraph,
         butler: Butler,
         resources: ExecutionResources | None = None,
+        raise_on_partial_outputs: bool = False,
     ):
         self.quantum_graph = quantum_graph
         self.butler = butler
         self.resources = resources
+        self.raise_on_partial_outputs = raise_on_partial_outputs
 
     @classmethod
     def prep_butler(
@@ -141,6 +148,7 @@ class SimplePipelineExecutor:
         bind: Mapping[str, Any] | None = None,
         butler: Butler,
         resources: ExecutionResources | None = None,
+        raise_on_partial_outputs: bool = False,
     ) -> SimplePipelineExecutor:
         """Create an executor by building a QuantumGraph from an on-disk
         pipeline YAML file.
@@ -159,16 +167,28 @@ class SimplePipelineExecutor:
             one.
         resources : `~lsst.pipe.base.ExecutionResources`
             The resources available to each quantum being executed.
+        raise_on_partial_outputs : `bool`, optional
+            If `True` raise exceptions chained by
+            `lsst.pipe.base.AnnotatedPartialOutputError` immediately, instead
+            of considering the partial result a success and continuing to run
+            downstream tasks.
 
         Returns
         -------
         executor : `SimplePipelineExecutor`
             An executor instance containing the constructed
-            `~lsst.pipe.base.QuantumGraph` and `~lsst.daf.butler.Butler`,
-            ready for `run` to be called.
+            `~lsst.pipe.base.QuantumGraph` and `~lsst.daf.butler.Butler`, ready
+            for `run` to be called.
         """
         pipeline = Pipeline.fromFile(pipeline_filename)
-        return cls.from_pipeline(pipeline, butler=butler, where=where, bind=bind, resources=resources)
+        return cls.from_pipeline(
+            pipeline,
+            butler=butler,
+            where=where,
+            bind=bind,
+            resources=resources,
+            raise_on_partial_outputs=raise_on_partial_outputs,
+        )
 
     @classmethod
     def from_task_class(
@@ -181,6 +201,7 @@ class SimplePipelineExecutor:
         bind: Mapping[str, Any] | None = None,
         butler: Butler,
         resources: ExecutionResources | None = None,
+        raise_on_partial_outputs: bool = False,
     ) -> SimplePipelineExecutor:
         """Create an executor by building a QuantumGraph from a pipeline
         containing a single task.
@@ -205,13 +226,18 @@ class SimplePipelineExecutor:
             one.
         resources : `~lsst.pipe.base.ExecutionResources`
             The resources available to each quantum being executed.
+        raise_on_partial_outputs : `bool`, optional
+            If `True` raise exceptions chained by
+            `lsst.pipe.base.AnnotatedPartialOutputError` immediately, instead
+            of considering the partial result a success and continuing to run
+            downstream tasks.
 
         Returns
         -------
         executor : `SimplePipelineExecutor`
             An executor instance containing the constructed
-            `~lsst.pipe.base.QuantumGraph` and `~lsst.daf.butler.Butler`,
-            ready for `run` to be called.
+            `~lsst.pipe.base.QuantumGraph` and `~lsst.daf.butler.Butler`, ready
+            for `run` to be called.
         """
         if config is None:
             config = task_class.ConfigClass()
@@ -225,7 +251,12 @@ class SimplePipelineExecutor:
         pipeline_graph = PipelineGraph()
         pipeline_graph.add_task(label=label, task_class=task_class, config=config)
         return cls.from_pipeline_graph(
-            pipeline_graph, butler=butler, where=where, bind=bind, resources=resources
+            pipeline_graph,
+            butler=butler,
+            where=where,
+            bind=bind,
+            resources=resources,
+            raise_on_partial_outputs=raise_on_partial_outputs,
         )
 
     @classmethod
@@ -237,6 +268,7 @@ class SimplePipelineExecutor:
         bind: Mapping[str, Any] | None = None,
         butler: Butler,
         resources: ExecutionResources | None = None,
+        raise_on_partial_outputs: bool = False,
     ) -> SimplePipelineExecutor:
         """Create an executor by building a QuantumGraph from an in-memory
         pipeline.
@@ -257,17 +289,27 @@ class SimplePipelineExecutor:
             one.
         resources : `~lsst.pipe.base.ExecutionResources`
             The resources available to each quantum being executed.
+        raise_on_partial_outputs : `bool`, optional
+            If `True` raise exceptions chained by
+            `lsst.pipe.base.AnnotatedPartialOutputError` immediately, instead
+            of considering the partial result a success and continuing to run
+            downstream tasks.
 
         Returns
         -------
         executor : `SimplePipelineExecutor`
             An executor instance containing the constructed
-            `~lsst.pipe.base.QuantumGraph` and `~lsst.daf.butler.Butler`,
-            ready for `run` to be called.
+            `~lsst.pipe.base.QuantumGraph` and `~lsst.daf.butler.Butler`, ready
+            for `run` to be called.
         """
         pipeline_graph = pipeline.to_graph()
         return cls.from_pipeline_graph(
-            pipeline_graph, where=where, bind=bind, butler=butler, resources=resources
+            pipeline_graph,
+            where=where,
+            bind=bind,
+            butler=butler,
+            resources=resources,
+            raise_on_partial_outputs=raise_on_partial_outputs,
         )
 
     @classmethod
@@ -279,6 +321,7 @@ class SimplePipelineExecutor:
         bind: Mapping[str, Any] | None = None,
         butler: Butler,
         resources: ExecutionResources | None = None,
+        raise_on_partial_outputs: bool = False,
     ) -> SimplePipelineExecutor:
         """Create an executor by building a QuantumGraph from an in-memory
         pipeline graph.
@@ -300,19 +343,29 @@ class SimplePipelineExecutor:
             empty and not `None`.
         resources : `~lsst.pipe.base.ExecutionResources`
             The resources available to each quantum being executed.
+        raise_on_partial_outputs : `bool`, optional
+            If `True` raise exceptions chained by
+            `lsst.pipe.base.AnnotatedPartialOutputError` immediately, instead
+            of considering the partial result a success and continuing to run
+            downstream tasks.
 
         Returns
         -------
         executor : `SimplePipelineExecutor`
             An executor instance containing the constructed
-            `~lsst.pipe.base.QuantumGraph` and `~lsst.daf.butler.Butler`,
-            ready for `run` to be called.
+            `~lsst.pipe.base.QuantumGraph` and `~lsst.daf.butler.Butler`, ready
+            for `run` to be called.
         """
         quantum_graph_builder = AllDimensionsQuantumGraphBuilder(
             pipeline_graph, butler, where=where, bind=bind
         )
         quantum_graph = quantum_graph_builder.build(attach_datastore_records=False)
-        return cls(quantum_graph=quantum_graph, butler=butler, resources=resources)
+        return cls(
+            quantum_graph=quantum_graph,
+            butler=butler,
+            resources=resources,
+            raise_on_partial_outputs=raise_on_partial_outputs,
+        )
 
     def run(self, register_dataset_types: bool = False, save_versions: bool = True) -> list[Quantum]:
         """Run all the quanta in the `~lsst.pipe.base.QuantumGraph` in
@@ -381,7 +434,12 @@ class SimplePipelineExecutor:
         pre_exec_init.initialize(
             graph=self.quantum_graph, registerDatasetTypes=register_dataset_types, saveVersions=save_versions
         )
-        single_quantum_executor = SingleQuantumExecutor(self.butler, task_factory, resources=self.resources)
+        single_quantum_executor = SingleQuantumExecutor(
+            self.butler,
+            task_factory,
+            resources=self.resources,
+            raise_on_partial_outputs=self.raise_on_partial_outputs,
+        )
         # Important that this returns a generator expression rather than being
         # a generator itself; that is what makes the PreExecInit stuff above
         # happen immediately instead of when the first quanta is executed,

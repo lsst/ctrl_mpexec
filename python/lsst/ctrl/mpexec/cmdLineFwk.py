@@ -840,6 +840,7 @@ class CmdLineFwk:
                 clobberOutputs=args.clobber_outputs,
                 enableLsstDebug=args.enableLsstDebug,
                 resources=resources,
+                raise_on_partial_outputs=args.raise_on_partial_outputs,
             )
 
             timeout = self.MP_TIMEOUT if args.timeout is None else args.timeout
@@ -1025,6 +1026,7 @@ class CmdLineFwk:
             limited_butler_factory=_butler_factory,
             resources=resources,
             assumeNoExistingOutputs=True,
+            raise_on_partial_outputs=args.raise_on_partial_outputs,
         )
 
         timeout = self.MP_TIMEOUT if args.timeout is None else args.timeout
