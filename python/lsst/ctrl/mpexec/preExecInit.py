@@ -41,12 +41,9 @@ from typing import TYPE_CHECKING, Any
 # -----------------------------
 #  Imports for other modules --
 # -----------------------------
-from lsst.daf.butler import DatasetRef, DatasetType
-from lsst.daf.butler.registry import ConflictingDefinitionError, MissingDatasetTypeError
-from lsst.pipe.base.automatic_connection_constants import (
-    PACKAGES_INIT_OUTPUT_NAME,
-    PACKAGES_INIT_OUTPUT_STORAGE_CLASS,
-)
+from lsst.daf.butler import DatasetRef
+from lsst.daf.butler.registry import ConflictingDefinitionError
+from lsst.pipe.base.automatic_connection_constants import PACKAGES_INIT_OUTPUT_NAME
 from lsst.utils.packages import Packages
 
 if TYPE_CHECKING:
@@ -410,57 +407,10 @@ class PreExecInit(PreExecInitBase):
 
     def initializeDatasetTypes(self, graph: QuantumGraph, registerDatasetTypes: bool = False) -> None:
         # docstring inherited
-        missing_dataset_types: set[str] = set()
-        dataset_types = [node.dataset_type for node in graph.pipeline_graph.dataset_types.values()]
-        dataset_types.append(
-            DatasetType(
-                PACKAGES_INIT_OUTPUT_NAME, self.butler.dimensions.empty, PACKAGES_INIT_OUTPUT_STORAGE_CLASS
-            )
-        )
-        for dataset_type in dataset_types:
-            # Resolving the PipelineGraph when building the QuantumGraph should
-            # have already guaranteed that this is the registry dataset type
-            # and that all references to it use compatible storage classes,
-            # so we don't need another check for compatibility here; if the
-            # dataset type doesn't match the registry that's already a problem.
-            if registerDatasetTypes:
-                _LOG.debug("Registering DatasetType %s with registry", dataset_type.name)
-                try:
-                    self.full_butler.registry.registerDatasetType(dataset_type)
-                except ConflictingDefinitionError:
-                    expected = self.full_butler.registry.getDatasetType(dataset_type.name)
-                    raise ConflictingDefinitionError(
-                        f"DatasetType definition in registry has changed since the QuantumGraph was built: "
-                        f"{dataset_type} (graph) != {expected} (registry)."
-                    )
-            else:
-                _LOG.debug("Checking DatasetType %s against registry", dataset_type.name)
-                try:
-                    expected = self.full_butler.registry.getDatasetType(dataset_type.name)
-                except MissingDatasetTypeError:
-                    # Likely means that --register-dataset-types is forgotten,
-                    # but we could also get here if there is a prerequisite
-                    # input that is optional and none were found in this repo;
-                    # that is not an error.  And we don't bother to check if
-                    # they are optional here, since the fact that we were able
-                    # to make the QG says that they were, since there couldn't
-                    # have been any datasets if the dataset types weren't
-                    # registered.
-                    if not graph.pipeline_graph.dataset_types[dataset_type.name].is_prerequisite:
-                        missing_dataset_types.add(dataset_type.name)
-                    continue
-                if expected != dataset_type:
-                    raise ConflictingDefinitionError(
-                        f"DatasetType definition in registry has changed since the QuantumGraph was built: "
-                        f"{dataset_type} (graph) != {expected} (registry)."
-                    )
-        if missing_dataset_types:
-            plural = "s" if len(missing_dataset_types) != 1 else ""
-            raise MissingDatasetTypeError(
-                f"Missing dataset type definition{plural}: {', '.join(missing_dataset_types)}. "
-                "Dataset types have to be registered with either `butler register-dataset-type` or "
-                "passing `--register-dataset-types` option to `pipetask run`."
-            )
+        if registerDatasetTypes:
+            graph.pipeline_graph.register_dataset_types(self.full_butler)
+        else:
+            graph.pipeline_graph.check_dataset_type_registrations(self.full_butler)
 
 
 class PreExecInitLimited(PreExecInitBase):

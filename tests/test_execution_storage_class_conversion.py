@@ -292,7 +292,7 @@ class TestExecutionStorageClassConversion(lsst.utils.tests.TestCase):
         )
         with self.assertRaisesRegex(
             lsst.daf.butler.registry.ConflictingDefinitionError,
-            ".*definition in registry has changed.*StructuredDataDict.*TaskMetadataLike.*",
+            ".*_mock_StructuredDataDict.*is inconsistent with.*TaskMetadataLike.*",
         ):
             executor.run(register_dataset_types=True, save_versions=False)
 
