@@ -180,36 +180,7 @@ class PreExecInitBase(abc.ABC):
             new data.
         """
         _LOG.debug("Will save InitOutputs for all tasks")
-        for taskDef in self._task_iter(graph):
-            init_input_refs = graph.initInputRefs(taskDef) or []
-            task = self.taskFactory.makeTask(
-                graph.pipeline_graph.tasks[taskDef.label], self.butler, init_input_refs
-            )
-            for name in taskDef.connections.initOutputs:
-                attribute = getattr(taskDef.connections, name)
-                init_output_refs = graph.initOutputRefs(taskDef) or []
-                init_output_ref, obj_from_store = self._find_dataset(init_output_refs, attribute.name)
-                if init_output_ref is None:
-                    raise ValueError(f"Cannot find dataset reference for init output {name} in a graph")
-                init_output_var = getattr(task, name)
-
-                if obj_from_store is not None:
-                    _LOG.debug(
-                        "Retrieving InitOutputs for task=%s key=%s dsTypeName=%s", task, name, attribute.name
-                    )
-                    obj_from_store = self.butler.get(init_output_ref)
-                    # Types are supposed to be identical.
-                    # TODO: Check that object contents is identical too.
-                    if type(obj_from_store) is not type(init_output_var):
-                        raise TypeError(
-                            f"Stored initOutput object type {type(obj_from_store)} "
-                            "is different from task-generated type "
-                            f"{type(init_output_var)} for task {taskDef}"
-                        )
-                else:
-                    _LOG.debug("Saving InitOutputs for task=%s key=%s", taskDef.label, name)
-                    # This can still raise if there is a concurrent write.
-                    self.butler.put(init_output_var, init_output_ref)
+        graph.write_init_outputs(self.butler, skip_existing=self.extendRun)
 
     def saveConfigs(self, graph: QuantumGraph) -> None:
         """Write configurations for pipeline tasks to butler or check that
@@ -222,49 +193,13 @@ class PreExecInitBase(abc.ABC):
 
         Raises
         ------
-        TypeError
-            Raised if existing object in butler is different from new data.
-        Exception
-            Raised if ``extendRun`` is `False` and datasets already exists.
-            Content of a butler collection should not be changed if exception
-            is raised.
+        ConflictingDefinitionError
+            Raised if existing object in butler is different from new data, or
+            if ``extendRun`` is `False` and datasets already exists.
+            Content of a butler collection should not be changed if this
+            exception is raised.
         """
-
-        def logConfigMismatch(msg: str) -> None:
-            """Log messages about configuration mismatch.
-
-            Parameters
-            ----------
-            msg : `str`
-                Log message to use.
-            """
-            _LOG.fatal("Comparing configuration: %s", msg)
-
-        _LOG.debug("Will save Configs for all tasks")
-        # start transaction to rollback any changes on exceptions
-        with self.transaction():
-            for taskDef in self._task_iter(graph):
-                # Config dataset ref is stored in task init outputs, but it
-                # may be also be missing.
-                task_output_refs = graph.initOutputRefs(taskDef)
-                if task_output_refs is None:
-                    continue
-
-                config_ref, old_config = self._find_dataset(task_output_refs, taskDef.configDatasetName)
-                if config_ref is None:
-                    continue
-
-                if old_config is not None:
-                    if not taskDef.config.compare(old_config, shortcut=False, output=logConfigMismatch):
-                        raise TypeError(
-                            f"Config does not match existing task config {taskDef.configDatasetName!r} in "
-                            "butler; tasks configurations must be consistent within the same run collection"
-                        )
-                else:
-                    _LOG.debug(
-                        "Saving Config for task=%s dataset type=%s", taskDef.label, taskDef.configDatasetName
-                    )
-                    self.butler.put(taskDef.config, config_ref)
+        graph.write_configs(self.butler, compare_existing=self.extendRun)
 
     def savePackageVersions(self, graph: QuantumGraph) -> None:
         """Write versions of software packages to butler.
