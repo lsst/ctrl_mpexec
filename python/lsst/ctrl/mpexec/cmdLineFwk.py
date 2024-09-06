@@ -48,7 +48,6 @@ from lsst.daf.butler import (
     Butler,
     CollectionType,
     Config,
-    DatasetId,
     DatasetType,
     DimensionConfig,
     DimensionUniverse,
@@ -58,7 +57,6 @@ from lsst.daf.butler import (
     Registry,
 )
 from lsst.daf.butler.datastore.cache_manager import DatastoreCacheManager
-from lsst.daf.butler.datastore.record_data import DatastoreRecordData
 from lsst.daf.butler.direct_butler import DirectButler
 from lsst.daf.butler.registry import MissingCollectionError, RegistryDefaults
 from lsst.daf.butler.registry.wildcards import CollectionWildcard
@@ -956,42 +954,8 @@ class CmdLineFwk:
         # but we need datastore records for initInputs, and those are only
         # available from Quanta, so load the whole thing.
         qgraph = QuantumGraph.loadUri(args.qgraph, graphID=args.qgraph_id)
-        universe = qgraph.universe
-
-        # Collect all init input/output dataset IDs.
-        predicted_inputs: set[DatasetId] = set()
-        predicted_outputs: set[DatasetId] = set()
-        for taskDef in qgraph.iterTaskGraph():
-            if (refs := qgraph.initInputRefs(taskDef)) is not None:
-                predicted_inputs.update(ref.id for ref in refs)
-            if (refs := qgraph.initOutputRefs(taskDef)) is not None:
-                predicted_outputs.update(ref.id for ref in refs)
-        predicted_outputs.update(ref.id for ref in qgraph.globalInitOutputRefs())
-        # remove intermediates from inputs
-        predicted_inputs -= predicted_outputs
-
-        # Very inefficient way to extract datastore records from quantum graph,
-        # we have to scan all quanta and look at their datastore records.
-        datastore_records: dict[str, DatastoreRecordData] = {}
-        for quantum_node in qgraph:
-            for store_name, records in quantum_node.quantum.datastore_records.items():
-                subset = records.subset(predicted_inputs)
-                if subset is not None:
-                    datastore_records.setdefault(store_name, DatastoreRecordData()).update(subset)
-
-        dataset_types = {dstype.name: dstype for dstype in qgraph.registryDatasetTypes()}
-
-        # Make butler from everything.
-        butler = QuantumBackedButler.from_predicted(
-            config=args.butler_config,
-            predicted_inputs=predicted_inputs,
-            predicted_outputs=predicted_outputs,
-            dimensions=universe,
-            datastore_records=datastore_records,
-            search_paths=args.config_search_path,
-            dataset_types=dataset_types,
-        )
-
+        # Make QBB.
+        butler = qgraph.make_init_qbb(args.butler_config, config_search_paths=args.config_search_path)
         # Save all InitOutputs, configs, etc.
         preExecInit = PreExecInitLimited(butler, task_factory)
         preExecInit.initialize(qgraph)
