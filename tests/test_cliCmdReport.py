@@ -132,7 +132,7 @@ class ReportTest(unittest.TestCase):
 
         # Check that task0 and the quanta for task0 exist in the string
         self.assertIn("task0", result_v2_terminal_out.stdout)
-        self.assertIn("Not Attempted", result_v2_terminal_out.stdout)
+        self.assertIn("Unknown", result_v2_terminal_out.stdout)
         self.assertIn("Successful", result_v2_terminal_out.stdout)
         self.assertIn("Blocked", result_v2_terminal_out.stdout)
         self.assertIn("Failed", result_v2_terminal_out.stdout)
@@ -158,7 +158,7 @@ class ReportTest(unittest.TestCase):
 
         # Check that task0 and the quanta for task0 exist in the string
         self.assertIn("task0", result_v2_brief.stdout)
-        self.assertIn("Not Attempted", result_v2_brief.stdout)
+        self.assertIn("Unknown", result_v2_brief.stdout)
         self.assertIn("Successful", result_v2_brief.stdout)
         self.assertIn("Blocked", result_v2_brief.stdout)
         self.assertIn("Failed", result_v2_brief.stdout)
@@ -189,7 +189,7 @@ class ReportTest(unittest.TestCase):
 
         # Check that task0 and the quanta for task0 exist in the string
         self.assertIn("task0", result_v2_full.stdout)
-        self.assertIn("Not Attempted", result_v2_full.stdout)
+        self.assertIn("Unknown", result_v2_full.stdout)
         self.assertIn("Successful", result_v2_full.stdout)
         self.assertIn("Blocked", result_v2_full.stdout)
         self.assertIn("Failed", result_v2_full.stdout)
@@ -207,7 +207,7 @@ class ReportTest(unittest.TestCase):
                     "task0": TaskSummary(
                         n_successful=0,
                         n_blocked=0,
-                        n_not_attempted=1,
+                        n_unknown=1,
                         n_expected=1,
                         failed_quanta=[],
                         recovered_quanta=[],
@@ -218,7 +218,7 @@ class ReportTest(unittest.TestCase):
                     "task1": TaskSummary(
                         n_successful=0,
                         n_blocked=0,
-                        n_not_attempted=1,
+                        n_unknown=1,
                         n_expected=1,
                         failed_quanta=[],
                         recovered_quanta=[],
@@ -229,7 +229,7 @@ class ReportTest(unittest.TestCase):
                     "task2": TaskSummary(
                         n_successful=0,
                         n_blocked=0,
-                        n_not_attempted=1,
+                        n_unknown=1,
                         n_expected=1,
                         failed_quanta=[],
                         recovered_quanta=[],
@@ -240,7 +240,7 @@ class ReportTest(unittest.TestCase):
                     "task3": TaskSummary(
                         n_successful=0,
                         n_blocked=0,
-                        n_not_attempted=1,
+                        n_unknown=1,
                         n_expected=1,
                         failed_quanta=[],
                         recovered_quanta=[],
@@ -251,7 +251,7 @@ class ReportTest(unittest.TestCase):
                     "task4": TaskSummary(
                         n_successful=0,
                         n_blocked=0,
-                        n_not_attempted=1,
+                        n_unknown=1,
                         n_expected=1,
                         failed_quanta=[],
                         recovered_quanta=[],
@@ -266,8 +266,8 @@ class ReportTest(unittest.TestCase):
                 {
                     "add_dataset1": DatasetTypeSummary(
                         producer="task0",
-                        n_published=0,
-                        n_unpublished=0,
+                        n_visible=0,
+                        n_shadowed=0,
                         n_predicted_only=0,
                         n_expected=1,
                         cursed_datasets=[],
@@ -277,8 +277,8 @@ class ReportTest(unittest.TestCase):
                     ),
                     "add2_dataset1": DatasetTypeSummary(
                         producer="task0",
-                        n_published=0,
-                        n_unpublished=0,
+                        n_visible=0,
+                        n_shadowed=0,
                         n_predicted_only=0,
                         n_expected=1,
                         cursed_datasets=[],
@@ -288,8 +288,8 @@ class ReportTest(unittest.TestCase):
                     ),
                     "task0_metadata": DatasetTypeSummary(
                         producer="task0",
-                        n_published=0,
-                        n_unpublished=0,
+                        n_visible=0,
+                        n_shadowed=0,
                         n_predicted_only=0,
                         n_expected=1,
                         cursed_datasets=[],
@@ -299,8 +299,8 @@ class ReportTest(unittest.TestCase):
                     ),
                     "task0_log": DatasetTypeSummary(
                         producer="task0",
-                        n_published=0,
-                        n_unpublished=0,
+                        n_visible=0,
+                        n_shadowed=0,
                         n_predicted_only=0,
                         n_expected=1,
                         cursed_datasets=[],
@@ -310,8 +310,8 @@ class ReportTest(unittest.TestCase):
                     ),
                     "add_dataset2": DatasetTypeSummary(
                         producer="task1",
-                        n_published=0,
-                        n_unpublished=0,
+                        n_visible=0,
+                        n_shadowed=0,
                         n_predicted_only=0,
                         n_expected=1,
                         cursed_datasets=[],
@@ -321,8 +321,8 @@ class ReportTest(unittest.TestCase):
                     ),
                     "add2_dataset2": DatasetTypeSummary(
                         producer="task1",
-                        n_published=0,
-                        n_unpublished=0,
+                        n_visible=0,
+                        n_shadowed=0,
                         n_predicted_only=0,
                         n_expected=1,
                         cursed_datasets=[],
@@ -332,8 +332,8 @@ class ReportTest(unittest.TestCase):
                     ),
                     "task1_metadata": DatasetTypeSummary(
                         producer="task1",
-                        n_published=0,
-                        n_unpublished=0,
+                        n_visible=0,
+                        n_shadowed=0,
                         n_predicted_only=0,
                         n_expected=1,
                         cursed_datasets=[],
@@ -343,8 +343,8 @@ class ReportTest(unittest.TestCase):
                     ),
                     "task1_log": DatasetTypeSummary(
                         producer="task1",
-                        n_published=0,
-                        n_unpublished=0,
+                        n_visible=0,
+                        n_shadowed=0,
                         n_predicted_only=0,
                         n_expected=1,
                         cursed_datasets=[],
@@ -354,8 +354,8 @@ class ReportTest(unittest.TestCase):
                     ),
                     "add_dataset3": DatasetTypeSummary(
                         producer="task2",
-                        n_published=0,
-                        n_unpublished=0,
+                        n_visible=0,
+                        n_shadowed=0,
                         n_predicted_only=0,
                         n_expected=1,
                         cursed_datasets=[],
@@ -365,8 +365,8 @@ class ReportTest(unittest.TestCase):
                     ),
                     "add2_dataset3": DatasetTypeSummary(
                         producer="task2",
-                        n_published=0,
-                        n_unpublished=0,
+                        n_visible=0,
+                        n_shadowed=0,
                         n_predicted_only=0,
                         n_expected=1,
                         cursed_datasets=[],
@@ -376,8 +376,8 @@ class ReportTest(unittest.TestCase):
                     ),
                     "task2_metadata": DatasetTypeSummary(
                         producer="task2",
-                        n_published=0,
-                        n_unpublished=0,
+                        n_visible=0,
+                        n_shadowed=0,
                         n_predicted_only=0,
                         n_expected=1,
                         cursed_datasets=[],
@@ -387,8 +387,8 @@ class ReportTest(unittest.TestCase):
                     ),
                     "task2_log": DatasetTypeSummary(
                         producer="task2",
-                        n_published=0,
-                        n_unpublished=0,
+                        n_visible=0,
+                        n_shadowed=0,
                         n_predicted_only=0,
                         n_expected=1,
                         cursed_datasets=[],
@@ -398,8 +398,8 @@ class ReportTest(unittest.TestCase):
                     ),
                     "add_dataset4": DatasetTypeSummary(
                         producer="task3",
-                        n_published=0,
-                        n_unpublished=0,
+                        n_visible=0,
+                        n_shadowed=0,
                         n_predicted_only=0,
                         n_expected=1,
                         cursed_datasets=[],
@@ -409,8 +409,8 @@ class ReportTest(unittest.TestCase):
                     ),
                     "add2_dataset4": DatasetTypeSummary(
                         producer="task3",
-                        n_published=0,
-                        n_unpublished=0,
+                        n_visible=0,
+                        n_shadowed=0,
                         n_predicted_only=0,
                         n_expected=1,
                         cursed_datasets=[],
@@ -420,8 +420,8 @@ class ReportTest(unittest.TestCase):
                     ),
                     "task3_metadata": DatasetTypeSummary(
                         producer="task3",
-                        n_published=0,
-                        n_unpublished=0,
+                        n_visible=0,
+                        n_shadowed=0,
                         n_predicted_only=0,
                         n_expected=1,
                         cursed_datasets=[],
@@ -431,8 +431,8 @@ class ReportTest(unittest.TestCase):
                     ),
                     "task3_log": DatasetTypeSummary(
                         producer="task3",
-                        n_published=0,
-                        n_unpublished=0,
+                        n_visible=0,
+                        n_shadowed=0,
                         n_predicted_only=0,
                         n_expected=1,
                         cursed_datasets=[],
@@ -442,8 +442,8 @@ class ReportTest(unittest.TestCase):
                     ),
                     "add_dataset5": DatasetTypeSummary(
                         producer="task4",
-                        n_published=0,
-                        n_unpublished=0,
+                        n_visible=0,
+                        n_shadowed=0,
                         n_predicted_only=0,
                         n_expected=1,
                         cursed_datasets=[],
@@ -453,8 +453,8 @@ class ReportTest(unittest.TestCase):
                     ),
                     "add2_dataset5": DatasetTypeSummary(
                         producer="task4",
-                        n_published=0,
-                        n_unpublished=0,
+                        n_visible=0,
+                        n_shadowed=0,
                         n_predicted_only=0,
                         n_expected=1,
                         cursed_datasets=[],
@@ -464,8 +464,8 @@ class ReportTest(unittest.TestCase):
                     ),
                     "task4_metadata": DatasetTypeSummary(
                         producer="task4",
-                        n_published=0,
-                        n_unpublished=0,
+                        n_visible=0,
+                        n_shadowed=0,
                         n_predicted_only=0,
                         n_expected=1,
                         cursed_datasets=[],
@@ -475,8 +475,8 @@ class ReportTest(unittest.TestCase):
                     ),
                     "task4_log": DatasetTypeSummary(
                         producer="task4",
-                        n_published=0,
-                        n_unpublished=0,
+                        n_visible=0,
+                        n_shadowed=0,
                         n_predicted_only=0,
                         n_expected=1,
                         cursed_datasets=[],

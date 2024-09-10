@@ -222,7 +222,7 @@ def print_summary(summary: Summary, full_output_filename: str | None, brief: boo
         quanta_table.append(
             {
                 "Task": label,
-                "Not Attempted": task_summary.n_not_attempted,
+                "Unknown": task_summary.n_unknown,
                 "Successful": task_summary.n_successful,
                 "Blocked": task_summary.n_blocked,
                 "Failed": task_summary.n_failed,
@@ -230,7 +230,7 @@ def print_summary(summary: Summary, full_output_filename: str | None, brief: boo
                 "TOTAL": sum(
                     [
                         task_summary.n_successful,
-                        task_summary.n_not_attempted,
+                        task_summary.n_unknown,
                         task_summary.n_blocked,
                         task_summary.n_failed,
                         task_summary.n_wonky,
@@ -259,15 +259,15 @@ def print_summary(summary: Summary, full_output_filename: str | None, brief: boo
         dataset_table.append(
             {
                 "Dataset": dataset_type_name,
-                "Published": dataset_type_summary.n_published,
-                "Unpublished": dataset_type_summary.n_unpublished,
+                "Visible": dataset_type_summary.n_visible,
+                "Shadowed": dataset_type_summary.n_shadowed,
                 "Predicted Only": dataset_type_summary.n_predicted_only,
                 "Unsuccessful": dataset_type_summary.n_unsuccessful,
                 "Cursed": dataset_type_summary.n_cursed,
                 "TOTAL": sum(
                     [
-                        dataset_type_summary.n_published,
-                        dataset_type_summary.n_unpublished,
+                        dataset_type_summary.n_visible,
+                        dataset_type_summary.n_shadowed,
                         dataset_type_summary.n_predicted_only,
                         dataset_type_summary.n_unsuccessful,
                         dataset_type_summary.n_cursed,
