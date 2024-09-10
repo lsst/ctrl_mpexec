@@ -38,12 +38,14 @@ import lsst.pipe.base.cli.opt as pipeBaseOpts
 from lsst.ctrl.mpexec import Report
 from lsst.ctrl.mpexec.showInfo import ShowInfo
 from lsst.daf.butler.cli.opt import (
+    collections_option,
     config_file_option,
     config_option,
     confirm_option,
     options_file_option,
     processes_option,
     repo_argument,
+    where_option,
 )
 from lsst.daf.butler.cli.utils import MWCtxObj, catch_and_exit, option_section, unwrap
 
@@ -342,13 +344,8 @@ def update_graph_run(
 @click.command(cls=PipetaskCommand)
 @repo_argument()
 @click.argument("qgraphs", nargs=-1)
-@click.option(
-    "--collections",
-    default=None,
-    help="Collection(s) associated with said graphs/processing."
-    " For use in `lsst.daf.butler.registry.queryDatasets` if paring down the query would be useful.",
-)
-@click.option("--where", default="", help="A 'where' string to use to constrain the collections, if passed.")
+@collections_option()
+@where_option()
 @click.option(
     "--full-output-filename",
     default="",
@@ -399,12 +396,16 @@ def report(
     (default). If the terminal is overwhelmed with data_ids from failures try
     the `--brief` option.
 
+    Butler `collections` and `where` options are for use in
+    `lsst.daf.butler.queryDatasets` if paring down the collections would be
+    useful. By default the collections and query will match the graphs.
+
     REPO is the location of the butler/registry config file.
 
     QGRAPHS is a Sequence of links to serialized Quantum Graphs which have been
     executed and are to be analyzed.
     """
-    if force_v2 or len(qgraphs) > 1 or collections is not None:
+    if force_v2 or len(qgraphs) > 1 or collections:
         script.report_v2(
             repo, qgraphs, collections, where, full_output_filename, logs, brief, curse_failed_logs
         )

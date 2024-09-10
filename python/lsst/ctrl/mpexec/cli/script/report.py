@@ -175,8 +175,10 @@ def report_v2(
         qpg.add_new_graph(butler, qgraph)
         output_runs.append(qgraph.metadata["output_run"])
     collections_sequence: Sequence[Any]  # to appease mypy
-    if collections is None:
+    if not collections:
         collections_sequence = list(reversed(output_runs))
+    else:
+        collections_sequence = collections
     qpg.resolve_duplicates(
         butler, collections=collections_sequence, where=where, curse_failed_logs=curse_failed_logs
     )
