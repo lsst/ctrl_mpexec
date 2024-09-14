@@ -26,7 +26,6 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 import pprint
 from collections.abc import Sequence
-from typing import Any
 
 from astropy.table import Table
 from lsst.daf.butler import Butler
@@ -169,19 +168,8 @@ def report_v2(
     """
     butler = Butler.from_config(butler_config, writeable=False)
     qpg = QuantumProvenanceGraph()
-    output_runs = []
-    for qgraph_uri in qgraph_uris:
-        qgraph = QuantumGraph.loadUri(qgraph_uri)
-        qpg.add_new_graph(butler, qgraph)
-        output_runs.append(qgraph.metadata["output_run"])
-    collections_sequence: Sequence[Any]  # to appease mypy
-    if not collections:
-        collections_sequence = list(reversed(output_runs))
-    else:
-        collections_sequence = collections
-    qpg.resolve_duplicates(
-        butler, collections=collections_sequence, where=where, curse_failed_logs=curse_failed_logs
-    )
+    qgraphs = [QuantumGraph.loadUri(qgraph_uri) for qgraph_uri in qgraph_uris]
+    qpg.assemble_quantum_provenance_graph(butler, qgraphs, collections, where, curse_failed_logs)
     summary = qpg.to_summary(butler, do_store_logs=logs)
     print_summary(summary, full_output_filename, brief)
 
