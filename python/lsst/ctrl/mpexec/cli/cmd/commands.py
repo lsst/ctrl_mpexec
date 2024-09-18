@@ -26,7 +26,7 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 import sys
-from collections.abc import Iterator
+from collections.abc import Iterable, Iterator, Sequence
 from contextlib import contextmanager
 from functools import partial
 from tempfile import NamedTemporaryFile
@@ -341,25 +341,107 @@ def update_graph_run(
 
 @click.command(cls=PipetaskCommand)
 @repo_argument()
-@ctrlMpExecOpts.qgraph_argument()
-@click.option("--full-output-filename", default="", help="Summarize report in a yaml file")
+@click.argument("qgraphs", nargs=-1)
+@click.option(
+    "--collections",
+    default=None,
+    help="Collection(s) associated with said graphs/processing."
+    " For use in `lsst.daf.butler.registry.queryDatasets` if paring down the query would be useful.",
+)
+@click.option("--where", default="", help="A 'where' string to use to constrain the collections, if passed.")
+@click.option(
+    "--full-output-filename",
+    default="",
+    help="Output report as a file with this name. "
+    "For pipetask report on one graph, this should be a yaml file. For multiple graphs "
+    "or when using the --force-v2 option, this should be a json file. We will be "
+    "deprecating the single-graph-only (QuantumGraphExecutionReport) option soon.",
+)
 @click.option("--logs/--no-logs", default=True, help="Get butler log datasets for extra information.")
 @click.option(
-    "--show-errors",
+    "--brief",
+    default=False,
+    is_flag=True,
+    help="Only show counts in report (a brief summary). Note that counts are"
+    " also printed to the screen when using the --full-output-filename option.",
+)
+@click.option(
+    "--curse-failed-logs",
     is_flag=True,
     default=False,
-    help="Pretty-print a dict of errors from failed"
-    " quanta to the screen. Note: the default is to output a yaml file with error information"
-    " (data_ids and associated messages) to the current working directory instead.",
+    help="If log datasets are missing in v2 (QuantumProvenanceGraph), mark them as cursed",
+)
+@click.option(
+    "--force-v2",
+    is_flag=True,
+    default=False,
+    help="Use the QuantumProvenanceGraph instead of the QuantumGraphExecutionReport, "
+    "even when there is only one qgraph.",
 )
 def report(
-    repo: str, qgraph: str, full_output_filename: str = "", logs: bool = True, show_errors: bool = False
+    repo: str,
+    qgraphs: Sequence[str],
+    collections: Sequence[str] | None,
+    where: str,
+    full_output_filename: str = "",
+    logs: bool = True,
+    brief: bool = False,
+    curse_failed_logs: bool = False,
+    force_v2: bool = False,
 ) -> None:
-    """Write a yaml file summarizing the produced and missing expected datasets
-    in a quantum graph.
+    """Summarize the state of executed quantum graph(s), with counts of failed,
+    successful and expected quanta, as well as counts of output datasets and
+    their publish states. Analyze one or more attempts at the same
+    processing on the same dataquery-identified "group" and resolve recoveries
+    and persistent failures. Identify mismatch errors between groups.
+
+    Save the report as a file (`--full-output-filename`) or print it to stdout
+    (default). If the terminal is overwhelmed with data_ids from failures try
+    the `--brief` option.
 
     REPO is the location of the butler/registry config file.
 
-    QGRAPH is the URL to a serialized Quantum Graph file.
+    QGRAPHS is a Sequence of links to serialized Quantum Graphs which have been
+    executed and are to be analyzed.
     """
-    script.report(repo, qgraph, full_output_filename, logs, show_errors)
+    if force_v2 or len(qgraphs) > 1 or collections is not None:
+        script.report_v2(
+            repo, qgraphs, collections, where, full_output_filename, logs, brief, curse_failed_logs
+        )
+    else:
+        assert len(qgraphs) == 1, "Cannot make a report without a quantum graph."
+        script.report(repo, qgraphs[0], full_output_filename, logs, brief)
+
+
+@click.command(cls=PipetaskCommand)
+@click.argument("filenames", nargs=-1)
+@click.option(
+    "--full-output-filename",
+    default="",
+    help="Output report as a file with this name (json).",
+)
+@click.option(
+    "--brief",
+    default=False,
+    is_flag=True,
+    help="Only show counts in report (a brief summary). Note that counts are"
+    " also printed to the screen when using the --full-output-filename option.",
+)
+def aggregate_reports(
+    filenames: Iterable[str], full_output_filename: str | None, brief: bool = False
+) -> None:
+    """Aggregate pipetask report output on disjoint data-id groups into one
+    Summary over common tasks and datasets. Intended for use when the same
+    pipeline has been run over all groups (i.e., to aggregate all reports
+    for a given step). This functionality is only compatible with reports
+    from the `QuantumProvenanceGraph`, so the reports must be run over multiple
+    groups or with the `--force-v2` option.
+
+    Save the report as a file (`--full-output-filename`) or print it to stdout
+    (default). If the terminal is overwhelmed with data_ids from failures try
+    the `--brief` option.
+
+    FILENAMES are the space-separated paths to json file output created by
+    pipetask report.
+    """
+    script.aggregate_reports(filenames, full_output_filename, brief)
