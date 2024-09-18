@@ -388,9 +388,10 @@ def report(
 ) -> None:
     """Summarize the state of executed quantum graph(s), with counts of failed,
     successful and expected quanta, as well as counts of output datasets and
-    their publish states. Analyze one or more attempts at the same
-    processing on the same dataquery-identified "group" and resolve recoveries
-    and persistent failures. Identify mismatch errors between groups.
+    their query (visible/shadowed) states. Analyze one or more attempts at the
+    same processing on the same dataquery-identified "group" and resolve
+    recoveries and persistent failures. Identify mismatch errors between
+    attempts.
 
     Save the report as a file (`--full-output-filename`) or print it to stdout
     (default). If the terminal is overwhelmed with data_ids from failures try
@@ -398,14 +399,14 @@ def report(
 
     Butler `collections` and `where` options are for use in
     `lsst.daf.butler.queryDatasets` if paring down the collections would be
-    useful. By default the collections and query will match the graphs.
+    useful. By default the collections and query be taken from the graphs.
 
     REPO is the location of the butler/registry config file.
 
-    QGRAPHS is a Sequence of links to serialized Quantum Graphs which have been
-    executed and are to be analyzed.
+    QGRAPHS is a `Sequence` of links to serialized Quantum Graphs which have
+    been executed and are to be analyzed.
     """
-    if force_v2 or len(qgraphs) > 1 or collections:
+    if any([force_v2, len(qgraphs) > 1, collections, where, curse_failed_logs]):
         script.report_v2(
             repo, qgraphs, collections, where, full_output_filename, logs, brief, curse_failed_logs
         )

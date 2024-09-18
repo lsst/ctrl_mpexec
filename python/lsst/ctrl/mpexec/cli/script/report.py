@@ -42,7 +42,8 @@ def report(
     brief: bool = False,
 ) -> None:
     """Summarize the produced, missing and expected quanta and
-    datasets belonging to an executed quantum graph.
+    datasets belonging to an executed quantum graph using the
+    `QuantumGraphExecutionReport`.
 
     Parameters
     ----------
@@ -126,7 +127,7 @@ def report_v2(
 ) -> None:
     """Summarize the state of executed quantum graph(s), with counts of failed,
     successful and expected quanta, as well as counts of output datasets and
-    their publish states. Analyze one or more attempts at the same
+    their visible/shadowed states. Analyze one or more attempts at the same
     processing on the same dataquery-identified "group" and resolve recoveries
     and persistent failures. Identify mismatch errors between groups.
 
@@ -162,9 +163,10 @@ def report_v2(
             Mark log datasets as `cursed` if they are published in the final
             output collection. Note that a campaign-level collection must be
             used here for `collections` if `curse_failed_logs` is `True`; if
-            `resolve_duplicates` is run on a list of group-level collections
-            then each will show logs from their own failures as published
-            the datasets will show as cursed regardless of this flag.
+            `lsst.pipe.base.QuantumProvenanceGraph.__resolve_duplicates`
+            is run on a list of group-level collections, then each will only
+            show log datasets from their own failures as visible and datasets
+            from others will be marked as cursed.
     """
     butler = Butler.from_config(butler_config, writeable=False)
     qpg = QuantumProvenanceGraph()
@@ -181,7 +183,7 @@ def print_summary(summary: Summary, full_output_filename: str | None, brief: boo
     Parameters
     ----------
     summary : `QuantumProvenanceGraph.Summary`
-            This object contains all the information derived from the
+            This `Pydantic` model contains all the information derived from the
             `QuantumProvenanceGraph`.
     full_output_filename : `str | None`
             Name of the JSON file in which to store summary information, if
