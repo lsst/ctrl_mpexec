@@ -136,9 +136,9 @@ def report_v2(
     butler_config : `str`
             The Butler used for this report. This should match the Butler used
             for the run associated with the executed quantum graph.
-    qgraph_uris : `Sequence[str]`
+    qgraph_uris : `Sequence` [`str`]
             One or more uris to the serialized Quantum Graph(s).
-    collections : `Sequence[str] | None`
+    collections : `Sequence` [`str`] | None`
             Collection(s) associated with said graphs/processing. For use in
             `lsst.daf.butler.registry.queryDatasets` if paring down the query
             would be useful.
@@ -170,7 +170,25 @@ def report_v2(
     """
     butler = Butler.from_config(butler_config, writeable=False)
     qpg = QuantumProvenanceGraph()
-    qgraphs = [QuantumGraph.loadUri(qgraph_uri) for qgraph_uri in qgraph_uris]
+    qgraphs = []
+    for qgraph_uri in qgraph_uris:
+        qgraph = QuantumGraph.loadUri(qgraph_uri)
+        assert qgraph.metadata is not None, "Saved QGs always have metadata."
+        qgraphs.append(qgraph)
+    # If the most recent graph's timestamp was earlier than any of the
+    # previous graphs, raise a RuntimeError.
+    for count, qgraph in enumerate(qgraphs):
+        if len(qgraphs) > 1:
+            previous_graph = qgraphs[count - 1]
+            if qgraph.metadata["time"] < previous_graph.metadata["time"]:
+                raise RuntimeError(
+                    f"""add_new_graph may only be called on graphs
+                    which are passed in the order they were
+                    created. Please call again, passing your
+                    graphs in order. Time of first graph:
+                    {qgraph.metadata["time"]} >
+                    time of second graph: {previous_graph.metadata["time"]}"""
+                )
     qpg.assemble_quantum_provenance_graph(butler, qgraphs, collections, where, curse_failed_logs)
     summary = qpg.to_summary(butler, do_store_logs=logs)
     print_summary(summary, full_output_filename, brief)

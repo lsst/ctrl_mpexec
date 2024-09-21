@@ -373,7 +373,8 @@ def update_graph_run(
     is_flag=True,
     default=False,
     help="Use the QuantumProvenanceGraph instead of the QuantumGraphExecutionReport, "
-    "even when there is only one qgraph.",
+    "even when there is only one qgraph. Otherwise, the `QuantumGraphExecutionReport` "
+    "will run on one graph by default.",
 )
 def report(
     repo: str,
@@ -399,12 +400,14 @@ def report(
 
     Butler `collections` and `where` options are for use in
     `lsst.daf.butler.queryDatasets` if paring down the collections would be
-    useful. By default the collections and query be taken from the graphs.
+    useful. Pass collections in order of most to least recent. By default the
+    collections and query will be taken from the graphs.
 
     REPO is the location of the butler/registry config file.
 
     QGRAPHS is a `Sequence` of links to serialized Quantum Graphs which have
-    been executed and are to be analyzed.
+    been executed and are to be analyzed. Pass the graphs in order of first to
+    last executed.
     """
     if any([force_v2, len(qgraphs) > 1, collections, where, curse_failed_logs]):
         script.report_v2(

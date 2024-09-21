@@ -83,9 +83,6 @@ class ReportTest(unittest.TestCase):
         with open(test_filename) as f:
             report_output_dict = yaml.load(f, Loader=SafeLoader)
 
-        with open("delete_me.yaml", "w") as f:
-            yaml.safe_dump(report_output_dict, f)
-
         self.assertIsNotNone(report_output_dict["task0"])
         self.assertIsNotNone(report_output_dict["task0"]["failed_quanta"])
         self.assertIsInstance(report_output_dict["task0"]["n_expected"], int)
