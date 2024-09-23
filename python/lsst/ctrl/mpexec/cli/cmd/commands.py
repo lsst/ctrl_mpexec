@@ -26,7 +26,7 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 import sys
-from collections.abc import Iterator
+from collections.abc import Iterator, Sequence
 from contextlib import contextmanager
 from functools import partial
 from tempfile import NamedTemporaryFile
@@ -38,12 +38,14 @@ import lsst.pipe.base.cli.opt as pipeBaseOpts
 from lsst.ctrl.mpexec import Report
 from lsst.ctrl.mpexec.showInfo import ShowInfo
 from lsst.daf.butler.cli.opt import (
+    collections_option,
     config_file_option,
     config_option,
     confirm_option,
     options_file_option,
     processes_option,
     repo_argument,
+    where_option,
 )
 from lsst.daf.butler.cli.utils import MWCtxObj, catch_and_exit, option_section, unwrap
 
@@ -341,25 +343,76 @@ def update_graph_run(
 
 @click.command(cls=PipetaskCommand)
 @repo_argument()
-@ctrlMpExecOpts.qgraph_argument()
-@click.option("--full-output-filename", default="", help="Summarize report in a yaml file")
+@click.argument("qgraphs", nargs=-1)
+@collections_option()
+@where_option()
+@click.option(
+    "--full-output-filename",
+    default="",
+    help="Output report as a file with this name. "
+    "For pipetask report on one graph, this should be a yaml file. For multiple graphs "
+    "or when using the --force-v2 option, this should be a json file. We will be "
+    "deprecating the single-graph-only (QuantumGraphExecutionReport) option soon.",
+)
 @click.option("--logs/--no-logs", default=True, help="Get butler log datasets for extra information.")
 @click.option(
-    "--show-errors",
+    "--brief",
+    default=False,
+    is_flag=True,
+    help="Only show counts in report (a brief summary). Note that counts are"
+    " also printed to the screen when using the --full-output-filename option.",
+)
+@click.option(
+    "--curse-failed-logs",
     is_flag=True,
     default=False,
-    help="Pretty-print a dict of errors from failed"
-    " quanta to the screen. Note: the default is to output a yaml file with error information"
-    " (data_ids and associated messages) to the current working directory instead.",
+    help="If log datasets are missing in v2 (QuantumProvenanceGraph), mark them as cursed",
+)
+@click.option(
+    "--force-v2",
+    is_flag=True,
+    default=False,
+    help="Use the QuantumProvenanceGraph instead of the QuantumGraphExecutionReport, "
+    "even when there is only one qgraph. Otherwise, the `QuantumGraphExecutionReport` "
+    "will run on one graph by default.",
 )
 def report(
-    repo: str, qgraph: str, full_output_filename: str = "", logs: bool = True, show_errors: bool = False
+    repo: str,
+    qgraphs: Sequence[str],
+    collections: Sequence[str] | None,
+    where: str,
+    full_output_filename: str = "",
+    logs: bool = True,
+    brief: bool = False,
+    curse_failed_logs: bool = False,
+    force_v2: bool = False,
 ) -> None:
-    """Write a yaml file summarizing the produced and missing expected datasets
-    in a quantum graph.
+    """Summarize the state of executed quantum graph(s), with counts of failed,
+    successful and expected quanta, as well as counts of output datasets and
+    their query (visible/shadowed) states. Analyze one or more attempts at the
+    same processing on the same dataquery-identified "group" and resolve
+    recoveries and persistent failures. Identify mismatch errors between
+    attempts.
+
+    Save the report as a file (`--full-output-filename`) or print it to stdout
+    (default). If the terminal is overwhelmed with data_ids from failures try
+    the `--brief` option.
+
+    Butler `collections` and `where` options are for use in
+    `lsst.daf.butler.queryDatasets` if paring down the collections would be
+    useful. Pass collections in order of most to least recent. By default the
+    collections and query will be taken from the graphs.
 
     REPO is the location of the butler/registry config file.
 
-    QGRAPH is the URL to a serialized Quantum Graph file.
+    QGRAPHS is a `Sequence` of links to serialized Quantum Graphs which have
+    been executed and are to be analyzed. Pass the graphs in order of first to
+    last executed.
     """
-    script.report(repo, qgraph, full_output_filename, logs, show_errors)
+    if any([force_v2, len(qgraphs) > 1, collections, where, curse_failed_logs]):
+        script.report_v2(
+            repo, qgraphs, collections, where, full_output_filename, logs, brief, curse_failed_logs
+        )
+    else:
+        assert len(qgraphs) == 1, "Cannot make a report without a quantum graph."
+        script.report(repo, qgraphs[0], full_output_filename, logs, brief)
