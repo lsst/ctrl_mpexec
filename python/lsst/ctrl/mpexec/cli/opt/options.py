@@ -450,9 +450,10 @@ fail_fast_option = MWOptionDecorator(
 )
 
 raise_on_partial_outputs_option = MWOptionDecorator(
-    "--raise-on-partial-outputs",
+    "--raise-on-partial-outputs/--no-raise-on-partial-outputs",
     help="Consider partial outputs from a task an error instead of a qualified success.",
     is_flag=True,
+    default=True,
 )
 
 save_execution_butler_option = MWOptionDecorator(
