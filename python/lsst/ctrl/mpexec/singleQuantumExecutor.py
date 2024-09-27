@@ -138,7 +138,7 @@ class SingleQuantumExecutor(QuantumExecutor):
         resources: ExecutionResources | None = None,
         skipExisting: bool = False,
         assumeNoExistingOutputs: bool = False,
-        raise_on_partial_outputs: bool = False,
+        raise_on_partial_outputs: bool = True,
     ):
         self.butler = butler
         self.taskFactory = taskFactory

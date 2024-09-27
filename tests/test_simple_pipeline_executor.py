@@ -249,8 +249,10 @@ class SimplePipelineExecutorTests(lsst.utils.tests.TestCase):
         pipeline_graph = PipelineGraph()
         pipeline_graph.add_task("a", DynamicTestPipelineTask, config_a)
         pipeline_graph.add_task("b", DynamicTestPipelineTask, config_b)
-        # Default behavior is to consider the partial a success and proceed.
-        executor = SimplePipelineExecutor.from_pipeline_graph(pipeline_graph, butler=self.butler)
+        # Consider the partial a success and proceed.
+        executor = SimplePipelineExecutor.from_pipeline_graph(
+            pipeline_graph, butler=self.butler, raise_on_partial_outputs=False
+        )
         (_, _) = executor.as_generator(register_dataset_types=True)
         self.assertFalse(self.butler.exists("intermediate"))
         self.assertEqual(self.butler.get("output").storage_class, get_mock_name("StructuredDataDict"))

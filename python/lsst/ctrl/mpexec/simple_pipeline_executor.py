@@ -84,7 +84,7 @@ class SimplePipelineExecutor:
         quantum_graph: QuantumGraph,
         butler: Butler,
         resources: ExecutionResources | None = None,
-        raise_on_partial_outputs: bool = False,
+        raise_on_partial_outputs: bool = True,
     ):
         self.quantum_graph = quantum_graph
         self.butler = butler
@@ -148,7 +148,7 @@ class SimplePipelineExecutor:
         bind: Mapping[str, Any] | None = None,
         butler: Butler,
         resources: ExecutionResources | None = None,
-        raise_on_partial_outputs: bool = False,
+        raise_on_partial_outputs: bool = True,
     ) -> SimplePipelineExecutor:
         """Create an executor by building a QuantumGraph from an on-disk
         pipeline YAML file.
@@ -201,7 +201,7 @@ class SimplePipelineExecutor:
         bind: Mapping[str, Any] | None = None,
         butler: Butler,
         resources: ExecutionResources | None = None,
-        raise_on_partial_outputs: bool = False,
+        raise_on_partial_outputs: bool = True,
     ) -> SimplePipelineExecutor:
         """Create an executor by building a QuantumGraph from a pipeline
         containing a single task.
@@ -268,7 +268,7 @@ class SimplePipelineExecutor:
         bind: Mapping[str, Any] | None = None,
         butler: Butler,
         resources: ExecutionResources | None = None,
-        raise_on_partial_outputs: bool = False,
+        raise_on_partial_outputs: bool = True,
     ) -> SimplePipelineExecutor:
         """Create an executor by building a QuantumGraph from an in-memory
         pipeline.
@@ -321,7 +321,7 @@ class SimplePipelineExecutor:
         bind: Mapping[str, Any] | None = None,
         butler: Butler,
         resources: ExecutionResources | None = None,
-        raise_on_partial_outputs: bool = False,
+        raise_on_partial_outputs: bool = True,
     ) -> SimplePipelineExecutor:
         """Create an executor by building a QuantumGraph from an in-memory
         pipeline graph.
