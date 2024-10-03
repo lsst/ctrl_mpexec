@@ -100,7 +100,7 @@ class SeparablePipelineExecutor:
         skip_existing_in: Iterable[str] | None = None,
         task_factory: lsst.pipe.base.TaskFactory | None = None,
         resources: lsst.pipe.base.ExecutionResources | None = None,
-        raise_on_partial_outputs: bool = False,
+        raise_on_partial_outputs: bool = True,
     ):
         self._butler = Butler.from_config(butler=butler, collections=butler.collections, run=butler.run)
         if not self._butler.collections:
