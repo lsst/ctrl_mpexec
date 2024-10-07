@@ -180,14 +180,14 @@ def report_v2(
     for count, qgraph in enumerate(qgraphs):
         if len(qgraphs) > 1:
             previous_graph = qgraphs[count - 1]
-            if qgraph.metadata["time"] < previous_graph.metadata["time"]:
+            if count > 0 and qgraph.metadata["time"] < previous_graph.metadata["time"]:
                 raise RuntimeError(
                     f"""add_new_graph may only be called on graphs
                     which are passed in the order they were
                     created. Please call again, passing your
-                    graphs in order. Time of first graph:
+                    graphs in order. Time of second graph:
                     {qgraph.metadata["time"]} >
-                    time of second graph: {previous_graph.metadata["time"]}"""
+                    time of first graph: {previous_graph.metadata["time"]}"""
                 )
     qpg.assemble_quantum_provenance_graph(butler, qgraphs, collections, where, curse_failed_logs)
     summary = qpg.to_summary(butler, do_store_logs=logs)
