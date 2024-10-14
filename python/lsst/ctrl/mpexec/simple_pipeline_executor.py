@@ -339,8 +339,8 @@ class SimplePipelineExecutor:
             ``where`` expression, keyed by the identifiers they replace.
         butler : `~lsst.daf.butler.Butler`
             Butler that manages all I/O.  `prep_butler` can be used to create
-            one.  Must have its `~Butler.run` and `~Butler.collections` not
-            empty and not `None`.
+            one.  Must have its `~Butler.run` and
+            `~Butler.collections.defaults` not empty and not `None`.
         resources : `~lsst.pipe.base.ExecutionResources`
             The resources available to each quantum being executed.
         raise_on_partial_outputs : `bool`, optional

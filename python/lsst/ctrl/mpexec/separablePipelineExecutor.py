@@ -102,8 +102,10 @@ class SeparablePipelineExecutor:
         resources: lsst.pipe.base.ExecutionResources | None = None,
         raise_on_partial_outputs: bool = True,
     ):
-        self._butler = Butler.from_config(butler=butler, collections=butler.collections, run=butler.run)
-        if not self._butler.collections:
+        self._butler = Butler.from_config(
+            butler=butler, collections=butler.collections.defaults, run=butler.run
+        )
+        if not self._butler.collections.defaults:
             raise ValueError("Butler must specify input collections for pipeline.")
         if not self._butler.run:
             raise ValueError("Butler must specify output run for pipeline.")
@@ -215,7 +217,7 @@ class SeparablePipelineExecutor:
         needed, clients can use `len` to test if the returned graph is empty.
         """
         metadata = {
-            "input": self._butler.collections,
+            "input": self._butler.collections.defaults,
             "output_run": self._butler.run,
             "skip_existing_in": self._skip_existing_in,
             "skip_existing": bool(self._skip_existing_in),
