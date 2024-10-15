@@ -26,7 +26,6 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 
-import re
 from typing import Any
 
 from lsst.daf.butler import Butler, CollectionType
@@ -141,8 +140,9 @@ def cleanup(
             collection, butler.registry.getCollectionType(collection).name
         )
         return result
-    regex = re.compile(collection + ".+")
-    to_consider = set(butler.registry.queryCollections(regex))
+    to_keep.add(collection)
+    glob = collection + "*"
+    to_consider = set(butler.registry.queryCollections(glob))
     to_remove = to_consider - to_keep
     for r in to_remove:
         if butler.registry.getCollectionType(r) == CollectionType.RUN:
