@@ -416,3 +416,37 @@ def report(
     else:
         assert len(qgraphs) == 1, "Cannot make a report without a quantum graph."
         script.report(repo, qgraphs[0], full_output_filename, logs, brief)
+
+
+@click.command(cls=PipetaskCommand)
+@click.argument("filenames", nargs=-1)
+@click.option(
+    "--full-output-filename",
+    default="",
+    help="Output report as a file with this name (json).",
+)
+@click.option(
+    "--brief",
+    default=False,
+    is_flag=True,
+    help="Only show counts in report (a brief summary). Note that counts are"
+    " also printed to the screen when using the --full-output-filename option.",
+)
+def aggregate_reports(
+    filenames: Sequence[str], full_output_filename: str | None, brief: bool = False
+) -> None:
+    """Aggregate pipetask report output on disjoint data-id groups into one
+    Summary over common tasks and datasets. Intended for use when the same
+    pipeline has been run over all groups (i.e., to aggregate all reports
+    for a given step). This functionality is only compatible with reports
+    from the `QuantumProvenanceGraph`, so the reports must be run over multiple
+    groups or with the `--force-v2` option.
+
+    Save the report as a file (`--full-output-filename`) or print it to stdout
+    (default). If the terminal is overwhelmed with data_ids from failures try
+    the `--brief` option.
+
+    FILENAMES are the space-separated paths to json file output created by
+    pipetask report.
+    """
+    script.aggregate_reports(filenames, full_output_filename, brief)
