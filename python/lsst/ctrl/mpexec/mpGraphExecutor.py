@@ -29,7 +29,6 @@ from __future__ import annotations
 
 __all__ = ["MPGraphExecutor", "MPGraphExecutorError", "MPTimeoutError"]
 
-import gc
 import importlib
 import logging
 import multiprocessing
@@ -596,11 +595,6 @@ class MPGraphExecutor(QuantumGraphExecutor):
                         qnode.quantum.dataId,
                         exc_info=exc,
                     )
-            finally:
-                # sqlalchemy has some objects that can last until a garbage
-                # collection cycle is run, which can happen at unpredictable
-                # times, run a collection loop here explicitly.
-                gc.collect()
 
             _LOG.info(
                 "Executed %d quanta successfully, %d failed and %d remain out of total %d quanta.",
