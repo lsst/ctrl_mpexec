@@ -1,3 +1,57 @@
+lsst-ctrl-mpexec v28.0.0 (2024-11-21)
+=====================================
+
+New Features
+------------
+
+- Aggregated multiple ``pipetask report`` outputs into one holistic ``Summary``.
+
+  While the ``QuantumProvenanceGraph`` was designed to resolve processing over dataquery-identified groups, ``pipetask aggregate-reports`` is designed to combine multiple group-level reports into one which totals the successes, issues and failures over the same section of pipeline. (`DM-41605 <https://rubinobs.atlassian.net/browse/DM-41605>`_)
+- Upgraded ``QuantumGraphExecutionReport`` to handle multiple overlapping graphs.
+
+  Updated the ``pipetask report`` command-line interface to accommodate the new
+  ``QuantumProvenanceGraph``.
+  This allows for resolving outcomes of processing over multiple attempts (and associated graphs) over the same dataquery, providing information on recoveries, persistent issues and mismatch errors. (`DM-41711 <https://rubinobs.atlassian.net/browse/DM-41711>`_)
+- Displayed successful and expected quanta in ``pipetask report``. (`DM-44368 <https://rubinobs.atlassian.net/browse/DM-44368>`_)
+- Modified executors to now handle ``lsst.pipe.base.AnnotatedPartialOutputsError``.
+
+  This exception can be considered either a failure or a success, depending
+  on how the executor is configured. (`DM-44488 <https://rubinobs.atlassian.net/browse/DM-44488>`_)
+- Moved ``pipeline-dot`` build from ``cmdLineFwk`` to builder.
+
+  This was done to make the ``pipeline-dot`` build more accessible to other packages.
+  As part of this change, output ``pipeline-dot`` files contain dimensions and storage classes for each dataset.
+  This change also includes updates to existing unit tests to reflect the new output types. (`DM-44647 <https://rubinobs.atlassian.net/browse/DM-44647>`_)
+
+
+Bug Fixes
+---------
+
+- The previous version of the human-readable report only reported the first failed quantum by exiting the loop upon finding it.
+  Following changes in ``pipe_base``, now display only counts of failures for ``len(failed_quanta)>5``.
+  Data IDs can be found in the YAML file listing error messages. (`DM-44091 <https://rubinobs.atlassian.net/browse/DM-44091>`_)
+- Fixed the bug in ``pipetask run-qbb -j`` which crashed if database dimension version is different from default version. (`DM-45894 <https://rubinobs.atlassian.net/browse/DM-45894>`_)
+- Now compare timestamps properly between two graphs when using ``pipetask report`` on multiple graphs.
+
+  (The bug was looping back to say the "previous" graph was the end of the list when "count" was 0).
+  Also fix the wording in the associated `RuntimeError`. (`DM-46689 <https://rubinobs.atlassian.net/browse/DM-46689>`_)
+
+
+Other Changes and Additions
+---------------------------
+
+- Set the default for raising on partial output error to `True`.
+
+  Allowing processing to proceed when we encounter an error that may not be fatal is functionality we'll still want eventually, but enabling it by default was premature, since our processing-status reporting tools are yet able to distinguish these cases from unqualified successes. (`DM-46525 <https://rubinobs.atlassian.net/browse/DM-46525>`_)
+
+
+An API Removal or Deprecation
+-----------------------------
+
+- Removed the deprecated support for ``TaskDef`` in some APIs. (`DM-40443 <https://rubinobs.atlassian.net/browse/DM-40443>`_)
+- The ``lsst.ctrl.mpexec.dotTools`` package has been relocated to ``lsst.pipe.base.dot_tools``. (`DM-45701 <https://rubinobs.atlassian.net/browse/DM-45701>`_)
+
+
 lsst-ctrl-mpexec 27.0.0 (2024-05-29)
 ====================================
 
