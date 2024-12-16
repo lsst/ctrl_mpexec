@@ -29,6 +29,7 @@ import sys
 from collections.abc import Iterator, Sequence
 from contextlib import contextmanager
 from functools import partial
+from importlib import import_module
 from tempfile import NamedTemporaryFile
 from typing import Any
 
@@ -146,7 +147,7 @@ def coverage_context(kwargs: dict[str, Any]) -> Iterator[None]:
         return
     # Lazily import coverage only when we might need it
     try:
-        import coverage
+        coverage = import_module("coverage")
     except ModuleNotFoundError:
         raise click.ClickException("coverage was requested but the coverage package is not installed.")
     with NamedTemporaryFile("w") as rcfile:

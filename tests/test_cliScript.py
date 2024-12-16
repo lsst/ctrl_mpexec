@@ -28,10 +28,12 @@
 import os
 import tempfile
 import unittest
+import unittest.mock
 
 import click
 import lsst.utils.tests
 from lsst.ctrl.mpexec.cli import opt, script
+from lsst.ctrl.mpexec.cli.cmd.commands import coverage_context
 from lsst.ctrl.mpexec.cli.pipetask import cli as pipetaskCli
 from lsst.ctrl.mpexec.showInfo import ShowInfo
 from lsst.daf.butler.cli.utils import LogCliRunner, clickResultMsg
@@ -201,6 +203,25 @@ class RunTestCase(unittest.TestCase):
         # The cli call should fail, because qgraph.run takes more options
         # than are defined by pipeline_build_options.
         self.assertNotEqual(result.exit_code, 0)
+
+
+class CoverageTestCase(unittest.TestCase):
+    """Test coverage context manager."""
+
+    @unittest.mock.patch.dict("sys.modules", coverage=unittest.mock.MagicMock())
+    def testWithCoverage(self):
+        """Test that the coverage context manager runs when invoked."""
+        with coverage_context({"coverage": True}):
+            self.assertTrue(True)
+
+    @unittest.mock.patch("lsst.ctrl.mpexec.cli.cmd.commands.import_module", side_effect=ModuleNotFoundError())
+    def testWithMissingCoverage(self, mock_import):
+        """Test that the coverage context manager complains when coverage is
+        not available.
+        """
+        with self.assertRaises(click.exceptions.ClickException):
+            with coverage_context({"coverage": True}):
+                pass
 
 
 if __name__ == "__main__":
