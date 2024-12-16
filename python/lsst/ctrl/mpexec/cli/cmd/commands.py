@@ -33,7 +33,6 @@ from tempfile import NamedTemporaryFile
 from typing import Any
 
 import click
-import coverage
 import lsst.pipe.base.cli.opt as pipeBaseOpts
 from lsst.ctrl.mpexec import Report
 from lsst.ctrl.mpexec.showInfo import ShowInfo
@@ -145,6 +144,13 @@ def coverage_context(kwargs: dict[str, Any]) -> Iterator[None]:
     if not kwargs.pop("coverage", False):
         yield
         return
+    # Lazily import coverage only when we might need it
+    try:
+        import coverage
+    except ModuleNotFoundError:
+        raise click.ClickException(
+            "coverage was requested but the coverage package is not installed."
+        )
     with NamedTemporaryFile("w") as rcfile:
         rcfile.write(
             """
