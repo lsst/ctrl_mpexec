@@ -54,7 +54,9 @@ debug_option = MWOptionDecorator(
     "--debug", help="Enable debugging output using lsstDebug facility (imports debug.py).", is_flag=True
 )
 
-coverage_option = MWOptionDecorator("--coverage", help="Enable coverage output.", is_flag=True)
+coverage_option = MWOptionDecorator(
+    "--coverage", help="Enable coverage output (requires coverage package).", is_flag=True
+)
 
 coverage_report_option = MWOptionDecorator(
     "--cov-report/--no-cov-report",
