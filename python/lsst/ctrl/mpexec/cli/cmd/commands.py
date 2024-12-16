@@ -148,9 +148,7 @@ def coverage_context(kwargs: dict[str, Any]) -> Iterator[None]:
     try:
         import coverage
     except ModuleNotFoundError:
-        raise click.ClickException(
-            "coverage was requested but the coverage package is not installed."
-        )
+        raise click.ClickException("coverage was requested but the coverage package is not installed.")
     with NamedTemporaryFile("w") as rcfile:
         rcfile.write(
             """
