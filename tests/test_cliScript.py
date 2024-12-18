@@ -53,6 +53,7 @@ class BuildTestCase(unittest.TestCase):
             pipeline=None,
             pipeline_actions=(),
             pipeline_dot=None,
+            pipeline_mermaid=None,
             save_pipeline=None,
             show=ShowInfo([]),
         )

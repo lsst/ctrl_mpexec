@@ -39,6 +39,7 @@ def build(  # type: ignore
     pipeline,
     pipeline_actions,
     pipeline_dot,
+    pipeline_mermaid,
     save_pipeline,
     show,
     butler_config=None,
@@ -65,6 +66,8 @@ def build(  # type: ignore
         A list of pipeline actions in the order they should be executed.
     pipeline_dot : `str`
         Path location for storing GraphViz DOT representation of a pipeline.
+    pipeline_mermaid : `str`
+        Path location for storing Mermaid representation of a pipeline.
     save_pipeline : `str`
         Path location for storing resulting pipeline definition in YAML format.
     show : `lsst.ctrl.mpexec.showInfo.ShowInfo`
@@ -102,6 +105,7 @@ def build(  # type: ignore
         pipeline=pipeline,
         pipeline_actions=pipeline_actions,
         pipeline_dot=pipeline_dot,
+        pipeline_mermaid=pipeline_mermaid,
         save_pipeline=save_pipeline,
     )
 
@@ -118,6 +122,15 @@ def build(  # type: ignore
     if pipeline_dot:
         with open(pipeline_dot, "w") as stream:
             visualization.show_dot(
+                pipeline.to_graph(butler.registry if butler is not None else None, visualization_only=True),
+                stream,
+                dataset_types=True,
+                task_classes="full",
+            )
+
+    if pipeline_mermaid:
+        with open(pipeline_mermaid, "w") as stream:
+            visualization.show_mermaid(
                 pipeline.to_graph(butler.registry if butler is not None else None, visualization_only=True),
                 stream,
                 dataset_types=True,
