@@ -416,9 +416,23 @@ class SingleQuantumExecutor(QuantumExecutor):
                 task_node.label,
                 quantum.dataId,
             )
+            toCheck = []
             newRefsForDatasetType = updatedInputs[key]
-            stored = limited_butler.stored_many(refsForDatasetType)
             for ref in refsForDatasetType:
+                if self._should_assume_exists(quantum, ref):
+                    newRefsForDatasetType.append(ref)
+                else:
+                    toCheck.append(ref)
+            if not toCheck:
+                _LOG.debug(
+                    "Assuming overall input '%s' is present without checks for label=%s dataId=%s.",
+                    key.name,
+                    task_node.label,
+                    quantum.dataId,
+                )
+                continue
+            stored = limited_butler.stored_many(toCheck)
+            for ref in toCheck:
                 if stored[ref]:
                     newRefsForDatasetType.append(ref)
                 else:
@@ -567,3 +581,33 @@ class SingleQuantumExecutor(QuantumExecutor):
                     else:
                         oneInstrument = instrument
                         Instrument.fromName(instrument, self.butler.registry)
+
+    def _should_assume_exists(self, quantum: Quantum, ref: DatasetRef) -> bool | None:
+        """Report whether the given dataset can be assumed to exist because
+        some previous check reported that it did.
+
+        If this is `True` for a dataset does not in fact exist anymore, that's
+        an unexpected problem that we want to raise as an exception, and
+        definitely not a case where some predicted output just wasn't produced.
+        We can't always tell the difference, but in this case we can.
+
+        Parameters
+        ----------
+        quantum : `Quantum`
+            Quantum being processed.
+        ref : `lsst.daf.butler.DatasetRef`
+            Reference to the input dataset.
+
+        Returns
+        -------
+        exists : `bool` or `None`
+            `True` if this dataset is definitely an overall input, `False` if
+            some other quantum in the graph is expected to produce it, and
+            `None` if the answer could not be determined.
+        """
+        if quantum.datastore_records:
+            for datastore_record_data in quantum.datastore_records.values():
+                if ref.id in datastore_record_data.records:
+                    return True
+            return False
+        return None
