@@ -149,6 +149,7 @@ class SimplePipelineExecutor:
         butler: Butler,
         resources: ExecutionResources | None = None,
         raise_on_partial_outputs: bool = True,
+        attach_datastore_records: bool = False,
     ) -> SimplePipelineExecutor:
         """Create an executor by building a QuantumGraph from an on-disk
         pipeline YAML file.
@@ -172,6 +173,10 @@ class SimplePipelineExecutor:
             `lsst.pipe.base.AnnotatedPartialOutputError` immediately, instead
             of considering the partial result a success and continuing to run
             downstream tasks.
+        attach_datastore_records : `bool`, optional
+            Whether to attach datastore records to the quantum graph.  This is
+            usually unnecessary, unless the executor is used to test behavior
+            that depends on datastore records.
 
         Returns
         -------
@@ -188,6 +193,7 @@ class SimplePipelineExecutor:
             bind=bind,
             resources=resources,
             raise_on_partial_outputs=raise_on_partial_outputs,
+            attach_datastore_records=attach_datastore_records,
         )
 
     @classmethod
@@ -202,6 +208,7 @@ class SimplePipelineExecutor:
         butler: Butler,
         resources: ExecutionResources | None = None,
         raise_on_partial_outputs: bool = True,
+        attach_datastore_records: bool = False,
     ) -> SimplePipelineExecutor:
         """Create an executor by building a QuantumGraph from a pipeline
         containing a single task.
@@ -231,6 +238,10 @@ class SimplePipelineExecutor:
             `lsst.pipe.base.AnnotatedPartialOutputError` immediately, instead
             of considering the partial result a success and continuing to run
             downstream tasks.
+        attach_datastore_records : `bool`, optional
+            Whether to attach datastore records to the quantum graph.  This is
+            usually unnecessary, unless the executor is used to test behavior
+            that depends on datastore records.
 
         Returns
         -------
@@ -257,6 +268,7 @@ class SimplePipelineExecutor:
             bind=bind,
             resources=resources,
             raise_on_partial_outputs=raise_on_partial_outputs,
+            attach_datastore_records=attach_datastore_records,
         )
 
     @classmethod
@@ -269,6 +281,7 @@ class SimplePipelineExecutor:
         butler: Butler,
         resources: ExecutionResources | None = None,
         raise_on_partial_outputs: bool = True,
+        attach_datastore_records: bool = False,
     ) -> SimplePipelineExecutor:
         """Create an executor by building a QuantumGraph from an in-memory
         pipeline.
@@ -294,6 +307,10 @@ class SimplePipelineExecutor:
             `lsst.pipe.base.AnnotatedPartialOutputError` immediately, instead
             of considering the partial result a success and continuing to run
             downstream tasks.
+        attach_datastore_records : `bool`, optional
+            Whether to attach datastore records to the quantum graph.  This is
+            usually unnecessary, unless the executor is used to test behavior
+            that depends on datastore records.
 
         Returns
         -------
@@ -310,6 +327,7 @@ class SimplePipelineExecutor:
             butler=butler,
             resources=resources,
             raise_on_partial_outputs=raise_on_partial_outputs,
+            attach_datastore_records=attach_datastore_records,
         )
 
     @classmethod
@@ -322,6 +340,7 @@ class SimplePipelineExecutor:
         butler: Butler,
         resources: ExecutionResources | None = None,
         raise_on_partial_outputs: bool = True,
+        attach_datastore_records: bool = False,
     ) -> SimplePipelineExecutor:
         """Create an executor by building a QuantumGraph from an in-memory
         pipeline graph.
@@ -348,6 +367,10 @@ class SimplePipelineExecutor:
             `lsst.pipe.base.AnnotatedPartialOutputError` immediately, instead
             of considering the partial result a success and continuing to run
             downstream tasks.
+        attach_datastore_records : `bool`, optional
+            Whether to attach datastore records to the quantum graph.  This is
+            usually unnecessary, unless the executor is used to test behavior
+            that depends on datastore records.
 
         Returns
         -------
@@ -359,7 +382,7 @@ class SimplePipelineExecutor:
         quantum_graph_builder = AllDimensionsQuantumGraphBuilder(
             pipeline_graph, butler, where=where, bind=bind
         )
-        quantum_graph = quantum_graph_builder.build(attach_datastore_records=False)
+        quantum_graph = quantum_graph_builder.build(attach_datastore_records=attach_datastore_records)
         return cls(
             quantum_graph=quantum_graph,
             butler=butler,

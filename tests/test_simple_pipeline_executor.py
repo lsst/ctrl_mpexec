@@ -295,6 +295,55 @@ class SimplePipelineExecutorTests(lsst.utils.tests.TestCase):
         self.assertFalse(self.butler.exists("intermediate"))
         self.assertFalse(self.butler.exists("output"))
 
+    def test_existence_check_skips(self):
+        """Test that pre-execution existence checks are not performed for
+        overall-input datasets, as this those checks could otherwise mask
+        repository configuration problems or downtime as NoWorkFound cases.
+        """
+        # First we configure and execute task A, which is just a way to get a
+        # MockDataset in the repo for us to play with; the important test can't
+        # use the non-mock 'input' dataset because the mock runQuantum only
+        # actually reads MockDatasets.
+        config_a = DynamicTestPipelineTaskConfig()
+        config_a.inputs["i"] = DynamicConnectionConfig(
+            dataset_type_name="input", storage_class="StructuredDataDict", mock_storage_class=False
+        )
+        config_a.outputs["o"] = DynamicConnectionConfig(
+            dataset_type_name="intermediate", storage_class="StructuredDataDict"
+        )
+        executor_a = SimplePipelineExecutor.from_task_class(
+            DynamicTestPipelineTask,
+            config=config_a,
+            butler=self.butler,
+            label="a",
+        )
+        executor_a.run(register_dataset_types=True)
+        # Now we can do the real test.
+        config_b = DynamicTestPipelineTaskConfig()
+        config_b.inputs["i"] = DynamicConnectionConfig(
+            dataset_type_name="intermediate", storage_class="StructuredDataDict", minimum=0
+        )
+        config_b.outputs["o"] = DynamicConnectionConfig(
+            dataset_type_name="output", storage_class="StructuredDataDict"
+        )
+        butler = self.butler.clone(run="new_run")
+        executor_b = SimplePipelineExecutor.from_task_class(
+            DynamicTestPipelineTask,
+            config=config_b,
+            butler=butler,
+            label="b",
+            attach_datastore_records=True,
+        )
+        # Delete the input dataset after the QG has already been built.
+        intermediate_refs = butler.query_datasets("intermediate")
+        self.assertEqual(len(intermediate_refs), 1)
+        butler.pruneDatasets(intermediate_refs, purge=True, unstore=True)
+        with self.assertRaises(FileNotFoundError):
+            # We should get an exception rather than NoWorkFound, because for
+            # this single-task pipeline, the missing dataset is an
+            # overall-input (name notwithstanding).
+            executor_b.run(register_dataset_types=True)
+
 
 class MemoryTester(lsst.utils.tests.MemoryTestCase):
     """Generic tests for file leaks."""
