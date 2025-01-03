@@ -74,6 +74,7 @@ class pipeline_build_options(OptionGroup):  # noqa: N801
             ctrlMpExecOpts.order_pipeline_option(),
             ctrlMpExecOpts.save_pipeline_option(),
             ctrlMpExecOpts.pipeline_dot_option(),
+            ctrlMpExecOpts.pipeline_mermaid_option(),
             pipeBaseOpts.instrument_option(help=instrumentOptionHelp, metavar="instrument", multiple=True),
             ctrlMpExecOpts.butler_config_option(required=False),
         ]
@@ -109,6 +110,7 @@ class qgraph_options(OptionGroup):  # noqa: N801
             ctrlMpExecOpts.save_qgraph_option(),
             ctrlMpExecOpts.save_single_quanta_option(),
             ctrlMpExecOpts.qgraph_dot_option(),
+            ctrlMpExecOpts.qgraph_mermaid_option(),
             ctrlMpExecOpts.summary_option(),
             ctrlMpExecOpts.save_execution_butler_option(),
             ctrlMpExecOpts.clobber_execution_butler_option(),
