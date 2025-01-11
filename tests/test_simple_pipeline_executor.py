@@ -33,9 +33,10 @@ import tempfile
 import unittest
 
 import lsst.daf.butler
+import lsst.pipe.base.quantum_provenance_graph as qpg
 import lsst.utils.tests
 from lsst.ctrl.mpexec import SimplePipelineExecutor
-from lsst.pipe.base import PipelineGraph, RepeatableQuantumError
+from lsst.pipe.base import PipelineGraph, QuantumSuccessCaveats, RepeatableQuantumError
 from lsst.pipe.base.tests.mocks import (
     DynamicConnectionConfig,
     DynamicTestPipelineTask,
@@ -256,6 +257,68 @@ class SimplePipelineExecutorTests(lsst.utils.tests.TestCase):
         (_, _) = executor.as_generator(register_dataset_types=True)
         self.assertFalse(self.butler.exists("intermediate"))
         self.assertEqual(self.butler.get("output").storage_class, get_mock_name("StructuredDataDict"))
+        prov = qpg.QuantumProvenanceGraph()
+        prov.assemble_quantum_provenance_graph(self.butler, [executor.quantum_graph])
+        (quantum_key_a,) = prov.quanta["a"]
+        quantum_info_a = prov.get_quantum_info(quantum_key_a)
+        self.assertEqual(
+            quantum_info_a["caveats"],
+            QuantumSuccessCaveats.ALL_OUTPUTS_MISSING
+            | QuantumSuccessCaveats.ANY_OUTPUTS_MISSING
+            | QuantumSuccessCaveats.PARTIAL_OUTPUTS_ERROR,
+        )
+        (quantum_key_b,) = prov.quanta["b"]
+        quantum_info_b = prov.get_quantum_info(quantum_key_b)
+        self.assertEqual(quantum_info_b["caveats"], QuantumSuccessCaveats.NO_CAVEATS)
+
+    def test_no_work_found(self):
+        """Test executing two quanta where the first raises
+        `NoWorkFound` in `runQuantum`, leading the next to raise `NoWorkFound`
+        in `adjustQuantum`.
+        """
+        config_a = DynamicTestPipelineTaskConfig()
+        config_a.inputs["i"] = DynamicConnectionConfig(
+            dataset_type_name="input", storage_class="StructuredDataDict", mock_storage_class=False
+        )
+        config_a.fail_exception = "lsst.pipe.base.NoWorkFound"
+        config_a.fail_condition = "1=1"  # butler query expression that is true
+        config_a.outputs["o"] = DynamicConnectionConfig(
+            dataset_type_name="intermediate", storage_class="StructuredDataDict"
+        )
+        config_b = DynamicTestPipelineTaskConfig()
+        config_b.inputs["i"] = DynamicConnectionConfig(
+            dataset_type_name="intermediate", storage_class="StructuredDataDict"
+        )
+        config_b.outputs["o"] = DynamicConnectionConfig(
+            dataset_type_name="output", storage_class="StructuredDataDict"
+        )
+        pipeline_graph = PipelineGraph()
+        pipeline_graph.add_task("a", DynamicTestPipelineTask, config_a)
+        pipeline_graph.add_task("b", DynamicTestPipelineTask, config_b)
+        # Consider the partial a success and proceed.
+        executor = SimplePipelineExecutor.from_pipeline_graph(
+            pipeline_graph, butler=self.butler, raise_on_partial_outputs=False
+        )
+        (_, _) = executor.as_generator(register_dataset_types=True)
+        prov = qpg.QuantumProvenanceGraph()
+        prov.assemble_quantum_provenance_graph(self.butler, [executor.quantum_graph])
+        (quantum_key_a,) = prov.quanta["a"]
+        quantum_info_a = prov.get_quantum_info(quantum_key_a)
+        self.assertEqual(
+            quantum_info_a["caveats"],
+            QuantumSuccessCaveats.ALL_OUTPUTS_MISSING
+            | QuantumSuccessCaveats.ANY_OUTPUTS_MISSING
+            | QuantumSuccessCaveats.NO_WORK,
+        )
+        (quantum_key_b,) = prov.quanta["b"]
+        quantum_info_b = prov.get_quantum_info(quantum_key_b)
+        self.assertEqual(
+            quantum_info_b["caveats"],
+            QuantumSuccessCaveats.ALL_OUTPUTS_MISSING
+            | QuantumSuccessCaveats.ANY_OUTPUTS_MISSING
+            | QuantumSuccessCaveats.ADJUST_QUANTUM_RAISED
+            | QuantumSuccessCaveats.NO_WORK,
+        )
 
     def test_partial_outputs_failure(self):
         """Test executing two quanta where the first raises
