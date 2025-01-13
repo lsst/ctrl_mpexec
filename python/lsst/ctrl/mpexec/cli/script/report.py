@@ -29,7 +29,7 @@ from collections.abc import Sequence
 
 from astropy.table import Table
 from lsst.daf.butler import Butler
-from lsst.pipe.base import QuantumGraph
+from lsst.pipe.base import QuantumGraph, QuantumSuccessCaveats
 from lsst.pipe.base.execution_reports import QuantumGraphExecutionReport
 from lsst.pipe.base.quantum_provenance_graph import QuantumProvenanceGraph, Summary
 
@@ -262,11 +262,19 @@ def print_summary(summary: Summary, full_output_filename: str | None, brief: boo
                         "Messages": quantum_summary.messages,
                     }
                 )
+        if len(task_summary.caveats) > 1:
+            caveats = "(multiple)"
+        elif len(task_summary.caveats) == 1:
+            ((code, data_ids),) = task_summary.caveats.items()
+            caveats = f"{code}({len(data_ids)})"
+        else:
+            caveats = ""
         quanta_table.append(
             {
                 "Task": label,
                 "Unknown": task_summary.n_unknown,
                 "Successful": task_summary.n_successful,
+                "Caveats": caveats,
                 "Blocked": task_summary.n_blocked,
                 "Failed": task_summary.n_failed,
                 "Wonky": task_summary.n_wonky,
@@ -294,6 +302,11 @@ def print_summary(summary: Summary, full_output_filename: str | None, brief: boo
                 )
     quanta = Table(quanta_table)
     quanta.pprint_all()
+    print("")
+    print("Caveat codes:")
+    for k, v in QuantumSuccessCaveats.legend().items():
+        print(f"{k}: {v}")
+    print("")
     # Dataset loop
     dataset_table = []
     cursed_datasets = []
