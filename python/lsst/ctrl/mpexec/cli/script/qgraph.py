@@ -46,6 +46,7 @@ def qgraph(  # type: ignore
     save_qgraph,
     save_single_quanta,
     qgraph_dot,
+    qgraph_mermaid,
     butler_config,
     input,
     output,
@@ -105,6 +106,8 @@ def qgraph(  # type: ignore
     qgraph_dot : `str` or `None`
         Path location for storing GraphViz DOT representation of a quantum
         graph.
+    qgraph_mermaid : `str` or `None`
+        Path location for storing Mermaid representation of a quantum graph.
     butler_config : `str`, `dict`, or `lsst.daf.butler.Config`
         If `str`, `butler_config` is the path location of the gen3
         butler/registry config file. If `dict`, `butler_config` is key value
@@ -194,6 +197,7 @@ def qgraph(  # type: ignore
         save_qgraph=save_qgraph,
         save_single_quanta=save_single_quanta,
         qgraph_dot=qgraph_dot,
+        qgraph_mermaid=qgraph_mermaid,
         butler_config=butler_config,
         input=input,
         output=output,

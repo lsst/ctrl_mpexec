@@ -189,6 +189,13 @@ pipeline_dot_option = MWOptionDecorator(
 )
 
 
+pipeline_mermaid_option = MWOptionDecorator(
+    "--pipeline-mermaid",
+    help="Location for storing Mermaid representation of a pipeline.",
+    type=MWPath(writable=True, file_okay=True, dir_okay=False),
+)
+
+
 profile_option = MWOptionDecorator(
     "--profile", help="Dump cProfile statistics to file name.", type=MWPath(file_okay=True, dir_okay=False)
 )
@@ -263,6 +270,12 @@ qgraph_header_data_option = MWOptionDecorator(
 qgraph_dot_option = MWOptionDecorator(
     "--qgraph-dot",
     help="Location for storing GraphViz DOT representation of a quantum graph.",
+    type=MWPath(writable=True, file_okay=True, dir_okay=False),
+)
+
+qgraph_mermaid_option = MWOptionDecorator(
+    "--qgraph-mermaid",
+    help="Location for storing Mermaid representation of a quantum graph.",
     type=MWPath(writable=True, file_okay=True, dir_okay=False),
 )
 
