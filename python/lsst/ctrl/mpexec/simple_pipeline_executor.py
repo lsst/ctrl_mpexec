@@ -29,6 +29,8 @@ from __future__ import annotations
 
 __all__ = ("SimplePipelineExecutor",)
 
+import datetime
+import getpass
 from collections.abc import Iterable, Iterator, Mapping
 from typing import Any
 
@@ -382,7 +384,18 @@ class SimplePipelineExecutor:
         quantum_graph_builder = AllDimensionsQuantumGraphBuilder(
             pipeline_graph, butler, where=where, bind=bind
         )
-        quantum_graph = quantum_graph_builder.build(attach_datastore_records=attach_datastore_records)
+        metadata = {
+            "input": list(butler.collections.defaults),
+            "output_run": butler.run,
+            "skip_existing_in": [],
+            "skip_existing": False,
+            "data_query": where,
+            "user": getpass.getuser(),
+            "time": str(datetime.datetime.now()),
+        }
+        quantum_graph = quantum_graph_builder.build(
+            metadata=metadata, attach_datastore_records=attach_datastore_records
+        )
         return cls(
             quantum_graph=quantum_graph,
             butler=butler,
