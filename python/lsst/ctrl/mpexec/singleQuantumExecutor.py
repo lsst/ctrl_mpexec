@@ -56,6 +56,7 @@ from lsst.pipe.base import (
     NoWorkFound,
     PipelineTask,
     QuantumContext,
+    QuantumSuccessCaveats,
     TaskFactory,
 )
 from lsst.pipe.base.pipeline_graph import TaskNode
@@ -230,6 +231,7 @@ class SingleQuantumExecutor(QuantumExecutor):
                     quantum.dataId,
                     str(exc),
                 )
+                quantumMetadata["caveats"] = QuantumSuccessCaveats.from_adjust_quantum_no_work().value
                 # Make empty metadata that looks something like what a
                 # do-nothing task would write (but we don't bother with empty
                 # nested PropertySets for subtasks).  This is slightly
@@ -266,7 +268,7 @@ class SingleQuantumExecutor(QuantumExecutor):
             task = self.taskFactory.makeTask(task_node, limited_butler, init_input_refs)
             logInfo(None, "start", metadata=quantumMetadata)  # type: ignore[arg-type]
             try:
-                self.runQuantum(task, quantum, task_node, limited_butler)
+                quantumMetadata["caveats"] = self.runQuantum(task, quantum, task_node, limited_butler).value
             except Exception as e:
                 _LOG.error(
                     "Execution of task '%s' on quantum %s failed. Exception %s: %s",
@@ -473,7 +475,7 @@ class SingleQuantumExecutor(QuantumExecutor):
         task_node: TaskNode,
         /,
         limited_butler: LimitedButler,
-    ) -> None:
+    ) -> QuantumSuccessCaveats:
         """Execute task on a single quantum.
 
         Parameters
@@ -486,7 +488,14 @@ class SingleQuantumExecutor(QuantumExecutor):
             Task definition structure.
         limited_butler : `~lsst.daf.butler.LimitedButler`
             Butler to use for dataset I/O.
+
+        Returns
+        -------
+        flags : `QuantumSuccessCaveats`
+            Flags that describe qualified successes.
         """
+        flags = QuantumSuccessCaveats.NO_CAVEATS
+
         # Create a butler that operates in the context of a quantum
         butlerQC = QuantumContext(limited_butler, quantum, resources=self.resources)
 
@@ -504,6 +513,7 @@ class SingleQuantumExecutor(QuantumExecutor):
                 quantum.dataId,
                 str(err),
             )
+            flags |= err.FLAGS
         except AnnotatedPartialOutputsError as caught:
             error: BaseException
             if caught.__cause__ is None:
@@ -531,6 +541,12 @@ class SingleQuantumExecutor(QuantumExecutor):
                     quantum.dataId,
                 )
                 _LOG.error(error, exc_info=error)
+                flags |= caught.FLAGS
+        if not butlerQC.outputsPut:
+            flags |= QuantumSuccessCaveats.ALL_OUTPUTS_MISSING
+        if not butlerQC.outputsPut == butlerQC.allOutputs:
+            flags |= QuantumSuccessCaveats.ANY_OUTPUTS_MISSING
+        return flags
 
     def writeMetadata(
         self, quantum: Quantum, metadata: Any, task_node: TaskNode, /, limited_butler: LimitedButler
