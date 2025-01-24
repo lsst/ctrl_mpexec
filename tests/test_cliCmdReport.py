@@ -167,9 +167,6 @@ class ReportTest(unittest.TestCase):
         self.assertIn("TOTAL", result_v2_terminal_out.stdout)
         self.assertIn("EXPECTED", result_v2_terminal_out.stdout)
 
-        # Check that title from the error summary appears
-        self.assertIn("Unsuccessful Datasets", result_v2_terminal_out.stdout)
-
         # Test cli for the QPG brief option
         result_v2_brief = self.runner.invoke(
             pipetask_cli,

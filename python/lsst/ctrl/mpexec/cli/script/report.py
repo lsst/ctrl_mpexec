@@ -243,129 +243,28 @@ def print_summary(summary: Summary, full_output_filename: str | None, brief: boo
     brief : `bool`
             Only display short (counts-only) summary on stdout. This includes
             counts and not error messages or data_ids (similar to BPS report).
-            This option will still report all `cursed` datasets and `wonky`
-            quanta.
     """
-    quanta_table = []
-    failed_quanta_table = []
-    wonky_quanta_table = []
-    for label, task_summary in summary.tasks.items():
-        if task_summary.n_wonky > 0:
-            print(
-                f"{label} has produced wonky quanta. Recommend processing cease until the issue is resolved."
-            )
-            for quantum_summary in task_summary.wonky_quanta:
-                wonky_quanta_table.append(
-                    {
-                        "Task": label,
-                        "Data ID": quantum_summary.data_id,
-                        "Runs and Status": quantum_summary.runs,
-                        "Messages": quantum_summary.messages,
-                    }
-                )
-        if len(task_summary.caveats) > 1:
-            caveats = "(multiple)"
-        elif len(task_summary.caveats) == 1:
-            ((code, data_ids),) = task_summary.caveats.items()
-            caveats = f"{code}({len(data_ids)})"
-        else:
-            caveats = ""
-        quanta_table.append(
-            {
-                "Task": label,
-                "Unknown": task_summary.n_unknown,
-                "Successful": task_summary.n_successful,
-                "Caveats": caveats,
-                "Blocked": task_summary.n_blocked,
-                "Failed": task_summary.n_failed,
-                "Wonky": task_summary.n_wonky,
-                "TOTAL": sum(
-                    [
-                        task_summary.n_successful,
-                        task_summary.n_unknown,
-                        task_summary.n_blocked,
-                        task_summary.n_failed,
-                        task_summary.n_wonky,
-                    ]
-                ),
-                "EXPECTED": task_summary.n_expected,
-            }
-        )
-        if task_summary.failed_quanta:
-            for quantum_summary in task_summary.failed_quanta:
-                failed_quanta_table.append(
-                    {
-                        "Task": label,
-                        "Data ID": quantum_summary.data_id,
-                        "Runs and Status": quantum_summary.runs,
-                        "Messages": quantum_summary.messages,
-                    }
-                )
-    quanta = Table(quanta_table)
-    quanta.pprint_all()
+    summary.make_quantum_table().pprint_all()
     print("")
     print("Caveat codes:")
     for k, v in QuantumSuccessCaveats.legend().items():
         print(f"{k}: {v}")
     print("")
-    # Dataset loop
-    dataset_table = []
-    cursed_datasets = []
-    unsuccessful_datasets = {}
-    for dataset_type_name, dataset_type_summary in summary.datasets.items():
-        dataset_table.append(
-            {
-                "Dataset": dataset_type_name,
-                "Visible": dataset_type_summary.n_visible,
-                "Shadowed": dataset_type_summary.n_shadowed,
-                "Predicted Only": dataset_type_summary.n_predicted_only,
-                "Unsuccessful": dataset_type_summary.n_unsuccessful,
-                "Cursed": dataset_type_summary.n_cursed,
-                "TOTAL": sum(
-                    [
-                        dataset_type_summary.n_visible,
-                        dataset_type_summary.n_shadowed,
-                        dataset_type_summary.n_predicted_only,
-                        dataset_type_summary.n_unsuccessful,
-                        dataset_type_summary.n_cursed,
-                    ]
-                ),
-                "EXPECTED": dataset_type_summary.n_expected,
-            }
-        )
-        if dataset_type_summary.n_cursed > 0:
-            for cursed_dataset in dataset_type_summary.cursed_datasets:
-                print(
-                    f"{dataset_type_name} has cursed quanta with message(s) {cursed_dataset.messages}. "
-                    "Recommend processing cease until the issue is resolved."
-                )
-                cursed_datasets.append(
-                    {
-                        "Dataset Type": dataset_type_name,
-                        "Producer Data Id": cursed_dataset.producer_data_id,
-                    }
-                )
-        if dataset_type_summary.n_unsuccessful > 0:
-            unsuccessful_datasets[dataset_type_name] = dataset_type_summary.unsuccessful_datasets
-    datasets = Table(dataset_table)
-    datasets.pprint_all()
-    curse_table = Table(cursed_datasets)
-    # Display wonky quanta
-    if wonky_quanta_table:
-        print("Wonky Quanta")
-        pprint.pprint(wonky_quanta_table)
-    # Display cursed datasets
-    if cursed_datasets:
-        print("Cursed Datasets")
-        curse_table.pprint_all()
+    if exception_table := summary.make_exception_table():
+        exception_table.pprint_all()
+        print("")
+    summary.make_dataset_table().pprint_all()
+    print("")
     if full_output_filename:
         with open(full_output_filename, "w") as stream:
             stream.write(summary.model_dump_json(indent=2))
     else:
         if not brief:
-            if failed_quanta_table:
-                print("Failed Quanta")
-                pprint.pprint(failed_quanta_table)
-            if unsuccessful_datasets:
-                print("Unsuccessful Datasets")
-                pprint.pprint(unsuccessful_datasets)
+            for task_label, bad_quantum_table in summary.make_bad_quantum_tables().items():
+                print(f"{task_label} failures:")
+                bad_quantum_table.pprint_all()
+                print("")
+            for dataset_type_name, bad_dataset_table in summary.make_bad_dataset_tables().items():
+                print(f"{dataset_type_name} failures:")
+                bad_dataset_table.pprint_all()
+                print("")
