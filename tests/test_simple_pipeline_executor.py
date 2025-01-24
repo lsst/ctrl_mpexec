@@ -261,15 +261,17 @@ class SimplePipelineExecutorTests(lsst.utils.tests.TestCase):
         prov.assemble_quantum_provenance_graph(self.butler, [executor.quantum_graph])
         (quantum_key_a,) = prov.quanta["a"]
         quantum_info_a = prov.get_quantum_info(quantum_key_a)
+        _, quantum_run_a = qpg.QuantumRun.find_final(quantum_info_a)
         self.assertEqual(
-            quantum_info_a["caveats"],
+            quantum_run_a.caveats,
             QuantumSuccessCaveats.ALL_OUTPUTS_MISSING
             | QuantumSuccessCaveats.ANY_OUTPUTS_MISSING
             | QuantumSuccessCaveats.PARTIAL_OUTPUTS_ERROR,
         )
         (quantum_key_b,) = prov.quanta["b"]
         quantum_info_b = prov.get_quantum_info(quantum_key_b)
-        self.assertEqual(quantum_info_b["caveats"], QuantumSuccessCaveats.NO_CAVEATS)
+        _, quantum_run_b = qpg.QuantumRun.find_final(quantum_info_b)
+        self.assertEqual(quantum_run_b.caveats, QuantumSuccessCaveats.NO_CAVEATS)
 
     def test_no_work_found(self):
         """Test executing two quanta where the first raises
@@ -304,16 +306,18 @@ class SimplePipelineExecutorTests(lsst.utils.tests.TestCase):
         prov.assemble_quantum_provenance_graph(self.butler, [executor.quantum_graph])
         (quantum_key_a,) = prov.quanta["a"]
         quantum_info_a = prov.get_quantum_info(quantum_key_a)
+        _, quantum_run_a = qpg.QuantumRun.find_final(quantum_info_a)
         self.assertEqual(
-            quantum_info_a["caveats"],
+            quantum_run_a.caveats,
             QuantumSuccessCaveats.ALL_OUTPUTS_MISSING
             | QuantumSuccessCaveats.ANY_OUTPUTS_MISSING
             | QuantumSuccessCaveats.NO_WORK,
         )
         (quantum_key_b,) = prov.quanta["b"]
         quantum_info_b = prov.get_quantum_info(quantum_key_b)
+        _, quantum_run_b = qpg.QuantumRun.find_final(quantum_info_b)
         self.assertEqual(
-            quantum_info_b["caveats"],
+            quantum_run_b.caveats,
             QuantumSuccessCaveats.ALL_OUTPUTS_MISSING
             | QuantumSuccessCaveats.ANY_OUTPUTS_MISSING
             | QuantumSuccessCaveats.ADJUST_QUANTUM_RAISED
