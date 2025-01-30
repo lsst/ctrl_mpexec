@@ -273,9 +273,9 @@ class SingleQuantumExecutor(QuantumExecutor):
             task = self.taskFactory.makeTask(task_node, limited_butler, init_input_refs)
             logInfo(None, "start", metadata=quantumMetadata)  # type: ignore[arg-type]
             try:
-                quantumMetadata["caveats"] = self.runQuantum(
+                caveats, outputsPut = self.runQuantum(
                     task, quantum, task_node, limited_butler, quantum_id=quantum_id
-                ).value
+                )
             except Exception as e:
                 _LOG.error(
                     "Execution of task '%s' on quantum %s failed. Exception %s: %s",
@@ -285,6 +285,11 @@ class SingleQuantumExecutor(QuantumExecutor):
                     str(e),
                 )
                 raise
+            else:
+                quantumMetadata["caveats"] = caveats.value
+                # Stringify the UUID for easier compatibility with
+                # PropertyList.
+                quantumMetadata["outputs"] = [str(output) for output in outputsPut]
             logInfo(None, "end", metadata=quantumMetadata)  # type: ignore[arg-type]
             fullMetadata = task.getFullMetadata()
             fullMetadata["quantum"] = quantumMetadata
@@ -483,7 +488,7 @@ class SingleQuantumExecutor(QuantumExecutor):
         /,
         limited_butler: LimitedButler,
         quantum_id: uuid.UUID | None = None,
-    ) -> QuantumSuccessCaveats:
+    ) -> tuple[QuantumSuccessCaveats, list[uuid.UUID]]:
         """Execute task on a single quantum.
 
         Parameters
@@ -503,6 +508,9 @@ class SingleQuantumExecutor(QuantumExecutor):
         -------
         flags : `QuantumSuccessCaveats`
             Flags that describe qualified successes.
+        ids_put : list[ `uuid.UUID` ]
+            Record of all the dataset IDs that were written by this quantum
+            being executed.
         """
         flags = QuantumSuccessCaveats.NO_CAVEATS
 
@@ -556,7 +564,8 @@ class SingleQuantumExecutor(QuantumExecutor):
             flags |= QuantumSuccessCaveats.ALL_OUTPUTS_MISSING
         if not butlerQC.outputsPut == butlerQC.allOutputs:
             flags |= QuantumSuccessCaveats.ANY_OUTPUTS_MISSING
-        return flags
+        ids_put = [output[2] for output in butlerQC.outputsPut]
+        return flags, ids_put
 
     def writeMetadata(
         self, quantum: Quantum, metadata: Any, task_node: TaskNode, /, limited_butler: LimitedButler
