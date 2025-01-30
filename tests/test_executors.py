@@ -59,6 +59,7 @@ from lsst.pipe.base.graph import BuildId
 from lsst.pipe.base.tests.simpleQGraph import AddTaskFactoryMock, makeSimpleQGraph
 
 if TYPE_CHECKING:
+    import uuid
     from collections.abc import Iterator
     from multiprocessing.managers import ListProxy
 
@@ -88,7 +89,11 @@ class QuantumExecutorMock(QuantumExecutor):
             self.quanta = manager.list()
 
     def execute(  # type: ignore[override]
-        self, task_node: TaskNodeMock, /, quantum: QuantumMock  # type: ignore[override]
+        self,
+        task_node: TaskNodeMock,
+        /,
+        quantum: QuantumMock,  # type: ignore[override]
+        quantum_id: uuid.UUID | None = None,
     ) -> tuple[QuantumMock, QuantumReport | None]:
         _LOG.debug("QuantumExecutorMock.execute: task_node=%s dataId=%s", task_node, quantum.dataId)
         self._execute_called = True

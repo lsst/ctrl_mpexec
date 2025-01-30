@@ -32,6 +32,7 @@ __all__ = ["SingleQuantumExecutor"]
 # -------------------------------
 import logging
 import time
+import uuid
 from collections import defaultdict
 from collections.abc import Callable
 from itertools import chain
@@ -168,18 +169,22 @@ class SingleQuantumExecutor(QuantumExecutor):
                     collectionTypes=CollectionType.RUN,
                 )
 
-    def execute(self, task_node: TaskNode, /, quantum: Quantum) -> tuple[Quantum, QuantumReport | None]:
+    def execute(
+        self, task_node: TaskNode, /, quantum: Quantum, quantum_id: uuid.UUID | None = None
+    ) -> tuple[Quantum, QuantumReport | None]:
         # Docstring inherited from QuantumExecutor.execute
         assert quantum.dataId is not None, "Quantum DataId cannot be None"
 
         if self.butler is not None:
             self.butler.registry.refresh()
 
-        result = self._execute(task_node, quantum)
+        result = self._execute(task_node, quantum, quantum_id=quantum_id)
         report = QuantumReport(dataId=quantum.dataId, taskLabel=task_node.label)
         return result, report
 
-    def _execute(self, task_node: TaskNode, /, quantum: Quantum) -> Quantum:
+    def _execute(
+        self, task_node: TaskNode, /, quantum: Quantum, quantum_id: uuid.UUID | None = None
+    ) -> Quantum:
         """Execute the quantum.
 
         Internal implementation of `execute()`.
@@ -268,7 +273,9 @@ class SingleQuantumExecutor(QuantumExecutor):
             task = self.taskFactory.makeTask(task_node, limited_butler, init_input_refs)
             logInfo(None, "start", metadata=quantumMetadata)  # type: ignore[arg-type]
             try:
-                quantumMetadata["caveats"] = self.runQuantum(task, quantum, task_node, limited_butler).value
+                quantumMetadata["caveats"] = self.runQuantum(
+                    task, quantum, task_node, limited_butler, quantum_id=quantum_id
+                ).value
             except Exception as e:
                 _LOG.error(
                     "Execution of task '%s' on quantum %s failed. Exception %s: %s",
@@ -475,6 +482,7 @@ class SingleQuantumExecutor(QuantumExecutor):
         task_node: TaskNode,
         /,
         limited_butler: LimitedButler,
+        quantum_id: uuid.UUID | None = None,
     ) -> QuantumSuccessCaveats:
         """Execute task on a single quantum.
 
@@ -488,6 +496,8 @@ class SingleQuantumExecutor(QuantumExecutor):
             Task definition structure.
         limited_butler : `~lsst.daf.butler.LimitedButler`
             Butler to use for dataset I/O.
+        quantum_id : `uuid.UUID` or `None`, optional
+            ID of the quantum being executed.
 
         Returns
         -------
@@ -497,7 +507,7 @@ class SingleQuantumExecutor(QuantumExecutor):
         flags = QuantumSuccessCaveats.NO_CAVEATS
 
         # Create a butler that operates in the context of a quantum
-        butlerQC = QuantumContext(limited_butler, quantum, resources=self.resources)
+        butlerQC = QuantumContext(limited_butler, quantum, resources=self.resources, quantum_id=quantum_id)
 
         # Get the input and output references for the task
         inputRefs, outputRefs = task_node.get_connections().buildDatasetRefs(quantum)
