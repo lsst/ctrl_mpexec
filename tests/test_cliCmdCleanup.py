@@ -25,8 +25,7 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-"""Unit tests for ctrl_mpexec CLI cleanup subcommand.
-"""
+"""Unit tests for ctrl_mpexec CLI cleanup subcommand."""
 
 
 import os

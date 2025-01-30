@@ -25,8 +25,7 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-"""Few utility methods used by the rest of a package.
-"""
+"""Few utility methods used by the rest of a package."""
 
 __all__ = ["printTable", "filterTaskNodes", "subTaskIter"]
 
