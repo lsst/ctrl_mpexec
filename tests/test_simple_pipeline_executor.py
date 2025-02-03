@@ -268,10 +268,68 @@ class SimplePipelineExecutorTests(lsst.utils.tests.TestCase):
             | QuantumSuccessCaveats.ANY_OUTPUTS_MISSING
             | QuantumSuccessCaveats.PARTIAL_OUTPUTS_ERROR,
         )
+        self.assertEqual(
+            quantum_run_a.exception.type_name,
+            "lsst.pipe.base.tests.mocks.MockAlgorithmError",
+        )
+        self.assertEqual(
+            quantum_run_a.exception.metadata,
+            {"badness": 12},
+        )
         (quantum_key_b,) = prov.quanta["b"]
         quantum_info_b = prov.get_quantum_info(quantum_key_b)
         _, quantum_run_b = qpg.QuantumRun.find_final(quantum_info_b)
         self.assertEqual(quantum_run_b.caveats, QuantumSuccessCaveats.NO_CAVEATS)
+        prov_summary = prov.to_summary(self.butler)
+        # One partial-outputs case, with an empty data ID:
+        self.assertEqual(prov_summary.tasks["a"].caveats, {"*P": [{}]})
+        self.assertEqual(
+            prov_summary.tasks["a"].exceptions.keys(), {"lsst.pipe.base.tests.mocks.MockAlgorithmError"}
+        )
+        self.assertEqual(
+            prov_summary.tasks["a"]
+            .exceptions["lsst.pipe.base.tests.mocks.MockAlgorithmError"][0]
+            .exception.metadata,
+            {"badness": 12},
+        )
+        # No caveats for the second task, since it didn't need the first task's
+        # output anyway.
+        self.assertEqual(prov_summary.tasks["b"].caveats, {})
+        self.assertEqual(prov_summary.tasks["b"].exceptions, {})
+        # Check table forms for summaries of the same information.
+        quantum_table = prov_summary.make_quantum_table()
+        self.assertEqual(list(quantum_table["Task"]), ["a", "b"])
+        self.assertEqual(list(quantum_table["Unknown"]), [0, 0])
+        self.assertEqual(list(quantum_table["Successful"]), [1, 1])
+        self.assertEqual(list(quantum_table["Caveats"]), ["*P(1)", ""])
+        self.assertEqual(list(quantum_table["Blocked"]), [0, 0])
+        self.assertEqual(list(quantum_table["Failed"]), [0, 0])
+        self.assertEqual(list(quantum_table["Wonky"]), [0, 0])
+        self.assertEqual(list(quantum_table["TOTAL"]), [1, 1])
+        self.assertEqual(list(quantum_table["EXPECTED"]), [1, 1])
+        dataset_table = prov_summary.make_dataset_table()
+        self.assertEqual(
+            list(dataset_table["Dataset"]),
+            ["intermediate", "a_metadata", "a_log", "output", "b_metadata", "b_log"],
+        )
+        self.assertEqual(list(dataset_table["Visible"]), [0, 1, 1, 1, 1, 1])
+        self.assertEqual(list(dataset_table["Shadowed"]), [0, 0, 0, 0, 0, 0])
+        self.assertEqual(list(dataset_table["Predicted Only"]), [1, 0, 0, 0, 0, 0])
+        self.assertEqual(list(dataset_table["Unsuccessful"]), [0, 0, 0, 0, 0, 0])
+        self.assertEqual(list(dataset_table["Cursed"]), [0, 0, 0, 0, 0, 0])
+        self.assertEqual(list(dataset_table["TOTAL"]), [1, 1, 1, 1, 1, 1])
+        self.assertEqual(list(dataset_table["EXPECTED"]), [1, 1, 1, 1, 1, 1])
+        exception_table = prov_summary.make_exception_table()
+        self.assertEqual(list(exception_table["Task"]), ["a"])
+        self.assertEqual(
+            list(exception_table["Exception"]), ["lsst.pipe.base.tests.mocks.MockAlgorithmError"]
+        )
+        self.assertEqual(list(exception_table["Count"]), [1])
+        bad_quantum_tables = prov_summary.make_bad_quantum_tables()
+        self.assertEqual(bad_quantum_tables.keys(), {"a"})
+        self.assertEqual(list(bad_quantum_tables["a"]["Status(Caveats)"]), ["SUCCESSFUL(P)"])
+        self.assertEqual(list(bad_quantum_tables["a"]["Exception"]), ["MockAlgorithmError"])
+        self.assertFalse(prov_summary.make_bad_dataset_tables())
 
     def test_no_work_found(self):
         """Test executing two quanta where the first raises
@@ -323,6 +381,39 @@ class SimplePipelineExecutorTests(lsst.utils.tests.TestCase):
             | QuantumSuccessCaveats.ADJUST_QUANTUM_RAISED
             | QuantumSuccessCaveats.NO_WORK,
         )
+        prov_summary = prov.to_summary(self.butler)
+        # One NoWorkFound, raised by runQuantum, with an empty data ID:
+        self.assertEqual(prov_summary.tasks["a"].caveats, {"*N": [{}]})
+        self.assertEqual(prov_summary.tasks["a"].exceptions, {})
+        # One NoWorkFound, raised by adjustQuantum, with an empty data ID.
+        self.assertEqual(prov_summary.tasks["b"].caveats, {"*A": [{}]})
+        self.assertEqual(prov_summary.tasks["b"].exceptions, {})
+        # Check table forms for summaries of the same information.
+        quantum_table = prov_summary.make_quantum_table()
+        self.assertEqual(list(quantum_table["Task"]), ["a", "b"])
+        self.assertEqual(list(quantum_table["Unknown"]), [0, 0])
+        self.assertEqual(list(quantum_table["Successful"]), [1, 1])
+        self.assertEqual(list(quantum_table["Caveats"]), ["*N(1)", "*A(1)"])
+        self.assertEqual(list(quantum_table["Blocked"]), [0, 0])
+        self.assertEqual(list(quantum_table["Failed"]), [0, 0])
+        self.assertEqual(list(quantum_table["Wonky"]), [0, 0])
+        self.assertEqual(list(quantum_table["TOTAL"]), [1, 1])
+        self.assertEqual(list(quantum_table["EXPECTED"]), [1, 1])
+        dataset_table = prov_summary.make_dataset_table()
+        self.assertEqual(
+            list(dataset_table["Dataset"]),
+            ["intermediate", "a_metadata", "a_log", "output", "b_metadata", "b_log"],
+        )
+        self.assertEqual(list(dataset_table["Visible"]), [0, 1, 1, 0, 1, 1])
+        self.assertEqual(list(dataset_table["Shadowed"]), [0, 0, 0, 0, 0, 0])
+        self.assertEqual(list(dataset_table["Predicted Only"]), [1, 0, 0, 1, 0, 0])
+        self.assertEqual(list(dataset_table["Unsuccessful"]), [0, 0, 0, 0, 0, 0])
+        self.assertEqual(list(dataset_table["Cursed"]), [0, 0, 0, 0, 0, 0])
+        self.assertEqual(list(dataset_table["TOTAL"]), [1, 1, 1, 1, 1, 1])
+        self.assertEqual(list(dataset_table["EXPECTED"]), [1, 1, 1, 1, 1, 1])
+        self.assertFalse(prov_summary.make_exception_table())
+        self.assertFalse(prov_summary.make_bad_quantum_tables())
+        self.assertFalse(prov_summary.make_bad_dataset_tables())
 
     def test_partial_outputs_failure(self):
         """Test executing two quanta where the first raises
@@ -361,6 +452,55 @@ class SimplePipelineExecutorTests(lsst.utils.tests.TestCase):
             executor.run(register_dataset_types=True)
         self.assertFalse(self.butler.exists("intermediate"))
         self.assertFalse(self.butler.exists("output"))
+        prov = qpg.QuantumProvenanceGraph()
+        prov.assemble_quantum_provenance_graph(self.butler, [executor.quantum_graph])
+        (quantum_key_a,) = prov.quanta["a"]
+        quantum_info_a = prov.get_quantum_info(quantum_key_a)
+        _, quantum_run_a = qpg.QuantumRun.find_final(quantum_info_a)
+        self.assertEqual(quantum_run_a.status, qpg.QuantumRunStatus.FAILED)
+        self.assertIsNone(quantum_run_a.caveats)
+        self.assertIsNone(quantum_run_a.exception)
+        (quantum_key_b,) = prov.quanta["b"]
+        quantum_info_b = prov.get_quantum_info(quantum_key_b)
+        self.assertEqual(quantum_info_b["status"], qpg.QuantumInfoStatus.BLOCKED)
+        prov_summary = prov.to_summary(self.butler)
+        # One partial-outputs failure case for the first task.
+        self.assertEqual(prov_summary.tasks["a"].n_failed, 1)
+        # No direct failures, but one blocked for the second
+        self.assertEqual(prov_summary.tasks["b"].n_failed, 0)
+        self.assertEqual(prov_summary.tasks["b"].n_blocked, 1)
+        # Check table forms for summaries of the same information.
+        quantum_table = prov_summary.make_quantum_table()
+        self.assertEqual(list(quantum_table["Task"]), ["a", "b"])
+        self.assertEqual(list(quantum_table["Unknown"]), [0, 0])
+        self.assertEqual(list(quantum_table["Successful"]), [0, 0])
+        self.assertEqual(list(quantum_table["Caveats"]), ["", ""])
+        self.assertEqual(list(quantum_table["Blocked"]), [0, 1])
+        self.assertEqual(list(quantum_table["Failed"]), [1, 0])
+        self.assertEqual(list(quantum_table["Wonky"]), [0, 0])
+        self.assertEqual(list(quantum_table["TOTAL"]), [1, 1])
+        self.assertEqual(list(quantum_table["EXPECTED"]), [1, 1])
+        dataset_table = prov_summary.make_dataset_table()
+        self.assertEqual(
+            list(dataset_table["Dataset"]),
+            ["intermediate", "a_metadata", "a_log", "output", "b_metadata", "b_log"],
+        )
+        # Note that a_log is UNSUCCESSFUL, not VISIBLE, despite being present
+        # in butler because those categories are mutually exclusive and we
+        # don't want to consider any outputs of failed quanta to be successful.
+        self.assertEqual(list(dataset_table["Visible"]), [0, 0, 0, 0, 0, 0])
+        self.assertEqual(list(dataset_table["Shadowed"]), [0, 0, 0, 0, 0, 0])
+        self.assertEqual(list(dataset_table["Predicted Only"]), [0, 0, 0, 0, 0, 0])
+        self.assertEqual(list(dataset_table["Unsuccessful"]), [1, 1, 1, 1, 1, 1])
+        self.assertEqual(list(dataset_table["Cursed"]), [0, 0, 0, 0, 0, 0])
+        self.assertEqual(list(dataset_table["TOTAL"]), [1, 1, 1, 1, 1, 1])
+        self.assertEqual(list(dataset_table["EXPECTED"]), [1, 1, 1, 1, 1, 1])
+        self.assertFalse(prov_summary.make_exception_table())
+        bad_quantum_tables = prov_summary.make_bad_quantum_tables()
+        self.assertEqual(bad_quantum_tables.keys(), {"a"})
+        self.assertEqual(list(bad_quantum_tables["a"]["Status(Caveats)"]), ["FAILED"])
+        self.assertEqual(list(bad_quantum_tables["a"]["Exception"]), [""])
+        self.assertFalse(prov_summary.make_bad_dataset_tables())
 
     def test_existence_check_skips(self):
         """Test that pre-execution existence checks are not performed for
