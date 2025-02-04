@@ -35,6 +35,8 @@ from typing import TYPE_CHECKING
 from .reports import QuantumReport, Report
 
 if TYPE_CHECKING:
+    import uuid
+
     from lsst.daf.butler import Quantum
     from lsst.pipe.base import QuantumGraph
     from lsst.pipe.base.pipeline_graph import TaskNode
@@ -50,7 +52,9 @@ class QuantumExecutor(ABC):
     """
 
     @abstractmethod
-    def execute(self, task_node: TaskNode, /, quantum: Quantum) -> tuple[Quantum, QuantumReport | None]:
+    def execute(
+        self, task_node: TaskNode, /, quantum: Quantum, quantum_id: uuid.UUID | None = None
+    ) -> tuple[Quantum, QuantumReport | None]:
         """Execute single quantum.
 
         Parameters
@@ -59,6 +63,8 @@ class QuantumExecutor(ABC):
             Task definition structure.
         quantum : `~lsst.daf.butler.Quantum`
             Quantum for this execution.
+        quantum_id : `uuid.UUID` or `None`, optional
+            The ID of the quantum to be executed.
 
         Returns
         -------

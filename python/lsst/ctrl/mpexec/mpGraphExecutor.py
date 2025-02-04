@@ -37,6 +37,7 @@ import signal
 import sys
 import threading
 import time
+import uuid
 from collections.abc import Iterable
 from enum import Enum
 from typing import Literal
@@ -124,7 +125,15 @@ class _Job:
         mp_ctx = multiprocessing.get_context(startMethod)
         self.process = mp_ctx.Process(  # type: ignore[attr-defined]
             target=_Job._executeJob,
-            args=(qe_pickle, task_node_pickle, quantum_pickle, logConfigState, snd_conn, self._fail_fast),
+            args=(
+                qe_pickle,
+                task_node_pickle,
+                quantum_pickle,
+                self.qnode.nodeId,
+                logConfigState,
+                snd_conn,
+                self._fail_fast,
+            ),
             name=f"task-{self.qnode.quantum.dataId}",
         )
         # mypy is getting confused by multiprocessing.
@@ -138,6 +147,7 @@ class _Job:
         quantumExecutor_pickle: bytes,
         task_node_pickle: bytes,
         quantum_pickle: bytes,
+        quantum_id: uuid.UUID | None,
         logConfigState: list,
         snd_conn: multiprocessing.connection.Connection,
         fail_fast: bool,
@@ -180,7 +190,7 @@ class _Job:
         # Catch a few known failure modes and stop the process immediately,
         # with exception-specific exit code.
         try:
-            _, report = quantumExecutor.execute(task_node, quantum)
+            _, report = quantumExecutor.execute(task_node, quantum, quantum_id=quantum_id)
         except RepeatableQuantumError as exc:
             report = QuantumReport.from_exception(
                 exception=exc,
@@ -530,7 +540,9 @@ class MPGraphExecutor(QuantumGraphExecutor):
                 # exception-specific exit code, but we still want to start
                 # debugger before exiting if debugging is enabled.
                 try:
-                    _, quantum_report = self.quantumExecutor.execute(task_node, qnode.quantum)
+                    _, quantum_report = self.quantumExecutor.execute(
+                        task_node, qnode.quantum, quantum_id=qnode.nodeId
+                    )
                     if quantum_report:
                         report.quantaReports.append(quantum_report)
                     successCount += 1
