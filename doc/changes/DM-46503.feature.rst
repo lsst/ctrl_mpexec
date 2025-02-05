@@ -1,0 +1,1 @@
+Added new command line options ``--pipeline-mermaid`` and ``--qgraph-mermaid`` to store Mermaid representations of a pipeline and a quantum graph, respectively.
