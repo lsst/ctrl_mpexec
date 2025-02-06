@@ -30,7 +30,7 @@ from collections.abc import Sequence
 from astropy.table import Table
 
 from lsst.daf.butler import Butler
-from lsst.pipe.base import QuantumGraph, QuantumSuccessCaveats
+from lsst.pipe.base import QuantumGraph
 from lsst.pipe.base.execution_reports import QuantumGraphExecutionReport
 from lsst.pipe.base.quantum_provenance_graph import QuantumProvenanceGraph, Summary
 
@@ -235,36 +235,17 @@ def print_summary(summary: Summary, full_output_filename: str | None, brief: boo
     Parameters
     ----------
     summary : `QuantumProvenanceGraph.Summary`
-            This `Pydantic` model contains all the information derived from the
-            `QuantumProvenanceGraph`.
+        This `Pydantic` model contains all the information derived from the
+        `QuantumProvenanceGraph`.
     full_output_filename : `str | None`
-            Name of the JSON file in which to store summary information, if
-            passed.
+        Name of the JSON file in which to store summary information, if
+        passed.
     brief : `bool`
-            Only display short (counts-only) summary on stdout. This includes
-            counts and not error messages or data_ids (similar to BPS report).
+        Only display short (counts-only) summary on stdout. This includes
+        counts and not error messages or data_ids (similar to BPS report).
+        Ignored (considered `False`) if ``full_output_filename`` is passed.
     """
-    summary.make_quantum_table().pprint_all()
-    print("")
-    print("Caveat codes:")
-    for k, v in QuantumSuccessCaveats.legend().items():
-        print(f"{k}: {v}")
-    print("")
-    if exception_table := summary.make_exception_table():
-        exception_table.pprint_all()
-        print("")
-    summary.make_dataset_table().pprint_all()
-    print("")
+    summary.pprint(brief=(brief or bool(full_output_filename)))
     if full_output_filename:
         with open(full_output_filename, "w") as stream:
             stream.write(summary.model_dump_json(indent=2))
-    else:
-        if not brief:
-            for task_label, bad_quantum_table in summary.make_bad_quantum_tables().items():
-                print(f"{task_label} failures:")
-                bad_quantum_table.pprint_all()
-                print("")
-            for dataset_type_name, bad_dataset_table in summary.make_bad_dataset_tables().items():
-                print(f"{dataset_type_name} failures:")
-                bad_dataset_table.pprint_all()
-                print("")
