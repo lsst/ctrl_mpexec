@@ -42,6 +42,7 @@ from typing import NamedTuple
 
 import astropy.units as u
 import click
+
 import lsst.pex.config as pexConfig
 import lsst.pipe.base.connectionTypes as cT
 import lsst.utils.tests

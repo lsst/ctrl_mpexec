@@ -34,6 +34,7 @@ from collections.abc import Sequence
 from typing import Any
 
 import networkx as nx
+
 from lsst.pipe.base import QuantumGraph, QuantumNode
 
 from .executionGraphFixup import ExecutionGraphFixup
