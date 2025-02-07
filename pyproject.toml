@@ -164,6 +164,7 @@ select = [
     "W",  # pycodestyle
     "D",  # pydocstyle
     "I",  # isort
+    "UP",  # pyupgrade
 ]
 extend-select = [
     "RUF022", # Sort __all__

@@ -303,7 +303,7 @@ class ReportTest(unittest.TestCase):
 
         self.assertEqual(report1.exit_code, 0, clickResultMsg(report1))
         # Now, copy the json output into a duplicate file and aggregate
-        with open(file1, "r") as f:
+        with open(file1) as f:
             sum1 = Summary.model_validate_json(f.read())
             sum2 = sum1.model_copy(deep=True)
             print_summary(sum2, file2, brief=False)
