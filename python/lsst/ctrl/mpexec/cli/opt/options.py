@@ -31,6 +31,7 @@ from collections.abc import Iterable, Mapping
 from typing import TYPE_CHECKING
 
 import click
+
 from lsst.daf.butler.cli.utils import MWOptionDecorator, MWPath, split_commas, unwrap
 from lsst.utils.doImport import doImportType
 

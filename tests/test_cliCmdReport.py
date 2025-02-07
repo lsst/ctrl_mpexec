@@ -31,6 +31,8 @@ import os
 import unittest
 
 import yaml
+from yaml.loader import SafeLoader
+
 from lsst.ctrl.mpexec.cli.pipetask import cli as pipetask_cli
 from lsst.ctrl.mpexec.cli.script.report import print_summary
 from lsst.daf.butler.cli.utils import LogCliRunner, clickResultMsg
@@ -38,7 +40,6 @@ from lsst.daf.butler.tests.utils import makeTestTempDir, removeTestTempDir
 from lsst.pipe.base.quantum_provenance_graph import Summary
 from lsst.pipe.base.tests.simpleQGraph import makeSimpleQGraph
 from lsst.pipe.base.tests.util import check_output_run
-from yaml.loader import SafeLoader
 
 TESTDIR = os.path.abspath(os.path.dirname(__file__))
 
@@ -302,7 +303,7 @@ class ReportTest(unittest.TestCase):
 
         self.assertEqual(report1.exit_code, 0, clickResultMsg(report1))
         # Now, copy the json output into a duplicate file and aggregate
-        with open(file1, "r") as f:
+        with open(file1) as f:
             sum1 = Summary.model_validate_json(f.read())
             sum2 = sum1.model_copy(deep=True)
             print_summary(sum2, file2, brief=False)

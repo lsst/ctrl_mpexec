@@ -41,8 +41,9 @@ from collections.abc import Mapping, Sequence
 from types import SimpleNamespace
 
 import astropy.units as u
-import lsst.utils.timer
 from astropy.table import Table
+
+import lsst.utils.timer
 from lsst.daf.butler import (
     Butler,
     CollectionType,

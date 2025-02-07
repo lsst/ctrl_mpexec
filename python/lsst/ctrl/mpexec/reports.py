@@ -27,13 +27,14 @@
 
 from __future__ import annotations
 
-__all__ = ["ExceptionInfo", "ExecutionStatus", "Report", "QuantumReport"]
+__all__ = ["ExceptionInfo", "ExecutionStatus", "QuantumReport", "Report"]
 
 import enum
 import sys
 from typing import Any
 
 import pydantic
+
 from lsst.daf.butler import DataCoordinate, DataId, DataIdValue
 from lsst.pipe.base import QgraphSummary
 from lsst.utils.introspection import get_full_type_name

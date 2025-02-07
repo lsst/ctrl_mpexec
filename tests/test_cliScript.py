@@ -31,6 +31,7 @@ import unittest
 import unittest.mock
 
 import click
+
 import lsst.utils.tests
 from lsst.ctrl.mpexec.cli import opt, script
 from lsst.ctrl.mpexec.cli.cmd.commands import coverage_context

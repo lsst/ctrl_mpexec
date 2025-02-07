@@ -42,6 +42,7 @@ from typing import TYPE_CHECKING, Any, Literal
 
 import networkx as nx
 import psutil
+
 from lsst.ctrl.mpexec import (
     ExecutionStatus,
     MPGraphExecutor,

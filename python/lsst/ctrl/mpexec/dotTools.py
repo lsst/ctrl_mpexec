@@ -37,6 +37,7 @@ from collections.abc import Iterable
 from typing import Any
 
 from deprecated.sphinx import deprecated
+
 from lsst.pipe.base import Pipeline, QuantumGraph, TaskDef
 from lsst.pipe.base.dot_tools import graph2dot as _graph2dot
 from lsst.pipe.base.dot_tools import pipeline2dot as _pipeline2dot

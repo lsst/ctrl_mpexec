@@ -28,6 +28,7 @@ import pprint
 from collections.abc import Sequence
 
 from astropy.table import Table
+
 from lsst.daf.butler import Butler
 from lsst.pipe.base import QuantumGraph, QuantumSuccessCaveats
 from lsst.pipe.base.execution_reports import QuantumGraphExecutionReport
