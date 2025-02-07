@@ -27,7 +27,6 @@
 
 """Unit tests for ctrl_mpexec CLI cleanup subcommand."""
 
-
 import os
 import unittest
 

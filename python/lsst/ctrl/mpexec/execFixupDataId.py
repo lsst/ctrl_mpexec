@@ -52,9 +52,11 @@ class ExecFixupDataId(ExecutionGraphFixup):
 
         from lsst.ctrl.mpexec.execFixupDataId import ExecFixupDataId
 
+
         def assoc_fixup():
-            return ExecFixupDataId(taskLabel="ap_assoc",
-                                   dimensions=("visit", "detector"))
+            return ExecFixupDataId(
+                taskLabel="ap_assoc", dimensions=("visit", "detector")
+            )
 
     and then executing pipetask::
 
