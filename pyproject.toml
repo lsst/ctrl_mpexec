@@ -166,6 +166,7 @@ select = [
     "I",  # isort
 ]
 extend-select = [
+    "RUF022", # Sort __all__
     "RUF100", # Warn about unused noqa
 ]
 
