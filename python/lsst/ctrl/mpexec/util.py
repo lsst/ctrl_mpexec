@@ -27,7 +27,7 @@
 
 """Few utility methods used by the rest of a package."""
 
-__all__ = ["printTable", "filterTaskNodes", "subTaskIter"]
+__all__ = ["filterTaskNodes", "printTable", "subTaskIter"]
 
 from collections.abc import Iterator
 
