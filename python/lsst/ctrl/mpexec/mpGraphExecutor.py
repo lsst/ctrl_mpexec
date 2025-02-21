@@ -557,7 +557,7 @@ class MPGraphExecutor(QuantumGraphExecutor):
                         fail_exit_code = exc.EXIT_CODE
                     raise
                 except InvalidQuantumError as exc:
-                    _LOG.fatal("Invalid quantum error for %s (%s): %s", task_node.label, qnode.quantum.dataId)
+                    _LOG.fatal("Invalid quantum error for %s (%s):", task_node.label, qnode.quantum.dataId)
                     _LOG.fatal(exc, exc_info=True)
                     fail_exit_code = exc.EXIT_CODE
                     raise
