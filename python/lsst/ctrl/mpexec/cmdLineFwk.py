@@ -902,7 +902,7 @@ class CmdLineFwk:
             self.report = Report(qgraphSummary=qgraph.getSummary())
             if _LOG.isEnabledFor(logging.INFO):
                 qg_task_table = self._generateTaskTable()
-                qg_task_table_formatted = "\n".join(qg_task_table.pformat_all())
+                qg_task_table_formatted = "\n".join(qg_task_table.pformat())
                 quanta_str = "quantum" if n_quanta == 1 else "quanta"
                 n_tasks = len(qgraph.taskGraph)
                 n_tasks_plural = "" if n_tasks == 1 else "s"

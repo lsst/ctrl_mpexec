@@ -28,7 +28,7 @@ dependencies = [
     "lsst-pex-config",
     "lsst-pipe-base",
     "click",
-    "astropy",
+    "astropy >=7.0",
     "pydantic >=2,<3.0",
     "networkx",
     "psutil"
