@@ -129,10 +129,23 @@ def build(  # type: ignore
             )
 
     if pipeline_mermaid:
-        with open(pipeline_mermaid, "w") as stream:
+        # Determine output format based on file extension.
+        if pipeline_mermaid.endswith(".svg"):
+            output_format = "svg"
+            file_mode = "wb"
+        elif pipeline_mermaid.endswith(".png"):
+            output_format = "png"
+            file_mode = "wb"
+        else:  # Default to the text-based mmd format.
+            output_format = "mmd"
+            file_mode = "w"
+
+        with open(pipeline_mermaid, file_mode) as stream:
             visualization.show_mermaid(
                 pipeline.to_graph(butler.registry if butler is not None else None, visualization_only=True),
                 stream,
+                output_format=output_format,
+                width=4500 if output_format != "mmd" else None,
                 dataset_types=True,
                 task_classes="full",
             )
