@@ -71,6 +71,7 @@ from lsst.pipe.base import (
 )
 from lsst.pipe.base.all_dimensions_quantum_graph_builder import AllDimensionsQuantumGraphBuilder
 from lsst.pipe.base.dot_tools import graph2dot
+from lsst.pipe.base.mermaid_tools import graph2mermaid
 from lsst.pipe.base.pipeline_graph import NodeType
 from lsst.utils import doImportType
 from lsst.utils.logging import getLogger
@@ -703,6 +704,10 @@ class CmdLineFwk:
         if args.qgraph_dot:
             _LOG.verbose("Writing quantum graph DOT visualization to %r.", args.qgraph_dot)
             graph2dot(qgraph, args.qgraph_dot)
+
+        if args.qgraph_mermaid:
+            _LOG.verbose("Writing quantum graph Mermaid visualization to %r.", args.qgraph_mermaid)
+            graph2mermaid(qgraph, args.qgraph_mermaid)
 
         if args.execution_butler_location:
             _LOG.verbose("Writing execution butler to %r.", args.execution_butler_location)
