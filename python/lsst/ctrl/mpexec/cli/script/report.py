@@ -26,6 +26,7 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 import pprint
 from collections.abc import Sequence
+from typing import Literal
 
 from astropy.table import Table
 
@@ -124,6 +125,7 @@ def report_v2(
     logs: bool = True,
     brief: bool = False,
     curse_failed_logs: bool = False,
+    read_caveats: Literal["lazy", "exhaustive"] | None = "exhaustive",
 ) -> None:
     """Summarize the state of executed quantum graph(s), with counts of failed,
     successful and expected quanta, as well as counts of output datasets and
@@ -165,6 +167,14 @@ def report_v2(
         a list of group-level collections, then each will only show log
         datasets from their own failures as visible and datasets from others
         will be marked as cursed.
+    read_caveats : `str`, optional
+        Whether and how to read success caveats from metadata datasets:
+
+        - "exhaustive": read all metadata datasets;
+        - "lazy": read metadata datasets only for quanta that had predicted
+          outputs that were not produced (will not pick up exceptions raised
+          after all datasets were written);
+        - `None`: do not read metadata datasets at all.
     """
     butler = Butler.from_config(butler_config, writeable=False)
     qpg = QuantumProvenanceGraph()
@@ -187,7 +197,14 @@ def report_v2(
                     {qgraph.metadata["time"]} >
                     time of first graph: {previous_graph.metadata["time"]}"""
                 )
-    qpg.assemble_quantum_provenance_graph(butler, qgraphs, collections, where, curse_failed_logs)
+    qpg.assemble_quantum_provenance_graph(
+        butler,
+        qgraphs,
+        collections,
+        where,
+        curse_failed_logs,
+        read_caveats=read_caveats,
+    )
     summary = qpg.to_summary(butler, do_store_logs=logs)
     print_summary(summary, full_output_filename, brief)
 

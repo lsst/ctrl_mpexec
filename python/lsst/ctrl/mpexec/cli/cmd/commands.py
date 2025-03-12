@@ -382,6 +382,11 @@ def update_graph_run(
     "even when there is only one qgraph. Otherwise, the `QuantumGraphExecutionReport` "
     "will run on one graph by default.",
 )
+@click.option(
+    "--read-caveats",
+    type=click.Choice(["exhaustive", "lazy", "none"], case_sensitive=False),
+    default="exhaustive",
+)
 def report(
     repo: str,
     qgraphs: Sequence[str],
@@ -392,6 +397,7 @@ def report(
     brief: bool = False,
     curse_failed_logs: bool = False,
     force_v2: bool = False,
+    read_caveats: str = "exhaustive",
 ) -> None:
     """Summarize the state of executed quantum graph(s), with counts of failed,
     successful and expected quanta, as well as counts of output datasets and
@@ -417,7 +423,15 @@ def report(
     """
     if any([force_v2, len(qgraphs) > 1, collections, where, curse_failed_logs]):
         script.report_v2(
-            repo, qgraphs, collections, where, full_output_filename, logs, brief, curse_failed_logs
+            repo,
+            qgraphs,
+            collections,
+            where,
+            full_output_filename,
+            logs,
+            brief,
+            curse_failed_logs,
+            read_caveats=(read_caveats if read_caveats != "none" else None),  # type: ignore[arg-type]
         )
     else:
         assert len(qgraphs) == 1, "Cannot make a report without a quantum graph."
