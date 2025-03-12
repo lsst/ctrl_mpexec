@@ -385,7 +385,7 @@ def update_graph_run(
 @click.option(
     "--read-caveats",
     type=click.Choice(["exhaustive", "lazy", "none"], case_sensitive=False),
-    default="exhaustive",
+    default="lazy",
 )
 def report(
     repo: str,
@@ -397,7 +397,7 @@ def report(
     brief: bool = False,
     curse_failed_logs: bool = False,
     force_v2: bool = False,
-    read_caveats: str = "exhaustive",
+    read_caveats: str = "lazy",
 ) -> None:
     """Summarize the state of executed quantum graph(s), with counts of failed,
     successful and expected quanta, as well as counts of output datasets and

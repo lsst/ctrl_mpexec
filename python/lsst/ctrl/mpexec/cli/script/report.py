@@ -125,7 +125,7 @@ def report_v2(
     logs: bool = True,
     brief: bool = False,
     curse_failed_logs: bool = False,
-    read_caveats: Literal["lazy", "exhaustive"] | None = "exhaustive",
+    read_caveats: Literal["lazy", "exhaustive"] | None = "lazy",
 ) -> None:
     """Summarize the state of executed quantum graph(s), with counts of failed,
     successful and expected quanta, as well as counts of output datasets and
