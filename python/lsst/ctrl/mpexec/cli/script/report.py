@@ -48,23 +48,22 @@ def report(
 
     Parameters
     ----------
-        butler_config : `str`
-            The Butler used for this report. This should match the Butler used
-            for the run associated with the executed quantum graph.
-        qgraph_uri : `str`
-            The uri of the location of said quantum graph.
-        full_output_filename : `str`
-            Output the full summary report to a yaml file (named herein).
-            Each data id and error message is keyed to a quantum graph node id.
-            A convenient output format for error-matching and cataloguing tools
-            such as the ones in the Campaign Management database. If this is
-            not included, quanta and dataset information will be printed to the
-            command-line instead.
-        logs : `bool`
-            Get butler log datasets for extra information (error messages).
-        brief : `bool`
-            List only the counts (or data_ids if number of failures < 5). This
-            option is good for those who just want to see totals.
+    butler_config : `str`
+        The Butler used for this report. This should match the Butler used for
+        the run associated with the executed quantum graph.
+    qgraph_uri : `str`
+        The uri of the location of said quantum graph.
+    full_output_filename : `str`
+        Output the full summary report to a yaml file (named herein). Each data
+        id and error message is keyed to a quantum graph node id. A convenient
+        output format for error-matching and cataloguing tools such as the ones
+        in the Campaign Management database. If this is not included, quanta
+        and dataset information will be printed to the command-line instead.
+    logs : `bool`
+        Get butler log datasets for extra information (error messages).
+    brief : `bool`
+        List only the counts (or data_ids if number of failures < 5). This
+        option is good for those who just want to see totals.
     """
     butler = Butler.from_config(butler_config, writeable=False)
     qgraph = QuantumGraph.loadUri(qgraph_uri)
@@ -135,39 +134,37 @@ def report_v2(
     Parameters
     ----------
     butler_config : `str`
-            The Butler used for this report. This should match the Butler used
-            for the run associated with the executed quantum graph.
+        The Butler used for this report. This should match the Butler used for
+        the run associated with the executed quantum graph.
     qgraph_uris : `Sequence` [`str`]
-            One or more uris to the serialized Quantum Graph(s).
+        One or more uris to the serialized Quantum Graph(s).
     collections : `Sequence` [`str`] | None`
-            Collection(s) associated with said graphs/processing. For use in
-            `lsst.daf.butler.registry.queryDatasets` if paring down the query
-            would be useful.
+        Collection(s) associated with said graphs/processing. For use in
+        `lsst.daf.butler.registry.queryDatasets` if paring down the query would
+        be useful.
     where : `str`
-            A "where" string to use to constrain the collections, if passed.
+        A "where" string to use to constrain the collections, if passed.
     full_output_filename : `str`
-            Output the full pydantic model `QuantumProvenanceGraph.Summary`
-            object into a JSON file. This is ideal for error-matching and
-            cataloguing tools such as the ones used by Campaign Management
-            software and pilots, and for searching and counting specific kinds
-            or instances of failures. This option will also print a "brief"
-            (counts-only) summary to stdout.
+        Output the full pydantic model `QuantumProvenanceGraph.Summary` object
+        into a JSON file. This is ideal for error-matching and cataloguing
+        tools such as the ones used by Campaign Management software and pilots,
+        and for searching and counting specific kinds or instances of failures.
+        This option will also print a "brief" (counts-only) summary to stdout.
     logs : `bool`
-            Store error messages from Butler logs associated with failed quanta
-            if `True`.
+        Store error messages from Butler logs associated with failed quanta if
+        `True`.
     brief : `bool`
-            Only display short (counts-only) summary on stdout. This includes
-            counts and not error messages or data_ids (similar to BPS report).
-            This option will still report all `cursed` datasets and `wonky`
-            quanta.
+        Only display short (counts-only) summary on stdout. This includes
+        counts and not error messages or data_ids (similar to BPS report). This
+        option will still report all `cursed` datasets and `wonky` quanta.
     curse_failed_logs : `bool`
-            Mark log datasets as `cursed` if they are published in the final
-            output collection. Note that a campaign-level collection must be
-            used here for `collections` if `curse_failed_logs` is `True`; if
-            `lsst.pipe.base.QuantumProvenanceGraph.__resolve_duplicates`
-            is run on a list of group-level collections, then each will only
-            show log datasets from their own failures as visible and datasets
-            from others will be marked as cursed.
+        Mark log datasets as `cursed` if they are published in the final output
+        collection. Note that a campaign-level collection must be used here for
+        `collections` if `curse_failed_logs` is `True`; if
+        `lsst.pipe.base.QuantumProvenanceGraph.__resolve_duplicates` is run on
+        a list of group-level collections, then each will only show log
+        datasets from their own failures as visible and datasets from others
+        will be marked as cursed.
     """
     butler = Butler.from_config(butler_config, writeable=False)
     qpg = QuantumProvenanceGraph()
