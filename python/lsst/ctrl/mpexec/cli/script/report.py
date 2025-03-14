@@ -177,32 +177,12 @@ def report_v2(
         - `None`: do not read metadata datasets at all.
     """
     butler = Butler.from_config(butler_config, writeable=False)
-    qpg = QuantumProvenanceGraph()
-    qgraphs = []
-    for qgraph_uri in qgraph_uris:
-        qgraph = QuantumGraph.loadUri(qgraph_uri)
-        assert qgraph.metadata is not None, "Saved QGs always have metadata."
-        qgraphs.append(qgraph)
-    # If the most recent graph's timestamp was earlier than any of the
-    # previous graphs, raise a RuntimeError.
-    for count, qgraph in enumerate(qgraphs):
-        if len(qgraphs) > 1:
-            previous_graph = qgraphs[count - 1]
-            if count > 0 and qgraph.metadata["time"] < previous_graph.metadata["time"]:
-                raise RuntimeError(
-                    f"""add_new_graph may only be called on graphs
-                    which are passed in the order they were
-                    created. Please call again, passing your
-                    graphs in order. Time of second graph:
-                    {qgraph.metadata["time"]} >
-                    time of first graph: {previous_graph.metadata["time"]}"""
-                )
-    qpg.assemble_quantum_provenance_graph(
+    qpg = QuantumProvenanceGraph(
         butler,
-        qgraphs,
-        collections,
-        where,
-        curse_failed_logs,
+        qgraph_uris,
+        collections=collections,
+        where=where,
+        curse_failed_logs=curse_failed_logs,
         read_caveats=read_caveats,
     )
     summary = qpg.to_summary(butler, do_store_logs=logs)
