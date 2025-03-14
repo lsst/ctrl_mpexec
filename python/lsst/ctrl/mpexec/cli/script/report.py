@@ -126,6 +126,8 @@ def report_v2(
     brief: bool = False,
     curse_failed_logs: bool = False,
     read_caveats: Literal["lazy", "exhaustive"] | None = "lazy",
+    use_qbb: bool = True,
+    n_cores: int = 1,
 ) -> None:
     """Summarize the state of executed quantum graph(s), with counts of failed,
     successful and expected quanta, as well as counts of output datasets and
@@ -175,6 +177,11 @@ def report_v2(
           outputs that were not produced (will not pick up exceptions raised
           after all datasets were written);
         - `None`: do not read metadata datasets at all.
+    use_qbb : `bool`, optional
+        Whether to use a quantum-backed butler for metadata and log reads.
+        This should reduce the number of database operations.
+    n_cores : `int`, optional
+        Number of cores for metadata and log reads.
     """
     butler = Butler.from_config(butler_config, writeable=False)
     qpg = QuantumProvenanceGraph(
@@ -184,6 +191,8 @@ def report_v2(
         where=where,
         curse_failed_logs=curse_failed_logs,
         read_caveats=read_caveats,
+        use_qbb=use_qbb,
+        n_cores=n_cores,
     )
     summary = qpg.to_summary(butler, do_store_logs=logs)
     print_summary(summary, full_output_filename, brief)

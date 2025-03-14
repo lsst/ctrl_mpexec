@@ -387,6 +387,13 @@ def update_graph_run(
     type=click.Choice(["exhaustive", "lazy", "none"], case_sensitive=False),
     default="lazy",
 )
+@click.option(
+    "--use-qbb/--no-use-qbb",
+    is_flag=True,
+    default=True,
+    help="Whether to use a quantum-backed butler for metadata and log reads.",
+)
+@processes_option()
 def report(
     repo: str,
     qgraphs: Sequence[str],
@@ -398,6 +405,8 @@ def report(
     curse_failed_logs: bool = False,
     force_v2: bool = False,
     read_caveats: str = "lazy",
+    use_qbb: bool = True,
+    processes: int = 1,
 ) -> None:
     """Summarize the state of executed quantum graph(s), with counts of failed,
     successful and expected quanta, as well as counts of output datasets and
@@ -432,6 +441,8 @@ def report(
             brief,
             curse_failed_logs,
             read_caveats=(read_caveats if read_caveats != "none" else None),  # type: ignore[arg-type]
+            use_qbb=use_qbb,
+            n_cores=processes,
         )
     else:
         assert len(qgraphs) == 1, "Cannot make a report without a quantum graph."
