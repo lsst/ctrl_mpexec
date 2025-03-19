@@ -257,8 +257,7 @@ class SimplePipelineExecutorTests(lsst.utils.tests.TestCase):
         (_, _) = executor.as_generator(register_dataset_types=True)
         self.assertFalse(self.butler.exists("intermediate"))
         self.assertEqual(self.butler.get("output").storage_class, get_mock_name("StructuredDataDict"))
-        prov = qpg.QuantumProvenanceGraph()
-        prov.assemble_quantum_provenance_graph(self.butler, [executor.quantum_graph])
+        prov = qpg.QuantumProvenanceGraph(self.butler, [executor.quantum_graph], read_caveats="exhaustive")
         (quantum_key_a,) = prov.quanta["a"]
         quantum_info_a = prov.get_quantum_info(quantum_key_a)
         _, quantum_run_a = qpg.QuantumRun.find_final(quantum_info_a)
