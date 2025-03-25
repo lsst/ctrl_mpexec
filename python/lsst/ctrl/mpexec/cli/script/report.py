@@ -128,6 +128,7 @@ def report_v2(
     read_caveats: Literal["lazy", "exhaustive"] | None = "lazy",
     use_qbb: bool = True,
     n_cores: int = 1,
+    graph_view: bool = False,
 ) -> None:
     """Summarize the state of executed quantum graph(s), with counts of failed,
     successful and expected quanta, as well as counts of output datasets and
@@ -182,6 +183,13 @@ def report_v2(
         This should reduce the number of database operations.
     n_cores : `int`, optional
         Number of cores for metadata and log reads.
+    graph_view : `bool`
+        Display a graph view of `QuantumProvenanceGraph.Summary` object on
+        stdout instead of the default plain-text summary. This is a graph-based
+        representation of the pipeline processing status, where the pipeline
+        graph nodes are annotated by their status. This is a good way to see
+        the flow of quanta and datasets through the graph and to identify where
+        problems are occurring.
     """
     butler = Butler.from_config(butler_config, writeable=False)
     qpg = QuantumProvenanceGraph(
@@ -195,7 +203,34 @@ def report_v2(
         n_cores=n_cores,
     )
     summary = qpg.to_summary(butler, do_store_logs=logs)
-    print_summary(summary, full_output_filename, brief)
+
+    if graph_view:
+        from lsst.pipe.base.pipeline_graph.visualization import (
+            QuantumProvenanceGraphStatusAnnotator,
+            QuantumProvenanceGraphStatusOptions,
+            show,
+        )
+
+        # Use any of the quantum graphs to get the `PipelineGraph`
+        # representation of the pipeline.
+        qgraph = QuantumGraph.loadUri(qgraph_uris[0])
+        pipeline_graph = qgraph.pipeline_graph
+
+        # Annotate the pipeline graph with the status information from the
+        # quantum provenance graph summary.
+        status_annotator = QuantumProvenanceGraphStatusAnnotator(summary)
+        status_options = QuantumProvenanceGraphStatusOptions(
+            display_percent=True, display_counts=True, abbreviate=True, visualize=True
+        )
+
+        show(
+            pipeline_graph,
+            dataset_types=True,
+            status_annotator=status_annotator,
+            status_options=status_options,
+        )
+    else:
+        print_summary(summary, full_output_filename, brief)
 
 
 def aggregate_reports(
