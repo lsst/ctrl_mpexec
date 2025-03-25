@@ -1,3 +1,42 @@
+lsst-ctrl-mpexec v29.0.0 (2025-03-25)
+=====================================
+
+New Features
+------------
+
+- Quantum metadata outputs now record the IDs of all output datasets.
+  This is stored in an ``outputs`` key in the metadata dataset. (`DM-35396 <https://rubinobs.atlassian.net/browse/DM-35396>`_)
+- Added new command line options ``--pipeline-mermaid`` and ``--qgraph-mermaid`` to store Mermaid representations of a pipeline and a quantum graph, respectively. (`DM-46503 <https://rubinobs.atlassian.net/browse/DM-46503>`_)
+- We now track "success caveats" like ``NoWorkFound`` in execution.
+
+  This adds additional information to the task metadata and additional summary reporting to ``pipetask report --force-v2``.
+  It relies on changes in ``lsst.pipe.base`` for the ``QuantumSuccessCaveats`` flag enum and new logic in ``QuantumProvenanceGraph``. (`DM-47730 <https://rubinobs.atlassian.net/browse/DM-47730>`_)
+
+
+API Changes
+-----------
+
+- The Quantum ID is now passed through the executors so it can be recorded in the provenance by ``QuantumContext``. (`DM-35396 <https://rubinobs.atlassian.net/browse/DM-35396>`_)
+
+
+Bug Fixes
+---------
+
+- The coverage package is now optional and lazy-loads it only when needed.
+  Declares packaging extra for coverage, i.e., ``pip install lsst-ctrl-mpexec[coverage]``.
+  Updated minimum supported Python to 3.11 (dependency-driven change). (`DM-47159 <https://rubinobs.atlassian.net/browse/DM-47159>`_)
+
+
+Other Changes and Additions
+---------------------------
+
+- Input datasets that were already found to exist during QG generation will no longer be re-checked for existence during execution.
+
+  This mitigates a problem in which butler misconfiguration (e.g., datastore name mismatches) would lead to hard-to-spot ``NoWorkFound`` conditions in the first step in a pipeline.  Those errors should now result in a ``FileNotFoundError`` with more helpful information. (`DM-40242 <https://rubinobs.atlassian.net/browse/DM-40242>`_)
+- Removed explicit calls to garbage collector during in-process execution.
+  Garbage collection can be slow and it is not useful in our common use cases. (`DM-47482 <https://rubinobs.atlassian.net/browse/DM-47482>`_)
+
+
 lsst-ctrl-mpexec v28.0.0 (2024-11-21)
 =====================================
 
