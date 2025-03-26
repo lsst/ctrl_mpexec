@@ -1,2 +1,0 @@
-* Quantum metadata outputs now record the IDs of all output datasets.
-  This is stored in an ``outputs`` key.

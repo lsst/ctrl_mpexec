@@ -1,1 +1,0 @@
-The Quantum ID is now passed through the executors so it can be recorded in the provenance by ``QuantumContext``.
