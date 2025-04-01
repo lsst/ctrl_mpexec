@@ -186,8 +186,8 @@ def report_v2(
     view_graph : `bool`
         Display a graph representation of `QuantumProvenanceGraph.Summary` on
         stdout instead of the default plain-text summary. Pipeline graph nodes
-        are annotated with their status. This is a useful way to visualize the
-        flow of quanta and datasets through the graph and to identify where
+        are then annotated with their status. This is a useful way to visualize
+        the flow of quanta and datasets through the graph and to identify where
         problems may be occurring.
     """
     butler = Butler.from_config(butler_config, writeable=False)
