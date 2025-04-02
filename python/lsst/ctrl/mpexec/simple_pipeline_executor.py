@@ -31,6 +31,7 @@ __all__ = ("SimplePipelineExecutor",)
 
 import datetime
 import getpass
+import os
 from collections.abc import Iterable, Iterator, Mapping
 from typing import Any
 
@@ -131,7 +132,7 @@ class SimplePipelineExecutor:
             output_run = f"{output}/{Instrument.makeCollectionTimestamp()}"
         # Make initial butler with no collections, since we haven't created
         # them yet.
-        butler = Butler.from_config(root, writeable=True)
+        butler = Butler.from_config(root, writeable=writeable)
         butler.registry.registerCollection(output_run, CollectionType.RUN)
         butler.registry.registerCollection(output, CollectionType.CHAINED)
         collections = [output_run]
@@ -343,6 +344,8 @@ class SimplePipelineExecutor:
         resources: ExecutionResources | None = None,
         raise_on_partial_outputs: bool = True,
         attach_datastore_records: bool = False,
+        output: str | None = None,
+        output_run: str | None = None,
     ) -> SimplePipelineExecutor:
         """Create an executor by building a QuantumGraph from an in-memory
         pipeline graph.
@@ -381,12 +384,17 @@ class SimplePipelineExecutor:
             `~lsst.pipe.base.QuantumGraph` and `~lsst.daf.butler.Butler`, ready
             for `run` to be called.
         """
+        if output_run is None:
+            output_run = butler.run
+            
         quantum_graph_builder = AllDimensionsQuantumGraphBuilder(
-            pipeline_graph, butler, where=where, bind=bind
+            pipeline_graph, butler, where=where, bind=bind,
+            output_run=output_run
         )
         metadata = {
             "input": list(butler.collections.defaults),
-            "output_run": butler.run,
+            "output": output,
+            "output_run": output_run,
             "skip_existing_in": [],
             "skip_existing": False,
             "data_query": where,
@@ -403,6 +411,49 @@ class SimplePipelineExecutor:
             raise_on_partial_outputs=raise_on_partial_outputs,
         )
 
+    def use_local_butler(self, root: str,
+                         register_dataset_types=True,
+                         transfer_dimensions=True) -> Butler:
+        """Transfer all inputs to and run against a local data repository.
+
+        Parameters
+        ----------
+        root : `str`
+            Path to the local data repository; created if it does not exist.
+
+        Returns
+        -------
+        butler : `lsst.daf.butler.Butler`
+            Writeable butler for local data repository.
+        """
+
+        # To fix: allow run name to be generated automatically earlier
+        # because prep_butler needs `output` to exist.
+        # MLG and add a return statement?
+
+        if not os.exists(root):
+            Butler.makeRepo(root)
+
+        out_butler = self.prep_butler(root,
+                                      inputs=self.quantum_graph.metadata['input'],
+                                      output=self.quantum_graph.metadata['output'],
+                                      output_run=self.quantum_graph.metadata['output_run'])
+
+        refs = set()
+        pipeline_graph = self.quantum_graph.pipeline_graph
+        
+        for name, dataset_type_node in pipeline_graph.iter_overall_inputs():
+            for task_node in pipeline_graph.consumers_of(name):
+                for quantum in qg.get_task_quanta(task_node.label).values():
+                    refs.update(quantum.inputs[name])
+
+        out_butler.transfer_from(self.butler, refs,
+                                 register_dataset_types=register_dataset_types,
+                                 transfer_dimensions=transfer_dimensions)
+
+        self.butler = out_butler
+        
+    
     def run(self, register_dataset_types: bool = False, save_versions: bool = True) -> list[Quantum]:
         """Run all the quanta in the `~lsst.pipe.base.QuantumGraph` in
         topological order.
