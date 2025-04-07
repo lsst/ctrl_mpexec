@@ -959,6 +959,10 @@ class CmdLineFwk:
         # but we need datastore records for initInputs, and those are only
         # available from Quanta, so load the whole thing.
         qgraph = QuantumGraph.loadUri(args.qgraph, graphID=args.qgraph_id)
+
+        # Ensure that QBB uses shared datastore cache for writes.
+        _ButlerFactory.defineDatastoreCache()
+
         # Make QBB.
         butler = qgraph.make_init_qbb(args.butler_config, config_search_paths=args.config_search_path)
         # Save all InitOutputs, configs, etc.
@@ -979,6 +983,9 @@ class CmdLineFwk:
         self._summarize_qgraph(qgraph)
 
         dataset_types = {dstype.name: dstype for dstype in qgraph.registryDatasetTypes()}
+
+        # Ensure that QBB uses shared datastore cache.
+        _ButlerFactory.defineDatastoreCache()
 
         _butler_factory = _QBBFactory(
             butler_config=args.butler_config,
