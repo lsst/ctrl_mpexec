@@ -51,6 +51,18 @@ data_query_option = MWOptionDecorator(
 )
 
 
+data_id_table_option = MWOptionDecorator(
+    "--data-id-table",
+    multiple=True,
+    default=(),
+    help=(
+        "URI to table of data IDs to join as a constraint; may be any format accepted by astropy.table.  "
+        "May be passed multiple times."
+    ),
+    metavar="URI",
+)
+
+
 debug_option = MWOptionDecorator(
     "--debug", help="Enable debugging output using lsstDebug facility (imports debug.py).", is_flag=True
 )
