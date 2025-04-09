@@ -393,6 +393,12 @@ def update_graph_run(
     default=True,
     help="Whether to use a quantum-backed butler for metadata and log reads.",
 )
+@click.option(
+    "--view-graph",
+    is_flag=True,
+    default=False,
+    help="Display pipeline processing status as a graph on stdout instead of a plain-text summary.",
+)
 @processes_option()
 def report(
     repo: str,
@@ -407,6 +413,7 @@ def report(
     read_caveats: str = "lazy",
     use_qbb: bool = True,
     processes: int = 1,
+    view_graph: bool = False,
 ) -> None:
     """Summarize the state of executed quantum graph(s), with counts of failed,
     successful and expected quanta, as well as counts of output datasets and
@@ -443,6 +450,7 @@ def report(
             read_caveats=(read_caveats if read_caveats != "none" else None),  # type: ignore[arg-type]
             use_qbb=use_qbb,
             n_cores=processes,
+            view_graph=view_graph,
         )
     else:
         assert len(qgraphs) == 1, "Cannot make a report without a quantum graph."
