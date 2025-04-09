@@ -36,6 +36,7 @@ _log = logging.getLogger(__name__)
 
 
 def qgraph(  # type: ignore
+    *,
     pipelineObj,
     qgraph,
     qgraph_id,
@@ -55,6 +56,7 @@ def qgraph(  # type: ignore
     replace_run,
     prune_replaced,
     data_query,
+    data_id_table=(),
     show,
     save_execution_butler,
     clobber_execution_butler,
@@ -145,6 +147,8 @@ def qgraph(  # type: ignore
         ``replace_run`` to be `True`.
     data_query : `str`
         User query selection expression.
+    data_id_table : `~collections.abc.Iterable` [`str`]
+        Paths to data ID tables to join in.
     show : `lsst.ctrl.mpexec.showInfo.ShowInfo`
         Descriptions of what to dump to stdout.
     save_execution_butler : `str` or `None`
@@ -206,6 +210,7 @@ def qgraph(  # type: ignore
         replace_run=replace_run,
         prune_replaced=prune_replaced,
         data_query=data_query,
+        data_id_table=data_id_table,
         skip_existing_in=skip_existing_in,
         skip_existing=skip_existing,
         execution_butler_location=save_execution_butler,

@@ -124,6 +124,7 @@ class qgraph_options(OptionGroup):  # noqa: N801
                 ),
             ),
             ctrlMpExecOpts.dataset_query_constraint(),
+            ctrlMpExecOpts.data_id_table_option(),
             ctrlMpExecOpts.qgraph_header_data_option(),
             ctrlMpExecOpts.mock_option(),
             ctrlMpExecOpts.mock_failure_option(),

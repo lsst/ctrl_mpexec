@@ -73,6 +73,7 @@ from lsst.pipe.base.all_dimensions_quantum_graph_builder import AllDimensionsQua
 from lsst.pipe.base.dot_tools import graph2dot
 from lsst.pipe.base.mermaid_tools import graph2mermaid
 from lsst.pipe.base.pipeline_graph import NodeType
+from lsst.resources import ResourcePath
 from lsst.utils import doImportType
 from lsst.utils.logging import getLogger
 from lsst.utils.threads import disable_implicit_threading
@@ -659,6 +660,10 @@ class CmdLineFwk:
                     unmocked_dataset_types=args.unmocked_dataset_types,
                     force_failures=args.mock_failure,
                 )
+            data_id_tables = []
+            for table_file in args.data_id_table:
+                with ResourcePath(table_file).as_local() as local_path:
+                    data_id_tables.append(Table.read(local_path.ospath))
             # make execution plan (a.k.a. DAG) for pipeline
             graph_builder = AllDimensionsQuantumGraphBuilder(
                 pipeline_graph,
@@ -669,6 +674,7 @@ class CmdLineFwk:
                 dataset_query_constraint=args.dataset_query_constraint,
                 input_collections=collections,
                 output_run=run,
+                data_id_tables=data_id_tables,
             )
             # accumulate metadata
             metadata = {
