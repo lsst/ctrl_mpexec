@@ -454,6 +454,17 @@ task_option = MWOptionDecorator(
     multiple=True,
 )
 
+select_tasks_option = MWOptionDecorator(
+    "--select-tasks",
+    metavar="EXPR",
+    default="",
+    help=(
+        "A string expression that filters the tasks to run from the pipeline. "
+        "See https://pipelines.lsst.io/v/weekly/modules/lsst.pipe.base/working-with-pipeline-graphs.html"
+        "#pipeline-graph-subset-expressions for details."
+    ),
+)
+
 
 timeout_option = MWOptionDecorator(
     "--timeout", type=click.IntRange(min=0), help="Timeout for multiprocessing; maximum wall time (sec)."

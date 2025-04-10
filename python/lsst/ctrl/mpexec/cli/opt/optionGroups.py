@@ -74,6 +74,7 @@ class pipeline_build_options(OptionGroup):  # noqa: N801
             ),
             ctrlMpExecOpts.order_pipeline_option(),
             ctrlMpExecOpts.save_pipeline_option(),
+            ctrlMpExecOpts.select_tasks_option(),
             ctrlMpExecOpts.pipeline_dot_option(),
             ctrlMpExecOpts.pipeline_mermaid_option(),
             pipeBaseOpts.instrument_option(help=instrumentOptionHelp, metavar="instrument", multiple=True),
