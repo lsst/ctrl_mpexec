@@ -63,23 +63,22 @@ class BuildTestCase(unittest.TestCase):
 
     def testMakeEmptyPipeline(self):
         """Test building a pipeline with default arguments."""
-        pipeline = script.build(**self.buildArgs())
-        self.assertIsInstance(pipeline, Pipeline)
-        self.assertEqual(len(pipeline), 0)
+        pipeline_graph_factory = script.build(**self.buildArgs())
+        self.assertIsInstance(pipeline_graph_factory.pipeline, Pipeline)
+        self.assertEqual(len(pipeline_graph_factory.pipeline), 0)
 
     def testSavePipeline(self):
         """Test pipeline serialization."""
         with tempfile.TemporaryDirectory() as tempdir:
             # make empty pipeline and store it in a file
             filename = os.path.join(tempdir, "pipeline_file.yaml")
-            pipeline = script.build(**self.buildArgs(save_pipeline=filename))
-            self.assertIsInstance(pipeline, Pipeline)
+            pipeline_graph_factory = script.build(**self.buildArgs(save_pipeline=filename))
+            self.assertIsInstance(pipeline_graph_factory.pipeline, Pipeline)
             self.assertTrue(os.path.isfile(filename))
             # read pipeline from a file
-            pipeline = script.build(**self.buildArgs(pipeline=filename))
-            self.assertIsInstance(pipeline, Pipeline)
-            self.assertIsInstance(pipeline, Pipeline)
-            self.assertEqual(len(pipeline), 0)
+            pipeline_graph_factory = script.build(**self.buildArgs(pipeline=filename))
+            self.assertIsInstance(pipeline_graph_factory.pipeline, Pipeline)
+            self.assertEqual(len(pipeline_graph_factory.pipeline), 0)
 
     def testShowPipeline(self):
         """Test showing the pipeline."""
@@ -217,7 +216,7 @@ class CoverageTestCase(unittest.TestCase):
             self.assertTrue(True)
 
     @unittest.mock.patch("lsst.ctrl.mpexec.cli.cmd.commands.import_module", side_effect=ModuleNotFoundError())
-    def testWithMissingCoverage(self, mock_import):
+    def testWithMissingCoverage(self, mock_import):  # numpydoc ignore=PR01
         """Test that the coverage context manager complains when coverage is
         not available.
         """

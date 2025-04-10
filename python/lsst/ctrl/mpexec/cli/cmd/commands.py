@@ -191,14 +191,14 @@ def qgraph(ctx: click.Context, **kwargs: Any) -> None:
     summary = kwargs.pop("summary", None)
     with coverage_context(kwargs):
         show = ShowInfo(kwargs.pop("show", []))
-        pipeline = script.build(**kwargs, show=show)
+        pipeline_graph_factory = script.build(**kwargs, show=show)
         if show.handled and not show.unhandled:
             print(
                 "No quantum graph generated. The --show option was given and all options were processed.",
                 file=sys.stderr,
             )
             return
-        if (qgraph := script.qgraph(pipelineObj=pipeline, **kwargs, show=show)) is None:
+        if (qgraph := script.qgraph(pipeline_graph_factory, **kwargs, show=show)) is None:
             raise click.ClickException("QuantumGraph was empty; ERROR logs above should provide details.")
         # QuantumGraph-only summary call here since script.qgraph also called
         # by run methods.
@@ -219,7 +219,7 @@ def run(ctx: click.Context, **kwargs: Any) -> None:
     kwargs = _collectActions(ctx, **kwargs)
     with coverage_context(kwargs):
         show = ShowInfo(kwargs.pop("show", []))
-        pipeline = script.build(**kwargs, show=show)
+        pipeline_graph_factory = script.build(**kwargs, show=show)
         if show.handled and not show.unhandled:
             print(
                 "No quantum graph generated or pipeline executed. "
@@ -227,7 +227,7 @@ def run(ctx: click.Context, **kwargs: Any) -> None:
                 file=sys.stderr,
             )
             return
-        if (qgraph := script.qgraph(pipelineObj=pipeline, **kwargs, show=show)) is None:
+        if (qgraph := script.qgraph(pipeline_graph_factory, **kwargs, show=show)) is None:
             raise click.ClickException("QuantumGraph was empty; ERROR logs above should provide details.")
         _unhandledShow(show, "run")
         if show.handled:

@@ -25,6 +25,7 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+from ._pipeline_graph_factory import PipelineGraphFactory
 from .cmdLineFwk import *
 from .dotTools import *
 from .executionGraphFixup import *
