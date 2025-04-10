@@ -40,14 +40,17 @@ class PipelineGraphFactory:
     ----------
     pipeline : `lsst.pipe.base.Pipeline`
         Pipeline definition to start from.
-    butler : `lsst.daf.butler.Butler` or `None`
+    butler : `lsst.daf.butler.Butler` or `None`, optional
         Butler that can be used to resolve dataset type definitions and get
         dimension schema.
+    select_tasks : `str`, optional
+        String expression that filters the tasks in the pipeline graph.
     """
 
-    def __init__(self, pipeline: Pipeline, butler: Butler | None = None):
+    def __init__(self, pipeline: Pipeline, butler: Butler | None = None, select_tasks: str = ""):
         self._pipeline = pipeline
         self._registry = butler.registry if butler is not None else None
+        self._select_tasks = select_tasks
         self._pipeline_graph: PipelineGraph | None = None
         self._resolved: bool = False
         self._for_visualization_only: bool = False
@@ -55,6 +58,8 @@ class PipelineGraphFactory:
     def __call__(self, *, resolve: bool = True, visualization_only: bool = False) -> PipelineGraph:
         if self._pipeline_graph is None:
             self._pipeline_graph = self._pipeline.to_graph()
+            if self._select_tasks:
+                self._pipeline_graph = self._pipeline_graph.select(self._select_tasks)
         if resolve and not self._resolved:
             self._pipeline_graph.resolve(self._registry, visualization_only=visualization_only)
             self._resolved = True
@@ -66,6 +71,11 @@ class PipelineGraphFactory:
     @property
     def pipeline(self) -> Pipeline:
         """The original pipeline definition."""
+        if self._select_tasks:
+            raise RuntimeError(
+                "The --select-tasks option cannot be used with operations that return or display a "
+                "pipeline as YAML, since it only operates on the pipeline graph."
+            )
         return self._pipeline
 
     def __bool__(self) -> bool:

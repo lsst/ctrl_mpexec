@@ -45,6 +45,7 @@ def build(  # type: ignore
     save_pipeline,
     show,
     butler_config=None,
+    select_tasks="",
     **kwargs,
 ) -> PipelineGraphFactory:
     """Implement the command line interface `pipetask build` subcommand.
@@ -81,6 +82,8 @@ def build(  # type: ignore
         `Config`, it is the object used to configure a Butler.
         Only used to resolve pipeline graphs for --show pipeline-graph and
         --show task-graph.
+    select_tasks : `str`, optional
+        String expression that filters the tasks in the pipeline.
     **kwargs
         Ignored; click commands may accept options for more than one script
         function and pass all the option kwargs to each of the script functions
@@ -122,7 +125,7 @@ def build(  # type: ignore
     else:
         butler = None
 
-    pipeline_graph_factory = PipelineGraphFactory(pipeline, butler)
+    pipeline_graph_factory = PipelineGraphFactory(pipeline, butler, select_tasks)
 
     if pipeline_dot:
         with open(pipeline_dot, "w") as stream:

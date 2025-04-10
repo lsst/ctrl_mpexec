@@ -84,9 +84,10 @@ class BuildTestCase(unittest.TestCase):
         """Test showing the pipeline."""
 
         class ShowInfoCmp:
-            def __init__(self, show, expectedOutput):
+            def __init__(self, show, expectedOutput, *args):
                 self.show = show
                 self.expectedOutput = expectedOutput
+                self.args = args
 
             def __repr__(self):
                 return f"ShowInfoCmp({self.show}, {self.expectedOutput}"
@@ -131,6 +132,24 @@ config.connections.out_tmpl='_out'""",
             # history will contain machine-specific paths, TBD how to verify
             ShowInfoCmp("history=task::addend", None),
             ShowInfoCmp("tasks", "### Subtasks for task `lsst.pipe.base.tests.simpleQGraph.AddTask'"),
+            ShowInfoCmp(
+                "pipeline-graph",
+                "\n".join(
+                    [
+                        "○  add_dataset_in: {detector} NumpyArray",
+                        "│",
+                        "■  task2: {detector}",
+                        "│",
+                        "◍  add_dataset_out2, add2_dataset_out2: {detector} NumpyArray",
+                    ]
+                ),
+                "--task",
+                "lsst.pipe.base.tests.simpleQGraph.AddTask:task2",
+                "-c",
+                "task2:connections.out_tmpl=_out2",
+                "--select-tasks",
+                "<=add2_dataset_out2",
+            ),
         ]
 
         for showInfo in testdata:
@@ -145,11 +164,29 @@ config.connections.out_tmpl='_out'""",
                     "task:addend=100",
                     "--show",
                     showInfo.show,
+                    *showInfo.args,
                 ],
             )
             self.assertEqual(result.exit_code, 0, clickResultMsg(result))
             if showInfo.expectedOutput is not None:
                 self.assertIn(showInfo.expectedOutput, result.output, msg=f"for {showInfo}")
+        # Trying to show the pipeline with --select-tasks should fail, because
+        # --select-tasks acts on the PipelineGraph and hence wouldn't affect
+        # the YAML and that'd be confusing.
+        runner = LogCliRunner()
+        result = runner.invoke(
+            pipetaskCli,
+            [
+                "build",
+                "--task",
+                "lsst.pipe.base.tests.simpleQGraph.AddTask:task",
+                "--show",
+                "pipeline",
+                "--select-tasks",
+                ">=task",
+            ],
+        )
+        self.assertEqual(result.exit_code, 1)
 
     def testMissingOption(self):
         """Test that the build script fails if options are missing."""
