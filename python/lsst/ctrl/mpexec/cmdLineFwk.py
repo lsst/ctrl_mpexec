@@ -78,6 +78,7 @@ from lsst.utils import doImportType
 from lsst.utils.logging import getLogger
 from lsst.utils.threads import disable_implicit_threading
 
+from ._pipeline_graph_factory import PipelineGraphFactory
 from .executionGraphFixup import ExecutionGraphFixup
 from .mpGraphExecutor import MPGraphExecutor
 from .preExecInit import PreExecInit, PreExecInitLimited
@@ -616,13 +617,16 @@ class CmdLineFwk:
 
         return pipeline
 
-    def makeGraph(self, pipeline: Pipeline, args: SimpleNamespace) -> QuantumGraph | None:
+    def makeGraph(
+        self, pipeline_graph_factory: PipelineGraphFactory | None, args: SimpleNamespace
+    ) -> QuantumGraph | None:
         """Build a graph from command line arguments.
 
         Parameters
         ----------
-        pipeline : `~lsst.pipe.base.Pipeline`
-            Pipeline, can be empty or ``None`` if graph is read from a file.
+        pipeline_graph_factory : `PipelineGraphFactory`
+            Factory that holds a pipeline and can produce a pipeline graph.
+            Must be ``None`` if and only if graph is read from a file.
         args : `types.SimpleNamespace`
             Parsed command line.
 
@@ -646,12 +650,20 @@ class CmdLineFwk:
             qgraph = QuantumGraph.loadUri(args.qgraph, butler.dimensions, nodes=nodes, graphID=args.qgraph_id)
 
             # pipeline can not be provided in this case
-            if pipeline:
-                raise ValueError("Pipeline must not be given when quantum graph is read from file.")
+            if pipeline_graph_factory:
+                raise ValueError(
+                    "Pipeline must not be given when quantum graph is read from "
+                    f"file: {bool(pipeline_graph_factory)}"
+                )
             if args.show_qgraph_header:
                 print(QuantumGraph.readHeader(args.qgraph))
         else:
-            pipeline_graph = pipeline.to_graph()
+            if pipeline_graph_factory is None:
+                raise ValueError("Pipeline must be given when quantum graph is not read from file.")
+            # We can't resolve the pipeline graph if we're mocking until after
+            # we've done the mocking (and the QG build will resolve on its own
+            # anyway).
+            pipeline_graph = pipeline_graph_factory(resolve=False)
             if args.mock:
                 from lsst.pipe.base.tests.mocks import mock_pipeline_graph
 

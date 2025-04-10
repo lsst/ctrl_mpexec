@@ -46,7 +46,7 @@ import click
 import lsst.pex.config as pexConfig
 import lsst.pipe.base.connectionTypes as cT
 import lsst.utils.tests
-from lsst.ctrl.mpexec import CmdLineFwk, MPGraphExecutorError, Report
+from lsst.ctrl.mpexec import CmdLineFwk, MPGraphExecutorError, PipelineGraphFactory, Report
 from lsst.ctrl.mpexec.cli.opt import run_options
 from lsst.ctrl.mpexec.cli.utils import (
     _ACTION_ADD_INSTRUMENT,
@@ -434,6 +434,7 @@ class CmdLineFwkTestCase(unittest.TestCase):
         actions = [_ACTION_ADD_TASK(f"{_TASK_CLASS}:task"), _ACTION_CONFIG("task:addend=100")]
         args = _makeArgs(pipeline_actions=actions)
         pipeline = fwk.makePipeline(args)
+        pipeline_graph_factory = PipelineGraphFactory(pipeline)
 
         with self.assertRaises(ValueError):
             ShowInfo(["unrecognized", "config"])
@@ -443,7 +444,7 @@ class CmdLineFwkTestCase(unittest.TestCase):
             ["pipeline", "config", "history=task::addend", "tasks", "dump-config", "config=task::add*"],
             stream=stream,
         )
-        show.show_pipeline_info(pipeline, None)
+        show.show_pipeline_info(pipeline_graph_factory)
         self.assertEqual(show.unhandled, frozenset({}))
         stream.seek(0)
         output = stream.read()
@@ -452,27 +453,27 @@ class CmdLineFwkTestCase(unittest.TestCase):
         self.assertIn("class: lsst.pipe.base.tests.simpleQGraph.AddTask", output)  # pipeline
 
         show = ShowInfo(["pipeline", "uri"], stream=stream)
-        show.show_pipeline_info(pipeline, None)
+        show.show_pipeline_info(pipeline_graph_factory)
         self.assertEqual(show.unhandled, frozenset({"uri"}))
         self.assertEqual(show.handled, {"pipeline"})
 
         stream = StringIO()
         show = ShowInfo(["config=task::addend.missing"], stream=stream)  # No match
-        show.show_pipeline_info(pipeline, None)
+        show.show_pipeline_info(pipeline_graph_factory)
         stream.seek(0)
         output = stream.read().strip()
         self.assertEqual("### Configuration for task `task'", output)
 
         stream = StringIO()
         show = ShowInfo(["config=task::addEnd:NOIGNORECASE"], stream=stream)  # No match
-        show.show_pipeline_info(pipeline, None)
+        show.show_pipeline_info(pipeline_graph_factory)
         stream.seek(0)
         output = stream.read().strip()
         self.assertEqual("### Configuration for task `task'", output)
 
         stream = StringIO()
         show = ShowInfo(["pipeline-graph"], stream=stream)  # No match
-        show.show_pipeline_info(pipeline, None)
+        show.show_pipeline_info(pipeline_graph_factory)
         stream.seek(0)
         output = stream.read().strip()
         self.assertEqual(
@@ -490,31 +491,31 @@ class CmdLineFwkTestCase(unittest.TestCase):
 
         stream = StringIO()
         show = ShowInfo(["task-graph"], stream=stream)  # No match
-        show.show_pipeline_info(pipeline, None)
+        show.show_pipeline_info(pipeline_graph_factory)
         stream.seek(0)
         output = stream.read().strip()
         self.assertEqual("■  task: {detector}", output)
 
         stream = StringIO()
         show = ShowInfo(["config=task::addEnd"], stream=stream)  # Match but warns
-        show.show_pipeline_info(pipeline, None)
+        show.show_pipeline_info(pipeline_graph_factory)
         stream.seek(0)
         output = stream.read().strip()
         self.assertIn("NOIGNORECASE", output)
 
         show = ShowInfo(["dump-config=notask"])
         with self.assertRaises(ValueError) as cm:
-            show.show_pipeline_info(pipeline, None)
+            show.show_pipeline_info(pipeline_graph_factory)
         self.assertIn("Pipeline has no tasks named notask", str(cm.exception))
 
         show = ShowInfo(["history"])
         with self.assertRaises(ValueError) as cm:
-            show.show_pipeline_info(pipeline, None)
+            show.show_pipeline_info(pipeline_graph_factory)
         self.assertIn("Please provide a value", str(cm.exception))
 
         show = ShowInfo(["history=notask::param"])
         with self.assertRaises(ValueError) as cm:
-            show.show_pipeline_info(pipeline, None)
+            show.show_pipeline_info(pipeline_graph_factory)
         self.assertIn("Pipeline has no tasks named notask", str(cm.exception))
 
     def test_execution_resources_parameters(self) -> None:
@@ -563,7 +564,7 @@ class CmdLineFwkTestCaseWithButler(unittest.TestCase):
         fwk = CmdLineFwk()
         taskFactory = AddTaskFactoryMock()
 
-        qgraph = fwk.makeGraph(self.pipeline, args)
+        qgraph = fwk.makeGraph(PipelineGraphFactory(self.pipeline, butler), args)
         self.assertEqual(len(qgraph.taskGraph), self.nQuanta)
         self.assertEqual(len(qgraph), self.nQuanta)
 
@@ -607,11 +608,11 @@ class CmdLineFwkTestCaseWithButler(unittest.TestCase):
         # Without --rebase, the inconsistent input and output collections are
         # an error.
         with self.assertRaises(ValueError):
-            fwk.makeGraph(self.pipeline, args)
+            fwk.makeGraph(PipelineGraphFactory(self.pipeline, butler), args)
 
         # With --rebase, the output collection gets redefined.
         args.rebase = True
-        qgraph = fwk.makeGraph(self.pipeline, args)
+        qgraph = fwk.makeGraph(PipelineGraphFactory(self.pipeline, butler), args)
 
         self.assertEqual(len(qgraph.taskGraph), self.nQuanta)
         self.assertEqual(len(qgraph), self.nQuanta)
@@ -641,7 +642,7 @@ class CmdLineFwkTestCaseWithButler(unittest.TestCase):
         fwk = CmdLineFwk()
         taskFactory = AddTaskFactoryMock()
 
-        qgraph = fwk.makeGraph(self.pipeline, args)
+        qgraph = fwk.makeGraph(PipelineGraphFactory(self.pipeline, butler), args)
         self.assertEqual(len(qgraph.taskGraph), self.nQuanta)
         self.assertEqual(len(qgraph), self.nQuanta)
 
@@ -702,7 +703,7 @@ class CmdLineFwkTestCaseWithButler(unittest.TestCase):
 
         fwk = CmdLineFwk()
         with self.assertLogs(level=logging.ERROR) as cm:
-            qgraph = fwk.makeGraph(self.pipeline, args)
+            qgraph = fwk.makeGraph(PipelineGraphFactory(self.pipeline, butler), args)
         self.assertRegex(
             cm.output[0], ".*Initial data ID query returned no rows, so QuantumGraph will be empty.*"
         )
@@ -739,7 +740,7 @@ class CmdLineFwkTestCaseWithButler(unittest.TestCase):
         fwk = CmdLineFwk()
         taskFactory = AddTaskFactoryMock()
 
-        qgraph = fwk.makeGraph(self.pipeline, args)
+        qgraph = fwk.makeGraph(PipelineGraphFactory(self.pipeline, butler), args)
         self.assertEqual(len(qgraph.taskGraph), self.nQuanta)
         # With current implementation graph has all nQuanta quanta, but when
         # executing one quantum is skipped.
@@ -785,7 +786,7 @@ class CmdLineFwkTestCaseWithButler(unittest.TestCase):
         fwk = CmdLineFwk()
         taskFactory = AddTaskFactoryMock()
 
-        qgraph = fwk.makeGraph(self.pipeline, args)
+        qgraph = fwk.makeGraph(PipelineGraphFactory(self.pipeline, butler), args)
         # If all quanta are skipped, the task is not included in the graph.
         self.assertEqual(len(qgraph.taskGraph), self.nQuanta - 1)
         self.assertEqual(len(qgraph), self.nQuanta - 1)
@@ -832,11 +833,11 @@ class CmdLineFwkTestCaseWithButler(unittest.TestCase):
 
         # fails without --extend-run
         with self.assertRaisesRegex(ValueError, "--extend-run was not given"):
-            qgraph = fwk.makeGraph(self.pipeline, args)
+            qgraph = fwk.makeGraph(PipelineGraphFactory(self.pipeline, butler), args)
 
         # retry with --extend-run
         args.extend_run = True
-        qgraph = fwk.makeGraph(self.pipeline, args)
+        qgraph = fwk.makeGraph(PipelineGraphFactory(self.pipeline, butler), args)
 
         # First task has no remaining quanta, so is left out completely.
         self.assertEqual(len(qgraph.taskGraph), self.nQuanta - 1)
@@ -858,7 +859,7 @@ class CmdLineFwkTestCaseWithButler(unittest.TestCase):
         fwk = CmdLineFwk()
         taskFactory = AddTaskFactoryMock(stopAt=3)
 
-        qgraph = fwk.makeGraph(self.pipeline, args)
+        qgraph = fwk.makeGraph(PipelineGraphFactory(self.pipeline, butler), args)
         self.assertEqual(len(qgraph), self.nQuanta)
 
         # Ensure that the output run used in the graph is also used in
@@ -904,7 +905,7 @@ class CmdLineFwkTestCaseWithButler(unittest.TestCase):
         fwk = CmdLineFwk()
         taskFactory = AddTaskFactoryMock(stopAt=3)
 
-        qgraph = fwk.makeGraph(self.pipeline, args)
+        qgraph = fwk.makeGraph(PipelineGraphFactory(self.pipeline, butler), args)
 
         # should have one task and number of quanta
         self.assertEqual(len(qgraph), self.nQuanta)
@@ -953,7 +954,7 @@ class CmdLineFwkTestCaseWithButler(unittest.TestCase):
         fwk = CmdLineFwk()
         taskFactory = AddTaskFactoryMock()
 
-        qgraph = fwk.makeGraph(self.pipeline, args)
+        qgraph = fwk.makeGraph(PipelineGraphFactory(self.pipeline, butler), args)
 
         # should have one task and number of quanta
         self.assertEqual(len(qgraph), self.nQuanta)
@@ -982,7 +983,7 @@ class CmdLineFwkTestCaseWithButler(unittest.TestCase):
         # changed)
         args.replace_run = True
         args.output_run = "output/run2"
-        qgraph = fwk.makeGraph(self.pipeline, args)
+        qgraph = fwk.makeGraph(PipelineGraphFactory(self.pipeline, butler), args)
         fwk.runPipeline(qgraph, taskFactory, args)
 
         butler.registry.refresh()
@@ -1001,7 +1002,7 @@ class CmdLineFwkTestCaseWithButler(unittest.TestCase):
         args.replace_run = True
         args.prune_replaced = "unstore"
         args.output_run = "output/run3"
-        qgraph = fwk.makeGraph(self.pipeline, args)
+        qgraph = fwk.makeGraph(PipelineGraphFactory(self.pipeline, butler), args)
         fwk.runPipeline(qgraph, taskFactory, args)
 
         butler.registry.refresh()
@@ -1032,7 +1033,7 @@ class CmdLineFwkTestCaseWithButler(unittest.TestCase):
         args.replace_run = True
         args.prune_replaced = "purge"
         args.output_run = "output/run4"
-        qgraph = fwk.makeGraph(self.pipeline, args)
+        qgraph = fwk.makeGraph(PipelineGraphFactory(self.pipeline, butler), args)
         fwk.runPipeline(qgraph, taskFactory, args)
 
         butler.registry.refresh()
@@ -1051,7 +1052,7 @@ class CmdLineFwkTestCaseWithButler(unittest.TestCase):
             args.prune_replaced = None
             args.replace_run = True
             args.output_run = "output/run5"
-            qgraph = fwk.makeGraph(self.pipeline, args)
+            qgraph = fwk.makeGraph(PipelineGraphFactory(self.pipeline, butler), args)
             fwk.runPipeline(qgraph, taskFactory, args)
         butler.registry.refresh()
         collections = set(butler.registry.queryCollections(...))
@@ -1061,7 +1062,7 @@ class CmdLineFwkTestCaseWithButler(unittest.TestCase):
             args.prune_replaced = None
             args.replace_run = True
             args.output_run = "output/run6"
-            qgraph = fwk.makeGraph(self.pipeline, args)
+            qgraph = fwk.makeGraph(PipelineGraphFactory(self.pipeline, butler), args)
             fwk.runPipeline(qgraph, taskFactory, args)
         butler.registry.refresh()
         collections = set(butler.registry.queryCollections(...))
@@ -1074,7 +1075,7 @@ class CmdLineFwkTestCaseWithButler(unittest.TestCase):
         populateButler(self.pipeline, butler)
 
         fwk = CmdLineFwk()
-        qgraph = fwk.makeGraph(self.pipeline, args)
+        qgraph = fwk.makeGraph(PipelineGraphFactory(self.pipeline, butler), args)
 
         # Select first two nodes for execution. This depends on node ordering
         # which I assume is the same as execution order.
@@ -1101,7 +1102,7 @@ class CmdLineFwkTestCaseWithButler(unittest.TestCase):
             fwk = CmdLineFwk()
 
             # load graph, should only read a subset
-            qgraph = fwk.makeGraph(pipeline=None, args=args)
+            qgraph = fwk.makeGraph(None, args=args)
             self.assertEqual(len(qgraph), nNodes)
 
     def testShowGraph(self):
@@ -1137,7 +1138,7 @@ class CmdLineFwkTestCaseWithButler(unittest.TestCase):
         populateButler(self.pipeline, butler)
 
         fwk = CmdLineFwk()
-        qgraph = fwk.makeGraph(self.pipeline, args)
+        qgraph = fwk.makeGraph(PipelineGraphFactory(self.pipeline, butler), args)
         self.assertEqual(len(qgraph), self.nQuanta)
         for i, qnode in enumerate(qgraph):
             quantum = qnode.quantum
@@ -1167,7 +1168,7 @@ class CmdLineFwkTestCaseWithButler(unittest.TestCase):
         fwk = CmdLineFwk()
         taskFactory = AddTaskFactoryMock()
 
-        qgraph = fwk.makeGraph(self.pipeline, args)
+        qgraph = fwk.makeGraph(PipelineGraphFactory(self.pipeline, butler), args)
         self.assertEqual(len(qgraph.taskGraph), self.nQuanta)
         self.assertEqual(len(qgraph), self.nQuanta)
 

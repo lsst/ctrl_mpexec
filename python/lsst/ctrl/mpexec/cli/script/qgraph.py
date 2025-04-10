@@ -36,8 +36,8 @@ _log = logging.getLogger(__name__)
 
 
 def qgraph(  # type: ignore
+    pipeline_graph_factory,
     *,
-    pipelineObj,
     qgraph,
     qgraph_id,
     qgraph_node_id,
@@ -78,9 +78,9 @@ def qgraph(  # type: ignore
 
     Parameters
     ----------
-    pipelineObj : `lsst.pipe.base.Pipeline` or None
-        The pipeline object used to generate a qgraph. If this is not `None`
-        then `qgraph` should be `None`.
+    pipeline_graph_factory : `..PipelineGraphFactory` or None
+        A factory that holds the pipeline and can produce a pipeline graph.
+        If this is not `None` then `qgraph` should be `None`.
     qgraph : `str` or `None`
         URI location for a serialized quantum graph definition as a pickle
         file. If this option is not None then `pipeline` should be `None`.
@@ -227,7 +227,7 @@ def qgraph(  # type: ignore
     )
 
     f = CmdLineFwk()
-    qgraph = f.makeGraph(pipelineObj, args)
+    qgraph = f.makeGraph(pipeline_graph_factory, args)
 
     if qgraph is None:
         return None
