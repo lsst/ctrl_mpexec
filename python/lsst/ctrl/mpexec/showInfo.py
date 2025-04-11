@@ -39,12 +39,13 @@ from typing import Any
 
 import lsst.pex.config as pexConfig
 import lsst.pex.config.history as pexConfigHistory
-from lsst.daf.butler import Butler, DatasetRef, DatasetType, NamedKeyMapping
+from lsst.daf.butler import DatasetRef, DatasetType, NamedKeyMapping
 from lsst.daf.butler.datastore.record_data import DatastoreRecordData
-from lsst.pipe.base import Pipeline, QuantumGraph
+from lsst.pipe.base import PipelineGraph, QuantumGraph
 from lsst.pipe.base.pipeline_graph import visualization
 
 from . import util
+from ._pipeline_graph_factory import PipelineGraphFactory
 from .cmdLineFwk import _ButlerFactory
 
 
@@ -138,20 +139,15 @@ class ShowInfo:
         """Return the commands that have not yet been processed."""
         return frozenset(set(self.commands) - self.handled)
 
-    def show_pipeline_info(self, pipeline: Pipeline, butler: Butler | None) -> None:
+    def show_pipeline_info(self, pipeline_graph_factory: PipelineGraphFactory) -> None:
         """Display useful information about the pipeline.
 
         Parameters
         ----------
-        pipeline : `lsst.pipe.base.Pipeline`
-            The pipeline to use when reporting information.
-        butler : `~lsst.daf.butler.Butler`
-            Butler to use for querying.
+        pipeline_graph_factory : `PipelineGraphFactory`
+            Factory object that holds the pipeline and can produce a pipeline
+            graph.
         """
-        if butler is not None:
-            registry = butler.registry
-        else:
-            registry = None
         for command in self.pipeline_commands:
             if command not in self.commands:
                 continue
@@ -159,25 +155,25 @@ class ShowInfo:
 
             match command:
                 case "pipeline":
-                    print(pipeline, file=self.stream)
+                    print(pipeline_graph_factory.pipeline, file=self.stream)
                 case "config":
                     for arg in args:
-                        self._showConfig(pipeline, arg, False)
+                        self._showConfig(pipeline_graph_factory(visualization_only=True), arg, False)
                 case "dump-config":
                     for arg in args:
-                        self._showConfig(pipeline, arg, True)
+                        self._showConfig(pipeline_graph_factory(visualization_only=True), arg, True)
                 case "history":
                     for arg in args:
-                        self._showConfigHistory(pipeline, arg)
+                        self._showConfigHistory(pipeline_graph_factory(visualization_only=True), arg)
                 case "tasks":
-                    self._showTaskHierarchy(pipeline)
+                    self._showTaskHierarchy(pipeline_graph_factory(visualization_only=True))
                 case "pipeline-graph":
                     visualization.show(
-                        pipeline.to_graph(registry, visualization_only=True), self.stream, dataset_types=True
+                        pipeline_graph_factory(visualization_only=True), self.stream, dataset_types=True
                     )
                 case "task-graph":
                     visualization.show(
-                        pipeline.to_graph(registry, visualization_only=True), self.stream, dataset_types=False
+                        pipeline_graph_factory(visualization_only=True), self.stream, dataset_types=False
                     )
                 case _:
                     raise RuntimeError(f"Unexpectedly tried to process command {command!r}.")
@@ -210,13 +206,13 @@ class ShowInfo:
                     raise RuntimeError(f"Unexpectedly tried to process command {command!r}.")
             self.handled.add(command)
 
-    def _showConfig(self, pipeline: Pipeline, showArgs: str, dumpFullConfig: bool) -> None:
+    def _showConfig(self, pipeline_graph: PipelineGraph, showArgs: str, dumpFullConfig: bool) -> None:
         """Show task configuration
 
         Parameters
         ----------
-        pipeline : `lsst.pipe.base.Pipeline`
-            Pipeline definition
+        pipeline : `lsst.pipe.base.pipeline_graph.Pipeline`
+            Pipeline definition as a graph.
         showArgs : `str`
             Defines what to show
         dumpFullConfig : `bool`
@@ -235,7 +231,7 @@ class ShowInfo:
             if pattern:
                 stream = _FilteredStream(pattern, stream=stream)
 
-        tasks = util.filterTaskNodes(pipeline.to_graph(), taskName)
+        tasks = util.filterTaskNodes(pipeline_graph, taskName)
         if not tasks:
             raise ValueError(f"Pipeline has no tasks named {taskName}")
 
@@ -243,13 +239,13 @@ class ShowInfo:
             print(f"### Configuration for task `{task_node.label}'", file=self.stream)
             task_node.config.saveToStream(stream, root="config", skipImports=not dumpFullConfig)
 
-    def _showConfigHistory(self, pipeline: Pipeline, showArgs: str) -> None:
+    def _showConfigHistory(self, pipeline_graph: PipelineGraph, showArgs: str) -> None:
         """Show history for task configuration.
 
         Parameters
         ----------
-        pipeline : `lsst.pipe.base.Pipeline`
-            Pipeline definition
+        pipeline_graph : `lsst.pipe.base.pipeline_graph.PipelineGraph`
+            Pipeline definition as a graph.
         showArgs : `str`
             Defines what to show
         """
@@ -262,7 +258,7 @@ class ShowInfo:
         if not pattern:
             raise ValueError("Please provide a value with --show history (e.g. history=Task::param)")
 
-        tasks = util.filterTaskNodes(pipeline.to_graph(), taskName)
+        tasks = util.filterTaskNodes(pipeline_graph, taskName)
         if not tasks:
             raise ValueError(f"Pipeline has no tasks named {taskName}")
 
@@ -300,15 +296,15 @@ class ShowInfo:
         if not found:
             raise ValueError(f"None of the tasks has field matching {pattern}")
 
-    def _showTaskHierarchy(self, pipeline: Pipeline) -> None:
+    def _showTaskHierarchy(self, pipeline_graph: PipelineGraph) -> None:
         """Print task hierarchy to stdout
 
         Parameters
         ----------
-        pipeline : `lsst.pipe.base.Pipeline`
-            Pipeline definition.
+        pipeline_graph : `lsst.pipe.base.pipeline_graph.PipelineGraph`
+            Pipeline definition as a graph.
         """
-        for task_node in pipeline.to_graph().tasks.values():
+        for task_node in pipeline_graph.tasks.values():
             print(f"### Subtasks for task `{task_node.task_class_name}'", file=self.stream)
 
             for configName, taskName in util.subTaskIter(task_node.config):
