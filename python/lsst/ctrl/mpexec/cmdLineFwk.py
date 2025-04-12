@@ -675,7 +675,11 @@ class CmdLineFwk:
             data_id_tables = []
             for table_file in args.data_id_table:
                 with ResourcePath(table_file).as_local() as local_path:
-                    data_id_tables.append(Table.read(local_path.ospath))
+                    table = Table.read(local_path.ospath)
+                    # Add the filename to the metadata for more logging
+                    # information down in the QG builder.
+                    table.meta["filename"] = table_file
+                    data_id_tables.append(table)
             # make execution plan (a.k.a. DAG) for pipeline
             graph_builder = AllDimensionsQuantumGraphBuilder(
                 pipeline_graph,
