@@ -31,10 +31,12 @@ from lsst.daf.butler import Butler
 from lsst.pipe.base.pipeline_graph import visualization
 
 from ... import CmdLineFwk
+from ..._pipeline_graph_factory import PipelineGraphFactory
 from ..utils import _PipelineAction
 
 
 def build(  # type: ignore
+    *,
     order_pipeline,
     pipeline,
     pipeline_actions,
@@ -43,8 +45,9 @@ def build(  # type: ignore
     save_pipeline,
     show,
     butler_config=None,
+    select_tasks="",
     **kwargs,
-):
+) -> PipelineGraphFactory:
     """Implement the command line interface `pipetask build` subcommand.
 
     Should only be called by command line tools and unit test code that tests
@@ -79,6 +82,8 @@ def build(  # type: ignore
         `Config`, it is the object used to configure a Butler.
         Only used to resolve pipeline graphs for --show pipeline-graph and
         --show task-graph.
+    select_tasks : `str`, optional
+        String expression that filters the tasks in the pipeline.
     **kwargs
         Ignored; click commands may accept options for more than one script
         function and pass all the option kwargs to each of the script functions
@@ -86,8 +91,9 @@ def build(  # type: ignore
 
     Returns
     -------
-    pipeline : `lsst.pipe.base.Pipeline`
-        The pipeline instance that was built.
+    pipeline_graph_factory : `..PipelineGraphFactory`
+        A helper object that holds the built pipeline and can turn it into a
+        pipeline graph.
 
     Raises
     ------
@@ -119,10 +125,12 @@ def build(  # type: ignore
     else:
         butler = None
 
+    pipeline_graph_factory = PipelineGraphFactory(pipeline, butler, select_tasks)
+
     if pipeline_dot:
         with open(pipeline_dot, "w") as stream:
             visualization.show_dot(
-                pipeline.to_graph(butler.registry if butler is not None else None, visualization_only=True),
+                pipeline_graph_factory(visualization_only=True),
                 stream,
                 dataset_types=True,
                 task_classes="full",
@@ -142,7 +150,7 @@ def build(  # type: ignore
 
         with open(pipeline_mermaid, file_mode) as stream:
             visualization.show_mermaid(
-                pipeline.to_graph(butler.registry if butler is not None else None, visualization_only=True),
+                pipeline_graph_factory(visualization_only=True),
                 stream,
                 output_format=output_format,
                 width=4500 if output_format != "mmd" else None,
@@ -150,6 +158,6 @@ def build(  # type: ignore
                 task_classes="full",
             )
 
-    show.show_pipeline_info(pipeline, butler=butler)
+    show.show_pipeline_info(pipeline_graph_factory)
 
-    return pipeline
+    return pipeline_graph_factory

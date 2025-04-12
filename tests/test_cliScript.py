@@ -63,31 +63,31 @@ class BuildTestCase(unittest.TestCase):
 
     def testMakeEmptyPipeline(self):
         """Test building a pipeline with default arguments."""
-        pipeline = script.build(**self.buildArgs())
-        self.assertIsInstance(pipeline, Pipeline)
-        self.assertEqual(len(pipeline), 0)
+        pipeline_graph_factory = script.build(**self.buildArgs())
+        self.assertIsInstance(pipeline_graph_factory.pipeline, Pipeline)
+        self.assertEqual(len(pipeline_graph_factory.pipeline), 0)
 
     def testSavePipeline(self):
         """Test pipeline serialization."""
         with tempfile.TemporaryDirectory() as tempdir:
             # make empty pipeline and store it in a file
             filename = os.path.join(tempdir, "pipeline_file.yaml")
-            pipeline = script.build(**self.buildArgs(save_pipeline=filename))
-            self.assertIsInstance(pipeline, Pipeline)
+            pipeline_graph_factory = script.build(**self.buildArgs(save_pipeline=filename))
+            self.assertIsInstance(pipeline_graph_factory.pipeline, Pipeline)
             self.assertTrue(os.path.isfile(filename))
             # read pipeline from a file
-            pipeline = script.build(**self.buildArgs(pipeline=filename))
-            self.assertIsInstance(pipeline, Pipeline)
-            self.assertIsInstance(pipeline, Pipeline)
-            self.assertEqual(len(pipeline), 0)
+            pipeline_graph_factory = script.build(**self.buildArgs(pipeline=filename))
+            self.assertIsInstance(pipeline_graph_factory.pipeline, Pipeline)
+            self.assertEqual(len(pipeline_graph_factory.pipeline), 0)
 
     def testShowPipeline(self):
         """Test showing the pipeline."""
 
         class ShowInfoCmp:
-            def __init__(self, show, expectedOutput):
+            def __init__(self, show, expectedOutput, *args):
                 self.show = show
                 self.expectedOutput = expectedOutput
+                self.args = args
 
             def __repr__(self):
                 return f"ShowInfoCmp({self.show}, {self.expectedOutput}"
@@ -132,6 +132,24 @@ config.connections.out_tmpl='_out'""",
             # history will contain machine-specific paths, TBD how to verify
             ShowInfoCmp("history=task::addend", None),
             ShowInfoCmp("tasks", "### Subtasks for task `lsst.pipe.base.tests.simpleQGraph.AddTask'"),
+            ShowInfoCmp(
+                "pipeline-graph",
+                "\n".join(
+                    [
+                        "○  add_dataset_in: {detector} NumpyArray",
+                        "│",
+                        "■  task2: {detector}",
+                        "│",
+                        "◍  add_dataset_out2, add2_dataset_out2: {detector} NumpyArray",
+                    ]
+                ),
+                "--task",
+                "lsst.pipe.base.tests.simpleQGraph.AddTask:task2",
+                "-c",
+                "task2:connections.out_tmpl=_out2",
+                "--select-tasks",
+                "<=add2_dataset_out2",
+            ),
         ]
 
         for showInfo in testdata:
@@ -146,11 +164,29 @@ config.connections.out_tmpl='_out'""",
                     "task:addend=100",
                     "--show",
                     showInfo.show,
+                    *showInfo.args,
                 ],
             )
             self.assertEqual(result.exit_code, 0, clickResultMsg(result))
             if showInfo.expectedOutput is not None:
                 self.assertIn(showInfo.expectedOutput, result.output, msg=f"for {showInfo}")
+        # Trying to show the pipeline with --select-tasks should fail, because
+        # --select-tasks acts on the PipelineGraph and hence wouldn't affect
+        # the YAML and that'd be confusing.
+        runner = LogCliRunner()
+        result = runner.invoke(
+            pipetaskCli,
+            [
+                "build",
+                "--task",
+                "lsst.pipe.base.tests.simpleQGraph.AddTask:task",
+                "--show",
+                "pipeline",
+                "--select-tasks",
+                ">=task",
+            ],
+        )
+        self.assertEqual(result.exit_code, 1)
 
     def testMissingOption(self):
         """Test that the build script fails if options are missing."""
@@ -217,7 +253,7 @@ class CoverageTestCase(unittest.TestCase):
             self.assertTrue(True)
 
     @unittest.mock.patch("lsst.ctrl.mpexec.cli.cmd.commands.import_module", side_effect=ModuleNotFoundError())
-    def testWithMissingCoverage(self, mock_import):
+    def testWithMissingCoverage(self, mock_import):  # numpydoc ignore=PR01
         """Test that the coverage context manager complains when coverage is
         not available.
         """
