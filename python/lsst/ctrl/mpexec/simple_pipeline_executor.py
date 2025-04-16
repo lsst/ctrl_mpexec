@@ -153,6 +153,8 @@ class SimplePipelineExecutor:
         resources: ExecutionResources | None = None,
         raise_on_partial_outputs: bool = True,
         attach_datastore_records: bool = False,
+        output: str | None = None,
+        output_run: str | None = None,
     ) -> SimplePipelineExecutor:
         """Create an executor by building a QuantumGraph from an on-disk
         pipeline YAML file.
@@ -180,6 +182,13 @@ class SimplePipelineExecutor:
             Whether to attach datastore records to the quantum graph.  This is
             usually unnecessary, unless the executor is used to test behavior
             that depends on datastore records.
+        output : `str`, optional
+            Name of a new output `~lsst.daf.butler.CollectionType.CHAINED`
+            collection to create that will combine both inputs and outputs.
+        output_run : `str`, optional
+            Name of the output `~lsst.daf.butler.CollectionType.RUN` that will
+            directly hold all output datasets.  If not provided, a name will
+            be created from ``output`` and a timestamp.
 
         Returns
         -------
@@ -197,6 +206,8 @@ class SimplePipelineExecutor:
             resources=resources,
             raise_on_partial_outputs=raise_on_partial_outputs,
             attach_datastore_records=attach_datastore_records,
+            output=output,
+            output_run=output_run,
         )
 
     @classmethod
@@ -212,6 +223,8 @@ class SimplePipelineExecutor:
         resources: ExecutionResources | None = None,
         raise_on_partial_outputs: bool = True,
         attach_datastore_records: bool = False,
+        output: str | None = None,
+        output_run: str | None = None,
     ) -> SimplePipelineExecutor:
         """Create an executor by building a QuantumGraph from a pipeline
         containing a single task.
@@ -245,6 +258,13 @@ class SimplePipelineExecutor:
             Whether to attach datastore records to the quantum graph.  This is
             usually unnecessary, unless the executor is used to test behavior
             that depends on datastore records.
+        output : `str`, optional
+            Name of a new output `~lsst.daf.butler.CollectionType.CHAINED`
+            collection to create that will combine both inputs and outputs.
+        output_run : `str`, optional
+            Name of the output `~lsst.daf.butler.CollectionType.RUN` that will
+            directly hold all output datasets.  If not provided, a name will
+            be created from ``output`` and a timestamp.
 
         Returns
         -------
@@ -272,6 +292,8 @@ class SimplePipelineExecutor:
             resources=resources,
             raise_on_partial_outputs=raise_on_partial_outputs,
             attach_datastore_records=attach_datastore_records,
+            output=output,
+            output_run=output_run,
         )
 
     @classmethod
@@ -285,6 +307,8 @@ class SimplePipelineExecutor:
         resources: ExecutionResources | None = None,
         raise_on_partial_outputs: bool = True,
         attach_datastore_records: bool = False,
+        output: str | None = None,
+        output_run: str | None = None,
     ) -> SimplePipelineExecutor:
         """Create an executor by building a QuantumGraph from an in-memory
         pipeline.
@@ -314,6 +338,13 @@ class SimplePipelineExecutor:
             Whether to attach datastore records to the quantum graph.  This is
             usually unnecessary, unless the executor is used to test behavior
             that depends on datastore records.
+        output : `str`, optional
+            Name of a new output `~lsst.daf.butler.CollectionType.CHAINED`
+            collection to create that will combine both inputs and outputs.
+        output_run : `str`, optional
+            Name of the output `~lsst.daf.butler.CollectionType.RUN` that will
+            directly hold all output datasets.  If not provided, a name will
+            be created from ``output`` and a timestamp.
 
         Returns
         -------
@@ -331,6 +362,8 @@ class SimplePipelineExecutor:
             resources=resources,
             raise_on_partial_outputs=raise_on_partial_outputs,
             attach_datastore_records=attach_datastore_records,
+            output=output,
+            output_run=output_run,
         )
 
     @classmethod
@@ -376,6 +409,13 @@ class SimplePipelineExecutor:
             Whether to attach datastore records to the quantum graph.  This is
             usually unnecessary, unless the executor is used to test behavior
             that depends on datastore records.
+        output : `str`, optional
+            Name of a new output `~lsst.daf.butler.CollectionType.CHAINED`
+            collection to create that will combine both inputs and outputs.
+        output_run : `str`, optional
+            Name of the output `~lsst.daf.butler.CollectionType.RUN` that will
+            directly hold all output datasets.  If not provided, a name will
+            be created from ``output`` and a timestamp.
 
         Returns
         -------
@@ -386,7 +426,11 @@ class SimplePipelineExecutor:
         """
         if output_run is None:
             output_run = butler.run
-            
+            if output_run is None:
+                 if output is None:
+                     raise TypeError("At least one of output or output_run must be provided.")
+ .               output_run = f"{output}/{Instrument.makeCollectionTimestamp()}"
+
         quantum_graph_builder = AllDimensionsQuantumGraphBuilder(
             pipeline_graph, butler, where=where, bind=bind,
             output_run=output_run
@@ -427,10 +471,6 @@ class SimplePipelineExecutor:
             Writeable butler for local data repository.
         """
 
-        # To fix: allow run name to be generated automatically earlier
-        # because prep_butler needs `output` to exist.
-        # MLG and add a return statement?
-
         if not os.exists(root):
             Butler.makeRepo(root)
 
@@ -441,7 +481,7 @@ class SimplePipelineExecutor:
 
         refs = set()
         pipeline_graph = self.quantum_graph.pipeline_graph
-        
+
         for name, dataset_type_node in pipeline_graph.iter_overall_inputs():
             for task_node in pipeline_graph.consumers_of(name):
                 for quantum in qg.get_task_quanta(task_node.label).values():
@@ -452,8 +492,9 @@ class SimplePipelineExecutor:
                                  transfer_dimensions=transfer_dimensions)
 
         self.butler = out_butler
-        
-    
+        return self.butler
+
+
     def run(self, register_dataset_types: bool = False, save_versions: bool = True) -> list[Quantum]:
         """Run all the quanta in the `~lsst.pipe.base.QuantumGraph` in
         topological order.
