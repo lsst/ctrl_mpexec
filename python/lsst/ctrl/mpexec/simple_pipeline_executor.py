@@ -132,7 +132,7 @@ class SimplePipelineExecutor:
             output_run = f"{output}/{Instrument.makeCollectionTimestamp()}"
         # Make initial butler with no collections, since we haven't created
         # them yet.
-        butler = Butler.from_config(root, writeable=writeable)
+        butler = Butler.from_config(root, writeable=True)
         butler.registry.registerCollection(output_run, CollectionType.RUN)
         butler.registry.registerCollection(output, CollectionType.CHAINED)
         collections = [output_run]
@@ -427,9 +427,9 @@ class SimplePipelineExecutor:
         if output_run is None:
             output_run = butler.run
             if output_run is None:
-                 if output is None:
-                     raise TypeError("At least one of output or output_run must be provided.")
- .               output_run = f"{output}/{Instrument.makeCollectionTimestamp()}"
+                if output is None:
+                    raise TypeError("At least one of output or output_run must be provided.")
+                output_run = f"{output}/{Instrument.makeCollectionTimestamp()}"
 
         quantum_graph_builder = AllDimensionsQuantumGraphBuilder(
             pipeline_graph, butler, where=where, bind=bind,
@@ -470,26 +470,37 @@ class SimplePipelineExecutor:
         butler : `lsst.daf.butler.Butler`
             Writeable butler for local data repository.
         """
-
-        if not os.exists(root):
+        if not os.path.exists(root):
             Butler.makeRepo(root)
 
-        out_butler = self.prep_butler(root,
-                                      inputs=self.quantum_graph.metadata['input'],
-                                      output=self.quantum_graph.metadata['output'],
-                                      output_run=self.quantum_graph.metadata['output_run'])
+        out_butler = Butler.from_config(root, writeable=True)
+
+        out_butler.registry.registerCollection(self.quantum_graph.metadata['output_run'], CollectionType.RUN)
+        out_butler.registry.registerCollection(self.quantum_graph.metadata['output'], CollectionType.CHAINED)
+        collections = [self.quantum_graph.metadata['output_run']]
+        out_butler.registry.setCollectionChain(self.quantum_graph.metadata['output'], collections)
+
+        #out_butler = self.prep_butler(root,
+        #                              inputs=self.quantum_graph.metadata['input'],
+        #                              output=self.quantum_graph.metadata['output'],
+        #                              output_run=self.quantum_graph.metadata['output_run'])
 
         refs = set()
         pipeline_graph = self.quantum_graph.pipeline_graph
 
         for name, dataset_type_node in pipeline_graph.iter_overall_inputs():
             for task_node in pipeline_graph.consumers_of(name):
-                for quantum in qg.get_task_quanta(task_node.label).values():
+                for quantum in self.quantum_graph.get_task_quanta(task_node.label).values():
                     refs.update(quantum.inputs[name])
 
         out_butler.transfer_from(self.butler, refs,
                                  register_dataset_types=register_dataset_types,
                                  transfer_dimensions=transfer_dimensions)
+
+        #out_butler = self.prep_butler(root,
+        #                              inputs=self.quantum_graph.metadata['input'],
+        #                              output=self.quantum_graph.metadata['output'],
+        #                              output_run=self.quantum_graph.metadata['output_run'])
 
         self.butler = out_butler
         return self.butler
