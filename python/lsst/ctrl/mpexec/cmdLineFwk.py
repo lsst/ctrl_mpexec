@@ -1023,7 +1023,9 @@ class CmdLineFwk:
             enableLsstDebug=args.enableLsstDebug,
             limited_butler_factory=_butler_factory,
             resources=resources,
-            assumeNoExistingOutputs=True,
+            assumeNoExistingOutputs=args.no_existing_outputs,
+            skipExisting=True,
+            clobberOutputs=True,
             raise_on_partial_outputs=args.raise_on_partial_outputs,
         )
 

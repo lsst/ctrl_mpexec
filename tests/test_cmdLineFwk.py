@@ -656,7 +656,12 @@ class CmdLineFwkTestCaseWithButler(unittest.TestCase):
         with tempfile.NamedTemporaryFile(suffix=".qgraph") as temp_graph:
             qgraph.saveUri(temp_graph.name)
 
-            args = _makeArgs(butler_config=self.root, qgraph=temp_graph.name, config_search_path=[])
+            args = _makeArgs(
+                butler_config=self.root,
+                qgraph=temp_graph.name,
+                config_search_path=[],
+                no_existing_outputs=False,
+            )
 
             # Check that pre-exec-init can run.
             fwk.preExecInitQBB(taskFactory, args)
@@ -679,7 +684,12 @@ class CmdLineFwkTestCaseWithButler(unittest.TestCase):
         with tempfile.NamedTemporaryFile(suffix=".qgraph") as temp_graph:
             qgraph.saveUri(temp_graph.name)
 
-            args = _makeArgs(butler_config=self.root, qgraph=temp_graph.name, config_search_path=[])
+            args = _makeArgs(
+                butler_config=self.root,
+                qgraph=temp_graph.name,
+                config_search_path=[],
+                no_existing_outputs=False,
+            )
 
             # Check that pre-exec-init can run.
             fwk.preExecInitQBB(taskFactory, args)

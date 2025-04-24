@@ -53,6 +53,7 @@ def run_qbb(
     cores_per_quantum: int,
     memory_per_quantum: str,
     raise_on_partial_outputs: bool,
+    no_existing_outputs: bool,
 ) -> None:
     """Implement the command line interface ``pipetask run-qbb`` subcommand.
 
@@ -104,6 +105,9 @@ def run_qbb(
         units of MB) or a combination of number and unit.
     raise_on_partial_outputs : `bool`
         Consider partial outputs an error instead of a success.
+    no_existing_outputs : `bool`
+        Whether to assume that no predicted outputs for these quanta already
+        exist in the output run collection.
     """
     # Fork option still exists for compatibility but we use spawn instead.
     if start_method == "fork":
@@ -131,6 +135,7 @@ def run_qbb(
         cores_per_quantum=cores_per_quantum,
         memory_per_quantum=memory_per_quantum,
         raise_on_partial_outputs=raise_on_partial_outputs,
+        no_existing_outputs=no_existing_outputs,
     )
 
     f = CmdLineFwk()

@@ -396,6 +396,16 @@ clobber_outputs_option = MWOptionDecorator(
 )
 
 
+no_existing_outputs_option = MWOptionDecorator(
+    "--no-existing-outputs",
+    help=(
+        "Assume that no predicted outputs already exist in the output run collection. "
+        "This will eliminate existence checks that otherwise run before each quantum is executed."
+    ),
+    is_flag=True,
+)
+
+
 skip_init_writes_option = MWOptionDecorator(
     "--skip-init-writes",
     help=unwrap(
