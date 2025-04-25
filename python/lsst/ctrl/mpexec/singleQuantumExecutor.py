@@ -255,7 +255,7 @@ class SingleQuantumExecutor(QuantumExecutor):
                     _LOG.debug("Will try to import debug.py")
                     import debug  # type: ignore # noqa:F401
                 except ImportError:
-                    _LOG.warn("No 'debug' module found.")
+                    _LOG.warning("No 'debug' module found.")
 
             # initialize global state
             self.initGlobals(quantum)
