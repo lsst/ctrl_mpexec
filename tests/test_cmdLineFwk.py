@@ -675,6 +675,16 @@ class CmdLineFwkTestCaseWithButler(unittest.TestCase):
 
         self.assertEqual(taskFactory.countExec, self.nQuanta)
 
+        some_task_label = next(iter(qgraph.pipeline_graph.tasks))
+        (some_metadata_ref,) = butler.query_datasets(
+            f"{some_task_label}_metadata",
+            limit=1,
+            collections=output_run,
+        )
+        some_metadata = butler.get(some_metadata_ref)
+        self.assertIn("qg_read_time", some_metadata["job"])
+        self.assertIn("qg_size", some_metadata["job"])
+
         # Update the output run and try again.
         new_output_run = output_run + "_new"
         qgraph.updateRun(new_output_run, metadata_key="output_run", update_graph_id=True)

@@ -34,7 +34,7 @@ import logging
 import time
 import uuid
 from collections import defaultdict
-from collections.abc import Callable
+from collections.abc import Callable, Mapping
 from itertools import chain
 from typing import Any, cast
 
@@ -128,6 +128,11 @@ class SingleQuantumExecutor(QuantumExecutor):
         `lsst.pipe.base.AnnotatedPartialOutputError` immediately, instead of
         considering the partial result a success and continuing to run
         downstream tasks.
+    job_metadata : `~collections.abc.Mapping`
+        Mapping with extra metadata to embed within the quantum metadata under
+        the "job" key.  This is intended to correspond to information common
+        to all quanta being executed in a single process, such as the time
+        taken to load the quantum graph in a BPS job.
     """
 
     def __init__(
@@ -142,6 +147,7 @@ class SingleQuantumExecutor(QuantumExecutor):
         skipExisting: bool = False,
         assumeNoExistingOutputs: bool = False,
         raise_on_partial_outputs: bool = True,
+        job_metadata: Mapping[str, int | str | float] | None = None,
     ):
         self.butler = butler
         self.taskFactory = taskFactory
@@ -151,6 +157,7 @@ class SingleQuantumExecutor(QuantumExecutor):
         self.resources = resources
         self.assumeNoExistingOutputs = assumeNoExistingOutputs
         self.raise_on_partial_outputs = raise_on_partial_outputs
+        self.job_metadata = job_metadata
 
         if self.butler is None:
             assert limited_butler_factory is not None, "limited_butler_factory is needed when butler is None"
@@ -247,6 +254,8 @@ class SingleQuantumExecutor(QuantumExecutor):
                 fullMetadata = _TASK_FULL_METADATA_TYPE()
                 fullMetadata[task_node.label] = _TASK_METADATA_TYPE()
                 fullMetadata["quantum"] = quantumMetadata
+                if self.job_metadata is not None:
+                    fullMetadata["job"] = self.job_metadata
                 self.writeMetadata(quantum, fullMetadata, task_node, limited_butler)
                 return quantum
 
@@ -295,6 +304,8 @@ class SingleQuantumExecutor(QuantumExecutor):
             logInfo(None, "end", metadata=quantumMetadata)  # type: ignore[arg-type]
             fullMetadata = task.getFullMetadata()
             fullMetadata["quantum"] = quantumMetadata
+            if self.job_metadata is not None:
+                fullMetadata["job"] = self.job_metadata
             self.writeMetadata(quantum, fullMetadata, task_node, limited_butler)
             stopTime = time.time()
             _LOG.info(
