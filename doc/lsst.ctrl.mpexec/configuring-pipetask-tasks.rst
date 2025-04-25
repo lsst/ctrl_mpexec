@@ -285,7 +285,7 @@ The ``taskName`` is the pipeline task label and can either come from the name se
 
 Here are two examples:
 
-- :file:`obs_lsst/config/makeWarp.py`: specifies which parameters are preferred when warping images using the ``obs_lsst`` observatory package.
+- :file:`obs_lsst/config/makeDirectWarp.py`: specifies which parameters are preferred when warping images using the ``obs_lsst`` observatory package.
 - :file:`obs_lsst/config/latiss/isr.py``: provides overrides for the instrument signature removal (aka detrending) task for the ``latiss`` camera in the ``obs_lsst`` observatory package.
 
 Overall, the priority order for setting task configurations is configurations is (highest priority first):
