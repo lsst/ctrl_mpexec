@@ -1,0 +1,1 @@
+Quantum metadata files now include butler metrics reporting on the time spent in butler during execution.
