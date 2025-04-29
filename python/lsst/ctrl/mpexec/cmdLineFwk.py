@@ -75,7 +75,7 @@ from lsst.pipe.base.mermaid_tools import graph2mermaid
 from lsst.pipe.base.pipeline_graph import NodeType
 from lsst.resources import ResourcePath
 from lsst.utils import doImportType
-from lsst.utils.logging import getLogger
+from lsst.utils.logging import VERBOSE, getLogger
 from lsst.utils.threads import disable_implicit_threading
 
 from ._pipeline_graph_factory import PipelineGraphFactory
@@ -977,6 +977,7 @@ class CmdLineFwk:
         return None
 
     def preExecInitQBB(self, task_factory: TaskFactory, args: SimpleNamespace) -> None:
+        _LOG.verbose("Reading full quantum graph from %s.", args.qgraph)
         # Load quantum graph. We do not really need individual Quanta here,
         # but we need datastore records for initInputs, and those are only
         # available from Quanta, so load the whole thing.
@@ -986,8 +987,10 @@ class CmdLineFwk:
         _ButlerFactory.defineDatastoreCache()
 
         # Make QBB.
+        _LOG.verbose("Initializing quantum-backed butler.")
         butler = qgraph.make_init_qbb(args.butler_config, config_search_paths=args.config_search_path)
         # Save all InitOutputs, configs, etc.
+        _LOG.verbose("Instantiating tasks and saving init-outputs.")
         preExecInit = PreExecInitLimited(butler, task_factory)
         preExecInit.initialize(qgraph)
 
@@ -997,7 +1000,13 @@ class CmdLineFwk:
 
         # Load quantum graph.
         nodes = args.qgraph_node_id or None
-        qgraph = QuantumGraph.loadUri(args.qgraph, nodes=nodes, graphID=args.qgraph_id)
+        with lsst.utils.timer.time_this(
+            _LOG,
+            msg=f"Reading {str(len(nodes)) if nodes is not None else 'all'} quanta.",
+            level=VERBOSE,
+        ) as qg_read_time:
+            qgraph = QuantumGraph.loadUri(args.qgraph, nodes=nodes, graphID=args.qgraph_id)
+        job_metadata = {"qg_read_time": qg_read_time.duration, "qg_size": len(qgraph)}
 
         if qgraph.metadata is None:
             raise ValueError("QuantumGraph is missing metadata, cannot continue.")
@@ -1023,8 +1032,11 @@ class CmdLineFwk:
             enableLsstDebug=args.enableLsstDebug,
             limited_butler_factory=_butler_factory,
             resources=resources,
-            assumeNoExistingOutputs=True,
+            assumeNoExistingOutputs=args.no_existing_outputs,
+            skipExisting=True,
+            clobberOutputs=True,
             raise_on_partial_outputs=args.raise_on_partial_outputs,
+            job_metadata=job_metadata,
         )
 
         timeout = self.MP_TIMEOUT if args.timeout is None else args.timeout

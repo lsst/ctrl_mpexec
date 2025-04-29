@@ -656,7 +656,12 @@ class CmdLineFwkTestCaseWithButler(unittest.TestCase):
         with tempfile.NamedTemporaryFile(suffix=".qgraph") as temp_graph:
             qgraph.saveUri(temp_graph.name)
 
-            args = _makeArgs(butler_config=self.root, qgraph=temp_graph.name, config_search_path=[])
+            args = _makeArgs(
+                butler_config=self.root,
+                qgraph=temp_graph.name,
+                config_search_path=[],
+                no_existing_outputs=False,
+            )
 
             # Check that pre-exec-init can run.
             fwk.preExecInitQBB(taskFactory, args)
@@ -670,6 +675,16 @@ class CmdLineFwkTestCaseWithButler(unittest.TestCase):
 
         self.assertEqual(taskFactory.countExec, self.nQuanta)
 
+        some_task_label = next(iter(qgraph.pipeline_graph.tasks))
+        (some_metadata_ref,) = butler.query_datasets(
+            f"{some_task_label}_metadata",
+            limit=1,
+            collections=output_run,
+        )
+        some_metadata = butler.get(some_metadata_ref)
+        self.assertIn("qg_read_time", some_metadata["job"])
+        self.assertIn("qg_size", some_metadata["job"])
+
         # Update the output run and try again.
         new_output_run = output_run + "_new"
         qgraph.updateRun(new_output_run, metadata_key="output_run", update_graph_id=True)
@@ -679,7 +694,12 @@ class CmdLineFwkTestCaseWithButler(unittest.TestCase):
         with tempfile.NamedTemporaryFile(suffix=".qgraph") as temp_graph:
             qgraph.saveUri(temp_graph.name)
 
-            args = _makeArgs(butler_config=self.root, qgraph=temp_graph.name, config_search_path=[])
+            args = _makeArgs(
+                butler_config=self.root,
+                qgraph=temp_graph.name,
+                config_search_path=[],
+                no_existing_outputs=False,
+            )
 
             # Check that pre-exec-init can run.
             fwk.preExecInitQBB(taskFactory, args)
