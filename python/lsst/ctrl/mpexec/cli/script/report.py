@@ -28,6 +28,7 @@ import pprint
 from collections.abc import Sequence
 from typing import Literal
 
+from astropy.io.registry import get_formats
 from astropy.table import Table
 
 from lsst.daf.butler import Butler
@@ -122,6 +123,8 @@ def report_v2(
     collections: Sequence[str] | None,
     where: str,
     full_output_filename: str | None,
+    exception_diagnostics_filename: str | None,
+    show_exception_diagnostics: bool = False,
     logs: bool = True,
     brief: bool = False,
     curse_failed_logs: bool = False,
@@ -141,9 +144,9 @@ def report_v2(
     butler_config : `str`
         The Butler used for this report. This should match the Butler used for
         the run associated with the executed quantum graph.
-    qgraph_uris : `Sequence` [`str`]
+    qgraph_uris : `Sequence` of `str`
         One or more uris to the serialized Quantum Graph(s).
-    collections : `Sequence` [`str`] | None`
+    collections : `Sequence` of `str` or `None`
         Collection(s) associated with said graphs/processing. For use in
         `lsst.daf.butler.registry.queryDatasets` if paring down the query would
         be useful.
@@ -155,14 +158,27 @@ def report_v2(
         tools such as the ones used by Campaign Management software and pilots,
         and for searching and counting specific kinds or instances of failures.
         This option will also print a "brief" (counts-only) summary to stdout.
-    logs : `bool`
+    exception_diagnostics_filename : `str`
+        Output the exception diagnostics into an Astropy-supported format
+        based on file extension (e.g., html, csv, ecsv, pandas.json).
+        Full list: https://docs.astropy.org/en/stable/io/unified.html.
+        The "html" and "htm" formats are recommended as they'll be made
+        interactive (searchable and sortable) using Astropy's JSViewer writer.
+        This is a troubleshooting-oriented report of the exceptions combined
+        with the exposure dimension records.
+    show_exception_diagnostics : `bool`
+        Show exception diagnostics on stdout. This will be a truncated view of
+        the exception diagnostics table, if the table is too large. To save the
+        full table to a file, use the ``exception_diagnostics_filename``
+        argument.
+    logs : `bool`, optional
         Store error messages from Butler logs associated with failed quanta if
         `True`.
-    brief : `bool`
+    brief : `bool`, optional
         Only display short (counts-only) summary on stdout. This includes
         counts and not error messages or data_ids (similar to BPS report). This
         option will still report all `cursed` datasets and `wonky` quanta.
-    curse_failed_logs : `bool`
+    curse_failed_logs : `bool`, optional
         Mark log datasets as `cursed` if they are published in the final output
         collection. Note that a campaign-level collection must be used here for
         `collections` if `curse_failed_logs` is `True`; if
@@ -183,7 +199,7 @@ def report_v2(
         This should reduce the number of database operations.
     n_cores : `int`, optional
         Number of cores for metadata and log reads.
-    view_graph : `bool`
+    view_graph : `bool`, optional
         Display a graph representation of `QuantumProvenanceGraph.Summary` on
         stdout instead of the default plain-text summary. Pipeline graph nodes
         are then annotated with their status. This is a useful way to visualize
@@ -228,8 +244,22 @@ def report_v2(
             status_annotator=status_annotator,
             status_options=status_options,
         )
+
+        if full_output_filename or exception_diagnostics_filename or show_exception_diagnostics:
+            print(
+                "Warning: you have requested to write the summary to a file or show or save exception "
+                "diagnostics, but this will not be done when viewing the graph. Please run again without "
+                "--view_graph to get those outputs."
+            )
     else:
-        print_summary(summary, full_output_filename, brief)
+        print_summary(
+            summary,
+            full_output_filename,
+            exception_diagnostics_filename=exception_diagnostics_filename,
+            show_exception_diagnostics=show_exception_diagnostics,
+            brief=brief,
+            butler=butler if show_exception_diagnostics or exception_diagnostics_filename else None,
+        )
 
 
 def aggregate_reports(
@@ -242,15 +272,15 @@ def aggregate_reports(
 
     Parameters
     ----------
-    filenames : `Sequence[str]`
+    filenames : `Sequence` of `str`
         The paths to the JSON files produced by `pipetask report` (note: this
         is only compatible with the multi-graph or `--force-v2` option). These
         files correspond to the `QuantumProvenanceGraph.Summary` objects which
         are produced for each group.
-    full_output_filename : `str | None`
+    full_output_filename : `str` or `None`
         The name of the JSON file in which to store the aggregate report, if
         passed. This is passed to `print_summary` at the end of this function.
-    brief : `bool = False`
+    brief : `bool`, optional
         Only display short (counts-only) summary on stdout. This includes
         counts and not error messages or data_ids (similar to BPS report).
         This option will still report all `cursed` datasets and `wonky`
@@ -262,10 +292,54 @@ def aggregate_reports(
             model = Summary.model_validate_json(f.read())
             summaries.extend([model])
     result = Summary.aggregate(summaries)
-    print_summary(result, full_output_filename, brief)
+    print_summary(result, full_output_filename, brief=brief)
 
 
-def print_summary(summary: Summary, full_output_filename: str | None, brief: bool = False) -> None:
+def infer_write_format_from_filename(filename: str, default: str = "jsviewer") -> str:
+    """Guess the appropriate Astropy `Table.write` format from a filename.
+
+    Parameters
+    ----------
+    filename : `str`
+        The name of the file to be written.
+    default : `str`, optional
+        The default format to return if no match is found. Default is
+        "jsviewer" for interactive HTML output.
+
+    Returns
+    -------
+    format : str
+        A valid format string that can be passed to `Table.write(format=...)`.
+    """
+    formats = get_formats(Table)
+    write_formats = {str(f["Format"]).lower() for f in formats if f["Write"]}
+
+    filename = filename.lower()
+    parts = filename.split(".")
+
+    # Try full two-part suffix (e.g., "pandas.json").
+    if len(parts) >= 2:
+        suffix = ".".join(parts[-2:])
+        if suffix in write_formats:
+            return suffix
+
+    # Try just the last extension (e.g., "ecsv").
+    if len(parts) >= 1:
+        ext = parts[-1]
+        if ext in write_formats:
+            return ext
+
+    return default
+
+
+def print_summary(
+    summary: Summary,
+    full_output_filename: str | None,
+    exception_diagnostics_filename: str | None = None,
+    show_exception_diagnostics: bool = False,
+    brief: bool = False,
+    butler: Butler | None = None,
+) -> None:
     """Take a `QuantumProvenanceGraph.Summary` object and write it to a file
     and/or the screen.
 
@@ -274,15 +348,64 @@ def print_summary(summary: Summary, full_output_filename: str | None, brief: boo
     summary : `QuantumProvenanceGraph.Summary`
         This `Pydantic` model contains all the information derived from the
         `QuantumProvenanceGraph`.
-    full_output_filename : `str | None`
+    full_output_filename : `str` or `None`
         Name of the JSON file in which to store summary information, if
         passed.
+    exception_diagnostics_filename : `str` or `None`
+        Name of the file to write exception diagnostics to, if provided. This
+        report combines exception information with exposure dimension records,
+        useful for troubleshooting. The output format is inferred from the
+        filename extension. If the extension is "htm", "html", or unrecognized,
+        the format defaults to "jsviewer" to generate an interactive,
+        searchable and sortable HTML table.
+    show_exception_diagnostics : `bool`
+        Display exception diagnostics on stdout. If the table is too large,
+        only a truncated version will be shown. To save the complete table, use
+        the ``exception_diagnostics_filename`` argument.
     brief : `bool`
         Only display short (counts-only) summary on stdout. This includes
         counts and not error messages or data_ids (similar to BPS report).
-        Ignored (considered `False`) if ``full_output_filename`` is passed.
+        Ignored (considered `False`) if ``full_output_filename`` or
+        ``exception_diagnostics_filename`` is passed.
+    butler : `lsst.daf.butler.Butler` or `None`
+        Butler to use for the report. This is needed to get the exposure
+        dimension records for the exception diagnostics.
     """
-    summary.pprint(brief=(brief or bool(full_output_filename)))
+    summary.pprint(
+        brief=(brief or bool(full_output_filename) or bool(exception_diagnostics_filename)),
+        show_exception_diagnostics=show_exception_diagnostics,
+        butler=butler,
+    )
     if full_output_filename:
+        # Write the full summary to a file.
         with open(full_output_filename, "w") as stream:
             stream.write(summary.model_dump_json(indent=2))
+        print(f"Full summary written to {full_output_filename}")
+
+    if exception_diagnostics_filename:
+        exception_diagnostics_table = summary.make_exception_diagnostics_table(butler)
+
+        # Check the file extension to determine the format.
+        fmt = infer_write_format_from_filename(exception_diagnostics_filename)
+
+        kwargs: dict[str, bool | int | str] = {"overwrite": True}
+
+        if fmt in ("htm", "html"):
+            # Use the interactive HTML format for HTML files.
+            fmt = "jsviewer"
+
+        kwargs["format"] = fmt
+
+        if fmt == "jsviewer":
+            # Set the maximum number of lines to the length of the table.
+            # Otherwise it'll default to 5000 lines.
+            kwargs["max_lines"] = len(exception_diagnostics_table)
+
+            # If the filename doesn't end with ".html" or ".htm", add ".html".
+            # This is needed for the file to be recognized as an HTML file.
+            if not exception_diagnostics_filename.endswith((".html", ".htm")):
+                exception_diagnostics_filename += ".html"
+
+        # Write the exception diagnostics table to a file.
+        exception_diagnostics_table.write(exception_diagnostics_filename, **kwargs)
+        print(f"Exception diagnostics written to {exception_diagnostics_filename}")
