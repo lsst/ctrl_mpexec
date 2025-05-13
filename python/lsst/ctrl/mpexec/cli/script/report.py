@@ -371,10 +371,11 @@ def print_summary(
         Butler to use for the report. This is needed to get the exposure
         dimension records for the exception diagnostics.
     """
-    summary.pprint(
+    exception_diagnostics_table = summary.pprint(
         brief=(brief or bool(full_output_filename) or bool(exception_diagnostics_filename)),
         show_exception_diagnostics=show_exception_diagnostics,
         butler=butler,
+        return_exception_diagnostics_table=show_exception_diagnostics and exception_diagnostics_filename,
     )
     if full_output_filename:
         # Write the full summary to a file.
@@ -383,7 +384,10 @@ def print_summary(
         print(f"Full summary written to {full_output_filename}")
 
     if exception_diagnostics_filename:
-        exception_diagnostics_table = summary.make_exception_diagnostics_table(butler)
+        # Create the exception diagnostics table if it wasn't created in the
+        # previous step due to `show_exception_diagnostics` being False.
+        if not exception_diagnostics_table:
+            exception_diagnostics_table = summary.make_exception_diagnostics_table(butler)
 
         # Check the file extension to determine the format.
         fmt = infer_write_format_from_filename(exception_diagnostics_filename)
