@@ -184,41 +184,7 @@ class SimplePipelineExecutorTests(lsst.utils.tests.TestCase):
         same task, with an executor created by the `from_pipeline_filename`
         factory method, and the `SimplePipelineExecutor.run` method.
         """
-        filename = os.path.join(self.path, "pipeline.yaml")
-        with open(filename, "w") as f:
-            f.write(
-                """
-                description: test
-                tasks:
-                    a:
-                        class: "lsst.pipe.base.tests.mocks.DynamicTestPipelineTask"
-                        config:
-                            python: |
-                                from lsst.pipe.base.tests.mocks import DynamicConnectionConfig
-                                config.inputs["i"] = DynamicConnectionConfig(
-                                    dataset_type_name="input",
-                                    storage_class="StructuredDataDict",
-                                    mock_storage_class=False,
-                                )
-                                config.outputs["o"] = DynamicConnectionConfig(
-                                    dataset_type_name="intermediate",
-                                    storage_class="StructuredDataDict",
-                                )
-                    b:
-                        class: "lsst.pipe.base.tests.mocks.DynamicTestPipelineTask"
-                        config:
-                            python: |
-                                from lsst.pipe.base.tests.mocks import DynamicConnectionConfig
-                                config.inputs["i"] = DynamicConnectionConfig(
-                                    dataset_type_name="intermediate",
-                                    storage_class="StructuredDataDict",
-                                )
-                                config.outputs["o"] = DynamicConnectionConfig(
-                                    dataset_type_name="output",
-                                    storage_class="StructuredDataDict",
-                                )
-                """
-            )
+        filename = os.path.join(TESTDIR, "pipeline_simple.yaml")
         executor = SimplePipelineExecutor.from_pipeline_filename(filename, butler=self.butler)
         quanta = executor.run(register_dataset_types=True, save_versions=False)
         self.assertEqual(len(quanta), 2)
