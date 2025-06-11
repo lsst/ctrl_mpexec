@@ -179,51 +179,35 @@ class SimplePipelineExecutorTests(lsst.utils.tests.TestCase):
         # The final output was written.
         self.assertTrue(self.butler.exists("output"))
 
-    def test_from_pipeline_file(self):
+    def test_from_pipeline_file(self) -> None:
         """Test executing a two quanta from different configurations of the
         same task, with an executor created by the `from_pipeline_filename`
         factory method, and the `SimplePipelineExecutor.run` method.
         """
-        filename = os.path.join(self.path, "pipeline.yaml")
-        with open(filename, "w") as f:
-            f.write(
-                """
-                description: test
-                tasks:
-                    a:
-                        class: "lsst.pipe.base.tests.mocks.DynamicTestPipelineTask"
-                        config:
-                            python: |
-                                from lsst.pipe.base.tests.mocks import DynamicConnectionConfig
-                                config.inputs["i"] = DynamicConnectionConfig(
-                                    dataset_type_name="input",
-                                    storage_class="StructuredDataDict",
-                                    mock_storage_class=False,
-                                )
-                                config.outputs["o"] = DynamicConnectionConfig(
-                                    dataset_type_name="intermediate",
-                                    storage_class="StructuredDataDict",
-                                )
-                    b:
-                        class: "lsst.pipe.base.tests.mocks.DynamicTestPipelineTask"
-                        config:
-                            python: |
-                                from lsst.pipe.base.tests.mocks import DynamicConnectionConfig
-                                config.inputs["i"] = DynamicConnectionConfig(
-                                    dataset_type_name="intermediate",
-                                    storage_class="StructuredDataDict",
-                                )
-                                config.outputs["o"] = DynamicConnectionConfig(
-                                    dataset_type_name="output",
-                                    storage_class="StructuredDataDict",
-                                )
-                """
-            )
+        filename = os.path.join(TESTDIR, "pipeline_simple.yaml")
         executor = SimplePipelineExecutor.from_pipeline_filename(filename, butler=self.butler)
+        self._test_pipeline_file(executor)
+
+    def test_use_local_butler(self) -> None:
+        """Test generating a local butler repository from a pipeline, then
+        running that pipeline using the local butler.
+        """
+        filename = os.path.join(TESTDIR, "pipeline_simple.yaml")
+        executor = SimplePipelineExecutor.from_pipeline_filename(
+            filename, butler=self.butler, output="u/someone/pipeline"
+        )
+        with tempfile.TemporaryDirectory() as tempdir:
+            root = os.path.join(tempdir, "butler_root")
+            executor.use_local_butler(root)
+            self._test_pipeline_file(executor)
+
+    def _test_pipeline_file(self, executor: SimplePipelineExecutor) -> None:
         quanta = executor.run(register_dataset_types=True, save_versions=False)
         self.assertEqual(len(quanta), 2)
-        self.assertEqual(self.butler.get("intermediate").storage_class, get_mock_name("StructuredDataDict"))
-        self.assertEqual(self.butler.get("output").storage_class, get_mock_name("StructuredDataDict"))
+        self.assertEqual(
+            executor.butler.get("intermediate").storage_class, get_mock_name("StructuredDataDict")
+        )
+        self.assertEqual(executor.butler.get("output").storage_class, get_mock_name("StructuredDataDict"))
 
     def test_partial_outputs_success(self):
         """Test executing two quanta where the first raises

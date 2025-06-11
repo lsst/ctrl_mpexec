@@ -31,10 +31,11 @@ __all__ = ("SimplePipelineExecutor",)
 
 import datetime
 import getpass
+import os
 from collections.abc import Iterable, Iterator, Mapping
 from typing import Any
 
-from lsst.daf.butler import Butler, CollectionType, Quantum
+from lsst.daf.butler import Butler, CollectionType, DataCoordinate, DatasetRef, Quantum
 from lsst.pex.config import Config
 from lsst.pipe.base import ExecutionResources, Instrument, Pipeline, PipelineGraph, PipelineTask, QuantumGraph
 from lsst.pipe.base.all_dimensions_quantum_graph_builder import AllDimensionsQuantumGraphBuilder
@@ -152,6 +153,8 @@ class SimplePipelineExecutor:
         resources: ExecutionResources | None = None,
         raise_on_partial_outputs: bool = True,
         attach_datastore_records: bool = False,
+        output: str | None = None,
+        output_run: str | None = None,
     ) -> SimplePipelineExecutor:
         """Create an executor by building a QuantumGraph from an on-disk
         pipeline YAML file.
@@ -179,6 +182,13 @@ class SimplePipelineExecutor:
             Whether to attach datastore records to the quantum graph.  This is
             usually unnecessary, unless the executor is used to test behavior
             that depends on datastore records.
+        output : `str`, optional
+            Name of a new output `~lsst.daf.butler.CollectionType.CHAINED`
+            collection to create that will combine both inputs and outputs.
+        output_run : `str`, optional
+            Name of the output `~lsst.daf.butler.CollectionType.RUN` that will
+            directly hold all output datasets.  If not provided, a name will
+            be created from ``output`` and a timestamp.
 
         Returns
         -------
@@ -196,6 +206,8 @@ class SimplePipelineExecutor:
             resources=resources,
             raise_on_partial_outputs=raise_on_partial_outputs,
             attach_datastore_records=attach_datastore_records,
+            output=output,
+            output_run=output_run,
         )
 
     @classmethod
@@ -211,6 +223,8 @@ class SimplePipelineExecutor:
         resources: ExecutionResources | None = None,
         raise_on_partial_outputs: bool = True,
         attach_datastore_records: bool = False,
+        output: str | None = None,
+        output_run: str | None = None,
     ) -> SimplePipelineExecutor:
         """Create an executor by building a QuantumGraph from a pipeline
         containing a single task.
@@ -244,6 +258,13 @@ class SimplePipelineExecutor:
             Whether to attach datastore records to the quantum graph.  This is
             usually unnecessary, unless the executor is used to test behavior
             that depends on datastore records.
+        output : `str`, optional
+            Name of a new output `~lsst.daf.butler.CollectionType.CHAINED`
+            collection to create that will combine both inputs and outputs.
+        output_run : `str`, optional
+            Name of the output `~lsst.daf.butler.CollectionType.RUN` that will
+            directly hold all output datasets.  If not provided, a name will
+            be created from ``output`` and a timestamp.
 
         Returns
         -------
@@ -271,6 +292,8 @@ class SimplePipelineExecutor:
             resources=resources,
             raise_on_partial_outputs=raise_on_partial_outputs,
             attach_datastore_records=attach_datastore_records,
+            output=output,
+            output_run=output_run,
         )
 
     @classmethod
@@ -284,6 +307,8 @@ class SimplePipelineExecutor:
         resources: ExecutionResources | None = None,
         raise_on_partial_outputs: bool = True,
         attach_datastore_records: bool = False,
+        output: str | None = None,
+        output_run: str | None = None,
     ) -> SimplePipelineExecutor:
         """Create an executor by building a QuantumGraph from an in-memory
         pipeline.
@@ -313,6 +338,13 @@ class SimplePipelineExecutor:
             Whether to attach datastore records to the quantum graph.  This is
             usually unnecessary, unless the executor is used to test behavior
             that depends on datastore records.
+        output : `str`, optional
+            Name of a new output `~lsst.daf.butler.CollectionType.CHAINED`
+            collection to create that will combine both inputs and outputs.
+        output_run : `str`, optional
+            Name of the output `~lsst.daf.butler.CollectionType.RUN` that will
+            directly hold all output datasets.  If not provided, a name will
+            be created from ``output`` and a timestamp.
 
         Returns
         -------
@@ -330,6 +362,8 @@ class SimplePipelineExecutor:
             resources=resources,
             raise_on_partial_outputs=raise_on_partial_outputs,
             attach_datastore_records=attach_datastore_records,
+            output=output,
+            output_run=output_run,
         )
 
     @classmethod
@@ -343,6 +377,8 @@ class SimplePipelineExecutor:
         resources: ExecutionResources | None = None,
         raise_on_partial_outputs: bool = True,
         attach_datastore_records: bool = False,
+        output: str | None = None,
+        output_run: str | None = None,
     ) -> SimplePipelineExecutor:
         """Create an executor by building a QuantumGraph from an in-memory
         pipeline graph.
@@ -373,6 +409,13 @@ class SimplePipelineExecutor:
             Whether to attach datastore records to the quantum graph.  This is
             usually unnecessary, unless the executor is used to test behavior
             that depends on datastore records.
+        output : `str`, optional
+            Name of a new output `~lsst.daf.butler.CollectionType.CHAINED`
+            collection to create that will combine both inputs and outputs.
+        output_run : `str`, optional
+            Name of the output `~lsst.daf.butler.CollectionType.RUN` that will
+            directly hold all output datasets.  If not provided, a name will
+            be created from ``output`` and a timestamp.
 
         Returns
         -------
@@ -381,12 +424,20 @@ class SimplePipelineExecutor:
             `~lsst.pipe.base.QuantumGraph` and `~lsst.daf.butler.Butler`, ready
             for `run` to be called.
         """
+        if output_run is None:
+            output_run = butler.run
+            if output_run is None:
+                if output is None:
+                    raise TypeError("At least one of output or output_run must be provided.")
+                output_run = f"{output}/{Instrument.makeCollectionTimestamp()}"
+
         quantum_graph_builder = AllDimensionsQuantumGraphBuilder(
-            pipeline_graph, butler, where=where, bind=bind
+            pipeline_graph, butler, where=where, bind=bind, output_run=output_run
         )
         metadata = {
             "input": list(butler.collections.defaults),
-            "output_run": butler.run,
+            "output": output,
+            "output_run": output_run,
             "skip_existing_in": [],
             "skip_existing": False,
             "data_query": where,
@@ -402,6 +453,92 @@ class SimplePipelineExecutor:
             resources=resources,
             raise_on_partial_outputs=raise_on_partial_outputs,
         )
+
+    def use_local_butler(
+        self, root: str, register_dataset_types: bool = True, transfer_dimensions: bool = True
+    ) -> Butler:
+        """Transfer all inputs to a local data repository. and set the executor
+        to write outputs to it.
+
+        Parameters
+        ----------
+        root : `str`
+            Path to the local data repository; created if it does not exist.
+        register_dataset_types : `bool`, optional
+            Whether to register dataset types in the new repository.  If
+            `False`, the local data repository must already exist and already
+            have all input dataset types registered.
+        transfer_dimensions : `bool`, optional
+            Whether to transfer dimension records to the new repository.  If
+            `False`, the local data repository must already exist and already
+            have all needed dimension records.
+
+        Returns
+        -------
+        butler : `lsst.daf.butler.Butler`
+            Writeable butler for local data repository.
+
+        Notes
+        -----
+        The input collection structure from the original data repository is not
+        preserved by this method (it cannot be reconstructed from the quantum
+        graph).  Instead, a `~lsst.daf.butler.CollectionType.TAGGED` collection
+        is created to gather all inputs, and appended to the output
+        `~lsst.daf.butler.CollectionType.CHAINED` collection after the output
+        `~lsst.daf.butler.CollectionType.RUN` collection.  Calibration inputs
+        with the same data ID but multiple validity ranges are *not* included
+        in that `~lsst.daf.butler.CollectionType.TAGGED`; they are still
+        transferred to the local data repository, but can only be found via the
+        quantum graph or their original `~lsst.daf.butler.CollectionType.RUN`
+        collections.
+        """
+        if not os.path.exists(root):
+            Butler.makeRepo(root)
+        out_butler = Butler.from_config(root, writeable=True)
+
+        output_run = self.quantum_graph.metadata["output_run"]
+        output = self.quantum_graph.metadata["output"]
+        inputs = f"{output}/inputs"
+        out_butler.collections.register(output_run, CollectionType.RUN)
+        out_butler.collections.register(output, CollectionType.CHAINED)
+        out_butler.collections.register(inputs, CollectionType.TAGGED)
+        out_butler.collections.redefine_chain(output, [output_run, inputs])
+
+        refs: set[DatasetRef] = set()
+        to_tag_by_type: dict[str, dict[DataCoordinate, DatasetRef | None]] = {}
+        pipeline_graph = self.quantum_graph.pipeline_graph
+        for name, _ in pipeline_graph.iter_overall_inputs():
+            to_tag_for_type = to_tag_by_type.setdefault(name, {})
+            for task_node in pipeline_graph.consumers_of(name):
+                for quantum in self.quantum_graph.get_task_quanta(task_node.label).values():
+                    refs.update(quantum.inputs[name])
+                    for ref in quantum.inputs[name]:
+                        if to_tag_for_type.setdefault(ref.dataId, ref) != ref:
+                            # There is already a dataset with the same data ID
+                            # and dataset type, but a different UUID/run.  This
+                            # can only happen for calibrations found in
+                            # calibration collections, and for now we have no
+                            # choice but to leave them out of the TAGGED inputs
+                            # collection in the local butler.
+                            to_tag_for_type[ref.dataId] = None
+
+        out_butler.transfer_from(
+            self.butler,
+            refs,
+            register_dataset_types=register_dataset_types,
+            transfer_dimensions=transfer_dimensions,
+        )
+
+        to_tag_flat: list[DatasetRef] = []
+        for ref_map in to_tag_by_type.values():
+            for tag_ref in ref_map.values():
+                if tag_ref is not None:
+                    to_tag_flat.append(tag_ref)
+        out_butler.registry.associate(inputs, to_tag_flat)
+
+        out_butler.registry.defaults = self.butler.registry.defaults.clone(collections=output, run=output_run)
+        self.butler = out_butler
+        return self.butler
 
     def run(self, register_dataset_types: bool = False, save_versions: bool = True) -> list[Quantum]:
         """Run all the quanta in the `~lsst.pipe.base.QuantumGraph` in
