@@ -497,12 +497,14 @@ class SimplePipelineExecutor:
         out_butler = Butler.from_config(root, writeable=True)
 
         output_run = self.quantum_graph.metadata["output_run"]
-        output = self.quantum_graph.metadata["output"]
-        inputs = f"{output}/inputs"
         out_butler.collections.register(output_run, CollectionType.RUN)
-        out_butler.collections.register(output, CollectionType.CHAINED)
-        out_butler.collections.register(inputs, CollectionType.TAGGED)
-        out_butler.collections.redefine_chain(output, [output_run, inputs])
+        output = self.quantum_graph.metadata["output"]
+        inputs: str | None = None
+        if output is not None:
+            inputs = f"{output}/inputs"
+            out_butler.collections.register(output, CollectionType.CHAINED)
+            out_butler.collections.register(inputs, CollectionType.TAGGED)
+            out_butler.collections.redefine_chain(output, [output_run, inputs])
 
         refs: set[DatasetRef] = set()
         to_tag_by_type: dict[str, dict[DataCoordinate, DatasetRef | None]] = {}
@@ -529,12 +531,13 @@ class SimplePipelineExecutor:
             transfer_dimensions=transfer_dimensions,
         )
 
-        to_tag_flat: list[DatasetRef] = []
-        for ref_map in to_tag_by_type.values():
-            for tag_ref in ref_map.values():
-                if tag_ref is not None:
-                    to_tag_flat.append(tag_ref)
-        out_butler.registry.associate(inputs, to_tag_flat)
+        if inputs is not None:
+            to_tag_flat: list[DatasetRef] = []
+            for ref_map in to_tag_by_type.values():
+                for tag_ref in ref_map.values():
+                    if tag_ref is not None:
+                        to_tag_flat.append(tag_ref)
+            out_butler.registry.associate(inputs, to_tag_flat)
 
         out_butler.registry.defaults = self.butler.registry.defaults.clone(collections=output, run=output_run)
         self.butler = out_butler
