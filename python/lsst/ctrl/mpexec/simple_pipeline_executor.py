@@ -31,11 +31,20 @@ __all__ = ("SimplePipelineExecutor",)
 
 import datetime
 import getpass
+import itertools
 import os
 from collections.abc import Iterable, Iterator, Mapping
-from typing import Any
+from typing import Any, cast
 
-from lsst.daf.butler import Butler, CollectionType, DataCoordinate, DatasetRef, Quantum
+from lsst.daf.butler import (
+    Butler,
+    CollectionType,
+    DataCoordinate,
+    DatasetRef,
+    DimensionDataExtractor,
+    DimensionGroup,
+    Quantum,
+)
 from lsst.pex.config import Config
 from lsst.pipe.base import ExecutionResources, Instrument, Pipeline, PipelineGraph, PipelineTask, QuantumGraph
 from lsst.pipe.base.all_dimensions_quantum_graph_builder import AllDimensionsQuantumGraphBuilder
@@ -497,22 +506,36 @@ class SimplePipelineExecutor:
         out_butler = Butler.from_config(root, writeable=True)
 
         output_run = self.quantum_graph.metadata["output_run"]
-        output = self.quantum_graph.metadata["output"]
-        inputs = f"{output}/inputs"
         out_butler.collections.register(output_run, CollectionType.RUN)
-        out_butler.collections.register(output, CollectionType.CHAINED)
-        out_butler.collections.register(inputs, CollectionType.TAGGED)
-        out_butler.collections.redefine_chain(output, [output_run, inputs])
+        output = self.quantum_graph.metadata["output"]
+        inputs: str | None = None
+        if output is not None:
+            inputs = f"{output}/inputs"
+            out_butler.collections.register(output, CollectionType.CHAINED)
+            out_butler.collections.register(inputs, CollectionType.TAGGED)
+            out_butler.collections.redefine_chain(output, [output_run, inputs])
 
+        if transfer_dimensions:
+            # We can't just let the transfer_from call below take care of this
+            # because we need dimensions for outputs as well as inputs.  And if
+            # we have to do the outputs explicitly, it's more efficient to do
+            # the inputs at the same time since a lot of those dimensions will
+            # be the same.
+            self._transfer_qg_dimension_records(out_butler)
+
+        # Extract overall-input DatasetRefs to transfer and possibly insert
+        # into a TAGGED collection.
         refs: set[DatasetRef] = set()
         to_tag_by_type: dict[str, dict[DataCoordinate, DatasetRef | None]] = {}
         pipeline_graph = self.quantum_graph.pipeline_graph
-        for name, _ in pipeline_graph.iter_overall_inputs():
+        for name, dataset_type_node in pipeline_graph.iter_overall_inputs():
+            assert dataset_type_node is not None, "PipelineGraph should be resolved."
             to_tag_for_type = to_tag_by_type.setdefault(name, {})
             for task_node in pipeline_graph.consumers_of(name):
                 for quantum in self.quantum_graph.get_task_quanta(task_node.label).values():
-                    refs.update(quantum.inputs[name])
                     for ref in quantum.inputs[name]:
+                        ref = dataset_type_node.generalize_ref(ref)
+                        refs.add(ref)
                         if to_tag_for_type.setdefault(ref.dataId, ref) != ref:
                             # There is already a dataset with the same data ID
                             # and dataset type, but a different UUID/run.  This
@@ -526,15 +549,16 @@ class SimplePipelineExecutor:
             self.butler,
             refs,
             register_dataset_types=register_dataset_types,
-            transfer_dimensions=transfer_dimensions,
+            transfer_dimensions=False,
         )
 
-        to_tag_flat: list[DatasetRef] = []
-        for ref_map in to_tag_by_type.values():
-            for tag_ref in ref_map.values():
-                if tag_ref is not None:
-                    to_tag_flat.append(tag_ref)
-        out_butler.registry.associate(inputs, to_tag_flat)
+        if inputs is not None:
+            to_tag_flat: list[DatasetRef] = []
+            for ref_map in to_tag_by_type.values():
+                for tag_ref in ref_map.values():
+                    if tag_ref is not None:
+                        to_tag_flat.append(tag_ref)
+            out_butler.registry.associate(inputs, to_tag_flat)
 
         out_butler.registry.defaults = self.butler.registry.defaults.clone(collections=output, run=output_run)
         self.butler = out_butler
@@ -621,3 +645,32 @@ class SimplePipelineExecutor:
         return (
             single_quantum_executor.execute(qnode.task_node, qnode.quantum)[0] for qnode in self.quantum_graph
         )
+
+    def _transfer_qg_dimension_records(self, out_butler: Butler) -> None:
+        """Transfer all dimension records from the quantum graph to a butler.
+
+        Parameters
+        ----------
+        out_butler : `lsst.daf.butler.Butler`
+            Butler to transfer records to.
+        """
+        pipeline_graph = self.quantum_graph.pipeline_graph
+        all_dimensions = DimensionGroup.union(
+            *pipeline_graph.group_by_dimensions(prerequisites=True).keys(),
+            universe=self.butler.dimensions,
+        )
+        dimension_data_extractor = DimensionDataExtractor.from_dimension_group(all_dimensions)
+        for task_node in pipeline_graph.tasks.values():
+            task_quanta = self.quantum_graph.get_task_quanta(task_node.label)
+            for quantum in task_quanta.values():
+                dimension_data_extractor.update([cast(DataCoordinate, quantum.dataId)])
+                for refs in itertools.chain(quantum.inputs.values(), quantum.outputs.values()):
+                    dimension_data_extractor.update(ref.dataId for ref in refs)
+        for element_name in all_dimensions.elements:
+            record_set = dimension_data_extractor.records.get(element_name)
+            if record_set and record_set.element.has_own_table:
+                out_butler.registry.insertDimensionData(
+                    record_set.element,
+                    *record_set,
+                    skip_existing=True,
+                )
