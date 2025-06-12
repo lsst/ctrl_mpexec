@@ -137,21 +137,24 @@ class TestExecutionStorageClassConversion(lsst.utils.tests.TestCase):
         b_o_storage_class="StructuredDataDict",
         stored_intermediate_storage_class="StructuredDataDict",
         stored_output_storage_class="StructuredDataDict",
+        butler: lsst.daf.butler.Butler | None = None,
     ):
         """Check that a butler repository's contents are consistent with
         running a pipeline created by _make_executor.
         """
+        if butler is None:
+            butler = self.butler
         # Read input and output datasets from butler, inspect their storage
         # classes directly.
-        stored_intermediate = self.butler.get("intermediate")
-        stored_output = self.butler.get("output")
+        stored_intermediate = butler.get("intermediate")
+        stored_output = butler.get("output")
         self.assertEqual(
-            self.butler.get_dataset_type("intermediate").storageClass_name,
+            butler.get_dataset_type("intermediate").storageClass_name,
             get_mock_name(stored_intermediate_storage_class),
         )
         self.assertEqual(stored_output.storage_class, get_mock_name(stored_output_storage_class))
         self.assertEqual(
-            self.butler.get_dataset_type("output").storageClass_name,
+            butler.get_dataset_type("output").storageClass_name,
             get_mock_name(stored_output_storage_class),
         )
         # Since we didn't tell the butler to convert storage classes on read,
@@ -257,6 +260,18 @@ class TestExecutionStorageClassConversion(lsst.utils.tests.TestCase):
         quanta = executor.run(register_dataset_types=True, save_versions=False)
         self.assertEqual(len(quanta), 2)
         self._assert_datasets(a_i_storage_class="TaskMetadataLike")
+
+    def test_input_differs_use_local_butler(self):
+        """Test execution where an overall input's storage class is different
+        from the consuming task, and we use a local butler.
+        """
+        executor = self._make_executor(a_i_storage_class="TaskMetadataLike")
+        with tempfile.TemporaryDirectory() as tempdir:
+            root = os.path.join(tempdir, "butler_root")
+            executor.use_local_butler(root)
+            quanta = executor.run(register_dataset_types=True, save_versions=False)
+            self.assertEqual(len(quanta), 2)
+            self._assert_datasets(a_i_storage_class="TaskMetadataLike", butler=executor.butler)
 
     def test_incompatible(self):
         """Test that we cannot make a QG if the registry and pipeline have

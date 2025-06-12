@@ -509,12 +509,14 @@ class SimplePipelineExecutor:
         refs: set[DatasetRef] = set()
         to_tag_by_type: dict[str, dict[DataCoordinate, DatasetRef | None]] = {}
         pipeline_graph = self.quantum_graph.pipeline_graph
-        for name, _ in pipeline_graph.iter_overall_inputs():
+        for name, dataset_type_node in pipeline_graph.iter_overall_inputs():
+            assert dataset_type_node is not None, "PipelineGraph should be resolved."
             to_tag_for_type = to_tag_by_type.setdefault(name, {})
             for task_node in pipeline_graph.consumers_of(name):
                 for quantum in self.quantum_graph.get_task_quanta(task_node.label).values():
-                    refs.update(quantum.inputs[name])
                     for ref in quantum.inputs[name]:
+                        ref = dataset_type_node.generalize_ref(ref)
+                        refs.add(ref)
                         if to_tag_for_type.setdefault(ref.dataId, ref) != ref:
                             # There is already a dataset with the same data ID
                             # and dataset type, but a different UUID/run.  This
