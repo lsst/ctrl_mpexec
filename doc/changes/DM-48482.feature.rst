@@ -1,1 +1,0 @@
-Added support for automatically determining the output format of Mermaid visualizations based on file extension, generating either definition files or images.
