@@ -1,3 +1,43 @@
+lsst-ctrl-mpexec v29.1.0 (2025-06-13)
+=====================================
+
+New Features
+------------
+
+- Added the ``--view-graph`` option to ``pipetask report`` to show pipeline processing status using a graph-style visualization. (`DM-48206 <https://rubinobs.atlassian.net/browse/DM-48206>`_)
+- Added support for automatically determining the output format of Mermaid visualizations based on file extension, generating either definition files or images. (`DM-48482 <https://rubinobs.atlassian.net/browse/DM-48482>`_)
+- ``pipetask`` now has a ``--select-tasks`` option for subsetting the pipeline according to a pipeline graph expression.
+
+  ``pipetask`` now has a ``--data-id-table`` option for using tables of data IDs as constraints on quantum graph generation. (`DM-49949 <https://rubinobs.atlassian.net/browse/DM-49949>`_)
+- Added ``use_local_butler`` method to ``SimplePipelineExecutor``.
+
+  This method allows a quantum graph to be built against a read-only butler and then executed against a local personal data repository by transferring the inputs in advance. (`SP-2103 <https://rubinobs.atlassian.net/browse/SP-2103>`_)
+
+
+Bug Fixes
+---------
+
+- Fixed failure to fail: not enough arguments for format string. (`DM-49095 <https://rubinobs.atlassian.net/browse/DM-49095>`_)
+- Enabled access to the existing Mermaid visualization of the quantum graphs, allowing users to generate and log the visualization using the ``--qgraph-mermaid`` argument. (`DM-49311 <https://rubinobs.atlassian.net/browse/DM-49311>`_)
+- Re-enabled skipping of already-executed quanta in automatic retries with ``run-qbb``. (`DM-50476 <https://rubinobs.atlassian.net/browse/DM-50476>`_)
+- Fixed handling of storage class conversions, absent output chains, and output dimension records in ``SimplePipelineExecutor.use_local_butler``. (`DM-51359 <https://rubinobs.atlassian.net/browse/DM-51359>`_)
+
+
+Performance Enhancement
+-----------------------
+
+- Added options to speed up ``pipetask report``, with some enabled by default.
+
+  By default, ``pipetask report --force-v2`` now uses quantum-backed butler and only reads metadata for quanta for which at least one predicted output was not produced (``--read-caveats=lazy``).
+  It can also parallelize metadata reads via the ``-j`` option. (`DM-49440 <https://rubinobs.atlassian.net/browse/DM-49440>`_)
+
+
+Other Changes and Additions
+---------------------------
+
+- Quantum metadata files now include butler metrics reporting on the time spent in butler during execution. (`DM-50490 <https://rubinobs.atlassian.net/browse/DM-50490>`_)
+
+
 lsst-ctrl-mpexec v29.0.0 (2025-03-25)
 =====================================
 

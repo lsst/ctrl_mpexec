@@ -1,1 +1,0 @@
-Add the ``--view-graph`` option to pipetask report to show pipeline processing status using a graph-style visualization.

@@ -1,1 +1,0 @@
-Enabled access to the existing Mermaid visualization of the quantum graphs, allowing users to generate and log the visualization using the ``--qgraph-mermaid`` argument.
