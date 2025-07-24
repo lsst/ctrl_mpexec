@@ -46,7 +46,7 @@ from lsst.pipe.base.pipeline_graph import visualization
 
 from . import util
 from ._pipeline_graph_factory import PipelineGraphFactory
-from .cmdLineFwk import _ButlerFactory
+from .cli.butler_factory import ButlerFactory
 
 
 class _FilteredStream:
@@ -385,7 +385,7 @@ class ShowInfo:
                 for compName, compUri in components.items():
                     print(f"        {compName}: {compUri}", file=self.stream)
 
-        butler = _ButlerFactory.makeReadButler(args)
+        butler = ButlerFactory.make_read_butler(args)
         for node in graph:
             print(f"Quantum {node.nodeId}: {node.taskDef.taskName}", file=self.stream)
             print("  inputs:", file=self.stream)

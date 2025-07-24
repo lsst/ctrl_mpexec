@@ -31,13 +31,11 @@ from __future__ import annotations
 
 __all__ = ["CmdLineFwk"]
 
-import atexit
 import contextlib
 import copy
 import logging
 import pickle
-import shutil
-from collections.abc import Mapping, Sequence
+from collections.abc import Mapping
 from types import SimpleNamespace
 
 import astropy.units as u
@@ -46,7 +44,6 @@ from astropy.table import Table
 import lsst.utils.timer
 from lsst.daf.butler import (
     Butler,
-    CollectionType,
     Config,
     DatasetType,
     DimensionConfig,
@@ -54,17 +51,12 @@ from lsst.daf.butler import (
     LimitedButler,
     Quantum,
     QuantumBackedButler,
-    Registry,
 )
-from lsst.daf.butler.datastore.cache_manager import DatastoreCacheManager
 from lsst.daf.butler.direct_butler import DirectButler
-from lsst.daf.butler.registry import MissingCollectionError, RegistryDefaults
-from lsst.daf.butler.registry.wildcards import CollectionWildcard
+from lsst.daf.butler.registry import MissingCollectionError
 from lsst.pipe.base import (
     ExecutionResources,
-    Instrument,
     Pipeline,
-    PipelineGraph,
     QuantumGraph,
     TaskFactory,
     buildExecutionButler,
@@ -74,7 +66,6 @@ from lsst.pipe.base.dot_tools import graph2dot
 from lsst.pipe.base.execution_graph_fixup import ExecutionGraphFixup
 from lsst.pipe.base.mermaid_tools import graph2mermaid
 from lsst.pipe.base.mp_graph_executor import MPGraphExecutor
-from lsst.pipe.base.pipeline_graph import NodeType
 from lsst.pipe.base.quantum_reports import Report
 from lsst.pipe.base.single_quantum_executor import SingleQuantumExecutor
 from lsst.resources import ResourcePath
@@ -83,423 +74,10 @@ from lsst.utils.logging import VERBOSE, getLogger
 from lsst.utils.threads import disable_implicit_threading
 
 from ._pipeline_graph_factory import PipelineGraphFactory
+from .cli.butler_factory import ButlerFactory
 from .preExecInit import PreExecInit, PreExecInitLimited
 
-# ----------------------------------
-#  Local non-exported definitions --
-# ----------------------------------
-
 _LOG = getLogger(__name__)
-
-
-class _OutputChainedCollectionInfo:
-    """A helper class for handling command-line arguments related to an output
-    `~lsst.daf.butler.CollectionType.CHAINED` collection.
-
-    Parameters
-    ----------
-    registry : `lsst.daf.butler.Registry`
-        Butler registry that collections will be added to and/or queried from.
-    name : `str`
-        Name of the collection given on the command line.
-    """
-
-    def __init__(self, registry: Registry, name: str):
-        self.name = name
-        try:
-            self.chain = tuple(registry.getCollectionChain(name))
-            self.exists = True
-        except MissingCollectionError:
-            self.chain = ()
-            self.exists = False
-
-    def __str__(self) -> str:
-        return self.name
-
-    name: str
-    """Name of the collection provided on the command line (`str`).
-    """
-
-    exists: bool
-    """Whether this collection already exists in the registry (`bool`).
-    """
-
-    chain: tuple[str, ...]
-    """The definition of the collection, if it already exists (`tuple`[`str`]).
-
-    Empty if the collection does not already exist.
-    """
-
-
-class _OutputRunCollectionInfo:
-    """A helper class for handling command-line arguments related to an output
-    `~lsst.daf.butler.CollectionType.RUN` collection.
-
-    Parameters
-    ----------
-    registry : `lsst.daf.butler.Registry`
-        Butler registry that collections will be added to and/or queried from.
-    name : `str`
-        Name of the collection given on the command line.
-    """
-
-    def __init__(self, registry: Registry, name: str):
-        self.name = name
-        try:
-            actualType = registry.getCollectionType(name)
-            if actualType is not CollectionType.RUN:
-                raise TypeError(f"Collection '{name}' exists but has type {actualType.name}, not RUN.")
-            self.exists = True
-        except MissingCollectionError:
-            self.exists = False
-
-    name: str
-    """Name of the collection provided on the command line (`str`).
-    """
-
-    exists: bool
-    """Whether this collection already exists in the registry (`bool`).
-    """
-
-
-class _ButlerFactory:
-    """A helper class for processing command-line arguments related to input
-    and output collections.
-
-    Parameters
-    ----------
-    registry : `lsst.daf.butler.Registry`
-        Butler registry that collections will be added to and/or queried from.
-
-    args : `types.SimpleNamespace`
-        Parsed command-line arguments.  The following attributes are used,
-        either at construction or in later methods.
-
-        ``output``
-            The name of a `~lsst.daf.butler.CollectionType.CHAINED`
-            input/output collection.
-
-        ``output_run``
-            The name of a `~lsst.daf.butler.CollectionType.RUN` input/output
-            collection.
-
-        ``extend_run``
-            A boolean indicating whether ``output_run`` should already exist
-            and be extended.
-
-        ``replace_run``
-            A boolean indicating that (if `True`) ``output_run`` should already
-            exist but will be removed from the output chained collection and
-            replaced with a new one.
-
-        ``prune_replaced``
-            A boolean indicating whether to prune the replaced run (requires
-            ``replace_run``).
-
-        ``rebase``
-            A boolean indicating whether to force the ``output`` collection
-            to be consistent with ``inputs`` and ``output`` run such that the
-            ``output`` collection has output run collections first (i.e. those
-            that start with the same prefix), then the new inputs, then any
-            original inputs not included in the new inputs.
-
-        ``inputs``
-            Input collections of any type; see
-            :ref:`daf_butler_ordered_collection_searches` for details.
-
-        ``butler_config``
-            Path to a data repository root or configuration file.
-
-    writeable : `bool`
-        If `True`, a `~lsst.daf.butler.Butler` is being initialized in a
-        context where actual writes should happens, and hence no output run
-        is necessary.
-
-    Raises
-    ------
-    ValueError
-        Raised if ``writeable is True`` but there are no output collections.
-    """
-
-    def __init__(self, registry: Registry, args: SimpleNamespace, writeable: bool):
-        if args.output is not None:
-            self.output = _OutputChainedCollectionInfo(registry, args.output)
-        else:
-            self.output = None
-        if args.output_run is not None:
-            if args.rebase and self.output and not args.output_run.startswith(self.output.name):
-                raise ValueError("Cannot rebase if output run does not start with output collection name.")
-            self.outputRun = _OutputRunCollectionInfo(registry, args.output_run)
-        elif self.output is not None:
-            if args.extend_run:
-                if not self.output.chain:
-                    raise ValueError("Cannot use --extend-run option with non-existing or empty output chain")
-                runName = self.output.chain[0]
-            else:
-                runName = f"{self.output}/{Instrument.makeCollectionTimestamp()}"
-            self.outputRun = _OutputRunCollectionInfo(registry, runName)
-        elif not writeable:
-            # If we're not writing yet, ok to have no output run.
-            self.outputRun = None
-        else:
-            raise ValueError("Cannot write without at least one of (--output, --output-run).")
-        # Recursively flatten any input CHAINED collections.  We do this up
-        # front so we can tell if the user passes the same inputs on subsequent
-        # calls, even though we also flatten when we define the output CHAINED
-        # collection.
-        self.inputs = tuple(registry.queryCollections(args.input, flattenChains=True)) if args.input else ()
-
-        # If things are inconsistent and user has asked for a rebase then
-        # construct the new output chain.
-        if args.rebase and self._checkOutputInputConsistency():
-            assert self.output is not None
-            newOutputChain = [item for item in self.output.chain if item.startswith(self.output.name)]
-            newOutputChain.extend([item for item in self.inputs if item not in newOutputChain])
-            newOutputChain.extend([item for item in self.output.chain if item not in newOutputChain])
-            self.output.chain = tuple(newOutputChain)
-
-    def check(self, args: SimpleNamespace) -> None:
-        """Check command-line options for consistency with each other and the
-        data repository.
-
-        Parameters
-        ----------
-        args : `types.SimpleNamespace`
-            Parsed command-line arguments.  See class documentation for the
-            construction parameter of the same name.
-        """
-        assert not (args.extend_run and args.replace_run), "In mutually-exclusive group in ArgumentParser."
-        if consistencyError := self._checkOutputInputConsistency():
-            raise ValueError(consistencyError)
-
-        if args.extend_run:
-            if self.outputRun is None:
-                raise ValueError("Cannot --extend-run when no output collection is given.")
-            elif not self.outputRun.exists:
-                raise ValueError(
-                    f"Cannot --extend-run; output collection '{self.outputRun.name}' does not exist."
-                )
-        if not args.extend_run and self.outputRun is not None and self.outputRun.exists:
-            raise ValueError(
-                f"Output run '{self.outputRun.name}' already exists, but --extend-run was not given."
-            )
-        if args.prune_replaced and not args.replace_run:
-            raise ValueError("--prune-replaced requires --replace-run.")
-        if args.replace_run and (self.output is None or not self.output.exists):
-            raise ValueError("--output must point to an existing CHAINED collection for --replace-run.")
-
-    def _checkOutputInputConsistency(self) -> str | None:
-        if self.inputs and self.output is not None and self.output.exists:
-            # Passing the same inputs that were used to initialize the output
-            # collection is allowed; this means the inputs must appear as a
-            # contiguous subsequence of outputs (normally they're also at the
-            # end, but --rebase will in general put them in the middle).
-            for n in reversed(range(1 + len(self.output.chain) - len(self.inputs))):
-                if self.inputs == self.output.chain[n : n + len(self.inputs)]:
-                    return None
-            return (
-                f"Output CHAINED collection {self.output.name!r} exists and does not include the "
-                f"same sequence of (flattened) input collections {self.inputs} as a contiguous "
-                "subsequence. "
-                "Use --rebase to ignore this problem and reset the output collection, but note that "
-                "this may obfuscate what inputs were actually used to produce these outputs."
-            )
-        return None
-
-    @classmethod
-    def _makeReadParts(cls, args: SimpleNamespace) -> tuple[Butler, Sequence[str], _ButlerFactory]:
-        """Parse arguments to support implementations of `makeReadButler` and
-        `makeButlerAndCollections`.
-
-        Parameters
-        ----------
-        args : `types.SimpleNamespace`
-            Parsed command-line arguments.  See class documentation for the
-            construction parameter of the same name.
-
-        Returns
-        -------
-        butler : `lsst.daf.butler.Butler`
-            A read-only butler constructed from the repo at
-            ``args.butler_config``, but with no default collections.
-        inputs : `~collections.abc.Sequence` [ `str` ]
-            A collection search path constructed according to ``args``.
-        self : `_ButlerFactory`
-            A new `_ButlerFactory` instance representing the processed version
-            of ``args``.
-        """
-        butler = Butler.from_config(args.butler_config, writeable=False)
-        self = cls(butler.registry, args, writeable=False)
-        self.check(args)
-        if self.output and self.output.exists:
-            if args.replace_run:
-                replaced = self.output.chain[0]
-                inputs = list(self.output.chain[1:])
-                _LOG.debug(
-                    "Simulating collection search in '%s' after removing '%s'.", self.output.name, replaced
-                )
-            else:
-                inputs = [self.output.name]
-        else:
-            inputs = list(self.inputs)
-        if args.extend_run:
-            assert self.outputRun is not None, "Output collection has to be specified."
-            inputs.insert(0, self.outputRun.name)
-        collSearch = CollectionWildcard.from_expression(inputs).require_ordered()
-        return butler, collSearch, self
-
-    @classmethod
-    def makeReadButler(cls, args: SimpleNamespace) -> Butler:
-        """Construct a read-only butler according to the given command-line
-        arguments.
-
-        Parameters
-        ----------
-        args : `types.SimpleNamespace`
-            Parsed command-line arguments.  See class documentation for the
-            construction parameter of the same name.
-
-        Returns
-        -------
-        butler : `lsst.daf.butler.Butler`
-            A read-only butler initialized with the collections specified by
-            ``args``.
-        """
-        cls.defineDatastoreCache()  # Ensure that this butler can use a shared cache.
-        butler, inputs, _ = cls._makeReadParts(args)
-        _LOG.debug("Preparing butler to read from %s.", inputs)
-        return Butler.from_config(butler=butler, collections=inputs)
-
-    @classmethod
-    def makeButlerAndCollections(cls, args: SimpleNamespace) -> tuple[Butler, Sequence[str], str | None]:
-        """Return a read-only registry, a collection search path, and the name
-        of the run to be used for future writes.
-
-        Parameters
-        ----------
-        args : `types.SimpleNamespace`
-            Parsed command-line arguments.  See class documentation for the
-            construction parameter of the same name.
-
-        Returns
-        -------
-        butler : `lsst.daf.butler.Butler`
-            A read-only butler that collections will be added to and/or queried
-            from.
-        inputs : `Sequence` [ `str` ]
-            Collections to search for datasets.
-        run : `str` or `None`
-            Name of the output `~lsst.daf.butler.CollectionType.RUN` collection
-            if it already exists, or `None` if it does not.
-        """
-        butler, inputs, self = cls._makeReadParts(args)
-        run: str | None = None
-        if args.extend_run:
-            assert self.outputRun is not None, "Output collection has to be specified."
-        if self.outputRun is not None:
-            run = self.outputRun.name
-        _LOG.debug("Preparing registry to read from %s and expect future writes to '%s'.", inputs, run)
-        return butler, inputs, run
-
-    @staticmethod
-    def defineDatastoreCache() -> None:
-        """Define where datastore cache directories should be found.
-
-        Notes
-        -----
-        All the jobs should share a datastore cache if applicable. This
-        method asks for a shared fallback cache to be defined and then
-        configures an exit handler to clean it up.
-        """
-        defined, cache_dir = DatastoreCacheManager.set_fallback_cache_directory_if_unset()
-        if defined:
-            atexit.register(shutil.rmtree, cache_dir, ignore_errors=True)
-            _LOG.debug("Defining shared datastore cache directory to %s", cache_dir)
-
-    @classmethod
-    def makeWriteButler(cls, args: SimpleNamespace, pipeline_graph: PipelineGraph | None = None) -> Butler:
-        """Return a read-write butler initialized to write to and read from
-        the collections specified by the given command-line arguments.
-
-        Parameters
-        ----------
-        args : `types.SimpleNamespace`
-            Parsed command-line arguments.  See class documentation for the
-            construction parameter of the same name.
-        pipeline_graph : `lsst.pipe.base.PipelineGraph`, optional
-            Definitions for tasks in a pipeline. This argument is only needed
-            if ``args.replace_run`` is `True` and ``args.prune_replaced`` is
-            "unstore".
-
-        Returns
-        -------
-        butler : `lsst.daf.butler.Butler`
-            A read-write butler initialized according to the given arguments.
-        """
-        cls.defineDatastoreCache()  # Ensure that this butler can use a shared cache.
-        butler = Butler.from_config(args.butler_config, writeable=True)
-        self = cls(butler.registry, args, writeable=True)
-        self.check(args)
-        assert self.outputRun is not None, "Output collection has to be specified."  # for mypy
-        if self.output is not None:
-            chainDefinition = list(self.output.chain if self.output.exists else self.inputs)
-            if args.replace_run:
-                replaced = chainDefinition.pop(0)
-                if args.prune_replaced == "unstore":
-                    # Remove datasets from datastore
-                    with butler.transaction():
-                        # we want to remove regular outputs from this pipeline,
-                        # but keep initOutputs, configs, and versions.
-                        if pipeline_graph is not None:
-                            refs = [
-                                ref
-                                for ref in butler.registry.queryDatasets(..., collections=replaced)
-                                if (
-                                    (producer := pipeline_graph.producer_of(ref.datasetType.name)) is not None
-                                    and producer.key.node_type is NodeType.TASK  # i.e. not TASK_INIT
-                                )
-                            ]
-                        butler.pruneDatasets(refs, unstore=True, disassociate=False)
-                elif args.prune_replaced == "purge":
-                    # Erase entire collection and all datasets, need to remove
-                    # collection from its chain collection first.
-                    with butler.transaction():
-                        butler.registry.setCollectionChain(self.output.name, chainDefinition, flatten=True)
-                        butler.removeRuns([replaced], unstore=True)
-                elif args.prune_replaced is not None:
-                    raise NotImplementedError(f"Unsupported --prune-replaced option '{args.prune_replaced}'.")
-            if not self.output.exists:
-                butler.registry.registerCollection(self.output.name, CollectionType.CHAINED)
-            if not args.extend_run:
-                butler.registry.registerCollection(self.outputRun.name, CollectionType.RUN)
-                chainDefinition.insert(0, self.outputRun.name)
-                butler.registry.setCollectionChain(self.output.name, chainDefinition, flatten=True)
-            _LOG.debug(
-                "Preparing butler to write to '%s' and read from '%s'=%s",
-                self.outputRun.name,
-                self.output.name,
-                chainDefinition,
-            )
-            butler.registry.defaults = RegistryDefaults(run=self.outputRun.name, collections=self.output.name)
-        else:
-            inputs = (self.outputRun.name,) + self.inputs
-            _LOG.debug("Preparing butler to write to '%s' and read from %s.", self.outputRun.name, inputs)
-            butler.registry.defaults = RegistryDefaults(run=self.outputRun.name, collections=inputs)
-        return butler
-
-    output: _OutputChainedCollectionInfo | None
-    """Information about the output chained collection, if there is or will be
-    one (`_OutputChainedCollectionInfo` or `None`).
-    """
-
-    outputRun: _OutputRunCollectionInfo | None
-    """Information about the output run collection, if there is or will be
-    one (`_OutputRunCollectionInfo` or `None`).
-    """
-
-    inputs: tuple[str, ...]
-    """Input collections provided directly by the user (`tuple` [ `str` ]).
-    """
 
 
 class _QBBFactory:
@@ -553,11 +131,6 @@ class _QBBFactory:
         # Dataset types need to be unpickled only after universe is made.
         dataset_types_pickle = pickle.dumps(self.dataset_types)
         return (self._unpickle, (self.butler_config, dimension_config, dataset_types_pickle))
-
-
-# ------------------------
-#  Exported definitions --
-# ------------------------
 
 
 class CmdLineFwk:
@@ -639,7 +212,7 @@ class CmdLineFwk:
         if args.extend_run:
             args.skip_existing = True
 
-        butler, collections, run = _ButlerFactory.makeButlerAndCollections(args)
+        butler, collections, run = ButlerFactory.make_butler_and_collections(args)
 
         if args.skip_existing and run:
             args.skip_existing_in += (run,)
@@ -743,7 +316,7 @@ class CmdLineFwk:
                 # Calling makeWriteButler is done for the side effects of
                 # calling that method, maining parsing all the args into
                 # collection names, creating collections, etc.
-                newButler = _ButlerFactory.makeWriteButler(newArgs)
+                newButler = ButlerFactory.make_write_butler(newArgs, qgraph.pipeline_graph)
                 return newButler
 
             # Include output collection in collections for input
@@ -830,7 +403,7 @@ class CmdLineFwk:
         # Make butler instance. QuantumGraph should have an output run defined,
         # but we ignore it here and let command line decide actual output run.
         if butler is None:
-            butler = _ButlerFactory.makeWriteButler(args, graph.pipeline_graph)
+            butler = ButlerFactory.make_write_butler(args, graph.pipeline_graph)
 
         if args.skip_existing:
             args.skip_existing_in += (butler.run,)
@@ -984,7 +557,7 @@ class CmdLineFwk:
         qgraph = QuantumGraph.loadUri(args.qgraph, graphID=args.qgraph_id)
 
         # Ensure that QBB uses shared datastore cache for writes.
-        _ButlerFactory.defineDatastoreCache()
+        ButlerFactory.define_datastore_cache()
 
         # Make QBB.
         _LOG.verbose("Initializing quantum-backed butler.")
@@ -1016,7 +589,7 @@ class CmdLineFwk:
         dataset_types = {dstype.name: dstype for dstype in qgraph.registryDatasetTypes()}
 
         # Ensure that QBB uses shared datastore cache.
-        _ButlerFactory.defineDatastoreCache()
+        ButlerFactory.define_datastore_cache()
 
         _butler_factory = _QBBFactory(
             butler_config=args.butler_config,
