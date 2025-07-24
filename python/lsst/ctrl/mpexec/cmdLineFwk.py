@@ -232,12 +232,6 @@ class CmdLineFwk:
             _LOG.verbose("Writing QuantumGraph to %r.", args.save_qgraph)
             qgraph.saveUri(args.save_qgraph)
 
-        if args.save_single_quanta:
-            for quantumNode in qgraph:
-                sqgraph = qgraph.subset(quantumNode)
-                uri = args.save_single_quanta.format(quantumNode)
-                sqgraph.saveUri(uri)
-
         if args.qgraph_dot:
             _LOG.verbose("Writing quantum graph DOT visualization to %r.", args.qgraph_dot)
             graph2dot(qgraph, args.qgraph_dot)

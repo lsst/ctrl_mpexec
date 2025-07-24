@@ -322,17 +322,6 @@ save_qgraph_option = MWOptionDecorator(
 )
 
 
-save_single_quanta_option = MWOptionDecorator(
-    "--save-single-quanta",
-    help=unwrap(
-        """Format string of locations for storing individual
-        quantum graph definition (pickle files). The curly
-        brace {} in the input string will be replaced by a
-        quantum number. Can be a URI."""
-    ),
-)
-
-
 show_option = MWOptionDecorator(
     "--show",
     callback=split_commas,

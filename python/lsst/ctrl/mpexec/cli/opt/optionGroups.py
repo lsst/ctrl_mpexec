@@ -109,7 +109,6 @@ class qgraph_options(OptionGroup):  # noqa: N801
             ctrlMpExecOpts.skip_existing_option(),
             ctrlMpExecOpts.clobber_outputs_option(),
             ctrlMpExecOpts.save_qgraph_option(),
-            ctrlMpExecOpts.save_single_quanta_option(),
             ctrlMpExecOpts.qgraph_dot_option(),
             ctrlMpExecOpts.qgraph_mermaid_option(),
             ctrlMpExecOpts.summary_option(),
