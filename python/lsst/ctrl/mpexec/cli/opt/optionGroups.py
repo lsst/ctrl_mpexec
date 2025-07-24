@@ -71,7 +71,6 @@ class pipeline_build_options(OptionGroup):  # noqa: N801
                 metavar="LABEL:FILE",
                 multiple=True,
             ),
-            ctrlMpExecOpts.order_pipeline_option(),
             ctrlMpExecOpts.save_pipeline_option(),
             ctrlMpExecOpts.select_tasks_option(),
             ctrlMpExecOpts.pipeline_dot_option(),

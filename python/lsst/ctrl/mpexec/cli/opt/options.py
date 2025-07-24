@@ -148,17 +148,6 @@ no_versions_option = MWOptionDecorator(
 )
 
 
-order_pipeline_option = MWOptionDecorator(
-    "--order-pipeline",
-    help=unwrap(
-        """Order tasks in pipeline based on their data
-        dependencies, ordering is performed as last step before saving or
-        executing pipeline."""
-    ),
-    is_flag=True,
-)
-
-
 output_option = MWOptionDecorator(
     "-o",
     "--output",

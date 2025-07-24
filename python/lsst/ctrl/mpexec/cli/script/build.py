@@ -41,7 +41,6 @@ from ..utils import _PipelineAction
 
 def build(
     *,
-    order_pipeline: bool,
     pipeline: ResourcePathExpression | Pipeline,
     pipeline_actions: list[_PipelineAction] | _PipelineAction,
     pipeline_dot: str,
@@ -64,9 +63,6 @@ def build(
 
     Parameters
     ----------
-    order_pipeline : `bool`
-        If true, order tasks in pipeline based on their data dependencies,
-        ordering is performed as last step before saving or executing pipeline.
     pipeline : `str` or `lsst.pipe.base.Pipeline`
         Path location of a pipeline definition file in YAML format.
     pipeline_actions : `list` [`PipelineAction`] or `PipelineAction`

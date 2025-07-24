@@ -50,7 +50,6 @@ class BuildTestCase(unittest.TestCase):
     def buildArgs(**kwargs):
         defaultArgs = dict(
             log_level=(),
-            order_pipeline=False,
             pipeline=None,
             pipeline_actions=(),
             pipeline_dot=None,
