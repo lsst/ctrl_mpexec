@@ -56,7 +56,6 @@ from lsst.daf.butler.direct_butler import DirectButler
 from lsst.daf.butler.registry import MissingCollectionError
 from lsst.pipe.base import (
     ExecutionResources,
-    Pipeline,
     QuantumGraph,
     TaskFactory,
     buildExecutionButler,
@@ -141,54 +140,6 @@ class CmdLineFwk:
     """
 
     MP_TIMEOUT = 3600 * 24 * 30  # Default timeout (sec) for multiprocessing
-
-    def __init__(self) -> None:
-        pass
-
-    def makePipeline(self, args: SimpleNamespace) -> Pipeline:
-        """Build a pipeline from command line arguments.
-
-        Parameters
-        ----------
-        args : `types.SimpleNamespace`
-            Parsed command line.
-
-        Returns
-        -------
-        pipeline : `~lsst.pipe.base.Pipeline`
-            Newly-constructed pipeline.
-        """
-        if args.pipeline:
-            pipeline = Pipeline.from_uri(args.pipeline)
-        else:
-            pipeline = Pipeline("anonymous")
-
-        # loop over all pipeline actions and apply them in order
-        for action in args.pipeline_actions:
-            if action.action == "add_instrument":
-                pipeline.addInstrument(action.value)
-
-            elif action.action == "new_task":
-                pipeline.addTask(action.value, action.label)
-
-            elif action.action == "delete_task":
-                pipeline.removeTask(action.label)
-
-            elif action.action == "config":
-                # action value string is "field=value", split it at '='
-                field, _, value = action.value.partition("=")
-                pipeline.addConfigOverride(action.label, field, value)
-
-            elif action.action == "configfile":
-                pipeline.addConfigFile(action.label, action.value)
-
-            else:
-                raise ValueError(f"Unexpected pipeline action: {action.action}")
-
-        if args.save_pipeline:
-            pipeline.write_to_uri(args.save_pipeline)
-
-        return pipeline
 
     def makeGraph(
         self, pipeline_graph_factory: PipelineGraphFactory | None, args: SimpleNamespace

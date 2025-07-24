@@ -191,7 +191,13 @@ def qgraph(ctx: click.Context, **kwargs: Any) -> None:
     summary = kwargs.pop("summary", None)
     with coverage_context(kwargs):
         show = ShowInfo(kwargs.pop("show", []))
+        # The only reason 'build' might want a butler is to resolve the
+        # pipeline graph for its own 'show' options, which wouldn't run in this
+        # context.  Take it out of the kwargs so it doesn't instantiate a
+        # butler unnecessarily.
+        butler_config = kwargs.pop("butler_config", None)
         pipeline_graph_factory = script.build(**kwargs, show=show)
+        kwargs["butler_config"] = butler_config
         if show.handled and not show.unhandled:
             print(
                 "No quantum graph generated. The --show option was given and all options were processed.",

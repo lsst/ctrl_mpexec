@@ -206,6 +206,11 @@ def _makeArgs(registryConfig=None, **kwargs):
     args["execution_butler_location"] = args.pop("save_execution_butler")
     if "pipeline_actions" not in args:
         args["pipeline_actions"] = []
+    # We never want the raw 'show' arg from the mocking, because we always
+    # process it before calling a script.
+    if "show" not in kwargs:
+        args["show"] = ShowInfo([])
+
     args = SimpleNamespace(**args)
 
     # override butler_config with our defaults
@@ -319,37 +324,37 @@ def _makeQGraph():
 
 
 class CmdLineFwkTestCase(unittest.TestCase):
-    """A test case for CmdLineFwk."""
+    """A test case for CmdLineFwk and core CLI script function."""
 
-    def testMakePipeline(self):
-        """Tests for CmdLineFwk.makePipeline method."""
-        fwk = CmdLineFwk()
+    def test_build(self):
+        """Tests for the 'build' script."""
+        from lsst.ctrl.mpexec.cli.script.build import build
 
         # make empty pipeline
-        args = _makeArgs()
-        pipeline = fwk.makePipeline(args)
-        self.assertIsInstance(pipeline, Pipeline)
-        self.assertEqual(len(pipeline), 0)
+        kwargs = _makeArgs().__dict__
+        pgf = build(**kwargs)
+        self.assertIsInstance(pgf.pipeline, Pipeline)
+        self.assertEqual(len(pgf.pipeline), 0)
 
         # few tests with serialization
         with makeTmpFile() as tmpname:
             # make empty pipeline and store it in a file
-            args = _makeArgs(save_pipeline=tmpname)
-            pipeline = fwk.makePipeline(args)
-            self.assertIsInstance(pipeline, Pipeline)
+            kwargs = _makeArgs(save_pipeline=tmpname).__dict__
+            pgf = build(**kwargs)
+            self.assertIsInstance(pgf.pipeline, Pipeline)
 
             # read pipeline from a file
-            args = _makeArgs(pipeline=tmpname)
-            pipeline = fwk.makePipeline(args)
-            self.assertIsInstance(pipeline, Pipeline)
-            self.assertEqual(len(pipeline), 0)
+            kwargs = _makeArgs(pipeline=tmpname).__dict__
+            pgf = build(**kwargs)
+            self.assertIsInstance(pgf.pipeline, Pipeline)
+            self.assertEqual(len(pgf.pipeline), 0)
 
         # single task pipeline, task name can be anything here
         actions = [_ACTION_ADD_TASK("TaskOne:task1")]
-        args = _makeArgs(pipeline_actions=actions)
-        pipeline = fwk.makePipeline(args)
-        self.assertIsInstance(pipeline, Pipeline)
-        self.assertEqual(len(pipeline), 1)
+        kwargs = _makeArgs(pipeline_actions=actions).__dict__
+        pgf = build(**kwargs)
+        self.assertIsInstance(pgf.pipeline, Pipeline)
+        self.assertEqual(len(pgf.pipeline), 1)
 
         # many task pipeline
         actions = [
@@ -357,33 +362,33 @@ class CmdLineFwkTestCase(unittest.TestCase):
             _ACTION_ADD_TASK("TaskTwo:task2"),
             _ACTION_ADD_TASK("TaskOne:task1b"),
         ]
-        args = _makeArgs(pipeline_actions=actions)
-        pipeline = fwk.makePipeline(args)
-        self.assertIsInstance(pipeline, Pipeline)
-        self.assertEqual(len(pipeline), 3)
+        kwargs = _makeArgs(pipeline_actions=actions).__dict__
+        pgf = build(**kwargs)
+        self.assertIsInstance(pgf.pipeline, Pipeline)
+        self.assertEqual(len(pgf.pipeline), 3)
 
         # single task pipeline with config overrides, need real task class
         actions = [_ACTION_ADD_TASK(f"{_TASK_CLASS}:task"), _ACTION_CONFIG("task:addend=100")]
-        args = _makeArgs(pipeline_actions=actions)
-        pipeline = fwk.makePipeline(args)
-        pipeline_graph = pipeline.to_graph()
+        kwargs = _makeArgs(pipeline_actions=actions).__dict__
+        pgf = build(**kwargs)
+        pipeline_graph = pgf()
         self.assertEqual(len(pipeline_graph.tasks), 1)
         self.assertEqual(next(iter(pipeline_graph.tasks.values())).config.addend, 100)
 
         overrides = b"config.addend = 1000\n"
         with makeTmpFile(overrides) as tmpname:
             actions = [_ACTION_ADD_TASK(f"{_TASK_CLASS}:task"), _ACTION_CONFIG_FILE("task:" + tmpname)]
-            args = _makeArgs(pipeline_actions=actions)
-            pipeline = fwk.makePipeline(args)
-            pipeline_graph = pipeline.to_graph()
+            kwargs = _makeArgs(pipeline_actions=actions).__dict__
+            pgf = build(**kwargs)
+            pipeline_graph = pgf()
             self.assertEqual(len(pipeline_graph.tasks), 1)
             self.assertEqual(next(iter(pipeline_graph.tasks.values())).config.addend, 1000)
 
         # Check --instrument option, for now it only checks that it does not
         # crash.
         actions = [_ACTION_ADD_TASK(f"{_TASK_CLASS}:task"), _ACTION_ADD_INSTRUMENT("Instrument")]
-        args = _makeArgs(pipeline_actions=actions)
-        pipeline = fwk.makePipeline(args)
+        kwargs = _makeArgs(pipeline_actions=actions).__dict__
+        pgf = build(**kwargs)
 
     def testMakeGraphFromSave(self):
         """Tests for CmdLineFwk.makeGraph method.
@@ -431,12 +436,11 @@ class CmdLineFwkTestCase(unittest.TestCase):
 
     def testShowPipeline(self):
         """Test for --show options for pipeline."""
-        fwk = CmdLineFwk()
+        from lsst.ctrl.mpexec.cli.script.build import build
 
         actions = [_ACTION_ADD_TASK(f"{_TASK_CLASS}:task"), _ACTION_CONFIG("task:addend=100")]
-        args = _makeArgs(pipeline_actions=actions)
-        pipeline = fwk.makePipeline(args)
-        pipeline_graph_factory = PipelineGraphFactory(pipeline)
+        kwargs = _makeArgs(pipeline_actions=actions).__dict__
+        pipeline_graph_factory = build(**kwargs)
 
         with self.assertRaises(ValueError):
             ShowInfo(["unrecognized", "config"])
