@@ -505,11 +505,6 @@ raise_on_partial_outputs_option = MWOptionDecorator(
     default=True,
 )
 
-save_execution_butler_option = MWOptionDecorator(
-    "--save-execution-butler",
-    help="Export location for an execution-specific butler after making QuantumGraph",
-)
-
 mock_option = MWOptionDecorator(
     "--mock",
     help="Mock pipeline execution.",
@@ -583,25 +578,6 @@ mock_failure_option = MWOptionDecorator(
         occur if the "available" memory (according to
         ExecutionResources.max_mem) is less than this value.  Note that actual
         memory usage is irrelevant here; this is all mock behavior."""
-    ),
-)
-
-
-clobber_execution_butler_option = MWOptionDecorator(
-    "--clobber-execution-butler",
-    help=unwrap(
-        """When creating execution butler overwrite
-                                                                   any existing products"""
-    ),
-    is_flag=True,
-)
-
-target_datastore_root_option = MWOptionDecorator(
-    "--target-datastore-root",
-    help=unwrap(
-        """Root directory for datastore of execution butler.
-        Default is to use the original datastore.
-        """
     ),
 )
 

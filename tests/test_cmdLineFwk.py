@@ -203,7 +203,6 @@ def _makeArgs(registryConfig=None, **kwargs):
     mock.assert_called_once()
     args = mock.call_args[1]
     args["enableLsstDebug"] = args.pop("debug")
-    args["execution_butler_location"] = args.pop("save_execution_butler")
     if "pipeline_actions" not in args:
         args["pipeline_actions"] = []
     # We never want the raw 'show' arg from the mocking, because we always

@@ -31,8 +31,6 @@ from __future__ import annotations
 
 __all__ = ["CmdLineFwk"]
 
-import contextlib
-import copy
 import logging
 import pickle
 from collections.abc import Mapping
@@ -52,14 +50,7 @@ from lsst.daf.butler import (
     Quantum,
     QuantumBackedButler,
 )
-from lsst.daf.butler.direct_butler import DirectButler
-from lsst.daf.butler.registry import MissingCollectionError
-from lsst.pipe.base import (
-    ExecutionResources,
-    QuantumGraph,
-    TaskFactory,
-    buildExecutionButler,
-)
+from lsst.pipe.base import ExecutionResources, QuantumGraph, TaskFactory
 from lsst.pipe.base.all_dimensions_quantum_graph_builder import AllDimensionsQuantumGraphBuilder
 from lsst.pipe.base.dot_tools import graph2dot
 from lsst.pipe.base.execution_graph_fixup import ExecutionGraphFixup
@@ -254,41 +245,6 @@ class CmdLineFwk:
         if args.qgraph_mermaid:
             _LOG.verbose("Writing quantum graph Mermaid visualization to %r.", args.qgraph_mermaid)
             graph2mermaid(qgraph, args.qgraph_mermaid)
-
-        if args.execution_butler_location:
-            _LOG.verbose("Writing execution butler to %r.", args.execution_butler_location)
-            butler = Butler.from_config(args.butler_config)
-            assert isinstance(butler, DirectButler), "Execution butler needs DirectButler"
-            newArgs = copy.deepcopy(args)
-
-            def builderShim(butler: Butler) -> Butler:
-                assert isinstance(butler, DirectButler), "Execution butler needs DirectButler"
-                newArgs.butler_config = butler._config
-                # Calling makeWriteButler is done for the side effects of
-                # calling that method, maining parsing all the args into
-                # collection names, creating collections, etc.
-                newButler = ButlerFactory.make_write_butler(newArgs, qgraph.pipeline_graph)
-                return newButler
-
-            # Include output collection in collections for input
-            # files if it exists in the repo.
-            all_inputs = args.input
-            if args.output is not None:
-                with contextlib.suppress(MissingCollectionError):
-                    all_inputs += (next(iter(butler.registry.queryCollections(args.output))),)
-
-            _LOG.debug("Calling buildExecutionButler with collections=%s", all_inputs)
-            buildExecutionButler(
-                butler,
-                qgraph,
-                args.execution_butler_location,
-                run,
-                butlerModifier=builderShim,
-                collections=all_inputs,
-                clobber=args.clobber_execution_butler,
-                datastoreRoot=args.target_datastore_root,
-                transfer=args.transfer,
-            )
 
         return qgraph
 
