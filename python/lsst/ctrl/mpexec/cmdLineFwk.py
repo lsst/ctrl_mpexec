@@ -859,11 +859,11 @@ class CmdLineFwk:
             graphFixup = self._importGraphFixup(args)
             resources = self._make_execution_resources(args)
             quantumExecutor = SingleQuantumExecutor(
-                butler,
-                taskFactory,
-                skipExistingIn=args.skip_existing_in,
-                clobberOutputs=args.clobber_outputs,
-                enableLsstDebug=args.enableLsstDebug,
+                butler=butler,
+                task_factory=taskFactory,
+                skip_existing_in=args.skip_existing_in,
+                clobber_outputs=args.clobber_outputs,
+                enable_lsst_debug=args.enableLsstDebug,
                 resources=resources,
                 raise_on_partial_outputs=args.raise_on_partial_outputs,
             )
@@ -1028,13 +1028,13 @@ class CmdLineFwk:
         resources = self._make_execution_resources(args)
         quantumExecutor = SingleQuantumExecutor(
             butler=None,
-            taskFactory=task_factory,
-            enableLsstDebug=args.enableLsstDebug,
+            task_factory=task_factory,
+            enable_lsst_debug=args.enableLsstDebug,
             limited_butler_factory=_butler_factory,
             resources=resources,
-            assumeNoExistingOutputs=args.no_existing_outputs,
-            skipExisting=True,
-            clobberOutputs=True,
+            assume_no_existing_outputs=args.no_existing_outputs,
+            skip_existing=True,
+            clobber_outputs=True,
             raise_on_partial_outputs=args.raise_on_partial_outputs,
             job_metadata=job_metadata,
         )
