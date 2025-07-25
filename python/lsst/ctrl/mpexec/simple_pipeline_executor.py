@@ -49,7 +49,6 @@ from lsst.pex.config import Config
 from lsst.pipe.base import ExecutionResources, Instrument, Pipeline, PipelineGraph, PipelineTask, QuantumGraph
 from lsst.pipe.base.all_dimensions_quantum_graph_builder import AllDimensionsQuantumGraphBuilder
 
-from .preExecInit import PreExecInit
 from .singleQuantumExecutor import SingleQuantumExecutor
 from .taskFactory import TaskFactory
 
@@ -87,7 +86,7 @@ class SimplePipelineExecutor:
     deliberately lacks many features present in the command-line-only
     ``pipetask`` tool in order to keep the implementation simple.  Python
     callers that need more sophistication should call lower-level tools like
-    `~lsst.pipe.base.quantum_graph_builder.QuantumGraphBuilder`, `PreExecInit`,
+    `~lsst.pipe.base.quantum_graph_builder.QuantumGraphBuilder`
     and `SingleQuantumExecutor` directly.
     """
 
@@ -619,18 +618,21 @@ class SimplePipelineExecutor:
 
         Notes
         -----
-        Global initialization steps (see `PreExecInit`) are performed
+        Global initialization steps (see
+        `~lsst.pipe.base.QuantumGraph.init_output_run`) are performed
         immediately when this method is called, but individual quanta are not
         actually executed until the returned iterator is iterated over.
 
         A topological ordering is not in general unique, but no other
         guarantees are made about the order in which quanta are processed.
         """
+        if register_dataset_types:
+            self.quantum_graph.pipeline_graph.register_dataset_types(self.butler)
+        self.quantum_graph.write_configs(self.butler, compare_existing=False)
+        self.quantum_graph.write_init_outputs(self.butler, skip_existing=False)
+        if save_versions:
+            self.quantum_graph.write_packages(self.butler, compare_existing=False)
         task_factory = TaskFactory()
-        pre_exec_init = PreExecInit(self.butler, task_factory)
-        pre_exec_init.initialize(
-            graph=self.quantum_graph, registerDatasetTypes=register_dataset_types, saveVersions=save_versions
-        )
         single_quantum_executor = SingleQuantumExecutor(
             self.butler,
             task_factory,
@@ -638,10 +640,10 @@ class SimplePipelineExecutor:
             raise_on_partial_outputs=self.raise_on_partial_outputs,
         )
         # Important that this returns a generator expression rather than being
-        # a generator itself; that is what makes the PreExecInit stuff above
-        # happen immediately instead of when the first quanta is executed,
-        # which might be useful for callers who want to check the state of the
-        # repo in between.
+        # a generator itself; that is what makes the init stuff above happen
+        # immediately instead of when the first quanta is executed, which might
+        # be useful for callers who want to check the state of the repo in
+        # between.
         return (
             single_quantum_executor.execute(qnode.task_node, qnode.quantum)[0] for qnode in self.quantum_graph
         )
