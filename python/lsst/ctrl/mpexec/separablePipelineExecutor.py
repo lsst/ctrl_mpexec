@@ -46,7 +46,6 @@ from lsst.pipe.base.all_dimensions_quantum_graph_builder import AllDimensionsQua
 from lsst.pipe.base.quantum_graph_builder import QuantumGraphBuilder
 
 from .mpGraphExecutor import MPGraphExecutor
-from .preExecInit import PreExecInit
 from .quantumGraphExecutor import QuantumGraphExecutor
 from .singleQuantumExecutor import SingleQuantumExecutor
 from .taskFactory import TaskFactory
@@ -143,13 +142,13 @@ class SeparablePipelineExecutor:
         save_versions : `bool`, optional
             If `True`, save a package versions dataset.
         """
-        pre_exec_init = PreExecInit(self._butler, self._task_factory, extendRun=self._clobber_output)
-        pre_exec_init.initialize(
-            graph=graph,
-            saveInitOutputs=save_init_outputs,
-            registerDatasetTypes=register_dataset_types,
-            saveVersions=save_versions,
-        )
+        if register_dataset_types:
+            graph.pipeline_graph.register_dataset_types(self._butler, include_packages=save_versions)
+        if save_init_outputs:
+            graph.write_init_outputs(self._butler, skip_existing=(self._butler.run in self._skip_existing_in))
+            graph.write_configs(self._butler)
+        if save_versions:
+            graph.write_packages(self._butler)
 
     def make_pipeline(self, pipeline_uri: str | lsst.resources.ResourcePath) -> lsst.pipe.base.Pipeline:
         """Build a pipeline from pipeline and configuration information.
