@@ -170,8 +170,6 @@ class CmdLineFwk:
                     "Pipeline must not be given when quantum graph is read from "
                     f"file: {bool(pipeline_graph_factory)}"
                 )
-            if args.show_qgraph_header:
-                print(QuantumGraph.readHeader(args.qgraph))
         else:
             if pipeline_graph_factory is None:
                 raise ValueError("Pipeline must be given when quantum graph is not read from file.")
@@ -220,8 +218,6 @@ class CmdLineFwk:
             }
             assert run is not None, "Butler output run collection must be defined"
             qgraph = graph_builder.build(metadata, attach_datastore_records=args.qgraph_datastore_records)
-            if args.show_qgraph_header:
-                qgraph.buildAndPrintHeader()
 
         if len(qgraph) == 0:
             # Nothing to do.

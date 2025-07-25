@@ -60,7 +60,6 @@ def qgraph(  # type: ignore
     clobber_outputs,
     dataset_query_constraint,
     rebase,
-    show_qgraph_header=False,
     mock=False,
     unmocked_dataset_types=(),
     mock_failure=(),
@@ -154,9 +153,6 @@ def qgraph(  # type: ignore
     rebase : `bool`
         If `True` then reset output collection chain if it is inconsistent with
         the ``inputs``.
-    show_qgraph_header : bool, optional
-        Controls if the headerData of a QuantumGraph should be printed to the
-        terminal. Defaults to False.
     mock : `bool`, optional
         If True, use a mocked version of the pipeline.
     unmocked_dataset_types : `collections.abc.Sequence` [ `str` ], optional
@@ -196,7 +192,6 @@ def qgraph(  # type: ignore
         clobber_outputs=clobber_outputs,
         dataset_query_constraint=dataset_query_constraint,
         rebase=rebase,
-        show_qgraph_header=show_qgraph_header,
         mock=mock,
         unmocked_dataset_types=list(unmocked_dataset_types),
         mock_failure=mock_failure,

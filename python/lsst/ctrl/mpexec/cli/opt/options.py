@@ -262,13 +262,6 @@ qgraph_node_id_option = MWOptionDecorator(
     ),
 )
 
-qgraph_header_data_option = MWOptionDecorator(
-    "--show-qgraph-header",
-    is_flag=True,
-    default=False,
-    help="Print the headerData for Quantum Graph to the console",
-)
-
 qgraph_dot_option = MWOptionDecorator(
     "--qgraph-dot",
     help="Location for storing GraphViz DOT representation of a quantum graph.",
