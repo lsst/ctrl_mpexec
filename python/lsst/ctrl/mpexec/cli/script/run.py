@@ -28,9 +28,10 @@
 import logging
 from types import SimpleNamespace
 
+from lsst.pipe.base import TaskFactory
 from lsst.utils.threads import disable_implicit_threading
 
-from ... import CmdLineFwk, TaskFactory
+from ... import CmdLineFwk
 
 _log = logging.getLogger(__name__)
 

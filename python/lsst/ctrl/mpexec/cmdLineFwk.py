@@ -71,19 +71,19 @@ from lsst.pipe.base import (
 )
 from lsst.pipe.base.all_dimensions_quantum_graph_builder import AllDimensionsQuantumGraphBuilder
 from lsst.pipe.base.dot_tools import graph2dot
+from lsst.pipe.base.execution_graph_fixup import ExecutionGraphFixup
 from lsst.pipe.base.mermaid_tools import graph2mermaid
+from lsst.pipe.base.mp_graph_executor import MPGraphExecutor
 from lsst.pipe.base.pipeline_graph import NodeType
+from lsst.pipe.base.quantum_reports import Report
+from lsst.pipe.base.single_quantum_executor import SingleQuantumExecutor
 from lsst.resources import ResourcePath
 from lsst.utils import doImportType
 from lsst.utils.logging import VERBOSE, getLogger
 from lsst.utils.threads import disable_implicit_threading
 
 from ._pipeline_graph_factory import PipelineGraphFactory
-from .executionGraphFixup import ExecutionGraphFixup
-from .mpGraphExecutor import MPGraphExecutor
 from .preExecInit import PreExecInit, PreExecInitLimited
-from .reports import Report
-from .singleQuantumExecutor import SingleQuantumExecutor
 
 # ----------------------------------
 #  Local non-exported definitions --

@@ -27,7 +27,9 @@
 
 from types import SimpleNamespace
 
-from ... import CmdLineFwk, TaskFactory
+from lsst.pipe.base import TaskFactory
+
+from ... import CmdLineFwk
 
 
 def pre_exec_init_qbb(

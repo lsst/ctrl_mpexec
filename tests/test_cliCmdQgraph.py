@@ -30,10 +30,10 @@
 import os
 import unittest
 
-from lsst.ctrl.mpexec import Report
 from lsst.ctrl.mpexec.cli.pipetask import cli as pipetask_cli
 from lsst.daf.butler.cli.utils import LogCliRunner, clickResultMsg
 from lsst.daf.butler.tests.utils import makeTestTempDir, removeTestTempDir
+from lsst.pipe.base.quantum_reports import Report
 from lsst.pipe.base.tests.simpleQGraph import makeSimpleQGraph
 
 TESTDIR = os.path.abspath(os.path.dirname(__file__))

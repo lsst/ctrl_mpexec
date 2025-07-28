@@ -46,7 +46,7 @@ import click
 import lsst.pex.config as pexConfig
 import lsst.pipe.base.connectionTypes as cT
 import lsst.utils.tests
-from lsst.ctrl.mpexec import CmdLineFwk, MPGraphExecutorError, PipelineGraphFactory, Report
+from lsst.ctrl.mpexec import CmdLineFwk, PipelineGraphFactory
 from lsst.ctrl.mpexec.cli.opt import run_options
 from lsst.ctrl.mpexec.cli.utils import (
     _ACTION_ADD_INSTRUMENT,
@@ -77,6 +77,8 @@ from lsst.pipe.base import (
     TaskDef,
 )
 from lsst.pipe.base.all_dimensions_quantum_graph_builder import DatasetQueryConstraintVariant as DQCVariant
+from lsst.pipe.base.mp_graph_executor import MPGraphExecutorError
+from lsst.pipe.base.quantum_reports import Report
 from lsst.pipe.base.script import transfer_from_graph
 from lsst.pipe.base.tests.simpleQGraph import (
     AddTask,
