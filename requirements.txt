@@ -6,6 +6,6 @@ networkx
 lsst-resources @ git+https://github.com/lsst/resources@main
 lsst-daf-butler @ git+https://github.com/lsst/daf_butler@main
 lsst-utils @ git+https://github.com/lsst/utils@main
-lsst-pipe-base @ git+https://github.com/lsst/pipe_base@main
+lsst-pipe-base @ git+https://github.com/lsst/pipe_base@tickets/DM-48980
 lsst-pex-config @ git+https://github.com/lsst/pex_config@main
 sqlalchemy
