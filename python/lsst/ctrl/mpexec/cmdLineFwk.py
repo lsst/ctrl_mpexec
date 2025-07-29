@@ -870,13 +870,13 @@ class CmdLineFwk:
 
             timeout = self.MP_TIMEOUT if args.timeout is None else args.timeout
             executor = MPGraphExecutor(
-                numProc=args.processes,
+                num_proc=args.processes,
                 timeout=timeout,
-                startMethod=args.start_method,
-                quantumExecutor=quantumExecutor,
-                failFast=args.fail_fast,
+                start_method=args.start_method,
+                quantum_executor=quantumExecutor,
+                fail_fast=args.fail_fast,
                 pdb=args.pdb,
-                executionGraphFixup=graphFixup,
+                execution_graph_fixup=graphFixup,
             )
             # Have to reset connection pool to avoid sharing connections with
             # forked processes.
@@ -1041,11 +1041,11 @@ class CmdLineFwk:
 
         timeout = self.MP_TIMEOUT if args.timeout is None else args.timeout
         executor = MPGraphExecutor(
-            numProc=args.processes,
+            num_proc=args.processes,
             timeout=timeout,
-            startMethod=args.start_method,
-            quantumExecutor=quantumExecutor,
-            failFast=args.fail_fast,
+            start_method=args.start_method,
+            quantum_executor=quantumExecutor,
+            fail_fast=args.fail_fast,
             pdb=args.pdb,
         )
         try:
