@@ -25,45 +25,20 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-__all__ = ["ExecutionGraphFixup"]
+__all__ = ("ExecutionGraphFixup",)
 
-from abc import ABC, abstractmethod
+from deprecated.sphinx import deprecated
 
-from lsst.pipe.base import QuantumGraph
+import lsst.pipe.base.execution_graph_fixup
+
+# TODO[DM-51962]: Remove this module.
 
 
-class ExecutionGraphFixup(ABC):
-    """Interface for classes which update quantum graphs before execution.
-
-    Primary goal of this class is to modify quanta dependencies which may
-    not be possible to reflect in a quantum graph using standard tools.
-    One known use case for that is to guarantee particular execution order
-    of visits in CI jobs for cases when outcome depends on the processing
-    order of visits (e.g. AP association pipeline).
-
-    Instances of this class receive pre-ordered sequence of quanta
-    (`~lsst.pipe.base.QuantumGraph` instances) and they are allowed to
-    modify quanta data in place, for example update ``dependencies`` field to
-    add additional dependencies. Returned list of quanta will be re-ordered
-    once again by the graph executor to reflect new dependencies.
-    """
-
-    @abstractmethod
-    def fixupQuanta(self, graph: QuantumGraph) -> QuantumGraph:
-        """Update quanta in a graph.
-
-        Potentially anything in the graph could be changed if it does not
-        break executor assumptions. If modifications result in a dependency
-        cycle the executor will raise an exception.
-
-        Parameters
-        ----------
-        graph : QuantumGraph
-            Quantum Graph that will be executed by the executor.
-
-        Returns
-        -------
-        graph : QuantumGraph
-            Modified graph.
-        """
-        raise NotImplementedError
+@deprecated(
+    "The ExecutionGraphFixup class has moved to lsst.pipe.base.execution_graph_fixup. "
+    "This forwarding shim will be removed after v30.",
+    version="v30",
+    category=FutureWarning,
+)
+class ExecutionGraphFixup(lsst.pipe.base.execution_graph_fixup.ExecutionGraphFixup):  # noqa: D101
+    pass

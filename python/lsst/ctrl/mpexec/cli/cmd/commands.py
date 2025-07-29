@@ -36,7 +36,6 @@ from typing import Any
 import click
 
 import lsst.pipe.base.cli.opt as pipeBaseOpts
-from lsst.ctrl.mpexec import Report
 from lsst.ctrl.mpexec.showInfo import ShowInfo
 from lsst.daf.butler.cli.opt import (
     collections_option,
@@ -49,6 +48,7 @@ from lsst.daf.butler.cli.opt import (
     where_option,
 )
 from lsst.daf.butler.cli.utils import MWCtxObj, catch_and_exit, option_section, unwrap
+from lsst.pipe.base.quantum_reports import Report
 
 from .. import opt as ctrlMpExecOpts
 from .. import script

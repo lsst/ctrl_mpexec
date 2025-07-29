@@ -25,100 +25,30 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-from __future__ import annotations
+__all__ = ("QuantumExecutor", "QuantumGraphExecutor")
 
-__all__ = ["QuantumExecutor", "QuantumGraphExecutor"]
+from deprecated.sphinx import deprecated
 
-from abc import ABC, abstractmethod
-from typing import TYPE_CHECKING
+import lsst.pipe.base.quantum_graph_executor
 
-from .reports import QuantumReport, Report
-
-if TYPE_CHECKING:
-    import uuid
-
-    from lsst.daf.butler import Quantum
-    from lsst.pipe.base import QuantumGraph
-    from lsst.pipe.base.pipeline_graph import TaskNode
+# TODO[DM-51962]: Remove this module.
 
 
-class QuantumExecutor(ABC):
-    """Class which abstracts execution of a single Quantum.
-
-    In general implementation should not depend on execution model and
-    execution should always happen in-process. Main reason for existence
-    of this class is to provide do-nothing implementation that can be used
-    in the unit tests.
-    """
-
-    @abstractmethod
-    def execute(
-        self, task_node: TaskNode, /, quantum: Quantum, quantum_id: uuid.UUID | None = None
-    ) -> tuple[Quantum, QuantumReport | None]:
-        """Execute single quantum.
-
-        Parameters
-        ----------
-        task_node : `~lsst.pipe.base.pipeline_graph.TaskNode`
-            Task definition structure.
-        quantum : `~lsst.daf.butler.Quantum`
-            Quantum for this execution.
-        quantum_id : `uuid.UUID` or `None`, optional
-            The ID of the quantum to be executed.
-
-        Returns
-        -------
-        quantum : `~lsst.daf.butler.Quantum`
-            The quantum actually executed.
-        report : `~lsst.ctrl.mpexec.QuantumReport`
-            Structure describing the status of the execution of a quantum.
-            `None` is returned if implementation does not support this
-            feature.
-
-        Notes
-        -----
-        Any exception raised by the task or code that wraps task execution is
-        propagated to the caller of this method.
-        """
-        raise NotImplementedError()
+@deprecated(
+    "The QuantumExecutor class has moved to lsst.pipe.base.quantum_graph_executor. "
+    "This forwarding shim will be removed after v30.",
+    version="v30",
+    category=FutureWarning,
+)
+class QuantumExecutor(lsst.pipe.base.quantum_graph_executor.QuantumExecutor):  # noqa: D101
+    pass
 
 
-class QuantumGraphExecutor(ABC):
-    """Class which abstracts QuantumGraph execution.
-
-    Any specific execution model is implemented in sub-class by overriding
-    the `execute` method.
-    """
-
-    @abstractmethod
-    def execute(self, graph: QuantumGraph) -> None:
-        """Execute whole graph.
-
-        Implementation of this method depends on particular execution model
-        and it has to be provided by a subclass. Execution model determines
-        what happens here; it can be either actual running of the task or,
-        for example, generation of the scripts for delayed batch execution.
-
-        Parameters
-        ----------
-        graph : `~lsst.pipe.base.QuantumGraph`
-            Execution graph.
-        """
-        raise NotImplementedError()
-
-    def getReport(self) -> Report | None:
-        """Return execution report from last call to `execute`.
-
-        Returns
-        -------
-        report : `~lsst.ctrl.mpexec.Report`, optional
-            Structure describing the status of the execution of a quantum
-            graph. `None` is returned if implementation does not support
-            this feature.
-
-        Raises
-        ------
-        RuntimeError
-            Raised if this method is called before `execute`.
-        """
-        return None
+@deprecated(
+    "The QuantumGraphExecutor class has moved to lsst.pipe.base.quantum_graph_executor. "
+    "This forwarding shim will be removed after v30.",
+    version="v30",
+    category=FutureWarning,
+)
+class QuantumGraphExecutor(lsst.pipe.base.quantum_graph_executor.QuantumGraphExecutor):  # noqa: D101
+    pass

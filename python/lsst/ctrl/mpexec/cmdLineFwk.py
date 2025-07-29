@@ -71,19 +71,19 @@ from lsst.pipe.base import (
 )
 from lsst.pipe.base.all_dimensions_quantum_graph_builder import AllDimensionsQuantumGraphBuilder
 from lsst.pipe.base.dot_tools import graph2dot
+from lsst.pipe.base.execution_graph_fixup import ExecutionGraphFixup
 from lsst.pipe.base.mermaid_tools import graph2mermaid
+from lsst.pipe.base.mp_graph_executor import MPGraphExecutor
 from lsst.pipe.base.pipeline_graph import NodeType
+from lsst.pipe.base.quantum_reports import Report
+from lsst.pipe.base.single_quantum_executor import SingleQuantumExecutor
 from lsst.resources import ResourcePath
 from lsst.utils import doImportType
 from lsst.utils.logging import VERBOSE, getLogger
 from lsst.utils.threads import disable_implicit_threading
 
 from ._pipeline_graph_factory import PipelineGraphFactory
-from .executionGraphFixup import ExecutionGraphFixup
-from .mpGraphExecutor import MPGraphExecutor
 from .preExecInit import PreExecInit, PreExecInitLimited
-from .reports import Report
-from .singleQuantumExecutor import SingleQuantumExecutor
 
 # ----------------------------------
 #  Local non-exported definitions --
@@ -859,24 +859,24 @@ class CmdLineFwk:
             graphFixup = self._importGraphFixup(args)
             resources = self._make_execution_resources(args)
             quantumExecutor = SingleQuantumExecutor(
-                butler,
-                taskFactory,
-                skipExistingIn=args.skip_existing_in,
-                clobberOutputs=args.clobber_outputs,
-                enableLsstDebug=args.enableLsstDebug,
+                butler=butler,
+                task_factory=taskFactory,
+                skip_existing_in=args.skip_existing_in,
+                clobber_outputs=args.clobber_outputs,
+                enable_lsst_debug=args.enableLsstDebug,
                 resources=resources,
                 raise_on_partial_outputs=args.raise_on_partial_outputs,
             )
 
             timeout = self.MP_TIMEOUT if args.timeout is None else args.timeout
             executor = MPGraphExecutor(
-                numProc=args.processes,
+                num_proc=args.processes,
                 timeout=timeout,
-                startMethod=args.start_method,
-                quantumExecutor=quantumExecutor,
-                failFast=args.fail_fast,
+                start_method=args.start_method,
+                quantum_executor=quantumExecutor,
+                fail_fast=args.fail_fast,
                 pdb=args.pdb,
-                executionGraphFixup=graphFixup,
+                execution_graph_fixup=graphFixup,
             )
             # Have to reset connection pool to avoid sharing connections with
             # forked processes.
@@ -1028,24 +1028,24 @@ class CmdLineFwk:
         resources = self._make_execution_resources(args)
         quantumExecutor = SingleQuantumExecutor(
             butler=None,
-            taskFactory=task_factory,
-            enableLsstDebug=args.enableLsstDebug,
+            task_factory=task_factory,
+            enable_lsst_debug=args.enableLsstDebug,
             limited_butler_factory=_butler_factory,
             resources=resources,
-            assumeNoExistingOutputs=args.no_existing_outputs,
-            skipExisting=True,
-            clobberOutputs=True,
+            assume_no_existing_outputs=args.no_existing_outputs,
+            skip_existing=True,
+            clobber_outputs=True,
             raise_on_partial_outputs=args.raise_on_partial_outputs,
             job_metadata=job_metadata,
         )
 
         timeout = self.MP_TIMEOUT if args.timeout is None else args.timeout
         executor = MPGraphExecutor(
-            numProc=args.processes,
+            num_proc=args.processes,
             timeout=timeout,
-            startMethod=args.start_method,
-            quantumExecutor=quantumExecutor,
-            failFast=args.fail_fast,
+            start_method=args.start_method,
+            quantum_executor=quantumExecutor,
+            fail_fast=args.fail_fast,
             pdb=args.pdb,
         )
         try:

@@ -25,46 +25,20 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-from __future__ import annotations
+__all__ = ("TaskFactory",)
 
-__all__ = ["TaskFactory"]
+from deprecated.sphinx import deprecated
 
-import logging
-from collections.abc import Iterable
-from typing import TYPE_CHECKING, Any
+import lsst.pipe.base
 
-from lsst.pipe.base import TaskFactory as BaseTaskFactory
-from lsst.pipe.base.pipeline_graph import TaskNode
-
-if TYPE_CHECKING:
-    from lsst.daf.butler import DatasetRef, LimitedButler
-    from lsst.pipe.base import PipelineTask
-
-_LOG = logging.getLogger(__name__)
+# TODO[DM-51962]: Remove this module.
 
 
-class TaskFactory(BaseTaskFactory):
-    """Class instantiating PipelineTasks."""
-
-    def makeTask(
-        self,
-        task_node: TaskNode,
-        /,
-        butler: LimitedButler,
-        initInputRefs: Iterable[DatasetRef] | None,
-    ) -> PipelineTask:
-        # docstring inherited
-        config = task_node.config
-        init_inputs: dict[str, Any] = {}
-        init_input_refs_by_dataset_type = {}
-        if initInputRefs is not None:
-            init_input_refs_by_dataset_type = {ref.datasetType.name: ref for ref in initInputRefs}
-        task_class = task_node.task_class
-        if init_input_refs_by_dataset_type:
-            for read_edge in task_node.init.inputs.values():
-                init_inputs[read_edge.connection_name] = butler.get(
-                    init_input_refs_by_dataset_type[read_edge.dataset_type_name]
-                )
-        # make task instance
-        task = task_class(config=config, initInputs=init_inputs, name=task_node.label)
-        return task
+@deprecated(
+    "The TaskFactory implementation has moved into its base class in lsst.pipe.base. "
+    "This forwarding shim will be removed after v30.",
+    version="v30",
+    category=FutureWarning,
+)
+class TaskFactory(lsst.pipe.base.TaskFactory):  # noqa: D101
+    pass
