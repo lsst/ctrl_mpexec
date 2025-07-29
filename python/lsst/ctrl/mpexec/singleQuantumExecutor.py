@@ -138,12 +138,12 @@ class SingleQuantumExecutor(lsst.pipe.base.single_quantum_executor.SingleQuantum
     def checkExistingOutputs(
         self, quantum: Quantum, task_node: TaskNode, /, limited_butler: LimitedButler
     ) -> bool:
-        return super().check_existing_outputs(quantum, task_node, limited_butler=limited_butler)
+        return super()._check_existing_outputs(quantum, task_node, limited_butler=limited_butler)
 
     def updatedQuantumInputs(
         self, quantum: Quantum, task_node: TaskNode, /, limited_butler: LimitedButler
     ) -> Quantum:
-        return super().updated_quantum_inputs(quantum, task_node, limited_butler=limited_butler)
+        return super()._updated_quantum_inputs(quantum, task_node, limited_butler=limited_butler)
 
     def runQuantum(
         self,
@@ -154,14 +154,54 @@ class SingleQuantumExecutor(lsst.pipe.base.single_quantum_executor.SingleQuantum
         limited_butler: LimitedButler,
         quantum_id: uuid.UUID | None = None,
     ) -> tuple[QuantumSuccessCaveats, list[uuid.UUID], ButlerMetrics]:
-        return super().run_quantum(
+        return super()._run_quantum(
             task, quantum, task_node, limited_butler=limited_butler, quantum_id=quantum_id
         )
 
     def writeMetadata(
         self, quantum: Quantum, metadata: Any, task_node: TaskNode, /, limited_butler: LimitedButler
     ) -> None:
-        return super().write_metadata(quantum, metadata, task_node, limited_butler=limited_butler)
+        return super()._write_metadata(quantum, metadata, task_node, limited_butler=limited_butler)
 
     def initGlobals(self, quantum: Quantum) -> None:
-        return super().init_globals(quantum)
+        return super()._init_globals(quantum)
+
+    @property
+    def butler(self) -> Butler | None:
+        return self._butler
+
+    @property
+    def taskFactory(self) -> TaskFactory:
+        return self._task_factory
+
+    @property
+    def clobberOutputs(self) -> bool:
+        return self._clobber_outputs
+
+    @property
+    def enableLsstDebug(self) -> bool:
+        return self._enable_lsst_debug
+
+    @property
+    def limited_butler_factory(self) -> Callable[[Quantum], LimitedButler] | None:
+        return self._limited_butler_factory
+
+    @property
+    def resources(self) -> ExecutionResources | None:
+        return self._resources
+
+    @property
+    def assumeNoExistingOutputs(self) -> bool:
+        return self._assume_no_existing_outputs
+
+    @property
+    def raise_on_partial_outputs(self) -> bool:
+        return self._raise_on_partial_outputs
+
+    @property
+    def job_metadata(self) -> Mapping[str, int | str | float] | None:
+        return self._job_metadata
+
+    @property
+    def skipExisting(self) -> bool:
+        return self._skip_existing
