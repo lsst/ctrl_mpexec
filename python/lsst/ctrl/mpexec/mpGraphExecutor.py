@@ -27,9 +27,14 @@
 
 __all__ = ("MPGraphExecutor", "MPGraphExecutorError", "MPTimeoutError")
 
+from typing import Literal
+
 from deprecated.sphinx import deprecated
 
 import lsst.pipe.base.mp_graph_executor
+from lsst.pipe.base.execution_graph_fixup import ExecutionGraphFixup
+from lsst.pipe.base.quantum_graph_executor import QuantumExecutor
+from lsst.pipe.base.quantum_reports import Report
 
 # TODO[DM-51962]: Remove this module.
 
@@ -40,8 +45,88 @@ import lsst.pipe.base.mp_graph_executor
     version="v30",
     category=FutureWarning,
 )
-class MPGraphExecutor(lsst.pipe.base.mp_graph_executor.MPGraphExecutor):  # noqa: D101
-    pass
+class MPGraphExecutor(lsst.pipe.base.mp_graph_executor.MPGraphExecutor):
+    """Implementation of QuantumGraphExecutor using same-host multiprocess
+    execution of Quanta.
+
+    This is a deprecated backwards-compatibility shim for
+    `lsst.pipe.base.mp_graph_executor.MPGraphExecutor`, which has
+    the same functionality with very minor interface changes.
+
+    Parameters
+    ----------
+    numProc : `int`
+        Number of processes to use for executing tasks.
+    timeout : `float`
+        Time in seconds to wait for tasks to finish.
+    quantumExecutor : `QuantumExecutor`
+        Executor for single quantum. For multiprocess-style execution when
+        ``num_proc`` is greater than one this instance must support pickle.
+    startMethod : `str`, optional
+        Start method from `multiprocessing` module, `None` selects the best
+        one for current platform.
+    failFast : `bool`, optional
+        If set to ``True`` then stop processing on first error from any task.
+    pdb : `str`, optional
+        Debugger to import and use (via the ``post_mortem`` function) in the
+        event of an exception.
+    executionGraphFixup : `.execution_graph_fixup.ExecutionGraphFixup`, \
+            optional
+        Instance used for modification of execution graph.
+    """
+
+    def __init__(
+        self,
+        numProc: int,
+        timeout: float,
+        quantumExecutor: QuantumExecutor,
+        *,
+        startMethod: Literal["spawn"] | Literal["forkserver"] | None = None,
+        failFast: bool = False,
+        pdb: str | None = None,
+        executionGraphFixup: ExecutionGraphFixup | None = None,
+    ):
+        super().__init__(
+            num_proc=numProc,
+            timeout=timeout,
+            quantum_executor=quantumExecutor,
+            start_method=startMethod,
+            fail_fast=failFast,
+            pdb=pdb,
+            execution_graph_fixup=executionGraphFixup,
+        )
+
+    @property
+    def numProc(self) -> int:
+        return self._num_proc
+
+    @property
+    def timeout(self) -> float:
+        return self._timeout
+
+    @property
+    def quantumExecutor(self) -> QuantumExecutor:
+        return self._quantum_executor
+
+    @property
+    def failFast(self) -> bool:
+        return self._fail_fast
+
+    @property
+    def pdb(self) -> str | None:
+        return self._pdb
+
+    @property
+    def executionGraphFixup(self) -> ExecutionGraphFixup | None:
+        return self._execution_graph_fixup
+
+    @property
+    def report(self) -> Report | None:
+        return self._report
+
+    @property
+    def startMethod(self) -> str:
+        return self._start_method
 
 
 # We can't make these forwarders warn by subclassing, because an 'except'
