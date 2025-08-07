@@ -45,7 +45,6 @@ def qgraph(  # type: ignore
     skip_existing_in,
     skip_existing,
     save_qgraph,
-    save_single_quanta,
     qgraph_dot,
     qgraph_mermaid,
     butler_config,
@@ -58,10 +57,6 @@ def qgraph(  # type: ignore
     data_query,
     data_id_table=(),
     show,
-    save_execution_butler,
-    clobber_execution_butler,
-    target_datastore_root,
-    transfer,
     clobber_outputs,
     dataset_query_constraint,
     rebase,
@@ -102,10 +97,6 @@ def qgraph(  # type: ignore
     save_qgraph : `str` or `None`
         URI location for storing a serialized quantum graph definition as a
         pickle file.
-    save_single_quanta : `str` or `None`
-        Format string of URI locations for storing individual quantum graph
-        definition (pickle files). The curly brace {} in the input string will
-        be replaced by a quantum number.
     qgraph_dot : `str` or `None`
         Path location for storing GraphViz DOT representation of a quantum
         graph.
@@ -152,17 +143,6 @@ def qgraph(  # type: ignore
         Paths to data ID tables to join in.
     show : `lsst.ctrl.mpexec.showInfo.ShowInfo`
         Descriptions of what to dump to stdout.
-    save_execution_butler : `str` or `None`
-        URI location for storing an execution Butler build from the
-        QuantumGraph.
-    clobber_execution_butler : `bool`
-        It True overwrite existing execution butler files if present.
-    target_datastore_root : `str` or `None`
-        URI location for the execution butler's datastore.
-    transfer : `str` or `None`
-        Transfer mode for execution butler creation.  This should be a
-        ``transfer`` string recognized by
-        :func:`lsst.resources.ResourcePath.transfer_from`.
     clobber_outputs : `bool`
         Remove outputs from previous execution of the same quantum before new
         execution.  If ``skip_existing`` is also passed, then only failed
@@ -200,7 +180,6 @@ def qgraph(  # type: ignore
         qgraph_node_id=qgraph_node_id,
         qgraph_datastore_records=qgraph_datastore_records,
         save_qgraph=save_qgraph,
-        save_single_quanta=save_single_quanta,
         qgraph_dot=qgraph_dot,
         qgraph_mermaid=qgraph_mermaid,
         butler_config=butler_config,
@@ -214,10 +193,6 @@ def qgraph(  # type: ignore
         data_id_table=data_id_table,
         skip_existing_in=skip_existing_in,
         skip_existing=skip_existing,
-        execution_butler_location=save_execution_butler,
-        clobber_execution_butler=clobber_execution_butler,
-        target_datastore_root=target_datastore_root,
-        transfer=transfer,
         clobber_outputs=clobber_outputs,
         dataset_query_constraint=dataset_query_constraint,
         rebase=rebase,

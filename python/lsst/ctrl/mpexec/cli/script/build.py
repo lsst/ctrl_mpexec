@@ -25,28 +25,31 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-from types import SimpleNamespace
+from __future__ import annotations
+
+__all__ = ("build",)
 
 from lsst.daf.butler import Butler
+from lsst.pipe.base import Pipeline
 from lsst.pipe.base.pipeline_graph import visualization
+from lsst.resources import ResourcePathExpression
 
-from ... import CmdLineFwk
 from ..._pipeline_graph_factory import PipelineGraphFactory
+from ...showInfo import ShowInfo
 from ..utils import _PipelineAction
 
 
-def build(  # type: ignore
+def build(
     *,
-    order_pipeline,
-    pipeline,
-    pipeline_actions,
-    pipeline_dot,
-    pipeline_mermaid,
-    save_pipeline,
-    show,
-    butler_config=None,
-    select_tasks="",
-    **kwargs,
+    pipeline: ResourcePathExpression | Pipeline,
+    pipeline_actions: list[_PipelineAction] | _PipelineAction,
+    pipeline_dot: str,
+    pipeline_mermaid: str,
+    save_pipeline: str,
+    show: ShowInfo,
+    butler_config: ResourcePathExpression | None = None,
+    select_tasks: str = "",
+    **kwargs: object,
 ) -> PipelineGraphFactory:
     """Implement the command line interface `pipetask build` subcommand.
 
@@ -60,12 +63,9 @@ def build(  # type: ignore
 
     Parameters
     ----------
-    order_pipeline : `bool`
-        If true, order tasks in pipeline based on their data dependencies,
-        ordering is performed as last step before saving or executing pipeline.
-    pipeline : `str`
+    pipeline : `str` or `lsst.pipe.base.Pipeline`
         Path location of a pipeline definition file in YAML format.
-    pipeline_actions : `list` [`PipelineAction`]] or `PipelineAction`
+    pipeline_actions : `list` [`PipelineAction`] or `PipelineAction`
         A list of pipeline actions in the order they should be executed.
     pipeline_dot : `str`
         Path location for storing GraphViz DOT representation of a pipeline.
@@ -87,7 +87,7 @@ def build(  # type: ignore
     **kwargs
         Ignored; click commands may accept options for more than one script
         function and pass all the option kwargs to each of the script functions
-        which ingore these unused kwargs.
+        which ignore these unused kwargs.
 
     Returns
     -------
@@ -105,25 +105,38 @@ def build(  # type: ignore
     # `lsst.utils.iteration.iterable` because a namedtuple *is* iterable,
     # but we need a list of _PipelineAction.
     if isinstance(pipeline_actions, _PipelineAction):
-        pipeline_actions = (pipeline_actions,)
+        pipeline_actions = [pipeline_actions]
 
-    args = SimpleNamespace(
-        pipeline=pipeline,
-        pipeline_actions=pipeline_actions,
-        pipeline_dot=pipeline_dot,
-        pipeline_mermaid=pipeline_mermaid,
-        save_pipeline=save_pipeline,
-    )
-
-    f = CmdLineFwk()
-
-    # Will raise an exception if it fails to build the pipeline.
-    pipeline = f.makePipeline(args)
-
-    if butler_config is not None:
-        butler = Butler.from_config(butler_config, writeable=False)
+    if pipeline:
+        if not isinstance(pipeline, Pipeline):
+            pipeline = Pipeline.from_uri(pipeline)
     else:
-        butler = None
+        pipeline = Pipeline("anonymous")
+
+    # loop over all pipeline actions and apply them in order
+    for action in pipeline_actions:
+        match action.action:
+            case "add_instrument":
+                pipeline.addInstrument(action.value)
+            case "new_task":
+                pipeline.addTask(action.value, action.label)
+            case "delete_task":
+                pipeline.removeTask(action.label)
+            case "config":
+                # action value string is "field=value", split it at '='
+                field, _, value = action.value.partition("=")
+                pipeline.addConfigOverride(action.label, field, value)
+            case "configfile":
+                pipeline.addConfigFile(action.label, action.value)
+            case _:
+                raise ValueError(f"Unexpected pipeline action: {action.action}")
+
+    if save_pipeline:
+        pipeline.write_to_uri(save_pipeline)
+
+    butler: Butler | None = None
+    if butler_config:
+        butler = Butler.from_config(butler_config, writeable=False)
 
     pipeline_graph_factory = PipelineGraphFactory(pipeline, butler, select_tasks)
 

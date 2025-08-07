@@ -148,17 +148,6 @@ no_versions_option = MWOptionDecorator(
 )
 
 
-order_pipeline_option = MWOptionDecorator(
-    "--order-pipeline",
-    help=unwrap(
-        """Order tasks in pipeline based on their data
-        dependencies, ordering is performed as last step before saving or
-        executing pipeline."""
-    ),
-    is_flag=True,
-)
-
-
 output_option = MWOptionDecorator(
     "-o",
     "--output",
@@ -319,17 +308,6 @@ save_qgraph_option = MWOptionDecorator(
     "-q",
     "--save-qgraph",
     help="URI location for storing a serialized quantum graph definition (pickle file).",
-)
-
-
-save_single_quanta_option = MWOptionDecorator(
-    "--save-single-quanta",
-    help=unwrap(
-        """Format string of locations for storing individual
-        quantum graph definition (pickle files). The curly
-        brace {} in the input string will be replaced by a
-        quantum number. Can be a URI."""
-    ),
 )
 
 
@@ -505,11 +483,6 @@ raise_on_partial_outputs_option = MWOptionDecorator(
     default=True,
 )
 
-save_execution_butler_option = MWOptionDecorator(
-    "--save-execution-butler",
-    help="Export location for an execution-specific butler after making QuantumGraph",
-)
-
 mock_option = MWOptionDecorator(
     "--mock",
     help="Mock pipeline execution.",
@@ -583,25 +556,6 @@ mock_failure_option = MWOptionDecorator(
         occur if the "available" memory (according to
         ExecutionResources.max_mem) is less than this value.  Note that actual
         memory usage is irrelevant here; this is all mock behavior."""
-    ),
-)
-
-
-clobber_execution_butler_option = MWOptionDecorator(
-    "--clobber-execution-butler",
-    help=unwrap(
-        """When creating execution butler overwrite
-                                                                   any existing products"""
-    ),
-    is_flag=True,
-)
-
-target_datastore_root_option = MWOptionDecorator(
-    "--target-datastore-root",
-    help=unwrap(
-        """Root directory for datastore of execution butler.
-        Default is to use the original datastore.
-        """
     ),
 )
 
