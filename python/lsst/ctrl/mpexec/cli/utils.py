@@ -28,11 +28,16 @@
 
 import collections
 import contextlib
+import logging
 import re
+
+from astropy.table import Table
 
 from lsst.daf.butler.cli.opt import config_file_option, config_option
 from lsst.daf.butler.cli.utils import MWCommand, split_commas
+from lsst.pipe.base import QuantumGraph
 from lsst.pipe.base.cli.opt import instrument_option
+from lsst.utils.logging import getLogger
 
 from .opt import delete_option, task_option
 
@@ -42,6 +47,8 @@ from .opt import delete_option, task_option
 #   label:  task label, can be None if action does not require label
 #   value:  argument value excluding task label.
 _PipelineAction = collections.namedtuple("_PipelineAction", "action,label,value")
+
+_LOG = getLogger(__name__)
 
 
 class _PipelineActionType:
@@ -155,3 +162,43 @@ class PipetaskCommand(MWCommand):
     """Command subclass with pipetask-command specific overrides."""
 
     extra_epilog = "See 'pipetask --help' for more options."
+
+
+def summarize_quantum_graph(qgraph: QuantumGraph) -> int:
+    """Report a summary of the quanta in the graph.
+
+    Parameters
+    ----------
+    qgraph : `lsst.pipe.base.QuantumGraph`
+        The graph to be summarized.
+
+    Returns
+    -------
+    n_quanta : `int`
+        The number of quanta in the graph.
+    """
+    n_quanta = len(qgraph)
+    if n_quanta == 0:
+        _LOG.info("QuantumGraph contains no quanta.")
+    else:
+        summary = qgraph.getSummary()
+        if _LOG.isEnabledFor(logging.INFO):
+            qg_quanta, qg_tasks = [], []
+            for task_label, task_info in summary.qgraphTaskSummaries.items():
+                qg_tasks.append(task_label)
+                qg_quanta.append(task_info.numQuanta)
+            qg_task_table = Table(dict(Quanta=qg_quanta, Tasks=qg_tasks))
+            qg_task_table_formatted = "\n".join(qg_task_table.pformat())
+            quanta_str = "quantum" if n_quanta == 1 else "quanta"
+            n_tasks = len(qgraph.taskGraph)
+            n_tasks_plural = "" if n_tasks == 1 else "s"
+            _LOG.info(
+                "QuantumGraph contains %d %s for %d task%s, graph ID: %r\n%s",
+                n_quanta,
+                quanta_str,
+                n_tasks,
+                n_tasks_plural,
+                qgraph.graphID,
+                qg_task_table_formatted,
+            )
+    return n_quanta

@@ -31,13 +31,11 @@ from __future__ import annotations
 
 __all__ = ["CmdLineFwk"]
 
-import logging
 import pickle
 from collections.abc import Mapping
 from types import SimpleNamespace
 
 import astropy.units as u
-from astropy.table import Table
 
 import lsst.utils.timer
 from lsst.daf.butler import (
@@ -51,19 +49,13 @@ from lsst.daf.butler import (
     QuantumBackedButler,
 )
 from lsst.pipe.base import ExecutionResources, QuantumGraph, TaskFactory
-from lsst.pipe.base.all_dimensions_quantum_graph_builder import AllDimensionsQuantumGraphBuilder
-from lsst.pipe.base.dot_tools import graph2dot
 from lsst.pipe.base.execution_graph_fixup import ExecutionGraphFixup
-from lsst.pipe.base.mermaid_tools import graph2mermaid
 from lsst.pipe.base.mp_graph_executor import MPGraphExecutor
-from lsst.pipe.base.quantum_reports import Report
 from lsst.pipe.base.single_quantum_executor import SingleQuantumExecutor
-from lsst.resources import ResourcePath
 from lsst.utils import doImportType
 from lsst.utils.logging import VERBOSE, getLogger
 from lsst.utils.threads import disable_implicit_threading
 
-from ._pipeline_graph_factory import PipelineGraphFactory
 from .cli.butler_factory import ButlerFactory
 from .preExecInit import PreExecInit, PreExecInitLimited
 
@@ -131,121 +123,6 @@ class CmdLineFwk:
     """
 
     MP_TIMEOUT = 3600 * 24 * 30  # Default timeout (sec) for multiprocessing
-
-    def makeGraph(
-        self, pipeline_graph_factory: PipelineGraphFactory | None, args: SimpleNamespace
-    ) -> QuantumGraph | None:
-        """Build a graph from command line arguments.
-
-        Parameters
-        ----------
-        pipeline_graph_factory : `PipelineGraphFactory`
-            Factory that holds a pipeline and can produce a pipeline graph.
-            Must be ``None`` if and only if graph is read from a file.
-        args : `types.SimpleNamespace`
-            Parsed command line.
-
-        Returns
-        -------
-        graph : `~lsst.pipe.base.QuantumGraph` or `None`
-            If resulting graph is empty then `None` is returned.
-        """
-        # make sure that --extend-run always enables --skip-existing
-        if args.extend_run:
-            args.skip_existing = True
-
-        butler, collections, run = ButlerFactory.make_butler_and_collections(
-            args.butler_config,
-            output=args.output,
-            output_run=args.output_run,
-            inputs=args.input,
-            extend_run=args.extend_run,
-            rebase=args.rebase,
-            replace_run=args.replace_run,
-            prune_replaced=args.prune_replaced,
-        )
-
-        if args.skip_existing and run:
-            args.skip_existing_in += (run,)
-
-        if args.qgraph:
-            # click passes empty tuple as default value for qgraph_node_id
-            nodes = args.qgraph_node_id or None
-            qgraph = QuantumGraph.loadUri(args.qgraph, butler.dimensions, nodes=nodes, graphID=args.qgraph_id)
-
-            # pipeline can not be provided in this case
-            if pipeline_graph_factory:
-                raise ValueError(
-                    "Pipeline must not be given when quantum graph is read from "
-                    f"file: {bool(pipeline_graph_factory)}"
-                )
-        else:
-            if pipeline_graph_factory is None:
-                raise ValueError("Pipeline must be given when quantum graph is not read from file.")
-            # We can't resolve the pipeline graph if we're mocking until after
-            # we've done the mocking (and the QG build will resolve on its own
-            # anyway).
-            pipeline_graph = pipeline_graph_factory(resolve=False)
-            if args.mock:
-                from lsst.pipe.base.tests.mocks import mock_pipeline_graph
-
-                pipeline_graph = mock_pipeline_graph(
-                    pipeline_graph,
-                    unmocked_dataset_types=args.unmocked_dataset_types,
-                    force_failures=args.mock_failure,
-                )
-            data_id_tables = []
-            for table_file in args.data_id_table:
-                with ResourcePath(table_file).as_local() as local_path:
-                    table = Table.read(local_path.ospath)
-                    # Add the filename to the metadata for more logging
-                    # information down in the QG builder.
-                    table.meta["filename"] = table_file
-                    data_id_tables.append(table)
-            # make execution plan (a.k.a. DAG) for pipeline
-            graph_builder = AllDimensionsQuantumGraphBuilder(
-                pipeline_graph,
-                butler,
-                where=args.data_query or "",
-                skip_existing_in=args.skip_existing_in if args.skip_existing_in is not None else (),
-                clobber=args.clobber_outputs,
-                dataset_query_constraint=args.dataset_query_constraint,
-                input_collections=collections,
-                output_run=run,
-                data_id_tables=data_id_tables,
-            )
-            # accumulate metadata
-            metadata = {
-                "input": args.input,
-                "output": args.output,
-                "butler_argument": args.butler_config,
-                "output_run": run,
-                "extend_run": args.extend_run,
-                "skip_existing_in": args.skip_existing_in,
-                "skip_existing": args.skip_existing,
-                "data_query": args.data_query or "",
-            }
-            assert run is not None, "Butler output run collection must be defined"
-            qgraph = graph_builder.build(metadata, attach_datastore_records=args.qgraph_datastore_records)
-
-        if len(qgraph) == 0:
-            # Nothing to do.
-            return None
-        self._summarize_qgraph(qgraph)
-
-        if args.save_qgraph:
-            _LOG.verbose("Writing QuantumGraph to %r.", args.save_qgraph)
-            qgraph.saveUri(args.save_qgraph)
-
-        if args.qgraph_dot:
-            _LOG.verbose("Writing quantum graph DOT visualization to %r.", args.qgraph_dot)
-            graph2dot(qgraph, args.qgraph_dot)
-
-        if args.qgraph_mermaid:
-            _LOG.verbose("Writing quantum graph Mermaid visualization to %r.", args.qgraph_mermaid)
-            graph2mermaid(qgraph, args.qgraph_mermaid)
-
-        return qgraph
 
     def _make_execution_resources(self, args: SimpleNamespace) -> ExecutionResources:
         """Construct the execution resource class from arguments.
@@ -381,58 +258,6 @@ class CmdLineFwk:
                             # Do not save fields that are not set.
                             out.write(report.model_dump_json(exclude_none=True, indent=2))
 
-    def _generateTaskTable(self) -> Table:
-        """Generate astropy table listing the number of quanta per task for a
-        given quantum graph.
-
-        Returns
-        -------
-        qg_task_table : `astropy.table.table.Table`
-            An astropy table containing columns: Quanta and Tasks.
-        """
-        qg_quanta, qg_tasks = [], []
-        for task_label, task_info in self.report.qgraphSummary.qgraphTaskSummaries.items():
-            qg_tasks.append(task_label)
-            qg_quanta.append(task_info.numQuanta)
-
-        qg_task_table = Table(dict(Quanta=qg_quanta, Tasks=qg_tasks))
-        return qg_task_table
-
-    def _summarize_qgraph(self, qgraph: QuantumGraph) -> int:
-        """Report a summary of the quanta in the graph.
-
-        Parameters
-        ----------
-        qgraph : `lsst.pipe.base.QuantumGraph`
-            The graph to be summarized.
-
-        Returns
-        -------
-        n_quanta : `int`
-            The number of quanta in the graph.
-        """
-        n_quanta = len(qgraph)
-        if n_quanta == 0:
-            _LOG.info("QuantumGraph contains no quanta.")
-        else:
-            self.report = Report(qgraphSummary=qgraph.getSummary())
-            if _LOG.isEnabledFor(logging.INFO):
-                qg_task_table = self._generateTaskTable()
-                qg_task_table_formatted = "\n".join(qg_task_table.pformat())
-                quanta_str = "quantum" if n_quanta == 1 else "quanta"
-                n_tasks = len(qgraph.taskGraph)
-                n_tasks_plural = "" if n_tasks == 1 else "s"
-                _LOG.info(
-                    "QuantumGraph contains %d %s for %d task%s, graph ID: %r\n%s",
-                    n_quanta,
-                    quanta_str,
-                    n_tasks,
-                    n_tasks_plural,
-                    qgraph.graphID,
-                    qg_task_table_formatted,
-                )
-        return n_quanta
-
     def _importGraphFixup(self, args: SimpleNamespace) -> ExecutionGraphFixup | None:
         """Import/instantiate graph fixup object.
 
@@ -500,7 +325,9 @@ class CmdLineFwk:
         if qgraph.metadata is None:
             raise ValueError("QuantumGraph is missing metadata, cannot continue.")
 
-        self._summarize_qgraph(qgraph)
+        from .cli.utils import summarize_quantum_graph
+
+        summarize_quantum_graph(qgraph)
 
         dataset_types = {dstype.name: dstype for dstype in qgraph.registryDatasetTypes()}
 

@@ -25,46 +25,68 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-import logging
-from types import SimpleNamespace
+from __future__ import annotations
 
-from lsst.pipe.base.all_dimensions_quantum_graph_builder import DatasetQueryConstraintVariant
+__all__ = ("qgraph",)
 
-from ... import CmdLineFwk
+import uuid
+from collections.abc import Iterable, Mapping, Sequence
+from typing import TYPE_CHECKING
 
-_log = logging.getLogger(__name__)
+from astropy.table import Table
+
+from lsst.pipe.base import BuildId, QuantumGraph
+from lsst.pipe.base.all_dimensions_quantum_graph_builder import (
+    AllDimensionsQuantumGraphBuilder,
+    DatasetQueryConstraintVariant,
+)
+from lsst.pipe.base.dot_tools import graph2dot
+from lsst.pipe.base.mermaid_tools import graph2mermaid
+from lsst.resources import ResourcePath, ResourcePathExpression
+from lsst.utils.iteration import ensure_iterable
+from lsst.utils.logging import getLogger
+
+from ..._pipeline_graph_factory import PipelineGraphFactory
+from ...showInfo import ShowInfo
+from ..butler_factory import ButlerFactory
+from ..utils import summarize_quantum_graph
+
+if TYPE_CHECKING:
+    from lsst.pipe.base.tests.mocks import ForcedFailure  # this monkey patches; only import for annotation!
+
+_LOG = getLogger(__name__)
 
 
-def qgraph(  # type: ignore
-    pipeline_graph_factory,
+def qgraph(
+    pipeline_graph_factory: PipelineGraphFactory | None,
     *,
-    qgraph,
-    qgraph_id,
-    qgraph_node_id,
-    qgraph_datastore_records,
-    skip_existing_in,
-    skip_existing,
-    save_qgraph,
-    qgraph_dot,
-    qgraph_mermaid,
-    butler_config,
-    input,
-    output,
-    output_run,
-    extend_run,
-    replace_run,
-    prune_replaced,
-    data_query,
-    data_id_table=(),
-    show,
-    clobber_outputs,
-    dataset_query_constraint,
-    rebase,
-    mock=False,
-    unmocked_dataset_types=(),
-    mock_failure=(),
-    **kwargs,
-):
+    qgraph: QuantumGraph | ResourcePathExpression | None,
+    qgraph_id: str | None,
+    qgraph_node_id: Iterable[uuid.UUID | str] | None,
+    qgraph_datastore_records: bool,
+    skip_existing_in: Iterable[str] | None,
+    skip_existing: bool,
+    save_qgraph: ResourcePathExpression | None,
+    qgraph_dot: str | None,
+    qgraph_mermaid: str | None,
+    butler_config: ResourcePathExpression,
+    input: Iterable[str] | str,
+    output: str | None,
+    output_run: str | None,
+    extend_run: bool,
+    replace_run: bool,
+    prune_replaced: str | None,
+    data_query: str | None,
+    data_id_table: Iterable[ResourcePathExpression],
+    show: ShowInfo,
+    clobber_outputs: bool,
+    dataset_query_constraint: str,
+    rebase: bool,
+    mock: bool = False,
+    unmocked_dataset_types: Sequence[str],
+    mock_failure: Mapping[str, ForcedFailure],
+    **kwargs: object,
+) -> QuantumGraph | None:
     """Implement the command line interface `pipetask qgraph` subcommand.
 
     Should only be called by command line tools and unit test code that test
@@ -72,50 +94,47 @@ def qgraph(  # type: ignore
 
     Parameters
     ----------
-    pipeline_graph_factory : `..PipelineGraphFactory` or None
+    pipeline_graph_factory : `..PipelineGraphFactory` or `None`
         A factory that holds the pipeline and can produce a pipeline graph.
         If this is not `None` then `qgraph` should be `None`.
-    qgraph : `str` or `None`
-        URI location for a serialized quantum graph definition as a pickle
-        file. If this option is not None then ``pipeline_graph_factory`` should
-        be `None`.
+    qgraph : `lsst.pipe.base.QuantumGraph`, convertible to \
+            `lsst.resources.ResourcePath` or `None`
+        URI location for a serialized quantum graph definition. If this option
+        is not `None` then ``pipeline_graph_factory`` should be `None`.
     qgraph_id : `str` or `None`
         Quantum graph identifier, if specified must match the identifier of the
         graph loaded from a file. Ignored if graph is not loaded from a file.
-    qgraph_node_id : `list` of `int`, optional
+    qgraph_node_id : `~collections.abc.Iterable` [`str` | `uuid.UUID`] or \
+            `None`
         Only load a specified set of nodes if graph is loaded from a file,
         nodes are identified by integer IDs.
     qgraph_datastore_records : `bool`
-        If True then include datastore records into generated quanta.
-    skip_existing_in : `list` [ `str` ]
+        If `True` then include datastore records into generated quanta.
+    skip_existing_in : `~collections.abc.Iterable` [ `str` ] or `None`
         Accepts list of collections, if all Quantum outputs already exist in
         the specified list of collections then that Quantum will be excluded
         from the QuantumGraph.
     skip_existing : `bool`
         Appends output RUN collection to the ``skip_existing_in`` list.
-    save_qgraph : `str` or `None`
-        URI location for storing a serialized quantum graph definition as a
-        pickle file.
+    save_qgraph : convertible to `lsst.resources.ResourcePath` or `None`
+        URI location for saving the quantum graph.
     qgraph_dot : `str` or `None`
         Path location for storing GraphViz DOT representation of a quantum
         graph.
     qgraph_mermaid : `str` or `None`
         Path location for storing Mermaid representation of a quantum graph.
-    butler_config : `str`, `dict`, or `lsst.daf.butler.Config`
-        If `str`, `butler_config` is the path location of the gen3
-        butler/registry config file. If `dict`, `butler_config` is key value
-        pairs used to init or update the `lsst.daf.butler.Config` instance. If
-        `Config`, it is the object used to configure a Butler.
-    input : `list` [ `str` ]
+    butler_config : convertible to `lsst.resources.ResourcePath`
+        Path to butler repository configuration.
+    input : `~collections.abc.Iterable` [ `str` ] or `None`
         List of names of the input collection(s).
-    output : `str`
+    output : `str` or `None`
         Name of the output CHAINED collection. This may either be an existing
         CHAINED collection to use as both input and output (if `input` is
         `None`), or a new CHAINED collection created to include all inputs
         (if `input` is not `None`). In both cases, the collection's children
         will start with an output RUN collection that directly holds all new
         datasets (see `output_run`).
-    output_run : `str`
+    output_run : `str` or `None`
         Name of the new output RUN collection. If not provided then `output`
         must be provided and a new RUN collection will be created by appending
         a timestamp to the value passed with `output`. If this collection
@@ -138,7 +157,8 @@ def qgraph(  # type: ignore
         ``replace_run`` to be `True`.
     data_query : `str`
         User query selection expression.
-    data_id_table : `~collections.abc.Iterable` [`str`]
+    data_id_table : `~collections.abc.Iterable` [convertible to \
+            `lsst.resources.ResourcePath`]
         Paths to data ID tables to join in.
     show : `lsst.ctrl.mpexec.showInfo.ShowInfo`
         Descriptions of what to dump to stdout.
@@ -153,57 +173,130 @@ def qgraph(  # type: ignore
     rebase : `bool`
         If `True` then reset output collection chain if it is inconsistent with
         the ``inputs``.
-    mock : `bool`, optional
+    mock : `bool`
         If True, use a mocked version of the pipeline.
     unmocked_dataset_types : `collections.abc.Sequence` [ `str` ], optional
         List of overall-input dataset types that should not be mocked.
-    mock_failure : `~collections.abc.Sequence`, optional
-        List of quanta that should raise exceptions.
-    **kwargs : `dict` [`str`, `str`]
+    mock_failure : `~collections.abc.Mapping`
+        Quanta that should raise exceptions.
+    **kwargs : `object`
         Ignored; click commands may accept options for more than one script
         function and pass all the option kwargs to each of the script functions
         which ignore these unused kwargs.
 
     Returns
     -------
-    qgraph : `lsst.pipe.base.QuantumGraph`
+    qgraph : `lsst.pipe.base.QuantumGraph` or `None`
         The qgraph object that was created.
     """
-    dataset_query_constraint = DatasetQueryConstraintVariant.fromExpression(dataset_query_constraint)
-    args = SimpleNamespace(
-        qgraph=qgraph,
-        qgraph_id=qgraph_id,
-        qgraph_node_id=qgraph_node_id,
-        qgraph_datastore_records=qgraph_datastore_records,
-        save_qgraph=save_qgraph,
-        qgraph_dot=qgraph_dot,
-        qgraph_mermaid=qgraph_mermaid,
-        butler_config=butler_config,
-        input=input,
+    # make sure that --extend-run always enables --skip-existing
+    if extend_run:
+        skip_existing = True
+
+    skip_existing_in = tuple(skip_existing_in) if skip_existing_in is not None else ()
+    if data_query is None:
+        data_query = ""
+    inputs = list(ensure_iterable(input)) if input else []
+    del input
+
+    butler, collections, run = ButlerFactory.make_butler_and_collections(
+        butler_config,
         output=output,
         output_run=output_run,
+        inputs=inputs,
         extend_run=extend_run,
+        rebase=rebase,
         replace_run=replace_run,
         prune_replaced=prune_replaced,
-        data_query=data_query,
-        data_id_table=data_id_table,
-        skip_existing_in=skip_existing_in,
-        skip_existing=skip_existing,
-        clobber_outputs=clobber_outputs,
-        dataset_query_constraint=dataset_query_constraint,
-        rebase=rebase,
-        mock=mock,
-        unmocked_dataset_types=list(unmocked_dataset_types),
-        mock_failure=mock_failure,
     )
 
-    f = CmdLineFwk()
-    qgraph = f.makeGraph(pipeline_graph_factory, args)
+    if skip_existing and run:
+        skip_existing_in += (run,)
 
-    if qgraph is None:
+    if qgraph is not None:
+        if not isinstance(qgraph, QuantumGraph):
+            # click passes empty tuple as default value for qgraph_node_id
+            nodes = qgraph_node_id or None
+            qgraph = QuantumGraph.loadUri(
+                qgraph,
+                butler.dimensions,
+                nodes=nodes,
+                graphID=BuildId(qgraph_id) if qgraph_id is not None else None,
+            )
+
+        # pipeline can not be provided in this case
+        if pipeline_graph_factory:
+            raise ValueError(
+                "Pipeline must not be given when quantum graph is read from "
+                f"file: {bool(pipeline_graph_factory)}"
+            )
+    else:
+        if pipeline_graph_factory is None:
+            raise ValueError("Pipeline must be given when quantum graph is not read from file.")
+        # We can't resolve the pipeline graph if we're mocking until after
+        # we've done the mocking (and the QG build will resolve on its own
+        # anyway).
+        pipeline_graph = pipeline_graph_factory(resolve=False)
+        if mock:
+            from lsst.pipe.base.tests.mocks import mock_pipeline_graph
+
+            pipeline_graph = mock_pipeline_graph(
+                pipeline_graph,
+                unmocked_dataset_types=unmocked_dataset_types,
+                force_failures=mock_failure,
+            )
+        data_id_tables = []
+        for table_file in data_id_table:
+            with ResourcePath(table_file).as_local() as local_path:
+                table = Table.read(local_path.ospath)
+                # Add the filename to the metadata for more logging
+                # information down in the QG builder.
+                table.meta["filename"] = table_file
+                data_id_tables.append(table)
+        # make execution plan (a.k.a. DAG) for pipeline
+        graph_builder = AllDimensionsQuantumGraphBuilder(
+            pipeline_graph,
+            butler,
+            where=data_query,
+            skip_existing_in=skip_existing_in,
+            clobber=clobber_outputs,
+            dataset_query_constraint=DatasetQueryConstraintVariant.fromExpression(dataset_query_constraint),
+            input_collections=collections,
+            output_run=run,
+            data_id_tables=data_id_tables,
+        )
+        # accumulate metadata
+        metadata = {
+            "input": inputs,
+            "output": output,
+            "butler_argument": str(butler_config),
+            "output_run": run,
+            "extend_run": extend_run,
+            "skip_existing_in": skip_existing_in,
+            "skip_existing": skip_existing,
+            "data_query": data_query,
+        }
+        assert run is not None, "Butler output run collection must be defined"
+        qgraph = graph_builder.build(metadata, attach_datastore_records=qgraph_datastore_records)
+
+    if len(qgraph) == 0:
+        # Nothing to do.
         return None
+    summarize_quantum_graph(qgraph)
+
+    if save_qgraph:
+        _LOG.verbose("Writing QuantumGraph to %r.", save_qgraph)
+        qgraph.saveUri(save_qgraph)
+
+    if qgraph_dot:
+        _LOG.verbose("Writing quantum graph DOT visualization to %r.", qgraph_dot)
+        graph2dot(qgraph, qgraph_dot)
+
+    if qgraph_mermaid:
+        _LOG.verbose("Writing quantum graph Mermaid visualization to %r.", qgraph_mermaid)
+        graph2mermaid(qgraph, qgraph_mermaid)
 
     # optionally dump some info.
-    show.show_graph_info(qgraph, args)
+    show.show_graph_info(qgraph, butler_config)
 
     return qgraph
