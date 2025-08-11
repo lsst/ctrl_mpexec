@@ -385,7 +385,16 @@ class ShowInfo:
                 for compName, compUri in components.items():
                     print(f"        {compName}: {compUri}", file=self.stream)
 
-        butler = ButlerFactory.make_read_butler(args)
+        butler = ButlerFactory.make_read_butler(
+            args.butler_config,
+            output=args.output,
+            output_run=args.output_run,
+            inputs=args.input,
+            extend_run=args.extend_run,
+            rebase=args.rebase,
+            replace_run=args.replace_run,
+            prune_replaced=args.prune_replaced,
+        )
         for node in graph:
             print(f"Quantum {node.nodeId}: {node.taskDef.taskName}", file=self.stream)
             print("  inputs:", file=self.stream)

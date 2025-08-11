@@ -154,7 +154,16 @@ class CmdLineFwk:
         if args.extend_run:
             args.skip_existing = True
 
-        butler, collections, run = ButlerFactory.make_butler_and_collections(args)
+        butler, collections, run = ButlerFactory.make_butler_and_collections(
+            args.butler_config,
+            output=args.output,
+            output_run=args.output_run,
+            inputs=args.input,
+            extend_run=args.extend_run,
+            rebase=args.rebase,
+            replace_run=args.replace_run,
+            prune_replaced=args.prune_replaced,
+        )
 
         if args.skip_existing and run:
             args.skip_existing_in += (run,)
@@ -300,7 +309,17 @@ class CmdLineFwk:
         # Make butler instance. QuantumGraph should have an output run defined,
         # but we ignore it here and let command line decide actual output run.
         if butler is None:
-            butler = ButlerFactory.make_write_butler(args, graph.pipeline_graph)
+            butler = ButlerFactory.make_write_butler(
+                args.butler_config,
+                graph.pipeline_graph,
+                output=args.output,
+                output_run=args.output_run,
+                inputs=args.input,
+                extend_run=args.extend_run,
+                rebase=args.rebase,
+                replace_run=args.replace_run,
+                prune_replaced=args.prune_replaced,
+            )
 
         if args.skip_existing:
             args.skip_existing_in += (butler.run,)
