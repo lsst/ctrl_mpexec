@@ -39,7 +39,6 @@ import astropy.units as u
 
 import lsst.utils.timer
 from lsst.daf.butler import (
-    Butler,
     Config,
     DatasetType,
     DimensionConfig,
@@ -49,15 +48,14 @@ from lsst.daf.butler import (
     QuantumBackedButler,
 )
 from lsst.pipe.base import ExecutionResources, QuantumGraph, TaskFactory
-from lsst.pipe.base.execution_graph_fixup import ExecutionGraphFixup
 from lsst.pipe.base.mp_graph_executor import MPGraphExecutor
 from lsst.pipe.base.single_quantum_executor import SingleQuantumExecutor
-from lsst.utils import doImportType
 from lsst.utils.logging import VERBOSE, getLogger
 from lsst.utils.threads import disable_implicit_threading
 
 from .cli.butler_factory import ButlerFactory
-from .preExecInit import PreExecInit, PreExecInitLimited
+from .cli.utils import MP_TIMEOUT
+from .preExecInit import PreExecInitLimited
 
 _LOG = getLogger(__name__)
 
@@ -122,8 +120,6 @@ class CmdLineFwk:
     for task management like dumping configuration or execution chain.
     """
 
-    MP_TIMEOUT = 3600 * 24 * 30  # Default timeout (sec) for multiprocessing
-
     def _make_execution_resources(self, args: SimpleNamespace) -> ExecutionResources:
         """Construct the execution resource class from arguments.
 
@@ -140,155 +136,6 @@ class CmdLineFwk:
         return ExecutionResources(
             num_cores=args.cores_per_quantum, max_mem=args.memory_per_quantum, default_mem_units=u.MB
         )
-
-    def runPipeline(
-        self,
-        graph: QuantumGraph,
-        taskFactory: TaskFactory,
-        args: SimpleNamespace,
-        butler: Butler | None = None,
-    ) -> None:
-        """Execute complete QuantumGraph.
-
-        Parameters
-        ----------
-        graph : `~lsst.pipe.base.QuantumGraph`
-            Execution graph.
-        taskFactory : `~lsst.pipe.base.TaskFactory`
-            Task factory.
-        args : `types.SimpleNamespace`
-            Parsed command line.
-        butler : `~lsst.daf.butler.Butler`, optional
-            Data Butler instance, if not defined then new instance is made
-            using command line options.
-        """
-        if not args.enable_implicit_threading:
-            disable_implicit_threading()
-
-        # Check that output run defined on command line is consistent with
-        # quantum graph.
-        if args.output_run and graph.metadata:
-            graph_output_run = graph.metadata.get("output_run", args.output_run)
-            if graph_output_run != args.output_run:
-                raise ValueError(
-                    f"Output run defined on command line ({args.output_run}) has to be "
-                    f"identical to graph metadata ({graph_output_run}). "
-                    "To update graph metadata run `pipetask update-graph-run` command."
-                )
-
-        # Make sure that --extend-run always enables --skip-existing,
-        # clobbering should be disabled if --extend-run is not specified.
-        if args.extend_run:
-            args.skip_existing = True
-        else:
-            args.clobber_outputs = False
-
-        # Make butler instance. QuantumGraph should have an output run defined,
-        # but we ignore it here and let command line decide actual output run.
-        if butler is None:
-            butler = ButlerFactory.make_write_butler(
-                args.butler_config,
-                graph.pipeline_graph,
-                output=args.output,
-                output_run=args.output_run,
-                inputs=args.input,
-                extend_run=args.extend_run,
-                rebase=args.rebase,
-                replace_run=args.replace_run,
-                prune_replaced=args.prune_replaced,
-            )
-
-        if args.skip_existing:
-            args.skip_existing_in += (butler.run,)
-
-        # Enable lsstDebug debugging. Note that this is done once in the
-        # main process before PreExecInit and it is also repeated before
-        # running each task in SingleQuantumExecutor (which may not be
-        # needed if `multiprocessing` always uses fork start method).
-        if args.enableLsstDebug:
-            try:
-                _LOG.debug("Will try to import debug.py")
-                import debug  # type: ignore # noqa:F401
-            except ImportError:
-                _LOG.warning("No 'debug' module found.")
-
-        # Save all InitOutputs, configs, etc.
-        preExecInit = PreExecInit(butler, taskFactory, extendRun=args.extend_run)
-        preExecInit.initialize(
-            graph,
-            saveInitOutputs=not args.skip_init_writes,
-            registerDatasetTypes=args.register_dataset_types,
-            saveVersions=not args.no_versions,
-        )
-
-        if not args.init_only:
-            graphFixup = self._importGraphFixup(args)
-            resources = self._make_execution_resources(args)
-            quantumExecutor = SingleQuantumExecutor(
-                butler=butler,
-                task_factory=taskFactory,
-                skip_existing_in=args.skip_existing_in,
-                clobber_outputs=args.clobber_outputs,
-                enable_lsst_debug=args.enableLsstDebug,
-                resources=resources,
-                raise_on_partial_outputs=args.raise_on_partial_outputs,
-            )
-
-            timeout = self.MP_TIMEOUT if args.timeout is None else args.timeout
-            executor = MPGraphExecutor(
-                num_proc=args.processes,
-                timeout=timeout,
-                start_method=args.start_method,
-                quantum_executor=quantumExecutor,
-                fail_fast=args.fail_fast,
-                pdb=args.pdb,
-                execution_graph_fixup=graphFixup,
-            )
-            # Have to reset connection pool to avoid sharing connections with
-            # forked processes.
-            butler.registry.resetConnectionPool()
-            try:
-                with lsst.utils.timer.profile(args.profile, _LOG):
-                    executor.execute(graph)
-            finally:
-                if args.summary:
-                    report = executor.getReport()
-                    if report:
-                        with open(args.summary, "w") as out:
-                            # Do not save fields that are not set.
-                            out.write(report.model_dump_json(exclude_none=True, indent=2))
-
-    def _importGraphFixup(self, args: SimpleNamespace) -> ExecutionGraphFixup | None:
-        """Import/instantiate graph fixup object.
-
-        Parameters
-        ----------
-        args : `types.SimpleNamespace`
-            Parsed command line.
-
-        Returns
-        -------
-        fixup : `ExecutionGraphFixup` or `None`
-
-        Raises
-        ------
-        ValueError
-            Raised if import fails, method call raises exception, or returned
-            instance has unexpected type.
-        """
-        if args.graph_fixup:
-            try:
-                factory = doImportType(args.graph_fixup)
-            except Exception as exc:
-                raise ValueError("Failed to import graph fixup class/method") from exc
-            try:
-                fixup = factory()
-            except Exception as exc:
-                raise ValueError("Failed to make instance of graph fixup") from exc
-            if not isinstance(fixup, ExecutionGraphFixup):
-                raise ValueError("Graph fixup is not an instance of ExecutionGraphFixup class")
-            return fixup
-        return None
 
     def preExecInitQBB(self, task_factory: TaskFactory, args: SimpleNamespace) -> None:
         _LOG.verbose("Reading full quantum graph from %s.", args.qgraph)
@@ -355,7 +202,7 @@ class CmdLineFwk:
             job_metadata=job_metadata,
         )
 
-        timeout = self.MP_TIMEOUT if args.timeout is None else args.timeout
+        timeout = MP_TIMEOUT if args.timeout is None else args.timeout
         executor = MPGraphExecutor(
             num_proc=args.processes,
             timeout=timeout,

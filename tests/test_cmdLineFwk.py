@@ -49,6 +49,7 @@ import lsst.utils.tests
 from lsst.ctrl.mpexec import CmdLineFwk, PipelineGraphFactory
 from lsst.ctrl.mpexec.cli.opt import run_options
 from lsst.ctrl.mpexec.cli.script.qgraph import qgraph as qgraph_script
+from lsst.ctrl.mpexec.cli.script.run import run as run_script
 from lsst.ctrl.mpexec.cli.utils import (
     _ACTION_ADD_INSTRUMENT,
     _ACTION_ADD_TASK,
@@ -202,7 +203,7 @@ def _makeArgs(registryConfig=None, **kwargs):
         raise RuntimeError(f"Failure getting default args from 'fake_run': {result}")
     mock.assert_called_once()
     args = mock.call_args[1]
-    args["enableLsstDebug"] = args.pop("debug")
+    args["enableLsstDebug"] = args["debug"]
     if "pipeline_actions" not in args:
         args["pipeline_actions"] = []
     # We never want the raw 'show' arg from the mocking, because we always
@@ -563,7 +564,6 @@ class CmdLineFwkTestCaseWithButler(unittest.TestCase):
         butler = makeSimpleButler(self.root, run=args.input, inMemory=False)
         populateButler(self.pipeline, butler)
 
-        fwk = CmdLineFwk()
         taskFactory = AddTaskFactoryMock()
 
         qgraph = qgraph_script(PipelineGraphFactory(self.pipeline, butler), **args.__dict__)
@@ -571,12 +571,12 @@ class CmdLineFwkTestCaseWithButler(unittest.TestCase):
         self.assertEqual(len(qgraph), self.nQuanta)
 
         # Ensure that the output run used in the graph is also used in the
-        # pipeline execution. It is possible for 'qgraph' and runPipeline to
+        # pipeline execution. It is possible for 'qgraph' and 'run' to
         # calculate time-stamped runs across a second boundary.
         args.output_run = qgraph.metadata["output_run"]
 
         # run whole thing
-        fwk.runPipeline(qgraph, taskFactory, args)
+        run_script(qgraph, task_factory=taskFactory, **args.__dict__)
         self.assertEqual(taskFactory.countExec, self.nQuanta)
 
         # test that we've disabled implicit threading
@@ -592,7 +592,6 @@ class CmdLineFwkTestCaseWithButler(unittest.TestCase):
         butler = makeSimpleButler(self.root, run=args.input, inMemory=False)
         populateButler(self.pipeline, butler)
 
-        fwk = CmdLineFwk()
         taskFactory = AddTaskFactoryMock()
 
         # We'll actually pass two input collections in.  One is empty, but
@@ -620,11 +619,11 @@ class CmdLineFwkTestCaseWithButler(unittest.TestCase):
         self.assertEqual(len(qgraph), self.nQuanta)
 
         # Ensure that the output run used in the graph is also used in
-        # the pipeline execution. It is possible for 'qgraph' and runPipeline
+        # the pipeline execution. It is possible for 'qgraph' and 'run'
         # to calculate time-stamped runs across a second boundary.
         args.output_run = qgraph.metadata["output_run"]
 
-        fwk.runPipeline(qgraph, taskFactory, args)
+        run_script(qgraph, task_factory=taskFactory, **args.__dict__)
         self.assertEqual(taskFactory.countExec, self.nQuanta)
 
         butler.registry.refresh()
@@ -649,7 +648,7 @@ class CmdLineFwkTestCaseWithButler(unittest.TestCase):
         self.assertEqual(len(qgraph), self.nQuanta)
 
         # Ensure that the output run used in the graph is also used in
-        # the pipeline execution. It is possible for 'qgraph' and runPipeline
+        # the pipeline execution. It is possible for 'qgraph' and 'run'
         # to calculate time-stamped runs across a second boundary.
         output_run = qgraph.metadata["output_run"]
         args.output_run = output_run
@@ -758,7 +757,6 @@ class CmdLineFwkTestCaseWithButler(unittest.TestCase):
             },
         )
 
-        fwk = CmdLineFwk()
         taskFactory = AddTaskFactoryMock()
 
         qgraph = qgraph_script(PipelineGraphFactory(self.pipeline, butler), **args.__dict__)
@@ -768,12 +766,12 @@ class CmdLineFwkTestCaseWithButler(unittest.TestCase):
         self.assertEqual(len(qgraph), self.nQuanta)
 
         # Ensure that the output run used in the graph is also used in
-        # the pipeline execution. It is possible for 'qgraph' and runPipeline
+        # the pipeline execution. It is possible for 'qgraph' and 'run'
         # to calculate time-stamped runs across a second boundary.
         args.output_run = qgraph.metadata["output_run"]
 
         # run whole thing
-        fwk.runPipeline(qgraph, taskFactory, args)
+        run_script(qgraph, task_factory=taskFactory, **args.__dict__)
         self.assertEqual(taskFactory.countExec, self.nQuanta)
 
     def testSimpleQGraphSkipExisting_inputs(self):
@@ -804,7 +802,6 @@ class CmdLineFwkTestCaseWithButler(unittest.TestCase):
             },
         )
 
-        fwk = CmdLineFwk()
         taskFactory = AddTaskFactoryMock()
 
         qgraph = qgraph_script(PipelineGraphFactory(self.pipeline, butler), **args.__dict__)
@@ -813,12 +810,12 @@ class CmdLineFwkTestCaseWithButler(unittest.TestCase):
         self.assertEqual(len(qgraph), self.nQuanta - 1)
 
         # Ensure that the output run used in the graph is also used in
-        # the pipeline execution. It is possible for 'qgraph' and runPipeline
+        # the pipeline execution. It is possible for 'qgraph' and 'run'
         # to calculate time-stamped runs across a second boundary.
         args.output_run = qgraph.metadata["output_run"]
 
         # run whole thing
-        fwk.runPipeline(qgraph, taskFactory, args)
+        run_script(qgraph, task_factory=taskFactory, **args.__dict__)
         self.assertEqual(taskFactory.countExec, self.nQuanta - 1)
 
     def testSimpleQGraphSkipExisting_outputs(self):
@@ -849,7 +846,6 @@ class CmdLineFwkTestCaseWithButler(unittest.TestCase):
             },
         )
 
-        fwk = CmdLineFwk()
         taskFactory = AddTaskFactoryMock()
 
         # fails without --extend-run
@@ -866,7 +862,7 @@ class CmdLineFwkTestCaseWithButler(unittest.TestCase):
         self.assertEqual(len(qgraph), self.nQuanta - 1)
 
         # run whole thing
-        fwk.runPipeline(qgraph, taskFactory, args)
+        run_script(qgraph, task_factory=taskFactory, **args.__dict__)
         self.assertEqual(taskFactory.countExec, self.nQuanta - 1)
 
     def testSimpleQGraphOutputsFail(self):
@@ -877,20 +873,19 @@ class CmdLineFwkTestCaseWithButler(unittest.TestCase):
         butler = makeSimpleButler(self.root, run=args.input, inMemory=False)
         populateButler(self.pipeline, butler)
 
-        fwk = CmdLineFwk()
         taskFactory = AddTaskFactoryMock(stopAt=3)
 
         qgraph = qgraph_script(PipelineGraphFactory(self.pipeline, butler), **args.__dict__)
         self.assertEqual(len(qgraph), self.nQuanta)
 
         # Ensure that the output run used in the graph is also used in
-        # the pipeline execution. It is possible for 'qgraph' and runPipeline
+        # the pipeline execution. It is possible for 'qgraph' and 'run'
         # to calculate time-stamped runs across a second boundary.
         args.output_run = qgraph.metadata["output_run"]
 
         # run first three quanta
         with self.assertRaises(MPGraphExecutorError):
-            fwk.runPipeline(qgraph, taskFactory, args)
+            run_script(qgraph, task_factory=taskFactory, **args.__dict__)
         self.assertEqual(taskFactory.countExec, 3)
 
         butler.registry.refresh()
@@ -904,7 +899,7 @@ class CmdLineFwkTestCaseWithButler(unittest.TestCase):
         butler.pruneDatasets([ref1, ref2], disassociate=True, unstore=True, purge=True)
 
         # Ensure that the output run used in the graph is also used in
-        # the pipeline execution. It is possible for 'qgraph' and runPipeline
+        # the pipeline execution. It is possible for 'qgraph' and 'run'
         # to calculate time-stamped runs across a second boundary.
         args.output_run = qgraph.metadata["output_run"]
 
@@ -913,7 +908,7 @@ class CmdLineFwkTestCaseWithButler(unittest.TestCase):
         args.extend_run = True
         args.no_versions = True
         with self.assertRaises(MPGraphExecutorError):
-            fwk.runPipeline(qgraph, taskFactory, args)
+            run_script(qgraph, task_factory=taskFactory, **args.__dict__)
 
     def testSimpleQGraphClobberOutputs(self):
         """Test continuing execution of trivial quantum graph with
@@ -923,7 +918,6 @@ class CmdLineFwkTestCaseWithButler(unittest.TestCase):
         butler = makeSimpleButler(self.root, run=args.input, inMemory=False)
         populateButler(self.pipeline, butler)
 
-        fwk = CmdLineFwk()
         taskFactory = AddTaskFactoryMock(stopAt=3)
 
         qgraph = qgraph_script(PipelineGraphFactory(self.pipeline, butler), **args.__dict__)
@@ -932,13 +926,13 @@ class CmdLineFwkTestCaseWithButler(unittest.TestCase):
         self.assertEqual(len(qgraph), self.nQuanta)
 
         # Ensure that the output run used in the graph is also used in
-        # the pipeline execution. It is possible for 'qgraph' and runPipeline
+        # the pipeline execution. It is possible for 'qgraph' and 'run'
         # to calculate time-stamped runs across a second boundary.
         args.output_run = qgraph.metadata["output_run"]
 
         # run first three quanta
         with self.assertRaises(MPGraphExecutorError):
-            fwk.runPipeline(qgraph, taskFactory, args)
+            run_script(qgraph, task_factory=taskFactory, **args.__dict__)
         self.assertEqual(taskFactory.countExec, 3)
 
         butler.registry.refresh()
@@ -960,7 +954,7 @@ class CmdLineFwkTestCaseWithButler(unittest.TestCase):
         args.extend_run = True
         args.clobber_outputs = True
         args.no_versions = True
-        fwk.runPipeline(qgraph, taskFactory, args)
+        run_script(qgraph, task_factory=taskFactory, **args.__dict__)
         # number of executed quanta is incremented
         self.assertEqual(taskFactory.countExec, self.nQuanta + 1)
 
@@ -972,7 +966,6 @@ class CmdLineFwkTestCaseWithButler(unittest.TestCase):
         butler = makeSimpleButler(self.root, run=args.input, inMemory=False)
         populateButler(self.pipeline, butler)
 
-        fwk = CmdLineFwk()
         taskFactory = AddTaskFactoryMock()
 
         qgraph = qgraph_script(PipelineGraphFactory(self.pipeline, butler), **args.__dict__)
@@ -981,7 +974,7 @@ class CmdLineFwkTestCaseWithButler(unittest.TestCase):
         self.assertEqual(len(qgraph), self.nQuanta)
 
         # deep copy is needed because quanta are updated in place
-        fwk.runPipeline(qgraph, taskFactory, args)
+        run_script(qgraph, task_factory=taskFactory, **args.__dict__)
         self.assertEqual(taskFactory.countExec, self.nQuanta)
 
         # need to refresh collections explicitly (or make new butler/registry)
@@ -1005,7 +998,7 @@ class CmdLineFwkTestCaseWithButler(unittest.TestCase):
         args.replace_run = True
         args.output_run = "output/run2"
         qgraph = qgraph_script(PipelineGraphFactory(self.pipeline, butler), **args.__dict__)
-        fwk.runPipeline(qgraph, taskFactory, args)
+        run_script(qgraph, task_factory=taskFactory, **args.__dict__)
 
         butler.registry.refresh()
         collections = set(butler.registry.queryCollections(...))
@@ -1024,7 +1017,7 @@ class CmdLineFwkTestCaseWithButler(unittest.TestCase):
         args.prune_replaced = "unstore"
         args.output_run = "output/run3"
         qgraph = qgraph_script(PipelineGraphFactory(self.pipeline, butler), **args.__dict__)
-        fwk.runPipeline(qgraph, taskFactory, args)
+        run_script(qgraph, task_factory=taskFactory, **args.__dict__)
 
         butler.registry.refresh()
         collections = set(butler.registry.queryCollections(...))
@@ -1055,7 +1048,7 @@ class CmdLineFwkTestCaseWithButler(unittest.TestCase):
         args.prune_replaced = "purge"
         args.output_run = "output/run4"
         qgraph = qgraph_script(PipelineGraphFactory(self.pipeline, butler), **args.__dict__)
-        fwk.runPipeline(qgraph, taskFactory, args)
+        run_script(qgraph, task_factory=taskFactory, **args.__dict__)
 
         butler.registry.refresh()
         collections = set(butler.registry.queryCollections(...))
@@ -1074,7 +1067,7 @@ class CmdLineFwkTestCaseWithButler(unittest.TestCase):
             args.replace_run = True
             args.output_run = "output/run5"
             qgraph = qgraph_script(PipelineGraphFactory(self.pipeline, butler), **args.__dict__)
-            fwk.runPipeline(qgraph, taskFactory, args)
+            run_script(qgraph, task_factory=taskFactory, **args.__dict__)
         butler.registry.refresh()
         collections = set(butler.registry.queryCollections(...))
         self.assertEqual(collections, {"test", "output", "output/run1", "output/run2", "output/run4"})
@@ -1084,7 +1077,7 @@ class CmdLineFwkTestCaseWithButler(unittest.TestCase):
             args.replace_run = True
             args.output_run = "output/run6"
             qgraph = qgraph_script(PipelineGraphFactory(self.pipeline, butler), **args.__dict__)
-            fwk.runPipeline(qgraph, taskFactory, args)
+            run_script(qgraph, task_factory=taskFactory, **args.__dict__)
         butler.registry.refresh()
         collections = set(butler.registry.queryCollections(...))
         self.assertEqual(collections, {"test", "output", "output/run1", "output/run2", "output/run4"})
@@ -1184,7 +1177,6 @@ class CmdLineFwkTestCaseWithButler(unittest.TestCase):
         butler = makeSimpleButler(self.root, run=args.input, inMemory=False)
         populateButler(self.pipeline, butler)
 
-        fwk = CmdLineFwk()
         taskFactory = AddTaskFactoryMock()
 
         qgraph = qgraph_script(PipelineGraphFactory(self.pipeline, butler), **args.__dict__)
@@ -1192,7 +1184,7 @@ class CmdLineFwkTestCaseWithButler(unittest.TestCase):
         self.assertEqual(len(qgraph), self.nQuanta)
 
         # Ensure that the output run used in the graph is also used in
-        # the pipeline execution. It is possible for 'qgraph' and runPipeline
+        # the pipeline execution. It is possible for 'qgraph' and 'run'
         # to calculate time-stamped runs across a second boundary.
         args.output_run = qgraph.metadata["output_run"]
 
@@ -1200,7 +1192,7 @@ class CmdLineFwkTestCaseWithButler(unittest.TestCase):
             args.summary = tmpname
 
             # run whole thing
-            fwk.runPipeline(qgraph, taskFactory, args)
+            run_script(qgraph, task_factory=taskFactory, **args.__dict__)
             self.assertEqual(taskFactory.countExec, self.nQuanta)
             with open(tmpname) as fh:
                 Report.model_validate_json(fh.read())

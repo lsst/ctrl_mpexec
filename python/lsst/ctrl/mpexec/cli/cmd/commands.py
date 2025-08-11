@@ -242,7 +242,7 @@ def run(ctx: click.Context, **kwargs: Any) -> None:
                 file=sys.stderr,
             )
             return
-        script.run(qgraphObj=qgraph, **kwargs)
+        script.run(qgraph, **kwargs)
 
 
 @click.command(cls=PipetaskCommand)

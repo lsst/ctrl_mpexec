@@ -50,6 +50,8 @@ _PipelineAction = collections.namedtuple("_PipelineAction", "action,label,value"
 
 _LOG = getLogger(__name__)
 
+MP_TIMEOUT = 3600 * 24 * 30  # Default timeout (sec) for multiprocessing
+
 
 class _PipelineActionType:
     """Class defining a callable type which converts strings into
