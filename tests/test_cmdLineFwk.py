@@ -48,6 +48,7 @@ import lsst.pipe.base.connectionTypes as cT
 import lsst.utils.tests
 from lsst.ctrl.mpexec import CmdLineFwk, PipelineGraphFactory
 from lsst.ctrl.mpexec.cli.opt import run_options
+from lsst.ctrl.mpexec.cli.script.pre_exec_init_qbb import pre_exec_init_qbb as pre_exec_init_qbb_script
 from lsst.ctrl.mpexec.cli.script.qgraph import qgraph as qgraph_script
 from lsst.ctrl.mpexec.cli.script.run import run as run_script
 from lsst.ctrl.mpexec.cli.utils import (
@@ -665,7 +666,7 @@ class CmdLineFwkTestCaseWithButler(unittest.TestCase):
             )
 
             # Check that pre-exec-init can run.
-            fwk.preExecInitQBB(taskFactory, args)
+            pre_exec_init_qbb_script(**args.__dict__)
 
             # Run whole thing.
             fwk.runGraphQBB(taskFactory, args)
@@ -703,7 +704,7 @@ class CmdLineFwkTestCaseWithButler(unittest.TestCase):
             )
 
             # Check that pre-exec-init can run.
-            fwk.preExecInitQBB(taskFactory, args)
+            pre_exec_init_qbb_script(**args.__dict__)
 
             # Run whole thing.
             fwk.runGraphQBB(taskFactory, args)

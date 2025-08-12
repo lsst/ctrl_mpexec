@@ -55,7 +55,6 @@ from lsst.utils.threads import disable_implicit_threading
 
 from .cli.butler_factory import ButlerFactory
 from .cli.utils import MP_TIMEOUT
-from .preExecInit import PreExecInitLimited
 
 _LOG = getLogger(__name__)
 
@@ -136,24 +135,6 @@ class CmdLineFwk:
         return ExecutionResources(
             num_cores=args.cores_per_quantum, max_mem=args.memory_per_quantum, default_mem_units=u.MB
         )
-
-    def preExecInitQBB(self, task_factory: TaskFactory, args: SimpleNamespace) -> None:
-        _LOG.verbose("Reading full quantum graph from %s.", args.qgraph)
-        # Load quantum graph. We do not really need individual Quanta here,
-        # but we need datastore records for initInputs, and those are only
-        # available from Quanta, so load the whole thing.
-        qgraph = QuantumGraph.loadUri(args.qgraph, graphID=args.qgraph_id)
-
-        # Ensure that QBB uses shared datastore cache for writes.
-        ButlerFactory.define_datastore_cache()
-
-        # Make QBB.
-        _LOG.verbose("Initializing quantum-backed butler.")
-        butler = qgraph.make_init_qbb(args.butler_config, config_search_paths=args.config_search_path)
-        # Save all InitOutputs, configs, etc.
-        _LOG.verbose("Instantiating tasks and saving init-outputs.")
-        preExecInit = PreExecInitLimited(butler, task_factory)
-        preExecInit.initialize(qgraph)
 
     def runGraphQBB(self, task_factory: TaskFactory, args: SimpleNamespace) -> None:
         if not args.enable_implicit_threading:
