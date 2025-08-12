@@ -173,6 +173,7 @@ def run_qbb(
         butler_config=butler_config,
         dimensions=qg.universe,
         dataset_types=dataset_types,
+        config_search_path=config_search_path,
     )
 
     # make special quantum executor
@@ -224,11 +225,16 @@ class _QBBFactory:
     """
 
     def __init__(
-        self, butler_config: Config, dimensions: DimensionUniverse, dataset_types: Mapping[str, DatasetType]
+        self,
+        butler_config: ResourcePathExpression,
+        dimensions: DimensionUniverse,
+        dataset_types: Mapping[str, DatasetType],
+        config_search_path: list[str] | None,
     ):
         self.butler_config = butler_config
         self.dimensions = dimensions
         self.dataset_types = dataset_types
+        self.config_search_path = config_search_path
 
     def __call__(self, quantum: Quantum) -> LimitedButler:
         """Return freshly initialized `~lsst.daf.butler.QuantumBackedButler`.
@@ -244,11 +250,15 @@ class _QBBFactory:
 
     @classmethod
     def _unpickle(
-        cls, butler_config: Config, dimensions_config: DimensionConfig | None, dataset_types_pickle: bytes
+        cls,
+        butler_config: ResourcePathExpression,
+        dimensions_config: DimensionConfig | None,
+        dataset_types_pickle: bytes,
+        config_search_path: list[str] | None,
     ) -> _QBBFactory:
         universe = DimensionUniverse(dimensions_config)
         dataset_types = pickle.loads(dataset_types_pickle)
-        return _QBBFactory(butler_config, universe, dataset_types)
+        return _QBBFactory(butler_config, universe, dataset_types, config_search_path)
 
     def __reduce__(self) -> tuple:
         # If dimension universe is not default one, we need to dump/restore
@@ -263,4 +273,7 @@ class _QBBFactory:
             dimension_config = None
         # Dataset types need to be unpickled only after universe is made.
         dataset_types_pickle = pickle.dumps(self.dataset_types)
-        return (self._unpickle, (self.butler_config, dimension_config, dataset_types_pickle))
+        return (
+            self._unpickle,
+            (self.butler_config, dimension_config, dataset_types_pickle, self.config_search_path),
+        )
