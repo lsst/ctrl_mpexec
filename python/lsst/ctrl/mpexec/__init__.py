@@ -26,7 +26,6 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 from ._pipeline_graph_factory import PipelineGraphFactory
-from .cmdLineFwk import *
 from .executionGraphFixup import *
 from .mpGraphExecutor import *
 from .quantumGraphExecutor import *

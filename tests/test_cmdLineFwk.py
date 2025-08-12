@@ -40,17 +40,17 @@ from io import StringIO
 from types import SimpleNamespace
 from typing import NamedTuple
 
-import astropy.units as u
 import click
 
 import lsst.pex.config as pexConfig
 import lsst.pipe.base.connectionTypes as cT
 import lsst.utils.tests
-from lsst.ctrl.mpexec import CmdLineFwk, PipelineGraphFactory
+from lsst.ctrl.mpexec import PipelineGraphFactory
 from lsst.ctrl.mpexec.cli.opt import run_options
 from lsst.ctrl.mpexec.cli.script.pre_exec_init_qbb import pre_exec_init_qbb as pre_exec_init_qbb_script
 from lsst.ctrl.mpexec.cli.script.qgraph import qgraph as qgraph_script
 from lsst.ctrl.mpexec.cli.script.run import run as run_script
+from lsst.ctrl.mpexec.cli.script.run_qbb import run_qbb as run_qbb_script
 from lsst.ctrl.mpexec.cli.utils import (
     _ACTION_ADD_INSTRUMENT,
     _ACTION_ADD_TASK,
@@ -324,7 +324,7 @@ def _makeQGraph():
 
 
 class CmdLineFwkTestCase(unittest.TestCase):
-    """A test case for CmdLineFwk and core CLI script function."""
+    """A test case for core CLI script functions."""
 
     def test_build(self):
         """Tests for the 'build' script."""
@@ -522,29 +522,6 @@ class CmdLineFwkTestCase(unittest.TestCase):
             show.show_pipeline_info(pipeline_graph_factory)
         self.assertIn("Pipeline has no tasks named notask", str(cm.exception))
 
-    def test_execution_resources_parameters(self) -> None:
-        """Test creation of the ExecutionResources from command line."""
-        fwk = CmdLineFwk()
-
-        for params, num_cores, max_mem in (
-            ((None, None), 1, None),
-            ((5, ""), 5, None),
-            ((None, "50"), 1, 50 * u.MB),
-            ((5, "50 GB"), 5, 50 * u.GB),
-        ):
-            kwargs = {}
-            for k, v in zip(("cores_per_quantum", "memory_per_quantum"), params, strict=True):
-                if v is not None:
-                    kwargs[k] = v
-            args = _makeArgs(**kwargs)
-            res = fwk._make_execution_resources(args)
-            self.assertEqual(res.num_cores, num_cores)
-            self.assertEqual(res.max_mem, max_mem)
-
-        args = _makeArgs(memory_per_quantum="50m")
-        with self.assertRaises(u.UnitConversionError):
-            fwk._make_execution_resources(args)
-
 
 class CmdLineFwkTestCaseWithButler(unittest.TestCase):
     """A test case for CmdLineFwk."""
@@ -641,7 +618,6 @@ class CmdLineFwkTestCaseWithButler(unittest.TestCase):
         butler = makeSimpleButler(self.root, run=args.input, inMemory=False)
         populateButler(self.pipeline, butler)
 
-        fwk = CmdLineFwk()
         taskFactory = AddTaskFactoryMock()
 
         qgraph = qgraph_script(PipelineGraphFactory(self.pipeline, butler), **args.__dict__)
@@ -669,7 +645,7 @@ class CmdLineFwkTestCaseWithButler(unittest.TestCase):
             pre_exec_init_qbb_script(**args.__dict__)
 
             # Run whole thing.
-            fwk.runGraphQBB(taskFactory, args)
+            run_qbb_script(task_factory=taskFactory, **args.__dict__)
 
             # Transfer the datasets to the butler.
             n1 = transfer_from_graph(temp_graph.name, self.root, True, False, False, False, ())
@@ -707,7 +683,7 @@ class CmdLineFwkTestCaseWithButler(unittest.TestCase):
             pre_exec_init_qbb_script(**args.__dict__)
 
             # Run whole thing.
-            fwk.runGraphQBB(taskFactory, args)
+            run_qbb_script(task_factory=taskFactory, **args.__dict__)
 
             # Transfer the datasets to the butler.
             n2 = transfer_from_graph(temp_graph.name, self.root, True, False, False, False, ())
