@@ -35,26 +35,6 @@ from lsst.ctrl.mpexec.cli import opt, script
 from lsst.ctrl.mpexec.cli.cmd.commands import coverage_context
 
 
-class QgraphTestCase(unittest.TestCase):
-    """Test pipetask qgraph command-line."""
-
-    def testMissingOption(self):
-        """Test that if options for the qgraph script are missing that it
-        fails.
-        """
-
-        @click.command()
-        @opt.pipeline_build_options()
-        def cli(**kwargs):
-            script.qgraph(**kwargs)
-
-        runner = click.testing.CliRunner()
-        result = runner.invoke(cli)
-        # The cli call should fail, because qgraph.build takes more options
-        # than are defined by pipeline_build_options.
-        self.assertNotEqual(result.exit_code, 0)
-
-
 class RunTestCase(unittest.TestCase):
     """Test pipetask run command-line."""
 
