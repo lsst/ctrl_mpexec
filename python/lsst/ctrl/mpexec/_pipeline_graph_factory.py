@@ -45,18 +45,30 @@ class PipelineGraphFactory:
         dimension schema.
     select_tasks : `str`, optional
         String expression that filters the tasks in the pipeline graph.
+    pipeline_graph : `lsst.pipe.base.pipeline_graph.PipelineGraph`, optional
+        Already-constructed pipeline graph.
     """
 
-    def __init__(self, pipeline: Pipeline, butler: Butler | None = None, select_tasks: str = ""):
+    def __init__(
+        self,
+        pipeline: Pipeline | None = None,
+        butler: Butler | None = None,
+        select_tasks: str = "",
+        *,
+        pipeline_graph: PipelineGraph | None = None,
+    ):
+        if pipeline is None and pipeline_graph is None:
+            raise TypeError("At least one of 'pipeline' and 'pipeline_graph' must not be `None`.")
         self._pipeline = pipeline
         self._registry = butler.registry if butler is not None else None
         self._select_tasks = select_tasks
-        self._pipeline_graph: PipelineGraph | None = None
+        self._pipeline_graph: PipelineGraph | None = pipeline_graph
         self._resolved: bool = False
         self._for_visualization_only: bool = False
 
     def __call__(self, *, resolve: bool = True, visualization_only: bool = False) -> PipelineGraph:
         if self._pipeline_graph is None:
+            assert self._pipeline is not None, "Guaranteed at construction."
             self._pipeline_graph = self._pipeline.to_graph()
             if self._select_tasks:
                 self._pipeline_graph = self._pipeline_graph.select(self._select_tasks)
@@ -71,6 +83,8 @@ class PipelineGraphFactory:
     @property
     def pipeline(self) -> Pipeline:
         """The original pipeline definition."""
+        if self._pipeline is None:
+            raise RuntimeError("Cannot obtain pipeline from pipeline graph.")
         if self._select_tasks:
             raise RuntimeError(
                 "The --select-tasks option cannot be used with operations that return or display a "
@@ -79,4 +93,8 @@ class PipelineGraphFactory:
         return self._pipeline
 
     def __bool__(self) -> bool:
-        return bool(self._pipeline)
+        if self._pipeline is not None:
+            return bool(self._pipeline)
+        else:
+            assert self._pipeline_graph is not None, "Guaranteed at construction."
+            return bool(self._pipeline_graph.tasks)
