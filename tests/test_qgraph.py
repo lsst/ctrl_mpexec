@@ -41,7 +41,12 @@ from lsst.pipe.base.tests.mocks import DirectButlerRepo
 
 
 class QgraphTest(unittest.TestCase):
-    """Tests for the "pipetask qgraph" command."""
+    """Tests for the "pipetask qgraph" command.
+
+    Note that significant coverage for the qgraph command is also provided by
+    test_run.py, since those tests generally build a quantum graph and then run
+    it.
+    """
 
     def test_qgraph_summary(self):
         """Test reading a saved graph and writing a summary."""
