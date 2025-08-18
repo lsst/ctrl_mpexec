@@ -40,8 +40,9 @@ import lsst.pex.config as pexConfig
 import lsst.pex.config.history as pexConfigHistory
 from lsst.daf.butler import Butler, DatasetRef, DatasetType, NamedKeyMapping
 from lsst.daf.butler.datastore.record_data import DatastoreRecordData
-from lsst.pipe.base import PipelineGraph, QuantumGraph
+from lsst.pipe.base import PipelineGraph
 from lsst.pipe.base.pipeline_graph import visualization
+from lsst.pipe.base.quantum_graph import PredictedQuantumGraph
 from lsst.resources import ResourcePathExpression
 
 from . import util
@@ -135,6 +136,7 @@ class ShowInfo:
             raise ValueError(
                 f"Unknown value(s) for show: {unknown} (choose from '{', '.join(sorted(known))}')"
             )
+        self.needs_full_qg: bool = "graph" in self.commands.keys() or "uri" in self.commands.keys()
 
     @property
     def unhandled(self) -> frozenset[str]:
@@ -190,15 +192,15 @@ class ShowInfo:
 
     def show_graph_info(
         self,
-        graph: QuantumGraph,
+        qg: PredictedQuantumGraph,
         butler_config: ResourcePathExpression | None = None,
     ) -> None:
         """Show information associated with this graph.
 
         Parameters
         ----------
-        graph : `lsst.pipe.base.QuantumGraph`
-            Graph to use when reporting information.
+        qg : `lsst.pipe.base.quantum_graph.PredictedQuantumGraph`
+            Quantum graph.
         butler_config : convertible to `lsst.resources.ResourcePath`, optional
             Path to configuration for the butler.
         """
@@ -207,13 +209,13 @@ class ShowInfo:
                 continue
             match command:
                 case "graph":
-                    self._showGraph(graph)
+                    self._showGraph(qg)
                 case "uri":
                     if butler_config is None:
                         raise ValueError("Showing URIs requires the -b option")
-                    self._showUri(graph, butler_config)
+                    self._showUri(qg, butler_config)
                 case "workflow":
-                    self._showWorkflow(graph)
+                    self._showWorkflow(qg)
                 case _:
                     raise RuntimeError(f"Unexpectedly tried to process command {command!r}.")
             self.handled.add(command)
@@ -322,13 +324,13 @@ class ShowInfo:
             for configName, taskName in util.subTaskIter(task_node.config):
                 print(f"{configName}: {taskName}", file=self.stream)
 
-    def _showGraph(self, graph: QuantumGraph) -> None:
+    def _showGraph(self, qg: PredictedQuantumGraph) -> None:
         """Print quanta information to stdout
 
         Parameters
         ----------
-        graph : `lsst.pipe.base.QuantumGraph`
-            Execution graph.
+        qg : `lsst.pipe.base.quantum_graph.PredictedQuantumGraph`
+            Quantum graph.
         """
 
         def _print_refs(
@@ -351,39 +353,38 @@ class ShowInfo:
                 else:
                     print(f"      {key}: []", file=self.stream)
 
-        for taskNode in graph.iterTaskGraph():
-            print(taskNode, file=self.stream)
-
-            for iq, quantum_node in enumerate(graph.getNodesForTask(taskNode)):
-                quantum = quantum_node.quantum
-                print(
-                    f"  Quantum {iq} dataId={quantum.dataId} nodeId={quantum_node.nodeId}:", file=self.stream
-                )
+        for task_label, quanta_for_task in qg.quanta_by_task.items():
+            print(f"{task_label} ({qg.pipeline_graph.tasks[task_label].task_class_name})", file=self.stream)
+            execution_quanta = qg.build_execution_quanta(task_label=task_label)
+            for data_id, quantum_id in quanta_for_task.items():
+                quantum = execution_quanta[quantum_id]
+                print(f"  Quantum {quantum_id} dataId={data_id}:", file=self.stream)
                 print("    inputs:", file=self.stream)
                 _print_refs(quantum.inputs, quantum.datastore_records)
                 print("    outputs:", file=self.stream)
                 _print_refs(quantum.outputs, quantum.datastore_records)
 
-    def _showWorkflow(self, graph: QuantumGraph) -> None:
+    def _showWorkflow(self, qg: PredictedQuantumGraph) -> None:
         """Print quanta information and dependency to stdout
 
         Parameters
         ----------
-        graph : `lsst.pipe.base.QuantumGraph`
-            Execution graph.
+        qg : `lsst.pipe.base.quantum_graph.PredictedQuantumGraph`
+            Quantum graph.
         """
-        for node in graph:
-            print(f"Quantum {node.nodeId}: {node.taskDef.taskName}", file=self.stream)
-            for parent in graph.determineInputsToQuantumNode(node):
-                print(f"Parent Quantum {parent.nodeId} - Child Quantum {node.nodeId}", file=self.stream)
+        xgraph = qg.quantum_only_xgraph
+        for child_id, child_data in xgraph.nodes.items():
+            print(f"Quantum {child_id}: {child_data['pipeline_node'].task_class_name}", file=self.stream)
+            for parent_id in xgraph.predecessors(child_id):
+                print(f"Parent Quantum {parent_id} - Child Quantum {child_id}", file=self.stream)
 
-    def _showUri(self, graph: QuantumGraph, butler_config: ResourcePathExpression) -> None:
+    def _showUri(self, qg: PredictedQuantumGraph, butler_config: ResourcePathExpression) -> None:
         """Print input and predicted output URIs to stdout.
 
         Parameters
         ----------
-        graph : `lsst.pipe.base.QuantumGraph`
-            Execution graph
+        qg : `lsst.pipe.base.quantum_graph.PredictedQuantumGraph`
+            Quantum graph.
         butler_config : convertible to `lsst.resources.ResourcePath`
             Path to configuration for the butler.
         """
@@ -398,13 +399,16 @@ class ShowInfo:
                     print(f"        {compName}: {compUri}", file=self.stream)
 
         butler = Butler.from_config(butler_config)
-        for node in graph:
-            print(f"Quantum {node.nodeId}: {node.taskDef.taskName}", file=self.stream)
+        xgraph = qg.quantum_only_xgraph
+        execution_quanta = qg.build_execution_quanta()
+        for quantum_id, quantum_data in xgraph.nodes.items():
+            print(f"Quantum {quantum_id}: {quantum_data['pipeline_node'].task_class_name}", file=self.stream)
             print("  inputs:", file=self.stream)
-            for refs in node.quantum.inputs.values():
+            execution_quantum = execution_quanta[quantum_id]
+            for refs in execution_quantum.inputs.values():
                 for ref in refs:
                     dumpURIs(ref)
             print("  outputs:", file=self.stream)
-            for refs in node.quantum.outputs.values():
+            for refs in execution_quantum.outputs.values():
                 for ref in refs:
                     dumpURIs(ref)

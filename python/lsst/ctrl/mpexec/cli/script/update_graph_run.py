@@ -25,16 +25,20 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-from lsst.pipe.base import QuantumGraph
+import logging
+
+from lsst.pipe.base.quantum_graph import PredictedQuantumGraphComponents
 from lsst.resources import ResourcePathExpression
+
+_LOG = logging.getLogger(__name__)
 
 
 def update_graph_run(
     input_graph: ResourcePathExpression,
     run: str,
     output_graph: ResourcePathExpression,
-    metadata_run_key: str,
-    update_graph_id: bool,
+    metadata_run_key: str = "output_run",
+    update_graph_id: bool = False,
 ) -> None:
     """Update quantum graph with new output run name and dataset IDs and save
     updated graph to a file.
@@ -47,15 +51,15 @@ def update_graph_run(
         Collection name, if collection exists it must be of ``RUN`` type.
     output_graph : `~lsst.resources.ResourcePathExpression`
         Location to store updated quantum graph.
-    metadata_run_key : `str`
-        Specifies metadata key corresponding to output run name to update
-        with new run name. If metadata is missing it is not
-        updated. If metadata is present but key is missing, it will be
-        added.
+    metadata_run_key : `str`, optional
+        Ignored (overriding warns).
     update_graph_id : `bool`
-        If `True` then also update graph ID with a new unique value.
+        Ignored (overriding warns).
     """
-    qgraph = QuantumGraph.loadUri(input_graph)
-    key = metadata_run_key if metadata_run_key else None
-    qgraph.updateRun(run, metadata_key=key, update_graph_id=update_graph_id)
-    qgraph.saveUri(output_graph)
+    qgc = PredictedQuantumGraphComponents.read_execution_quanta(input_graph)
+    if metadata_run_key and metadata_run_key != "output_run":
+        _LOG.warning("--metadata-run-key is now ignored.")
+    if update_graph_id:
+        _LOG.warning("--update-graph-id is now ignored.")
+    qgc.update_output_run(run)
+    qgc.write(output_graph)

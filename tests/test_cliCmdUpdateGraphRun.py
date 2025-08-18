@@ -33,9 +33,8 @@ import unittest
 from lsst.ctrl.mpexec.cli.pipetask import cli as pipetask_cli
 from lsst.daf.butler.cli.utils import LogCliRunner, clickResultMsg
 from lsst.daf.butler.tests.utils import makeTestTempDir, removeTestTempDir
-from lsst.pipe.base import QuantumGraph
-from lsst.pipe.base.tests.simpleQGraph import makeSimpleQGraph
-from lsst.pipe.base.tests.util import check_output_run
+from lsst.pipe.base.quantum_graph import PredictedQuantumGraph
+from lsst.pipe.base.tests.mocks import InMemoryRepo
 
 TESTDIR = os.path.abspath(os.path.dirname(__file__))
 
@@ -54,58 +53,23 @@ class UpdateGraphRunTest(unittest.TestCase):
 
     def test_update(self):
         """Test for updating output run in a graph."""
-        nQuanta = 3
-        metadata = {"output_run": "run"}
-        _, qgraph = makeSimpleQGraph(
-            nQuanta,
-            run="run",
-            root=self.root,
-            instrument=self.instrument,
-            metadata=metadata,
-        )
-        self.assertEqual(check_output_run(qgraph, "run"), [])
-
-        old_path = os.path.join(self.root, "graph.qgraph")
-        qgraph.saveUri(old_path)
-
-        new_path = os.path.join(self.root, "graph-updated.qgraph")
+        helper = InMemoryRepo()
+        helper.add_task()
+        helper.add_task()
+        qgc = helper.make_quantum_graph_builder().finish(attach_datastore_records=False)
+        old_path = os.path.join(self.root, "graph.qg")
+        qgc.write(old_path)
+        new_path = os.path.join(self.root, "graph-updated.qg")
         result = self.runner.invoke(
             pipetask_cli,
             ["update-graph-run", old_path, "new-run", new_path],
             input="no",
         )
         self.assertEqual(result.exit_code, 0, clickResultMsg(result))
-
-        updated_graph = QuantumGraph.loadUri(new_path)
-        self.assertEqual(check_output_run(updated_graph, "new-run"), [])
-        assert updated_graph.metadata is not None
-        self.assertEqual(updated_graph.metadata["output_run"], "new-run")
-        self.assertEqual(updated_graph.graphID, qgraph.graphID)
-
-        # Check that we can turn off metadata updates.
-        result = self.runner.invoke(
-            pipetask_cli,
-            ["update-graph-run", "--metadata-run-key=''", old_path, "new-run2", new_path],
-            input="no",
-        )
-        self.assertEqual(result.exit_code, 0, clickResultMsg(result))
-
-        updated_graph = QuantumGraph.loadUri(new_path)
-        self.assertEqual(check_output_run(updated_graph, "new-run2"), [])
-        assert updated_graph.metadata is not None
-        self.assertEqual(updated_graph.metadata["output_run"], "run")
-
-        # Now check that we can make new graph ID.
-        result = self.runner.invoke(
-            pipetask_cli,
-            ["update-graph-run", "--update-graph-id", old_path, "new-run3", new_path],
-            input="no",
-        )
-        self.assertEqual(result.exit_code, 0, clickResultMsg(result))
-
-        updated_graph = QuantumGraph.loadUri(new_path)
-        self.assertEqual(check_output_run(updated_graph, "new-run3"), [])
-        self.assertNotEqual(updated_graph.graphID, qgraph.graphID)
+        with PredictedQuantumGraph.open(new_path) as reader:
+            # Don't need to check the details; those are covered by pipe_base
+            # tests.
+            self.assertEqual(reader.components.header.output_run, "new-run")
 
 
 if __name__ == "__main__":

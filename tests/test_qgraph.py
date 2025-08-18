@@ -53,10 +53,9 @@ class QgraphTest(unittest.TestCase):
         with DirectButlerRepo.make_temporary() as (helper, root):
             helper.add_task()
             helper.add_task()
-            metadata = {"output_run": "run"}
-            qg = helper.make_quantum_graph_builder().build(metadata=metadata, attach_datastore_records=False)
-            graph_uri = os.path.join(root, "graph.qgraph")
-            qg.saveUri(graph_uri)
+            qgc = helper.make_quantum_graph_builder().finish(attach_datastore_records=False)
+            graph_uri = os.path.join(root, "graph.qg")
+            qgc.write(graph_uri)
             test_filename = os.path.join(root, "summary.json")
             runner = LogCliRunner()
             result = runner.invoke(
@@ -69,17 +68,16 @@ class QgraphTest(unittest.TestCase):
             # Check that we can open and read the file produced by make_reports
             with open(test_filename) as f:
                 summary = Report.model_validate_json(f.read())
-            self.assertEqual(summary.qgraphSummary.outputRun, "run")
+            self.assertEqual(summary.qgraphSummary.outputRun, "output_run")
             self.assertEqual(len(summary.qgraphSummary.qgraphTaskSummaries), 2)
 
     def test_qgraph_show(self):
         with DirectButlerRepo.make_temporary() as (helper, root):
             helper.add_task()
             helper.add_task()
-            metadata = {"output_run": "run"}
-            qg = helper.make_quantum_graph_builder().build(metadata=metadata, attach_datastore_records=False)
-            graph_uri = os.path.join(root, "graph.qgraph")
-            qg.saveUri(graph_uri)
+            qgc = helper.make_quantum_graph_builder().finish(attach_datastore_records=False)
+            graph_uri = os.path.join(root, "graph.qg")
+            qgc.write(graph_uri)
             runner = LogCliRunner()
             result = runner.invoke(
                 pipetask_cli,
@@ -87,11 +85,11 @@ class QgraphTest(unittest.TestCase):
                 input="no",
             )
             self.assertIn(
-                "TaskDef(lsst.pipe.base.tests.mocks.DynamicTestPipelineTask, label=task_auto1)",
+                "task_auto1 (lsst.pipe.base.tests.mocks.DynamicTestPipelineTask)",
                 result.output,
             )
             self.assertIn(
-                "TaskDef(lsst.pipe.base.tests.mocks.DynamicTestPipelineTask, label=task_auto2)",
+                "task_auto2 (lsst.pipe.base.tests.mocks.DynamicTestPipelineTask)",
                 result.output,
             )
             self.assertIn("DatasetType('dataset_auto0', {}, _mock_StructuredDataDict)", result.output)
@@ -102,13 +100,13 @@ class QgraphTest(unittest.TestCase):
                 ["qgraph", "--butler-config", root, "--qgraph", graph_uri, "--show", "workflow"],
                 input="no",
             )
-            node1, node2 = qg
+            id1, id2 = qgc.quantum_datasets.keys()
             self.assertEqual(
                 result.output.strip(),
                 textwrap.dedent(f"""
-                    Quantum {node1.nodeId}: lsst.pipe.base.tests.mocks.DynamicTestPipelineTask
-                    Quantum {node2.nodeId}: lsst.pipe.base.tests.mocks.DynamicTestPipelineTask
-                    Parent Quantum {node1.nodeId} - Child Quantum {node2.nodeId}
+                    Quantum {id1}: lsst.pipe.base.tests.mocks.DynamicTestPipelineTask
+                    Quantum {id2}: lsst.pipe.base.tests.mocks.DynamicTestPipelineTask
+                    Parent Quantum {id1} - Child Quantum {id2}
                 """).strip(),
             )
             result = runner.invoke(
@@ -117,11 +115,11 @@ class QgraphTest(unittest.TestCase):
                 input="no",
             )
             self.assertIn(
-                f"Quantum {node1.nodeId}: lsst.pipe.base.tests.mocks.DynamicTestPipelineTask",
+                f"Quantum {id1}: lsst.pipe.base.tests.mocks.DynamicTestPipelineTask",
                 result.output,
             )
             self.assertIn(
-                f"Quantum {node1.nodeId}: lsst.pipe.base.tests.mocks.DynamicTestPipelineTask",
+                f"Quantum {id2}: lsst.pipe.base.tests.mocks.DynamicTestPipelineTask",
                 result.output,
             )
 

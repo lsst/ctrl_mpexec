@@ -166,12 +166,21 @@ def qgraph(ctx: click.Context, **kwargs: Any) -> None:
                 file=sys.stderr,
             )
             return
-        if (qgraph := script.qgraph(pipeline_graph_factory, **kwargs, show=show)) is None:
+        if (
+            qgraph := script.qgraph(
+                pipeline_graph_factory,
+                **kwargs,
+                show=show,
+                # Making a summary report requires that we load the same graph
+                # components as execution.
+                for_execution=(summary is not None),
+            )
+        ) is None:
             raise click.ClickException("QuantumGraph was empty; ERROR logs above should provide details.")
         # QuantumGraph-only summary call here since script.qgraph also called
         # by run methods.
         if summary:
-            report = Report(qgraphSummary=qgraph.getSummary())
+            report = Report(qgraphSummary=qgraph._make_summary())
             with open(summary, "w") as out:
                 # Do not save fields that are not set.
                 out.write(report.model_dump_json(exclude_none=True, indent=2))
@@ -195,7 +204,7 @@ def run(ctx: click.Context, **kwargs: Any) -> None:
                 file=sys.stderr,
             )
             return
-        if (qgraph := script.qgraph(pipeline_graph_factory, **kwargs, show=show)) is None:
+        if (qgraph := script.qgraph(pipeline_graph_factory, for_execution=True, **kwargs, show=show)) is None:
             raise click.ClickException("QuantumGraph was empty; ERROR logs above should provide details.")
         _unhandledShow(show, "run")
         if show.handled:

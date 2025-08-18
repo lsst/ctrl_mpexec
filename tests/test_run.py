@@ -102,12 +102,12 @@ class RunTestCase(unittest.TestCase):
                 pipeline_graph_factory=PipelineGraphFactory(pipeline_graph=helper.pipeline_graph),
             )
             qg = script.qgraph(**kwargs)
-            self.assertEqual(len(qg.taskGraph), 2)
+            self.assertEqual(len(qg.quanta_by_task), 2)
             self.assertEqual(len(qg), 2)
             # Ensure that the output run used in the graph is also used in the
             # pipeline execution. It is possible for 'qgraph' and 'run' to
             # calculate time-stamped runs across a second boundary.
-            kwargs["output_run"] = qg.metadata["output_run"]
+            kwargs["output_run"] = qg.header.output_run
             # Execute the graph and check for output existence.
             script.run(qg, **kwargs)
             with helper.butler.query() as query:
@@ -155,11 +155,11 @@ class RunTestCase(unittest.TestCase):
             # With --rebase, the output collection gets redefined.
             kwargs["rebase"] = True
             qg = script.qgraph(**kwargs)
-            self.assertEqual(len(qg.taskGraph), 2)
+            self.assertEqual(len(qg.quanta_by_task), 2)
             self.assertEqual(len(qg), 2)
             # Ensure that the output run used in the graph is also used in the
             # pipeline execution.
-            kwargs["output_run"] = qg.metadata["output_run"]
+            kwargs["output_run"] = qg.header.output_run
             # Execute the graph and check for output existence.
             script.run(qg, **kwargs)
             with helper.butler.query() as query:
@@ -174,7 +174,7 @@ class RunTestCase(unittest.TestCase):
             helper.insert_datasets("dataset_auto0")
             # It's unusual to put a QG in a butler root, but since we've
             # already got a temp dir, we might as well use it.
-            qg_file_1 = os.path.join(root, "test1.qgraph")
+            qg_file_1 = os.path.join(root, "test1.qg")
             kwargs = self._make_run_args(
                 "-b",
                 root,
@@ -189,9 +189,9 @@ class RunTestCase(unittest.TestCase):
                 pipeline_graph_factory=PipelineGraphFactory(pipeline_graph=helper.pipeline_graph),
             )
             qg = script.qgraph(**kwargs)
-            output_run = qg.metadata["output_run"]
-            output = qg.metadata["output"]
-            self.assertEqual(len(qg.taskGraph), 2)
+            output_run = qg.header.output_run
+            output = qg.header.output
+            self.assertEqual(len(qg.quanta_by_task), 2)
             self.assertEqual(len(qg), 2)
             # Execute with QBB.
             kwargs.update(output_run=output_run, qgraph=qg_file_1)
@@ -225,10 +225,8 @@ class RunTestCase(unittest.TestCase):
 
             # Update the output run and try again.
             new_output_run = output_run + "_new"
-            qg.updateRun(new_output_run, metadata_key="output_run", update_graph_id=True)
-            self.assertEqual(qg.metadata["output_run"], new_output_run)
-            qg_file_2 = os.path.join(root, "test2.qgraph")
-            qg.saveUri(qg_file_2)
+            qg_file_2 = os.path.join(root, "test2.qg")
+            script.update_graph_run(qg_file_1, new_output_run, qg_file_2)
             kwargs.update(qgraph=qg_file_2)
             # Execute with QBB again.
             script.pre_exec_init_qbb(**kwargs)
@@ -297,8 +295,9 @@ class RunTestCase(unittest.TestCase):
                 pipeline_graph_factory=PipelineGraphFactory(pipeline_graph=helper.pipeline_graph),
             )
             qg1 = script.qgraph(**kwargs)
-            run1 = qg1.metadata["output_run"]
-            self.assertEqual(len(qg1.taskGraph), 2)
+            run1 = qg1.header.output_run
+            self.assertEqual(len(qg1.quanta_by_task["task_auto1"]), 1)
+            self.assertEqual(len(qg1.quanta_by_task["task_auto2"]), 1)
             self.assertEqual(len(qg1), 2)
             # Ensure that the output run used in the graph is also used in the
             # pipeline execution. It is possible for 'qgraph' and 'run' to
@@ -313,9 +312,10 @@ class RunTestCase(unittest.TestCase):
             # collection, it should run again, shadowing the previous outputs.
             kwargs["output_run"] = None
             qg2 = script.qgraph(**kwargs)
-            run2 = qg2.metadata["output_run"]
+            run2 = qg2.header.output_run
             self.assertNotEqual(run1, run2)
-            self.assertEqual(len(qg2.taskGraph), 2)
+            self.assertEqual(len(qg1.quanta_by_task["task_auto1"]), 1)
+            self.assertEqual(len(qg1.quanta_by_task["task_auto2"]), 1)
             self.assertEqual(len(qg2), 2)
             kwargs["output_run"] = run2
             script.run(qg2, **kwargs)
@@ -342,8 +342,8 @@ class RunTestCase(unittest.TestCase):
                 pipeline_graph_factory=PipelineGraphFactory(pipeline_graph=helper.pipeline_graph),
             )
             qg1 = script.qgraph(**kwargs)
-            run1 = qg1.metadata["output_run"]
-            self.assertEqual(len(qg1.taskGraph), 1)
+            run1 = qg1.header.output_run
+            self.assertEqual(len(qg1.quanta_by_task["task_auto1"]), 1)
             self.assertEqual(len(qg1), 1)
             # Ensure that the output run used in the graph is also used in the
             # pipeline execution. It is possible for 'qgraph' and 'run' to
@@ -370,9 +370,10 @@ class RunTestCase(unittest.TestCase):
                 pipeline_graph_factory=PipelineGraphFactory(pipeline_graph=helper.pipeline_graph),
             )
             qg2 = script.qgraph(**kwargs)
-            run2 = qg2.metadata["output_run"]
+            run2 = qg2.header.output_run
             self.assertNotEqual(run1, run2)
-            self.assertEqual(len(qg2.taskGraph), 1)
+            self.assertEqual(len(qg2.quanta_by_task["task_auto1"]), 0)
+            self.assertEqual(len(qg2.quanta_by_task["task_auto2"]), 1)
             self.assertEqual(len(qg2), 1)
             kwargs["output_run"] = run2
             script.run(qg2, **kwargs)
@@ -400,8 +401,8 @@ class RunTestCase(unittest.TestCase):
                 pipeline_graph_factory=PipelineGraphFactory(pipeline_graph=helper.pipeline_graph),
             )
             qg1 = script.qgraph(**kwargs)
-            run1 = qg1.metadata["output_run"]
-            self.assertEqual(len(qg1.taskGraph), 1)
+            run1 = qg1.header.output_run
+            self.assertEqual(len(qg1.quanta_by_task["task_auto1"]), 1)
             self.assertEqual(len(qg1), 1)
             # Ensure that the output run used in the graph is also used in the
             # pipeline execution. It is possible for 'qgraph' and 'run' to
@@ -427,9 +428,10 @@ class RunTestCase(unittest.TestCase):
                 pipeline_graph_factory=PipelineGraphFactory(pipeline_graph=helper.pipeline_graph),
             )
             qg2 = script.qgraph(**kwargs)
-            run2 = qg2.metadata["output_run"]
+            run2 = qg2.header.output_run
             self.assertEqual(run1, run2)
-            self.assertEqual(len(qg2.taskGraph), 1)
+            self.assertEqual(len(qg2.quanta_by_task["task_auto1"]), 0)
+            self.assertEqual(len(qg2.quanta_by_task["task_auto2"]), 1)
             self.assertEqual(len(qg2), 1)
             kwargs["output_run"] = run2
             script.run(qg2, **kwargs)
@@ -458,8 +460,8 @@ class RunTestCase(unittest.TestCase):
                 pipeline_graph_factory=PipelineGraphFactory(pipeline_graph=helper.pipeline_graph),
             )
             qg1 = script.qgraph(**kwargs)
-            run1 = qg1.metadata["output_run"]
-            self.assertEqual(len(qg1.taskGraph), 1)
+            run1 = qg1.header.output_run
+            self.assertEqual(len(qg1.quanta_by_task), 1)
             self.assertEqual(len(qg1), 1)
             # Ensure that the output run used in the graph is also used in the
             # pipeline execution. It is possible for 'qgraph' and 'run' to
@@ -494,9 +496,9 @@ class RunTestCase(unittest.TestCase):
                 pipeline_graph_factory=PipelineGraphFactory(pipeline_graph=helper.pipeline_graph),
             )
             qg2 = script.qgraph(**kwargs)
-            run2 = qg2.metadata["output_run"]
+            run2 = qg2.header.output_run
             self.assertEqual(run1, run2)
-            self.assertEqual(len(qg2.taskGraph), 2)
+            self.assertEqual(len(qg2.quanta_by_task), 2)
             self.assertEqual(len(qg2), 2)
             kwargs["output_run"] = run2
             script.run(qg2, **kwargs)
@@ -524,8 +526,8 @@ class RunTestCase(unittest.TestCase):
                 pipeline_graph_factory=PipelineGraphFactory(pipeline_graph=helper.pipeline_graph),
             )
             qg1 = script.qgraph(**kwargs)
-            run1 = qg1.metadata["output_run"]
-            self.assertEqual(len(qg1.taskGraph), 1)
+            run1 = qg1.header.output_run
+            self.assertEqual(len(qg1.quanta_by_task["task_auto1"]), 1)
             self.assertEqual(len(qg1), 1)
             # Ensure that the output run used in the graph is also used in the
             # pipeline execution. It is possible for 'qgraph' and 'run' to
@@ -557,9 +559,9 @@ class RunTestCase(unittest.TestCase):
                 pipeline_graph_factory=PipelineGraphFactory(pipeline_graph=helper.pipeline_graph),
             )
             qg2 = script.qgraph(**kwargs)
-            run2 = qg2.metadata["output_run"]
+            run2 = qg2.header.output_run
             self.assertNotEqual(run1, run2)
-            self.assertEqual(len(qg2.taskGraph), 1)
+            self.assertEqual(len(qg2.quanta_by_task["task_auto1"]), 1)
             self.assertEqual(len(qg2), 1)
             kwargs["output_run"] = run2
             script.run(qg2, **kwargs)
@@ -582,9 +584,9 @@ class RunTestCase(unittest.TestCase):
                 pipeline_graph_factory=PipelineGraphFactory(pipeline_graph=helper.pipeline_graph),
             )
             qg3 = script.qgraph(**kwargs)
-            run3 = qg3.metadata["output_run"]
+            run3 = qg3.header.output_run
             self.assertNotEqual(run2, run3)
-            self.assertEqual(len(qg3.taskGraph), 1)
+            self.assertEqual(len(qg3.quanta_by_task["task_auto1"]), 1)
             self.assertEqual(len(qg3), 1)
             kwargs["output_run"] = run3
             script.run(qg3, **kwargs)
@@ -633,9 +635,9 @@ class RunTestCase(unittest.TestCase):
                 pipeline_graph_factory=PipelineGraphFactory(pipeline_graph=helper.pipeline_graph),
             )
             qg = script.qgraph(**kwargs)
-            self.assertEqual(len(qg.taskGraph), 1)
+            self.assertEqual(len(qg.quanta_by_task), 1)
             self.assertEqual(len(qg), 4)
-            kwargs["output_run"] = qg.metadata["output_run"]
+            kwargs["output_run"] = qg.header.output_run
             # Execute the graph and check for output existence.
             with self.assertRaises(MPGraphExecutorError):
                 script.run(qg, **kwargs)
