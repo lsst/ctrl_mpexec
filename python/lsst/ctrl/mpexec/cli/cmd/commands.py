@@ -242,7 +242,7 @@ def run(ctx: click.Context, **kwargs: Any) -> None:
                 file=sys.stderr,
             )
             return
-        script.run(qgraphObj=qgraph, **kwargs)
+        script.run(qgraph, **kwargs)
 
 
 @click.command(cls=PipetaskCommand)
@@ -326,7 +326,7 @@ def run_qbb(repo: str, qgraph: str, **kwargs: Any) -> None:
     QGRAPH is the path to a serialized Quantum Graph file.
     """
     with coverage_context(kwargs):
-        script.run_qbb(repo, qgraph, **kwargs)
+        script.run_qbb(butler_config=repo, qgraph=qgraph, **kwargs)
 
 
 @click.command(cls=PipetaskCommand)

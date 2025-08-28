@@ -35,8 +35,7 @@ __all__ = [
 
 import atexit
 import shutil
-from collections.abc import Sequence
-from types import SimpleNamespace
+from collections.abc import Iterable, Sequence
 
 from lsst.daf.butler import Butler, CollectionType
 from lsst.daf.butler.datastore.cache_manager import DatastoreCacheManager
@@ -44,6 +43,7 @@ from lsst.daf.butler.registry import MissingCollectionError, RegistryDefaults
 from lsst.daf.butler.registry.wildcards import CollectionWildcard
 from lsst.pipe.base import Instrument, PipelineGraph
 from lsst.pipe.base.pipeline_graph import NodeType
+from lsst.resources import ResourcePathExpression
 from lsst.utils.logging import getLogger
 
 _LOG = getLogger(__name__)
@@ -127,46 +127,23 @@ class ButlerFactory:
     ----------
     butler : `lsst.daf.butler.Butler`
         Butler that collections will be added to and/or queried from.
-
-    args : `types.SimpleNamespace`
-        Parsed command-line arguments.  The following attributes are used,
-        either at construction or in later methods.
-
-        ``output``
-            The name of a `~lsst.daf.butler.CollectionType.CHAINED`
-            input/output collection.
-
-        ``output_run``
-            The name of a `~lsst.daf.butler.CollectionType.RUN` input/output
-            collection.
-
-        ``extend_run``
-            A boolean indicating whether ``output_run`` should already exist
-            and be extended.
-
-        ``replace_run``
-            A boolean indicating that (if `True`) ``output_run`` should already
-            exist but will be removed from the output chained collection and
-            replaced with a new one.
-
-        ``prune_replaced``
-            A boolean indicating whether to prune the replaced run (requires
-            ``replace_run``).
-
-        ``rebase``
-            A boolean indicating whether to force the ``output`` collection
-            to be consistent with ``inputs`` and ``output`` run such that the
-            ``output`` collection has output run collections first (i.e. those
-            that start with the same prefix), then the new inputs, then any
-            original inputs not included in the new inputs.
-
-        ``inputs``
-            Input collections of any type; see
-            :ref:`daf_butler_ordered_collection_searches` for details.
-
-        ``butler_config``
-            Path to a data repository root or configuration file.
-
+    output : `str` or `None`
+        The name of a `~lsst.daf.butler.CollectionType.CHAINED` input/output
+        collection.
+    output_run : `str` or `None`
+        The name of a `~lsst.daf.butler.CollectionType.RUN` input/output
+        collection.
+    inputs : `str` or `~collections.abc.Iterable` [`str`]
+        Input collection name or iterable of collection names.
+    extend_run : `bool`
+        A boolean indicating whether ``output_run`` should already exist and be
+        extended.
+    rebase : `bool`
+        A boolean indicating whether to force the ``output`` collection to be
+        consistent with ``inputs`` and ``output`` run such that the ``output``
+        collection has output run collections first (i.e. those that start with
+        the same prefix), then the new inputs, then any original inputs not
+        included in the new inputs.
     writeable : `bool`
         If `True`, a `~lsst.daf.butler.Butler` is being initialized in a
         context where actual writes should happens, and hence no output run
@@ -178,17 +155,27 @@ class ButlerFactory:
         Raised if ``writeable is True`` but there are no output collections.
     """
 
-    def __init__(self, butler: Butler, args: SimpleNamespace, writeable: bool):
-        if args.output is not None:
-            self.output = OutputChainedCollectionInfo(butler, args.output)
+    def __init__(
+        self,
+        butler: Butler,
+        *,
+        output: str | None,
+        output_run: str | None,
+        inputs: str | Iterable[str],
+        extend_run: bool = False,
+        rebase: bool = False,
+        writeable: bool,
+    ):
+        if output is not None:
+            self.output = OutputChainedCollectionInfo(butler, output)
         else:
             self.output = None
-        if args.output_run is not None:
-            if args.rebase and self.output and not args.output_run.startswith(self.output.name):
+        if output_run is not None:
+            if rebase and self.output and not output_run.startswith(self.output.name):
                 raise ValueError("Cannot rebase if output run does not start with output collection name.")
-            self.output_run = OutputRunCollectionInfo(butler, args.output_run)
+            self.output_run = OutputRunCollectionInfo(butler, output_run)
         elif self.output is not None:
-            if args.extend_run:
+            if extend_run:
                 if not self.output.chain:
                     raise ValueError("Cannot use --extend-run option with non-existing or empty output chain")
                 run_name = self.output.chain[0]
@@ -204,45 +191,50 @@ class ButlerFactory:
         # front so we can tell if the user passes the same inputs on subsequent
         # calls, even though we also flatten when we define the output CHAINED
         # collection.
-        self.inputs = tuple(butler.collections.query(args.input, flatten_chains=True)) if args.input else ()
+        self.inputs = tuple(butler.collections.query(inputs, flatten_chains=True)) if inputs else ()
 
         # If things are inconsistent and user has asked for a rebase then
         # construct the new output chain.
-        if args.rebase and self._check_output_input_consistency():
+        if rebase and self._check_output_input_consistency():
             assert self.output is not None
             newOutputChain = [item for item in self.output.chain if item.startswith(self.output.name)]
             newOutputChain.extend([item for item in self.inputs if item not in newOutputChain])
             newOutputChain.extend([item for item in self.output.chain if item not in newOutputChain])
             self.output.chain = tuple(newOutputChain)
 
-    def check(self, args: SimpleNamespace) -> None:
+    def check(self, *, extend_run: bool, replace_run: bool, prune_replaced: str | None = None) -> None:
         """Check command-line options for consistency with each other and the
         data repository.
 
         Parameters
         ----------
-        args : `types.SimpleNamespace`
-            Parsed command-line arguments.  See class documentation for the
-            construction parameter of the same name.
+        extend_run : `bool`
+            Whether the ``output_run`` should already exist and be extended.
+        replace_run : `bool`
+            Whether the ``output_run`` should be replaced in the ``output``
+            chain.
+        prune_replaced : `str` or `None`
+            If ``replace_run=True``, whether/how datasets in the old run should
+            be removed.  Options are ``"purge"``, ``"unstore"``, and `None`.
         """
-        assert not (args.extend_run and args.replace_run), "In mutually-exclusive group in ArgumentParser."
+        assert not (extend_run and replace_run), "In mutually-exclusive group in ArgumentParser."
         if consistencyError := self._check_output_input_consistency():
             raise ValueError(consistencyError)
 
-        if args.extend_run:
+        if extend_run:
             if self.output_run is None:
                 raise ValueError("Cannot --extend-run when no output collection is given.")
             elif not self.output_run.exists:
                 raise ValueError(
                     f"Cannot --extend-run; output collection '{self.output_run.name}' does not exist."
                 )
-        if not args.extend_run and self.output_run is not None and self.output_run.exists:
+        if not extend_run and self.output_run is not None and self.output_run.exists:
             raise ValueError(
                 f"Output run '{self.output_run.name}' already exists, but --extend-run was not given."
             )
-        if args.prune_replaced and not args.replace_run:
+        if prune_replaced and not replace_run:
             raise ValueError("--prune-replaced requires --replace-run.")
-        if args.replace_run and (self.output is None or not self.output.exists):
+        if replace_run and (self.output is None or not self.output.exists):
             raise ValueError("--output must point to an existing CHAINED collection for --replace-run.")
 
     def _check_output_input_consistency(self) -> str | None:
@@ -264,15 +256,48 @@ class ButlerFactory:
         return None
 
     @classmethod
-    def _make_read_parts(cls, args: SimpleNamespace) -> tuple[Butler, Sequence[str], ButlerFactory]:
+    def _make_read_parts(
+        cls,
+        butler_config: ResourcePathExpression,
+        *,
+        output: str | None,
+        output_run: str | None,
+        inputs: str | Iterable[str],
+        extend_run: bool = False,
+        rebase: bool = False,
+        replace_run: bool,
+        prune_replaced: str | None = None,
+    ) -> tuple[Butler, Sequence[str], ButlerFactory]:
         """Parse arguments to support implementations of `make_read_butler` and
         `make_butler_and_collections`.
 
         Parameters
         ----------
-        args : `types.SimpleNamespace`
-            Parsed command-line arguments.  See class documentation for the
-            construction parameter of the same name.
+        butler_config : convertible to `lsst.resources.ResourcePath`
+            Path to configuration for the butler.
+        output : `str` or `None`
+            The name of a `~lsst.daf.butler.CollectionType.CHAINED`
+            input/output collection.
+        output_run : `str` or `None`
+            The name of a `~lsst.daf.butler.CollectionType.RUN` input/output
+            collection.
+        inputs : `str` or `~collections.abc.Iterable` [`str`]
+            Input collection name or iterable of collection names.
+        extend_run : `bool`
+            A boolean indicating whether ``output_run`` should already exist
+            and be extended.
+        rebase : `bool`
+            A boolean indicating whether to force the ``output`` collection to
+            be consistent with ``inputs`` and ``output`` run such that the
+            ``output`` collection has output run collections first (i.e. those
+            that start with the same prefix), then the new inputs, then any
+            original inputs not included in the new inputs.
+        replace_run : `bool`
+            Whether the ``output_run`` should be replaced in the ``output``
+            chain.
+        prune_replaced : `str` or `None`
+            If ``replace_run=True``, whether/how datasets in the old run should
+            be removed.  Options are ``"purge"``, ``"unstore"``, and `None`.
 
         Returns
         -------
@@ -285,11 +310,19 @@ class ButlerFactory:
             A new `ButlerFactory` instance representing the processed version
             of ``args``.
         """
-        butler = Butler.from_config(args.butler_config, writeable=False)
-        self = cls(butler, args, writeable=False)
-        self.check(args)
+        butler = Butler.from_config(butler_config, writeable=False)
+        self = cls(
+            butler,
+            output=output,
+            output_run=output_run,
+            inputs=inputs,
+            extend_run=extend_run,
+            rebase=rebase,
+            writeable=False,
+        )
+        self.check(extend_run=extend_run, replace_run=replace_run, prune_replaced=prune_replaced)
         if self.output and self.output.exists:
-            if args.replace_run:
+            if replace_run:
                 replaced = self.output.chain[0]
                 inputs = list(self.output.chain[1:])
                 _LOG.debug(
@@ -299,44 +332,118 @@ class ButlerFactory:
                 inputs = [self.output.name]
         else:
             inputs = list(self.inputs)
-        if args.extend_run:
+        if extend_run:
             assert self.output_run is not None, "Output collection has to be specified."
             inputs.insert(0, self.output_run.name)
         collSearch = CollectionWildcard.from_expression(inputs).require_ordered()
         return butler, collSearch, self
 
     @classmethod
-    def make_read_butler(cls, args: SimpleNamespace) -> Butler:
+    def make_read_butler(
+        cls,
+        butler_config: ResourcePathExpression,
+        *,
+        output: str | None,
+        output_run: str | None,
+        inputs: str | Iterable[str],
+        extend_run: bool = False,
+        rebase: bool = False,
+        replace_run: bool,
+        prune_replaced: str | None = None,
+    ) -> Butler:
         """Construct a read-only butler according to the given command-line
         arguments.
 
         Parameters
         ----------
-        args : `types.SimpleNamespace`
-            Parsed command-line arguments.  See class documentation for the
-            construction parameter of the same name.
+        butler_config : convertible to `lsst.resources.ResourcePath`
+            Path to configuration for the butler.
+        output : `str` or `None`
+            The name of a `~lsst.daf.butler.CollectionType.CHAINED`
+            input/output collection.
+        output_run : `str` or `None`
+            The name of a `~lsst.daf.butler.CollectionType.RUN` input/output
+            collection.
+        inputs : `str` or `~collections.abc.Iterable` [`str`]
+            Input collection name or iterable of collection names.
+        extend_run : `bool`
+            A boolean indicating whether ``output_run`` should already exist
+            and be extended.
+        rebase : `bool`
+            A boolean indicating whether to force the ``output`` collection to
+            be consistent with ``inputs`` and ``output`` run such that the
+            ``output`` collection has output run collections first (i.e. those
+            that start with the same prefix), then the new inputs, then any
+            original inputs not included in the new inputs.
+        replace_run : `bool`
+            Whether the ``output_run`` should be replaced in the ``output``
+            chain.
+        prune_replaced : `str` or `None`
+            If ``replace_run=True``, whether/how datasets in the old run should
+            be removed.  Options are ``"purge"``, ``"unstore"``, and `None`.
 
         Returns
         -------
         butler : `lsst.daf.butler.Butler`
-            A read-only butler initialized with the collections specified by
-            ``args``.
+            A read-only butler initialized with the given collections.
         """
         cls.define_datastore_cache()  # Ensure that this butler can use a shared cache.
-        butler, inputs, _ = cls._make_read_parts(args)
+        butler, inputs, _ = cls._make_read_parts(
+            butler_config,
+            output=output,
+            output_run=output_run,
+            inputs=inputs,
+            extend_run=extend_run,
+            rebase=rebase,
+            replace_run=replace_run,
+            prune_replaced=prune_replaced,
+        )
         _LOG.debug("Preparing butler to read from %s.", inputs)
         return Butler.from_config(butler=butler, collections=inputs)
 
     @classmethod
-    def make_butler_and_collections(cls, args: SimpleNamespace) -> tuple[Butler, Sequence[str], str | None]:
+    def make_butler_and_collections(
+        cls,
+        butler_config: ResourcePathExpression,
+        *,
+        output: str | None,
+        output_run: str | None,
+        inputs: str | Iterable[str],
+        extend_run: bool = False,
+        rebase: bool = False,
+        replace_run: bool,
+        prune_replaced: str | None = None,
+    ) -> tuple[Butler, Sequence[str], str | None]:
         """Return a read-only butler, a collection search path, and the name
         of the run to be used for future writes.
 
         Parameters
         ----------
-        args : `types.SimpleNamespace`
-            Parsed command-line arguments.  See class documentation for the
-            construction parameter of the same name.
+        butler_config : convertible to `lsst.resources.ResourcePath`
+            Path to configuration for the butler.
+        output : `str` or `None`
+            The name of a `~lsst.daf.butler.CollectionType.CHAINED`
+            input/output collection.
+        output_run : `str` or `None`
+            The name of a `~lsst.daf.butler.CollectionType.RUN` input/output
+            collection.
+        inputs : `str` or `~collections.abc.Iterable` [`str`]
+            Input collection name or iterable of collection names.
+        extend_run : `bool`
+            A boolean indicating whether ``output_run`` should already exist
+            and be extended.
+        rebase : `bool`
+            A boolean indicating whether to force the ``output`` collection to
+            be consistent with ``inputs`` and ``output`` run such that the
+            ``output`` collection has output run collections first (i.e. those
+            that start with the same prefix), then the new inputs, then any
+            original inputs not included in the new inputs.
+        replace_run : `bool`
+            Whether the ``output_run`` should be replaced in the ``output``
+            chain.
+        prune_replaced : `str` or `None`
+            If ``replace_run=True``, whether/how datasets in the old run should
+            be removed.  Options are ``"purge"``, ``"unstore"``, and `None`.
 
         Returns
         -------
@@ -349,9 +456,18 @@ class ButlerFactory:
             Name of the output `~lsst.daf.butler.CollectionType.RUN` collection
             if it already exists, or `None` if it does not.
         """
-        butler, inputs, self = cls._make_read_parts(args)
+        butler, inputs, self = cls._make_read_parts(
+            butler_config,
+            output=output,
+            output_run=output_run,
+            inputs=inputs,
+            extend_run=extend_run,
+            rebase=rebase,
+            replace_run=replace_run,
+            prune_replaced=prune_replaced,
+        )
         run: str | None = None
-        if args.extend_run:
+        if extend_run:
             assert self.output_run is not None, "Output collection has to be specified."
         if self.output_run is not None:
             run = self.output_run.name
@@ -374,17 +490,51 @@ class ButlerFactory:
             _LOG.debug("Defining shared datastore cache directory to %s", cache_dir)
 
     @classmethod
-    def make_write_butler(cls, args: SimpleNamespace, pipeline_graph: PipelineGraph) -> Butler:
+    def make_write_butler(
+        cls,
+        butler_config: ResourcePathExpression,
+        pipeline_graph: PipelineGraph,
+        *,
+        output: str | None,
+        output_run: str | None,
+        inputs: str | Iterable[str],
+        extend_run: bool = False,
+        rebase: bool = False,
+        replace_run: bool,
+        prune_replaced: str | None = None,
+    ) -> Butler:
         """Return a read-write butler initialized to write to and read from
         the collections specified by the given command-line arguments.
 
         Parameters
         ----------
-        args : `types.SimpleNamespace`
-            Parsed command-line arguments.  See class documentation for the
-            construction parameter of the same name.
+        butler_config : convertible to `lsst.resources.ResourcePath`
+            Path to configuration for the butler.
         pipeline_graph : `lsst.pipe.base.PipelineGraph`
             Definitions for tasks in a pipeline.
+        output : `str` or `None`
+            The name of a `~lsst.daf.butler.CollectionType.CHAINED`
+            input/output collection.
+        output_run : `str` or `None`
+            The name of a `~lsst.daf.butler.CollectionType.RUN` input/output
+            collection.
+        inputs : `str` or `~collections.abc.Iterable` [`str`]
+            Input collection name or iterable of collection names.
+        extend_run : `bool`
+            A boolean indicating whether ``output_run`` should already exist
+            and be extended.
+        rebase : `bool`
+            A boolean indicating whether to force the ``output`` collection to
+            be consistent with ``inputs`` and ``output`` run such that the
+            ``output`` collection has output run collections first (i.e. those
+            that start with the same prefix), then the new inputs, then any
+            original inputs not included in the new inputs.
+        replace_run : `bool`
+            Whether the ``output_run`` should be replaced in the ``output``
+            chain.
+        prune_replaced : `str` or `None`
+            If ``replace_run=True``, whether/how datasets in the old run should
+            be removed.  Options are ``"purge"``, ``"unstore"``, and `None`.
 
         Returns
         -------
@@ -392,9 +542,17 @@ class ButlerFactory:
             A read-write butler initialized according to the given arguments.
         """
         cls.define_datastore_cache()  # Ensure that this butler can use a shared cache.
-        butler = Butler.from_config(args.butler_config, writeable=True)
-        self = cls(butler, args, writeable=True)
-        self.check(args)
+        butler = Butler.from_config(butler_config, writeable=True)
+        self = cls(
+            butler,
+            output=output,
+            output_run=output_run,
+            inputs=inputs,
+            extend_run=extend_run,
+            rebase=rebase,
+            writeable=True,
+        )
+        self.check(extend_run=extend_run, replace_run=replace_run, prune_replaced=prune_replaced)
         assert self.output_run is not None, "Output collection has to be specified."  # for mypy
         if self.output is not None:
             chain_definition = list(
@@ -404,9 +562,9 @@ class ButlerFactory:
                     include_chains=False,
                 )
             )
-            if args.replace_run:
+            if replace_run:
                 replaced = chain_definition.pop(0)
-                if args.prune_replaced == "unstore":
+                if prune_replaced == "unstore":
                     # Remove datasets from datastore
                     with butler.transaction():
                         # we want to remove regular outputs from this pipeline,
@@ -420,17 +578,17 @@ class ButlerFactory:
                             )
                         ]
                         butler.pruneDatasets(refs, unstore=True, disassociate=False)
-                elif args.prune_replaced == "purge":
+                elif prune_replaced == "purge":
                     # Erase entire collection and all datasets, need to remove
                     # collection from its chain collection first.
                     with butler.transaction():
                         butler.collections.redefine_chain(self.output.name, chain_definition)
                         butler.removeRuns([replaced], unstore=True)
-                elif args.prune_replaced is not None:
-                    raise NotImplementedError(f"Unsupported --prune-replaced option '{args.prune_replaced}'.")
+                elif prune_replaced is not None:
+                    raise NotImplementedError(f"Unsupported --prune-replaced option '{prune_replaced}'.")
             if not self.output.exists:
                 butler.collections.register(self.output.name, CollectionType.CHAINED)
-            if not args.extend_run:
+            if not extend_run:
                 butler.collections.register(self.output_run.name, CollectionType.RUN)
                 chain_definition.insert(0, self.output_run.name)
                 butler.collections.redefine_chain(self.output.name, chain_definition)

@@ -25,36 +25,59 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-import logging
-from types import SimpleNamespace
+from __future__ import annotations
 
-from lsst.pipe.base import TaskFactory
+import pickle
+import uuid
+from collections.abc import Mapping
+from typing import Literal
+
+import astropy.units as u
+
+import lsst.utils.timer
+from lsst.daf.butler import (
+    DatasetType,
+    DimensionConfig,
+    DimensionUniverse,
+    LimitedButler,
+    Quantum,
+    QuantumBackedButler,
+)
+from lsst.pipe.base import BuildId, ExecutionResources, QuantumGraph, TaskFactory
+from lsst.pipe.base.mp_graph_executor import MPGraphExecutor
+from lsst.pipe.base.single_quantum_executor import SingleQuantumExecutor
+from lsst.resources import ResourcePath, ResourcePathExpression
+from lsst.utils.logging import VERBOSE, getLogger
 from lsst.utils.threads import disable_implicit_threading
 
-from ... import CmdLineFwk
+from ..butler_factory import ButlerFactory
+from ..utils import MP_TIMEOUT, summarize_quantum_graph
 
-_log = logging.getLogger(__name__)
+_LOG = getLogger(__name__)
 
 
 def run_qbb(
-    butler_config: str,
-    qgraph: str,
+    *,
+    task_factory: TaskFactory | None = None,
+    butler_config: ResourcePathExpression,
+    qgraph: ResourcePathExpression,
     config_search_path: list[str] | None,
     qgraph_id: str | None,
-    qgraph_node_id: list[int] | None,
+    qgraph_node_id: list[str | uuid.UUID] | None,
     processes: int,
     pdb: str | None,
     profile: str | None,
     debug: bool,
-    start_method: str | None,
+    start_method: Literal["spawn", "forkserver"] | None,
     timeout: int | None,
     fail_fast: bool,
-    summary: str | None,
+    summary: ResourcePathExpression | None,
     enable_implicit_threading: bool,
     cores_per_quantum: int,
     memory_per_quantum: str,
     raise_on_partial_outputs: bool,
     no_existing_outputs: bool,
+    **kwargs: object,
 ) -> None:
     """Implement the command line interface ``pipetask run-qbb`` subcommand.
 
@@ -63,6 +86,8 @@ def run_qbb(
 
     Parameters
     ----------
+    task_factory : `lsst.pipe.base.TaskFactory`, optional
+        A custom task factory to use.
     butler_config : `str`
         The path location of the gen3 butler/registry config file.
     qgraph : `str`
@@ -109,36 +134,146 @@ def run_qbb(
     no_existing_outputs : `bool`
         Whether to assume that no predicted outputs for these quanta already
         exist in the output run collection.
+    **kwargs : `object`
+        Ignored; click commands may accept options for more than one script
+        function and pass all the option kwargs to each of the script functions
+        which ignore these unused kwargs.
     """
     # Fork option still exists for compatibility but we use spawn instead.
-    if start_method == "fork":
-        start_method = "spawn"
-        _log.warning("Option --start-method=fork is unsafe and no longer supported, will use spawn instead.")
+    if start_method == "fork":  # type: ignore[comparison-overlap]
+        start_method = "spawn"  # type: ignore[unreachable]
+        _LOG.warning("Option --start-method=fork is unsafe and no longer supported, using spawn instead.")
 
     if not enable_implicit_threading:
         disable_implicit_threading()
 
-    args = SimpleNamespace(
+    # Load quantum graph.
+    nodes = qgraph_node_id or None
+    with lsst.utils.timer.time_this(
+        _LOG,
+        msg=f"Reading {str(len(nodes)) if nodes is not None else 'all'} quanta.",
+        level=VERBOSE,
+    ) as qg_read_time:
+        qg = QuantumGraph.loadUri(
+            qgraph, nodes=nodes, graphID=BuildId(qgraph_id) if qgraph_id is not None else None
+        )
+    job_metadata = {"qg_read_time": qg_read_time.duration, "qg_size": len(qg)}
+
+    if qg.metadata is None:
+        raise ValueError("QuantumGraph is missing metadata, cannot continue.")
+
+    summarize_quantum_graph(qg)
+
+    dataset_types = {dstype.name: dstype for dstype in qg.registryDatasetTypes()}
+
+    # Ensure that QBB uses shared datastore cache.
+    ButlerFactory.define_datastore_cache()
+
+    _butler_factory = _QBBFactory(
         butler_config=butler_config,
-        qgraph=qgraph,
+        dimensions=qg.universe,
+        dataset_types=dataset_types,
         config_search_path=config_search_path,
-        qgraph_id=qgraph_id,
-        qgraph_node_id=qgraph_node_id,
-        processes=processes,
-        pdb=pdb,
-        profile=profile,
-        enableLsstDebug=debug,
-        start_method=start_method,
-        timeout=timeout,
-        fail_fast=fail_fast,
-        summary=summary,
-        enable_implicit_threading=enable_implicit_threading,
-        cores_per_quantum=cores_per_quantum,
-        memory_per_quantum=memory_per_quantum,
-        raise_on_partial_outputs=raise_on_partial_outputs,
-        no_existing_outputs=no_existing_outputs,
     )
 
-    f = CmdLineFwk()
-    task_factory = TaskFactory()
-    f.runGraphQBB(task_factory, args)
+    # make special quantum executor
+    resources = ExecutionResources(
+        num_cores=cores_per_quantum, max_mem=memory_per_quantum, default_mem_units=u.MB
+    )
+    quantumExecutor = SingleQuantumExecutor(
+        butler=None,
+        task_factory=task_factory,
+        enable_lsst_debug=debug,
+        limited_butler_factory=_butler_factory,
+        resources=resources,
+        assume_no_existing_outputs=no_existing_outputs,
+        skip_existing=True,
+        clobber_outputs=True,
+        raise_on_partial_outputs=raise_on_partial_outputs,
+        job_metadata=job_metadata,
+    )
+
+    timeout = MP_TIMEOUT if timeout is None else timeout
+    executor = MPGraphExecutor(
+        num_proc=processes,
+        timeout=timeout,
+        start_method=start_method,
+        quantum_executor=quantumExecutor,
+        fail_fast=fail_fast,
+        pdb=pdb,
+    )
+    try:
+        with lsst.utils.timer.profile(profile, _LOG):
+            executor.execute(qg)
+    finally:
+        if summary:
+            report = executor.getReport()
+            if report:
+                with ResourcePath(summary).open("w") as out:
+                    # Do not save fields that are not set.
+                    out.write(report.model_dump_json(exclude_none=True, indent=2))
+
+
+class _QBBFactory:
+    """Class which is a callable for making QBB instances.
+
+    This class is also responsible for reconstructing correct dimension
+    universe after unpickling. When pickling multiple things that require
+    dimension universe, this class must be unpickled first. The logic in
+    MPGraphExecutor ensures that SingleQuantumExecutor is unpickled first in
+    the subprocess, which causes unpickling of this class.
+    """
+
+    def __init__(
+        self,
+        butler_config: ResourcePathExpression,
+        dimensions: DimensionUniverse,
+        dataset_types: Mapping[str, DatasetType],
+        config_search_path: list[str] | None,
+    ):
+        self.butler_config = butler_config
+        self.dimensions = dimensions
+        self.dataset_types = dataset_types
+        self.config_search_path = config_search_path
+
+    def __call__(self, quantum: Quantum) -> LimitedButler:
+        """Return freshly initialized `~lsst.daf.butler.QuantumBackedButler`.
+
+        Factory method to create QuantumBackedButler instances.
+        """
+        return QuantumBackedButler.initialize(
+            config=self.butler_config,
+            quantum=quantum,
+            dimensions=self.dimensions,
+            dataset_types=self.dataset_types,
+        )
+
+    @classmethod
+    def _unpickle(
+        cls,
+        butler_config: ResourcePathExpression,
+        dimensions_config: DimensionConfig | None,
+        dataset_types_pickle: bytes,
+        config_search_path: list[str] | None,
+    ) -> _QBBFactory:
+        universe = DimensionUniverse(dimensions_config)
+        dataset_types = pickle.loads(dataset_types_pickle)
+        return _QBBFactory(butler_config, universe, dataset_types, config_search_path)
+
+    def __reduce__(self) -> tuple:
+        # If dimension universe is not default one, we need to dump/restore
+        # its config.
+        config = self.dimensions.dimensionConfig
+        default = DimensionConfig()
+        # Only send configuration to other side if it is non-default, default
+        # will be instantiated from config=None.
+        if (config["namespace"], config["version"]) != (default["namespace"], default["version"]):
+            dimension_config = config
+        else:
+            dimension_config = None
+        # Dataset types need to be unpickled only after universe is made.
+        dataset_types_pickle = pickle.dumps(self.dataset_types)
+        return (
+            self._unpickle,
+            (self.butler_config, dimension_config, dataset_types_pickle, self.config_search_path),
+        )

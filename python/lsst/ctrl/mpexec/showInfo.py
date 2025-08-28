@@ -34,19 +34,18 @@ import re
 import sys
 from collections import defaultdict
 from collections.abc import Mapping
-from types import SimpleNamespace
 from typing import Any
 
 import lsst.pex.config as pexConfig
 import lsst.pex.config.history as pexConfigHistory
-from lsst.daf.butler import DatasetRef, DatasetType, NamedKeyMapping
+from lsst.daf.butler import Butler, DatasetRef, DatasetType, NamedKeyMapping
 from lsst.daf.butler.datastore.record_data import DatastoreRecordData
 from lsst.pipe.base import PipelineGraph, QuantumGraph
 from lsst.pipe.base.pipeline_graph import visualization
+from lsst.resources import ResourcePathExpression
 
 from . import util
 from ._pipeline_graph_factory import PipelineGraphFactory
-from .cli.butler_factory import ButlerFactory
 
 
 class _FilteredStream:
@@ -179,16 +178,19 @@ class ShowInfo:
                     raise RuntimeError(f"Unexpectedly tried to process command {command!r}.")
             self.handled.add(command)
 
-    def show_graph_info(self, graph: QuantumGraph, args: SimpleNamespace | None = None) -> None:
+    def show_graph_info(
+        self,
+        graph: QuantumGraph,
+        butler_config: ResourcePathExpression | None = None,
+    ) -> None:
         """Show information associated with this graph.
 
         Parameters
         ----------
         graph : `lsst.pipe.base.QuantumGraph`
             Graph to use when reporting information.
-        args : `types.SimpleNamespace`, optional
-            Parsed command-line parameters. Used to obtain additional external
-            information such as the location of a usable Butler.
+        butler_config : convertible to `lsst.resources.ResourcePath`, optional
+            Path to configuration for the butler.
         """
         for command in self.graph_commands:
             if command not in self.commands:
@@ -197,9 +199,9 @@ class ShowInfo:
                 case "graph":
                     self._showGraph(graph)
                 case "uri":
-                    if args is None:
-                        raise ValueError("The uri option requires additional command line arguments.")
-                    self._showUri(graph, args)
+                    if butler_config is None:
+                        raise ValueError("Showing URIs requires the -b option")
+                    self._showUri(graph, butler_config)
                 case "workflow":
                     self._showWorkflow(graph)
                 case _:
@@ -365,15 +367,15 @@ class ShowInfo:
             for parent in graph.determineInputsToQuantumNode(node):
                 print(f"Parent Quantum {parent.nodeId} - Child Quantum {node.nodeId}", file=self.stream)
 
-    def _showUri(self, graph: QuantumGraph, args: SimpleNamespace) -> None:
-        """Print input and predicted output URIs to stdout
+    def _showUri(self, graph: QuantumGraph, butler_config: ResourcePathExpression) -> None:
+        """Print input and predicted output URIs to stdout.
 
         Parameters
         ----------
         graph : `lsst.pipe.base.QuantumGraph`
             Execution graph
-        args : `types.SimpleNamespace`
-            Parsed command line
+        butler_config : convertible to `lsst.resources.ResourcePath`
+            Path to configuration for the butler.
         """
 
         def dumpURIs(thisRef: DatasetRef) -> None:
@@ -385,7 +387,7 @@ class ShowInfo:
                 for compName, compUri in components.items():
                     print(f"        {compName}: {compUri}", file=self.stream)
 
-        butler = ButlerFactory.make_read_butler(args)
+        butler = Butler.from_config(butler_config)
         for node in graph:
             print(f"Quantum {node.nodeId}: {node.taskDef.taskName}", file=self.stream)
             print("  inputs:", file=self.stream)

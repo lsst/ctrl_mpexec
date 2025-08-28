@@ -25,11 +25,14 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-from types import SimpleNamespace
+from __future__ import annotations
 
-from lsst.pipe.base import TaskFactory
+from lsst.pipe.base import BuildId, QuantumGraph
+from lsst.utils.logging import getLogger
 
-from ... import CmdLineFwk
+from ..butler_factory import ButlerFactory
+
+_LOG = getLogger(__name__)
 
 
 def pre_exec_init_qbb(
@@ -37,6 +40,7 @@ def pre_exec_init_qbb(
     qgraph: str,
     qgraph_id: str | None,
     config_search_path: list[str] | None,
+    **kwargs: object,
 ) -> None:
     """Implement the command line interface ``pipetask pre-exec-init-qbb``
     subcommand.
@@ -55,14 +59,23 @@ def pre_exec_init_qbb(
         graph loaded from a file. Ignored if graph is not loaded from a file.
     config_search_path : `list` [`str`]
         Additional search paths for butler configuration.
+    **kwargs : `object`
+        Ignored; click commands may accept options for more than one script
+        function and pass all the option kwargs to each of the script functions
+        which ignore these unused kwargs.
     """
-    args = SimpleNamespace(
-        butler_config=butler_config,
-        qgraph=qgraph,
-        qgraph_id=qgraph_id,
-        config_search_path=config_search_path,
-    )
+    _LOG.verbose("Reading full quantum graph from %s.", qgraph)
+    # Load quantum graph. We do not really need individual Quanta here,
+    # but we need datastore records for initInputs, and those are only
+    # available from Quanta, so load the whole thing.
+    qg = QuantumGraph.loadUri(qgraph, graphID=BuildId(qgraph_id) if qgraph_id is not None else None)
 
-    f = CmdLineFwk()
-    task_factory = TaskFactory()
-    f.preExecInitQBB(task_factory, args)
+    # Ensure that QBB uses shared datastore cache for writes.
+    ButlerFactory.define_datastore_cache()
+
+    # Make QBB.
+    _LOG.verbose("Initializing quantum-backed butler.")
+    butler = qg.make_init_qbb(butler_config, config_search_paths=config_search_path)
+    # Save all InitOutputs, configs, etc.
+    _LOG.verbose("Instantiating tasks and saving init-outputs.")
+    qg.init_output_run(butler)
