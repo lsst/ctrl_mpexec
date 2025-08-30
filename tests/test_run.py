@@ -27,6 +27,7 @@
 
 import logging
 import os
+import time
 import unittest
 import unittest.mock
 
@@ -311,6 +312,7 @@ class RunTestCase(unittest.TestCase):
             # Make a new QG with the same output collection, but a new RUN
             # collection, it should run again, shadowing the previous outputs.
             kwargs["output_run"] = None
+            time.sleep(1)  # Make sure we don't get the same RUN timestamp.
             qg2 = script.qgraph(**kwargs)
             run2 = qg2.header.output_run
             self.assertNotEqual(run1, run2)
@@ -369,6 +371,7 @@ class RunTestCase(unittest.TestCase):
                 "output",
                 pipeline_graph_factory=PipelineGraphFactory(pipeline_graph=helper.pipeline_graph),
             )
+            time.sleep(1)  # Make sure we don't get the same RUN timestamp.
             qg2 = script.qgraph(**kwargs)
             run2 = qg2.header.output_run
             self.assertNotEqual(run1, run2)
@@ -548,6 +551,7 @@ class RunTestCase(unittest.TestCase):
             # Make a new QG with the same output collection, but a new RUN
             # collection, with --clobber-outputs, and one more task.  Both
             # tasks should be run.
+            time.sleep(1)  # Make sure we don't get the same RUN timestamp.
             kwargs = self._make_run_args(
                 "-b",
                 root,
@@ -571,6 +575,7 @@ class RunTestCase(unittest.TestCase):
                 self.assertEqual(query.datasets("dataset_auto1", collections=[run2]).count(), 1)
                 self.assertEqual(query.datasets("dataset_auto1", collections=["output"]).count(), 1)
             # Repeat once again with --prune-replaced as well.
+            time.sleep(1)  # Make sure we don't get the same RUN timestamp.
             kwargs = self._make_run_args(
                 "-b",
                 root,
