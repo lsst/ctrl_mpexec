@@ -522,6 +522,13 @@ class CmdLineFwkTestCase(unittest.TestCase):
             show.show_pipeline_info(pipeline_graph_factory)
         self.assertIn("Pipeline has no tasks named notask", str(cm.exception))
 
+        stream = StringIO()
+        show = ShowInfo(["tasks"], stream=stream)
+        show.show_pipeline_info(pipeline_graph_factory)
+        stream.seek(0)
+        output = stream.read().strip()
+        self.assertIn("### Subtasks for task `lsst.pipe.base.tests.simpleQGraph.AddTask'", output)
+
 
 class CmdLineFwkTestCaseWithButler(unittest.TestCase):
     """A test case for CmdLineFwk."""
@@ -537,7 +544,7 @@ class CmdLineFwkTestCaseWithButler(unittest.TestCase):
         super().tearDownClass()
 
     def testSimpleQGraph(self):
-        """Test successfull execution of trivial quantum graph."""
+        """Test successful execution of trivial quantum graph."""
         args = _makeArgs(butler_config=self.root, input="test", output="output")
         butler = makeSimpleButler(self.root, run=args.input, inMemory=False)
         populateButler(self.pipeline, butler)
