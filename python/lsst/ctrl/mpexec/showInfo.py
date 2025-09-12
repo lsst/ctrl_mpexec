@@ -131,7 +131,9 @@ class ShowInfo:
         known = self.pipeline_commands | self.graph_commands
         unknown = set(commands) - known
         if unknown:
-            raise ValueError(f"Unknown value(s) for show: {unknown} (choose from '{', '.join(known)}')")
+            raise ValueError(
+                f"Unknown value(s) for show: {unknown} (choose from '{', '.join(sorted(known))}')"
+            )
 
     @property
     def unhandled(self) -> frozenset[str]:
