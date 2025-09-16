@@ -439,13 +439,22 @@ class CmdLineFwkTestCase(unittest.TestCase):
         actions = [_ACTION_ADD_TASK(f"{_TASK_CLASS}:task"), _ACTION_CONFIG("task:addend=100")]
         kwargs = _makeArgs(pipeline_actions=actions).__dict__
         pipeline_graph_factory = build(**kwargs)
+        pipeline_graph_factory.pipeline.addLabeledSubset("test_subset", "test description", {"task"})
 
         with self.assertRaises(ValueError):
             ShowInfo(["unrecognized", "config"])
 
         stream = StringIO()
         show = ShowInfo(
-            ["pipeline", "config", "history=task::addend", "tasks", "dump-config", "config=task::add*"],
+            [
+                "pipeline",
+                "config",
+                "history=task::addend",
+                "tasks",
+                "subsets",
+                "dump-config",
+                "config=task::add*",
+            ],
             stream=stream,
         )
         show.show_pipeline_info(pipeline_graph_factory)
@@ -522,6 +531,20 @@ class CmdLineFwkTestCase(unittest.TestCase):
             show.show_pipeline_info(pipeline_graph_factory)
         self.assertIn("Pipeline has no tasks named notask", str(cm.exception))
 
+        stream = StringIO()
+        show = ShowInfo(["tasks"], stream=stream)
+        show.show_pipeline_info(pipeline_graph_factory)
+        stream.seek(0)
+        output = stream.read().strip()
+        self.assertIn("### Subtasks for task `lsst.pipe.base.tests.simpleQGraph.AddTask'", output)
+
+        stream = StringIO()
+        show = ShowInfo(["subsets"], stream=stream)
+        show.show_pipeline_info(pipeline_graph_factory)
+        stream.seek(0)
+        output = stream.read().strip()
+        self.assertIn("test_subset", output)
+
 
 class CmdLineFwkTestCaseWithButler(unittest.TestCase):
     """A test case for CmdLineFwk."""
@@ -537,7 +560,7 @@ class CmdLineFwkTestCaseWithButler(unittest.TestCase):
         super().tearDownClass()
 
     def testSimpleQGraph(self):
-        """Test successfull execution of trivial quantum graph."""
+        """Test successful execution of trivial quantum graph."""
         args = _makeArgs(butler_config=self.root, input="test", output="output")
         butler = makeSimpleButler(self.root, run=args.input, inMemory=False)
         populateButler(self.pipeline, butler)

@@ -111,6 +111,7 @@ class ShowInfo:
         "dump-config",
         "pipeline-graph",
         "task-graph",
+        "subsets",
     }
     graph_commands = {"graph", "workflow", "uri"}
 
@@ -131,7 +132,9 @@ class ShowInfo:
         known = self.pipeline_commands | self.graph_commands
         unknown = set(commands) - known
         if unknown:
-            raise ValueError(f"Unknown value(s) for show: {unknown} (choose from '{', '.join(known)}')")
+            raise ValueError(
+                f"Unknown value(s) for show: {unknown} (choose from '{', '.join(sorted(known))}')"
+            )
 
     @property
     def unhandled(self) -> frozenset[str]:
@@ -151,7 +154,6 @@ class ShowInfo:
             if command not in self.commands:
                 continue
             args = self.commands[command]
-
             match command:
                 case "pipeline":
                     print(pipeline_graph_factory.pipeline, file=self.stream)
@@ -166,6 +168,14 @@ class ShowInfo:
                         self._showConfigHistory(pipeline_graph_factory(visualization_only=True), arg)
                 case "tasks":
                     self._showTaskHierarchy(pipeline_graph_factory(visualization_only=True))
+                case "subsets":
+                    print(
+                        "\n".join(
+                            f"{subset}:\n" + "\n".join(f"  - {s}" for s in sorted(tasks))
+                            for subset, tasks in dict(pipeline_graph_factory.pipeline.subsets).items()
+                        ),
+                        file=self.stream,
+                    )
                 case "pipeline-graph":
                     visualization.show(
                         pipeline_graph_factory(visualization_only=True), self.stream, dataset_types=True
