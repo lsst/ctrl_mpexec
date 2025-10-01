@@ -28,6 +28,9 @@
 from __future__ import annotations
 
 from lsst.pipe.base import BuildId, QuantumGraph
+from lsst.pipe.base.pipeline_graph import TaskImportMode
+from lsst.pipe.base.quantum_graph import PredictedQuantumGraph
+from lsst.resources import ResourcePath, ResourcePathExpression
 from lsst.utils.logging import getLogger
 
 from ..butler_factory import ButlerFactory
@@ -37,7 +40,7 @@ _LOG = getLogger(__name__)
 
 def pre_exec_init_qbb(
     butler_config: str,
-    qgraph: str,
+    qgraph: ResourcePathExpression,
     qgraph_id: str | None,
     config_search_path: list[str] | None,
     **kwargs: object,
@@ -64,11 +67,27 @@ def pre_exec_init_qbb(
         function and pass all the option kwargs to each of the script functions
         which ignore these unused kwargs.
     """
-    _LOG.verbose("Reading full quantum graph from %s.", qgraph)
-    # Load quantum graph. We do not really need individual Quanta here,
-    # but we need datastore records for initInputs, and those are only
-    # available from Quanta, so load the whole thing.
-    qg = QuantumGraph.loadUri(qgraph, graphID=BuildId(qgraph_id) if qgraph_id is not None else None)
+    qgraph = ResourcePath(qgraph)
+    match qgraph.getExtension():
+        case ".qgraph":
+            _LOG.verbose("Reading full quantum graph from %s.", qgraph)
+            qg = PredictedQuantumGraph.from_old_quantum_graph(
+                QuantumGraph.loadUri(
+                    qgraph,
+                    graphID=BuildId(qgraph_id) if qgraph_id is not None else None,
+                )
+            )
+        case ".qg":
+            _LOG.verbose("Reading init quanta from quantum graph from %s.", qgraph)
+            if qgraph_id is not None:
+                _LOG.warning("--qgraph-id is ignored when loading new '.qg' files.")
+            with PredictedQuantumGraph.open(
+                qgraph, import_mode=TaskImportMode.ASSUME_CONSISTENT_EDGES
+            ) as reader:
+                reader.read_init_quanta()
+            qg = reader.finish()
+        case ext:
+            raise ValueError(f"Unrecognized extension for quantum graph: {ext!r}")
 
     # Ensure that QBB uses shared datastore cache for writes.
     ButlerFactory.define_datastore_cache()

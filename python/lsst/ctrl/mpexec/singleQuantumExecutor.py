@@ -164,7 +164,7 @@ class SingleQuantumExecutor(lsst.pipe.base.single_quantum_executor.SingleQuantum
         return super()._write_metadata(quantum, metadata, task_node, limited_butler=limited_butler)
 
     def initGlobals(self, quantum: Quantum) -> None:
-        return super()._init_globals(quantum)
+        pass
 
     @property
     def butler(self) -> Butler | None:

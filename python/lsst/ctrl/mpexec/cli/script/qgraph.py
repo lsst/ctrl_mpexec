@@ -42,6 +42,8 @@ from lsst.pipe.base.all_dimensions_quantum_graph_builder import (
 )
 from lsst.pipe.base.dot_tools import graph2dot
 from lsst.pipe.base.mermaid_tools import graph2mermaid
+from lsst.pipe.base.pipeline_graph import TaskImportMode
+from lsst.pipe.base.quantum_graph import PredictedQuantumGraph, PredictedQuantumGraphComponents
 from lsst.resources import ResourcePath, ResourcePathExpression
 from lsst.utils.iteration import ensure_iterable
 from lsst.utils.logging import getLogger
@@ -60,7 +62,7 @@ _LOG = getLogger(__name__)
 def qgraph(
     pipeline_graph_factory: PipelineGraphFactory | None,
     *,
-    qgraph: QuantumGraph | ResourcePathExpression | None,
+    qgraph: ResourcePathExpression | None,
     qgraph_id: str | None,
     qgraph_node_id: Iterable[uuid.UUID | str] | None,
     qgraph_datastore_records: bool,
@@ -85,8 +87,10 @@ def qgraph(
     mock: bool = False,
     unmocked_dataset_types: Sequence[str],
     mock_failure: Mapping[str, ForcedFailure],
+    for_execution: bool = False,
+    for_init_output_run: bool = False,
     **kwargs: object,
-) -> QuantumGraph | None:
+) -> PredictedQuantumGraph | None:
     """Implement the command line interface `pipetask qgraph` subcommand.
 
     Should only be called by command line tools and unit test code that test
@@ -97,8 +101,7 @@ def qgraph(
     pipeline_graph_factory : `..PipelineGraphFactory` or `None`
         A factory that holds the pipeline and can produce a pipeline graph.
         If this is not `None` then `qgraph` should be `None`.
-    qgraph : `lsst.pipe.base.QuantumGraph`, convertible to \
-            `lsst.resources.ResourcePath` or `None`
+    qgraph : convertible to `lsst.resources.ResourcePath`, or `None`
         URI location for a serialized quantum graph definition. If this option
         is not `None` then ``pipeline_graph_factory`` should be `None`.
     qgraph_id : `str` or `None`
@@ -179,15 +182,23 @@ def qgraph(
         List of overall-input dataset types that should not be mocked.
     mock_failure : `~collections.abc.Mapping`
         Quanta that should raise exceptions.
-    **kwargs : `object`
+    for_execution : `bool`, optional
+        If `True`, the script is being used to feed another that will execute
+        the given quanta, and hence all information needed for execution must
+        be loaded.
+    for_init_output_run : `bool`, optional
+        If `True`, the script is being used to feed another that will
+        initialize the output run, and hence all information needed to do so
+        must be loaded.
+    **kwargs : `dict` [`str`, `str`]
         Ignored; click commands may accept options for more than one script
         function and pass all the option kwargs to each of the script functions
         which ignore these unused kwargs.
 
     Returns
     -------
-    qgraph : `lsst.pipe.base.QuantumGraph` or `None`
-        The qgraph object that was created.
+    qg : `lsst.pipe.base.quantum_graph.PredictedQuantumGraph`
+        The quantum graph object that was created or loaded.
     """
     # make sure that --extend-run always enables --skip-existing
     if extend_run:
@@ -213,16 +224,43 @@ def qgraph(
     if skip_existing and run:
         skip_existing_in += (run,)
 
+    qgc: PredictedQuantumGraphComponents
     if qgraph is not None:
-        if not isinstance(qgraph, QuantumGraph):
-            # click passes empty tuple as default value for qgraph_node_id
-            nodes = qgraph_node_id or None
-            qgraph = QuantumGraph.loadUri(
-                qgraph,
-                butler.dimensions,
-                nodes=nodes,
-                graphID=BuildId(qgraph_id) if qgraph_id is not None else None,
-            )
+        # click passes empty tuple as default value for qgraph_node_id
+        quantum_ids = (
+            {uuid.UUID(q) if not isinstance(q, uuid.UUID) else q for q in qgraph_node_id}
+            if qgraph_node_id
+            else None
+        )
+        qgraph = ResourcePath(qgraph)
+        match qgraph.getExtension():
+            case ".qgraph":
+                qgc = PredictedQuantumGraphComponents.from_old_quantum_graph(
+                    QuantumGraph.loadUri(
+                        qgraph,
+                        butler.dimensions,
+                        nodes=quantum_ids,
+                        graphID=BuildId(qgraph_id) if qgraph_id is not None else None,
+                    )
+                )
+            case ".qg":
+                if qgraph_id is not None:
+                    _LOG.warning("--qgraph-id is ignored when loading new '.qg' files.")
+                if for_execution or for_init_output_run or save_qgraph or show.needs_full_qg:
+                    import_mode = TaskImportMode.ASSUME_CONSISTENT_EDGES
+                else:
+                    import_mode = TaskImportMode.DO_NOT_IMPORT
+                with PredictedQuantumGraph.open(qgraph, import_mode=import_mode) as reader:
+                    if for_execution or qgraph_dot or qgraph_mermaid or show.needs_full_qg:
+                        # This reads everything for the given quanta.
+                        reader.read_execution_quanta(quantum_ids)
+                    elif for_init_output_run:
+                        reader.read_init_quanta()
+                    else:
+                        reader.read_thin_graph()
+                    qgc = reader.components
+            case ext:
+                raise ValueError(f"Unrecognized extension for quantum graph: {ext!r}")
 
         # pipeline can not be provided in this case
         if pipeline_graph_factory:
@@ -265,38 +303,37 @@ def qgraph(
             output_run=run,
             data_id_tables=data_id_tables,
         )
-        # accumulate metadata
+        # Accumulate metadata (QB builder adds some of its own).
         metadata = {
-            "input": inputs,
-            "output": output,
             "butler_argument": str(butler_config),
-            "output_run": run,
             "extend_run": extend_run,
             "skip_existing_in": skip_existing_in,
             "skip_existing": skip_existing,
             "data_query": data_query,
         }
         assert run is not None, "Butler output run collection must be defined"
-        qgraph = graph_builder.build(metadata, attach_datastore_records=qgraph_datastore_records)
+        qgc = graph_builder.finish(
+            output, metadata=metadata, attach_datastore_records=qgraph_datastore_records
+        )
 
-    if len(qgraph) == 0:
-        # Nothing to do.
+    if not summarize_quantum_graph(qgc.header):
         return None
-    summarize_quantum_graph(qgraph)
 
     if save_qgraph:
-        _LOG.verbose("Writing QuantumGraph to %r.", save_qgraph)
-        qgraph.saveUri(save_qgraph)
+        _LOG.verbose("Writing quantum graph to %r.", save_qgraph)
+        qgc.write(save_qgraph)
+
+    qg = qgc.assemble()
 
     if qgraph_dot:
         _LOG.verbose("Writing quantum graph DOT visualization to %r.", qgraph_dot)
-        graph2dot(qgraph, qgraph_dot)
+        graph2dot(qg, qgraph_dot)  # TODO[DM-51850]: make this work
 
     if qgraph_mermaid:
         _LOG.verbose("Writing quantum graph Mermaid visualization to %r.", qgraph_mermaid)
-        graph2mermaid(qgraph, qgraph_mermaid)
+        graph2mermaid(qg, qgraph_mermaid)  # TODO[DM-51850]: make this work
 
     # optionally dump some info.
-    show.show_graph_info(qgraph, butler_config)
+    show.show_graph_info(qg, butler_config)  # TODO[DM-51850]: make this work
 
-    return qgraph
+    return qg

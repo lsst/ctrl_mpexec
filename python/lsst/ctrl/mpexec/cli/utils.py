@@ -30,13 +30,15 @@ import collections
 import contextlib
 import logging
 import re
+from typing import Any
 
+import click
 from astropy.table import Table
 
 from lsst.daf.butler.cli.opt import config_file_option, config_option
-from lsst.daf.butler.cli.utils import MWCommand, split_commas
-from lsst.pipe.base import QuantumGraph
+from lsst.daf.butler.cli.utils import MWCommand, MWCtxObj, split_commas
 from lsst.pipe.base.cli.opt import instrument_option
+from lsst.pipe.base.quantum_graph import HeaderModel
 from lsst.utils.logging import getLogger
 
 from .opt import delete_option, task_option
@@ -103,7 +105,7 @@ _ACTION_CONFIG_FILE = _PipelineActionType("configfile", "(?P<label>.+):(?P<value
 _ACTION_ADD_INSTRUMENT = _PipelineActionType("add_instrument", "(?P<value>[^:]+)")
 
 
-def makePipelineActions(
+def make_pipeline_actions(
     args: list[str],
     taskFlags: list[str] = task_option.opts(),
     deleteFlags: list[str] = delete_option.opts(),
@@ -160,47 +162,96 @@ def makePipelineActions(
     return pipelineActions
 
 
+def collect_pipeline_actions(ctx: click.Context, **kwargs: Any) -> dict[str, Any]:
+    """Extract pipeline building options, replace them with PipelineActions,
+    return updated `kwargs`.
+
+    Parameters
+    ----------
+    ctx : `click.Context`
+        Click context to extract actions from.
+    **kwargs : `object`
+        Keyword arguments to start from.
+
+    Returns
+    -------
+    kwargs : `dict`
+        Updated keyword arguments.
+
+    Notes
+    -----
+    The pipeline actions (task, delete, config, config_file, and instrument)
+    must be handled in the order they appear on the command line, but the CLI
+    specification gives them all different option names. So, instead of using
+    the individual action options as they appear in kwargs (because
+    invocation order can't be known), we capture the CLI arguments by
+    overriding `click.Command.parse_args` and save them in the Context's
+    `obj` parameter. We use `makePipelineActions` to create a list of
+    pipeline actions from the CLI arguments and pass that list to the script
+    function using the `pipeline_actions` kwarg name, and remove the action
+    options from kwargs.
+    """
+    from lsst.pipe.base.cli.opt import instrument_option
+
+    from .opt import delete_option, task_option
+
+    for pipelineAction in (
+        task_option.name(),
+        delete_option.name(),
+        config_option.name(),
+        config_file_option.name(),
+        instrument_option.name(),
+    ):
+        kwargs.pop(pipelineAction)
+
+    actions = make_pipeline_actions(MWCtxObj.getFrom(ctx).args)
+    pipeline_actions = []
+    for action in actions:
+        pipeline_actions.append(action)
+
+    kwargs["pipeline_actions"] = pipeline_actions
+    return kwargs
+
+
 class PipetaskCommand(MWCommand):
     """Command subclass with pipetask-command specific overrides."""
 
     extra_epilog = "See 'pipetask --help' for more options."
 
 
-def summarize_quantum_graph(qgraph: QuantumGraph) -> int:
+def summarize_quantum_graph(qg_header: HeaderModel) -> int:
     """Report a summary of the quanta in the graph.
 
     Parameters
     ----------
-    qgraph : `lsst.pipe.base.QuantumGraph`
-        The graph to be summarized.
+    qg_header : `lsst.pipe.base.quantum_graph.HeaderModel`
+        Header of the quantum graph.
 
     Returns
     -------
     n_quanta : `int`
         The number of quanta in the graph.
     """
-    n_quanta = len(qgraph)
+    n_quanta = qg_header.n_quanta
     if n_quanta == 0:
         _LOG.info("QuantumGraph contains no quanta.")
     else:
-        summary = qgraph.getSummary()
         if _LOG.isEnabledFor(logging.INFO):
             qg_quanta, qg_tasks = [], []
-            for task_label, task_info in summary.qgraphTaskSummaries.items():
+            for task_label, n_quanta_for_task in qg_header.n_task_quanta.items():
                 qg_tasks.append(task_label)
-                qg_quanta.append(task_info.numQuanta)
+                qg_quanta.append(n_quanta_for_task)
             qg_task_table = Table(dict(Quanta=qg_quanta, Tasks=qg_tasks))
             qg_task_table_formatted = "\n".join(qg_task_table.pformat())
             quanta_str = "quantum" if n_quanta == 1 else "quanta"
-            n_tasks = len(qgraph.taskGraph)
+            n_tasks = len(qg_header.n_task_quanta)
             n_tasks_plural = "" if n_tasks == 1 else "s"
             _LOG.info(
-                "QuantumGraph contains %d %s for %d task%s, graph ID: %r\n%s",
+                "QuantumGraph contains %d %s for %d task%s\n%s",
                 n_quanta,
                 quanta_str,
                 n_tasks,
                 n_tasks_plural,
-                qgraph.graphID,
                 qg_task_table_formatted,
             )
     return n_quanta

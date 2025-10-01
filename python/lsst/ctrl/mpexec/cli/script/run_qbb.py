@@ -43,8 +43,9 @@ from lsst.daf.butler import (
     Quantum,
     QuantumBackedButler,
 )
-from lsst.pipe.base import BuildId, ExecutionResources, QuantumGraph, TaskFactory
+from lsst.pipe.base import ExecutionResources, TaskFactory
 from lsst.pipe.base.mp_graph_executor import MPGraphExecutor
+from lsst.pipe.base.quantum_graph import PredictedQuantumGraph
 from lsst.pipe.base.single_quantum_executor import SingleQuantumExecutor
 from lsst.resources import ResourcePath, ResourcePathExpression
 from lsst.utils.logging import VERBOSE, getLogger
@@ -147,31 +148,31 @@ def run_qbb(
     if not enable_implicit_threading:
         disable_implicit_threading()
 
+    # click passes empty tuple as default value for qgraph_node_id
+    quantum_ids = (
+        {uuid.UUID(q) if not isinstance(q, uuid.UUID) else q for q in qgraph_node_id}
+        if qgraph_node_id
+        else None
+    )
     # Load quantum graph.
-    nodes = qgraph_node_id or None
     with lsst.utils.timer.time_this(
         _LOG,
-        msg=f"Reading {str(len(nodes)) if nodes is not None else 'all'} quanta.",
+        msg=f"Reading {str(len(quantum_ids)) if quantum_ids is not None else 'all'} quanta.",
         level=VERBOSE,
     ) as qg_read_time:
-        qg = QuantumGraph.loadUri(
-            qgraph, nodes=nodes, graphID=BuildId(qgraph_id) if qgraph_id is not None else None
-        )
+        qg = PredictedQuantumGraph.read_execution_quanta(qgraph, quantum_ids=quantum_ids)
     job_metadata = {"qg_read_time": qg_read_time.duration, "qg_size": len(qg)}
 
-    if qg.metadata is None:
-        raise ValueError("QuantumGraph is missing metadata, cannot continue.")
+    summarize_quantum_graph(qg.header)
 
-    summarize_quantum_graph(qg)
-
-    dataset_types = {dstype.name: dstype for dstype in qg.registryDatasetTypes()}
+    dataset_types = {dtn.name: dtn.dataset_type for dtn in qg.pipeline_graph.dataset_types.values()}
 
     # Ensure that QBB uses shared datastore cache.
     ButlerFactory.define_datastore_cache()
 
     _butler_factory = _QBBFactory(
         butler_config=butler_config,
-        dimensions=qg.universe,
+        dimensions=qg.pipeline_graph.universe,
         dataset_types=dataset_types,
         config_search_path=config_search_path,
     )

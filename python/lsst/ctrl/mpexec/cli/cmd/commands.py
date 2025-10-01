@@ -35,25 +35,22 @@ from typing import Any
 
 import click
 
-import lsst.pipe.base.cli.opt as pipeBaseOpts
 from lsst.ctrl.mpexec.showInfo import ShowInfo
 from lsst.daf.butler.cli.opt import (
     collections_option,
-    config_file_option,
-    config_option,
     confirm_option,
     options_file_option,
     processes_option,
     repo_argument,
     where_option,
 )
-from lsst.daf.butler.cli.utils import MWCtxObj, catch_and_exit, option_section, unwrap
+from lsst.daf.butler.cli.utils import catch_and_exit, option_section, unwrap
 from lsst.pipe.base.quantum_reports import Report
 
 from .. import opt as ctrlMpExecOpts
 from .. import script
 from ..script import confirmable
-from ..utils import PipetaskCommand, makePipelineActions
+from ..utils import PipetaskCommand, collect_pipeline_actions
 
 epilog = unwrap(
     """Notes:
@@ -67,41 +64,6 @@ treated as a comment and ignored. Blank lines and lines starting with # are
 ignored.)
 """
 )
-
-
-def _collectActions(ctx: click.Context, **kwargs: Any) -> dict[str, Any]:
-    """Extract pipeline building options, replace them with PipelineActions,
-    return updated `kwargs`.
-
-    Notes
-    -----
-    The pipeline actions (task, delete, config, config_file, and instrument)
-    must be handled in the order they appear on the command line, but the CLI
-    specification gives them all different option names. So, instead of using
-    the individual action options as they appear in kwargs (because
-    invocation order can't be known), we capture the CLI arguments by
-    overriding `click.Command.parse_args` and save them in the Context's
-    `obj` parameter. We use `makePipelineActions` to create a list of
-    pipeline actions from the CLI arguments and pass that list to the script
-    function using the `pipeline_actions` kwarg name, and remove the action
-    options from kwargs.
-    """
-    for pipelineAction in (
-        ctrlMpExecOpts.task_option.name(),
-        ctrlMpExecOpts.delete_option.name(),
-        config_option.name(),
-        config_file_option.name(),
-        pipeBaseOpts.instrument_option.name(),
-    ):
-        kwargs.pop(pipelineAction)
-
-    actions = makePipelineActions(MWCtxObj.getFrom(ctx).args)
-    pipeline_actions = []
-    for action in actions:
-        pipeline_actions.append(action)
-
-    kwargs["pipeline_actions"] = pipeline_actions
-    return kwargs
 
 
 def _unhandledShow(show: ShowInfo, cmd: str) -> None:
@@ -125,7 +87,7 @@ def build(ctx: click.Context, **kwargs: Any) -> None:
 
     This does not require input data to be specified.
     """
-    kwargs = _collectActions(ctx, **kwargs)
+    kwargs = collect_pipeline_actions(ctx, **kwargs)
     show = ShowInfo(kwargs.pop("show", []))
     if kwargs.get("butler_config") is not None and (
         {"pipeline-graph", "task-graph"}.isdisjoint(show.commands) and not kwargs.get("pipeline_dot")
@@ -187,7 +149,7 @@ concurrency = multiprocessing
 @catch_and_exit
 def qgraph(ctx: click.Context, **kwargs: Any) -> None:
     """Build and optionally save quantum graph."""
-    kwargs = _collectActions(ctx, **kwargs)
+    kwargs = collect_pipeline_actions(ctx, **kwargs)
     summary = kwargs.pop("summary", None)
     with coverage_context(kwargs):
         show = ShowInfo(kwargs.pop("show", []))
@@ -204,12 +166,21 @@ def qgraph(ctx: click.Context, **kwargs: Any) -> None:
                 file=sys.stderr,
             )
             return
-        if (qgraph := script.qgraph(pipeline_graph_factory, **kwargs, show=show)) is None:
+        if (
+            qgraph := script.qgraph(
+                pipeline_graph_factory,
+                **kwargs,
+                show=show,
+                # Making a summary report requires that we load the same graph
+                # components as execution.
+                for_execution=(summary is not None),
+            )
+        ) is None:
             raise click.ClickException("QuantumGraph was empty; ERROR logs above should provide details.")
         # QuantumGraph-only summary call here since script.qgraph also called
         # by run methods.
         if summary:
-            report = Report(qgraphSummary=qgraph.getSummary())
+            report = Report(qgraphSummary=qgraph._make_summary())
             with open(summary, "w") as out:
                 # Do not save fields that are not set.
                 out.write(report.model_dump_json(exclude_none=True, indent=2))
@@ -222,7 +193,7 @@ def qgraph(ctx: click.Context, **kwargs: Any) -> None:
 @catch_and_exit
 def run(ctx: click.Context, **kwargs: Any) -> None:
     """Build and execute pipeline and quantum graph."""
-    kwargs = _collectActions(ctx, **kwargs)
+    kwargs = collect_pipeline_actions(ctx, **kwargs)
     with coverage_context(kwargs):
         show = ShowInfo(kwargs.pop("show", []))
         pipeline_graph_factory = script.build(**kwargs, show=show)
@@ -233,7 +204,7 @@ def run(ctx: click.Context, **kwargs: Any) -> None:
                 file=sys.stderr,
             )
             return
-        if (qgraph := script.qgraph(pipeline_graph_factory, **kwargs, show=show)) is None:
+        if (qgraph := script.qgraph(pipeline_graph_factory, for_execution=True, **kwargs, show=show)) is None:
             raise click.ClickException("QuantumGraph was empty; ERROR logs above should provide details.")
         _unhandledShow(show, "run")
         if show.handled:
