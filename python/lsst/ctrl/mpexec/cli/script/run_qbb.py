@@ -163,7 +163,7 @@ def run_qbb(
         qg = PredictedQuantumGraph.read_execution_quanta(qgraph, quantum_ids=quantum_ids)
     job_metadata = {"qg_read_time": qg_read_time.duration, "qg_size": len(qg)}
 
-    summarize_quantum_graph(qg.header)
+    summarize_quantum_graph(qg)
 
     dataset_types = {dtn.name: dtn.dataset_type for dtn in qg.pipeline_graph.dataset_types.values()}
 

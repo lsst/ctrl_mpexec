@@ -316,14 +316,14 @@ def qgraph(
             output, metadata=metadata, attach_datastore_records=qgraph_datastore_records
         )
 
-    if not summarize_quantum_graph(qgc.header):
-        return None
-
     if save_qgraph:
         _LOG.verbose("Writing quantum graph to %r.", save_qgraph)
         qgc.write(save_qgraph)
 
     qg = qgc.assemble()
+
+    if not summarize_quantum_graph(qg):
+        return None
 
     if qgraph_dot:
         _LOG.verbose("Writing quantum graph DOT visualization to %r.", qgraph_dot)
