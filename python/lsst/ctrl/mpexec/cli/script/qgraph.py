@@ -251,7 +251,7 @@ def qgraph(
                 else:
                     import_mode = TaskImportMode.DO_NOT_IMPORT
                 with PredictedQuantumGraph.open(qgraph, import_mode=import_mode) as reader:
-                    if for_execution or qgraph_dot or qgraph_mermaid or show.needs_full_qg:
+                    if for_execution or qgraph_dot or qgraph_mermaid or show.needs_full_qg or qgraph_node_id:
                         # This reads everything for the given quanta.
                         reader.read_execution_quanta(quantum_ids)
                     elif for_init_output_run:
