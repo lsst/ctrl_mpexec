@@ -71,6 +71,41 @@ class QgraphTest(unittest.TestCase):
             self.assertEqual(summary.qgraphSummary.outputRun, "output_run")
             self.assertEqual(len(summary.qgraphSummary.qgraphTaskSummaries), 2)
 
+    def test_partial_read_counts(self):
+        """Test reading only one node from a saved graph and check that the
+        printed task/quantum counts reflect only that node.
+        """
+        with DirectButlerRepo.make_temporary() as (helper, root):
+            helper.add_task()
+            helper.add_task()
+            qgc = helper.make_quantum_graph_builder().finish(attach_datastore_records=False)
+            quantum_id = next(iter(qgc.quantum_datasets.keys()))
+            graph_uri = os.path.join(root, "graph.qg")
+            qgc.write(graph_uri)
+            log_filename = os.path.join(root, "qgraph.log")
+            runner = LogCliRunner()
+            result = runner.invoke(
+                pipetask_cli,
+                [
+                    "--log-level",
+                    "lsst.ctrl.mpexec.cli.utils=INFO",
+                    "--log-file",
+                    log_filename,
+                    "qgraph",
+                    "--butler-config",
+                    root,
+                    "--qgraph",
+                    graph_uri,
+                    "--qgraph-node-id",
+                    str(quantum_id),
+                ],
+                input="no",
+            )
+            self.assertEqual(result.exit_code, 0, clickResultMsg(result))
+            with open(log_filename) as log_file:
+                log = log_file.read()
+            self.assertIn("1 quantum for 1 task", log)
+
     def test_qgraph_show(self):
         with DirectButlerRepo.make_temporary() as (helper, root):
             helper.add_task()
