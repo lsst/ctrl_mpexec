@@ -327,13 +327,13 @@ def qgraph(
 
     if qgraph_dot:
         _LOG.verbose("Writing quantum graph DOT visualization to %r.", qgraph_dot)
-        graph2dot(qg, qgraph_dot)  # TODO[DM-51850]: make this work
+        graph2dot(qg, qgraph_dot)
 
     if qgraph_mermaid:
         _LOG.verbose("Writing quantum graph Mermaid visualization to %r.", qgraph_mermaid)
-        graph2mermaid(qg, qgraph_mermaid)  # TODO[DM-51850]: make this work
+        graph2mermaid(qg, qgraph_mermaid)
 
     # optionally dump some info.
-    show.show_graph_info(qg, butler_config)  # TODO[DM-51850]: make this work
+    show.show_graph_info(qg, butler_config)
 
     return qg
