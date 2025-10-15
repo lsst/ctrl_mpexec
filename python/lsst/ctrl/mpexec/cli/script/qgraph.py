@@ -251,7 +251,7 @@ def qgraph(
                 else:
                     import_mode = TaskImportMode.DO_NOT_IMPORT
                 with PredictedQuantumGraph.open(qgraph, import_mode=import_mode) as reader:
-                    if for_execution or qgraph_dot or qgraph_mermaid or show.needs_full_qg:
+                    if for_execution or qgraph_dot or qgraph_mermaid or show.needs_full_qg or qgraph_node_id:
                         # This reads everything for the given quanta.
                         reader.read_execution_quanta(quantum_ids)
                     elif for_init_output_run:
@@ -316,24 +316,24 @@ def qgraph(
             output, metadata=metadata, attach_datastore_records=qgraph_datastore_records
         )
 
-    if not summarize_quantum_graph(qgc.header):
-        return None
-
     if save_qgraph:
         _LOG.verbose("Writing quantum graph to %r.", save_qgraph)
         qgc.write(save_qgraph)
 
     qg = qgc.assemble()
 
+    if not summarize_quantum_graph(qg):
+        return None
+
     if qgraph_dot:
         _LOG.verbose("Writing quantum graph DOT visualization to %r.", qgraph_dot)
-        graph2dot(qg, qgraph_dot)  # TODO[DM-51850]: make this work
+        graph2dot(qg, qgraph_dot)
 
     if qgraph_mermaid:
         _LOG.verbose("Writing quantum graph Mermaid visualization to %r.", qgraph_mermaid)
-        graph2mermaid(qg, qgraph_mermaid)  # TODO[DM-51850]: make this work
+        graph2mermaid(qg, qgraph_mermaid)
 
     # optionally dump some info.
-    show.show_graph_info(qg, butler_config)  # TODO[DM-51850]: make this work
+    show.show_graph_info(qg, butler_config)
 
     return qg
