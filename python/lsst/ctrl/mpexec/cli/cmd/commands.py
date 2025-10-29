@@ -338,6 +338,22 @@ def update_graph_run(
     "or when using the --force-v2 option, this should be a json file. We will be "
     "deprecating the single-graph-only (QuantumGraphExecutionReport) option soon.",
 )
+@click.option(
+    "--show-exception-diagnostics",
+    is_flag=True,
+    default=False,
+    help="Show exception diagnostics in the report. This is a detailed report of "
+    "the exceptions that occurred during the execution of the pipeline, combined "
+    "with the exposure dimension records.",
+)
+@click.option(
+    "--exception-diagnostics-filename",
+    default="",
+    help="Write to a file with this name a detailed exception report joined with exposure "
+    "dimension records. It's useful for spotting trends in exception types across data IDs. "
+    "Uses Astropy-supported formats based on file extension (e.g., html, csv, ecsv, pandas.json). "
+    "Full list: https://docs.astropy.org/en/stable/io/unified.html",
+)
 @click.option("--logs/--no-logs", default=True, help="Get butler log datasets for extra information.")
 @click.option(
     "--brief",
@@ -384,6 +400,8 @@ def report(
     collections: Sequence[str] | None,
     where: str,
     full_output_filename: str = "",
+    exception_diagnostics_filename: str = "",
+    show_exception_diagnostics: bool = False,
     logs: bool = True,
     brief: bool = False,
     curse_failed_logs: bool = False,
@@ -422,6 +440,8 @@ def report(
             collections,
             where,
             full_output_filename,
+            exception_diagnostics_filename,
+            show_exception_diagnostics,
             logs,
             brief,
             curse_failed_logs,
@@ -450,7 +470,9 @@ def report(
     " also printed to the screen when using the --full-output-filename option.",
 )
 def aggregate_reports(
-    filenames: Sequence[str], full_output_filename: str | None, brief: bool = False
+    filenames: Sequence[str],
+    full_output_filename: str | None,
+    brief: bool = False,
 ) -> None:
     """Aggregate pipetask report output on disjoint data-id groups into one
     Summary over common tasks and datasets. Intended for use when the same
@@ -466,4 +488,4 @@ def aggregate_reports(
     FILENAMES are the space-separated paths to json file output created by
     pipetask report.
     """
-    script.aggregate_reports(filenames, full_output_filename, brief)
+    script.aggregate_reports(filenames, full_output_filename, brief=brief)
