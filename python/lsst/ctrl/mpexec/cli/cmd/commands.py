@@ -141,7 +141,7 @@ concurrency = multiprocessing
 @click.command(cls=PipetaskCommand, epilog=epilog)
 @click.pass_context
 @ctrlMpExecOpts.show_option()
-@ctrlMpExecOpts.pipeline_build_options()
+@ctrlMpExecOpts.pipeline_build_options(skip_butler_config=True)
 @ctrlMpExecOpts.qgraph_options()
 @ctrlMpExecOpts.butler_options()
 @option_section(sectionText="")
