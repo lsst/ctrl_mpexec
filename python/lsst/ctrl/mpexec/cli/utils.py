@@ -227,7 +227,7 @@ def summarize_quantum_graph(qg: BaseQuantumGraph) -> int:
     Parameters
     ----------
     qg : `lsst.pipe.base.quantum_graph.BaseQuantumGraph`
-        Quantum graph object
+        Quantum graph object.
 
     Returns
     -------
