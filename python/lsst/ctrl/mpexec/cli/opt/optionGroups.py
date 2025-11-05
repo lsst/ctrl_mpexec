@@ -54,9 +54,15 @@ instrumentOptionHelp = (
 class pipeline_build_options(OptionGroup):  # noqa: N801
     """Decorator to add options to the command function for building a
     pipeline.
+
+    Parameters
+    ----------
+    skip_butler_config : `bool`, optional
+        If `True` the butler configuration option will not be included and will
+        be assumed to be added explicitly elsewhere.
     """
 
-    def __init__(self) -> None:
+    def __init__(self, skip_butler_config: bool = False) -> None:
         self.decorators = [
             option_section(sectionText="Pipeline build options:"),
             ctrlMpExecOpts.pipeline_option(),
@@ -76,8 +82,9 @@ class pipeline_build_options(OptionGroup):  # noqa: N801
             ctrlMpExecOpts.pipeline_dot_option(),
             ctrlMpExecOpts.pipeline_mermaid_option(),
             pipeBaseOpts.instrument_option(help=instrumentOptionHelp, metavar="instrument", multiple=True),
-            ctrlMpExecOpts.butler_config_option(required=False),
         ]
+        if not skip_butler_config:
+            self.decorators.append(ctrlMpExecOpts.butler_config_option(required=False))
 
 
 class coverage_options(OptionGroup):  # noqa: N801
@@ -95,9 +102,23 @@ class coverage_options(OptionGroup):  # noqa: N801
 class qgraph_options(OptionGroup):  # noqa: N801
     """Decorator to add options to a command function for creating a quantum
     graph.
+
+    Parameters
+    ----------
+    skip_coverage : `bool`, optional
+        If `True` the coverage configuration options will not be included and
+        will be assumed to be added explicitly elsewhere.
+    skip_clobber : `bool`, optional
+        If `True` the clobber configuration option will not be included and
+        will be assumed to be added explicitly elsewhere.
+    skip_summary : `bool`, optional
+        If `True` the summary configuration option will not be included and
+        will be assumed to be added explicitly elsewhere.
     """
 
-    def __init__(self) -> None:
+    def __init__(
+        self, skip_coverage: bool = False, skip_clobber: bool = False, skip_summary: bool = False
+    ) -> None:
         self.decorators = [
             option_section(sectionText="Quantum graph building options:"),
             ctrlMpExecOpts.qgraph_option(),
@@ -106,18 +127,21 @@ class qgraph_options(OptionGroup):  # noqa: N801
             ctrlMpExecOpts.qgraph_datastore_records_option(),
             ctrlMpExecOpts.skip_existing_in_option(),
             ctrlMpExecOpts.skip_existing_option(),
-            ctrlMpExecOpts.clobber_outputs_option(),
             ctrlMpExecOpts.save_qgraph_option(),
             ctrlMpExecOpts.qgraph_dot_option(),
             ctrlMpExecOpts.qgraph_mermaid_option(),
-            ctrlMpExecOpts.summary_option(),
             ctrlMpExecOpts.dataset_query_constraint(),
             ctrlMpExecOpts.data_id_table_option(),
             ctrlMpExecOpts.mock_option(),
             ctrlMpExecOpts.mock_failure_option(),
             ctrlMpExecOpts.unmocked_dataset_types_option(),
-            coverage_options(),
         ]
+        if not skip_clobber:
+            self.decorators.append(ctrlMpExecOpts.clobber_outputs_option())
+        if not skip_summary:
+            self.decorators.append(ctrlMpExecOpts.summary_option())
+        if not skip_coverage:
+            self.decorators.append(coverage_options())
 
 
 class butler_options(OptionGroup):  # noqa: N801
@@ -187,8 +211,8 @@ class run_options(OptionGroup):  # noqa: N801
             click.pass_context,
             ctrlMpExecOpts.debug_option(),
             ctrlMpExecOpts.show_option(),
-            pipeline_build_options(),
-            qgraph_options(),
+            pipeline_build_options(skip_butler_config=True),
+            qgraph_options(skip_coverage=True, skip_clobber=True, skip_summary=True),
             butler_options(),
             execution_options(),
             meta_info_options(),
