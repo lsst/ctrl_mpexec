@@ -583,7 +583,7 @@ class ButlerFactory:
                     # collection from its chain collection first.
                     with butler.transaction():
                         butler.collections.redefine_chain(self.output.name, chain_definition)
-                        butler.removeRuns([replaced], unstore=True)
+                        butler.removeRuns([replaced])
                 elif prune_replaced is not None:
                     raise NotImplementedError(f"Unsupported --prune-replaced option '{prune_replaced}'.")
             if not self.output.exists:
