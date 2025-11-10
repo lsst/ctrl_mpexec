@@ -43,7 +43,7 @@ class PipetaskCLI(LoaderCLI):
     localCmdPkg = "lsst.ctrl.mpexec.cli.cmd"
 
 
-@click.command(cls=PipetaskCLI, context_settings=dict(help_option_names=["-h", "--help"]))
+@click.command(cls=PipetaskCLI, context_settings=dict(help_option_names=["-h", "--help"]))  # type: ignore
 @log_level_option()
 @long_log_option()
 @log_file_option()
