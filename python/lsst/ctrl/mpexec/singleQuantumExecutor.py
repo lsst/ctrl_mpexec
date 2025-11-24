@@ -40,6 +40,7 @@ import lsst.pipe.base.single_quantum_executor
 if TYPE_CHECKING:
     from lsst.daf.butler import Butler, ButlerMetrics, LimitedButler, Quantum
     from lsst.pipe.base import ExecutionResources, PipelineTask, QuantumSuccessCaveats, TaskFactory
+    from lsst.pipe.base.log_capture import _ExecutionLogRecordsExtra
     from lsst.pipe.base.pipeline_graph import TaskNode
 
 
@@ -136,9 +137,16 @@ class SingleQuantumExecutor(lsst.pipe.base.single_quantum_executor.SingleQuantum
         )
 
     def checkExistingOutputs(
-        self, quantum: Quantum, task_node: TaskNode, /, limited_butler: LimitedButler
+        self,
+        quantum: Quantum,
+        task_node: TaskNode,
+        /,
+        limited_butler: LimitedButler,
+        log_extra: _ExecutionLogRecordsExtra,
     ) -> bool:
-        return super()._check_existing_outputs(quantum, task_node, limited_butler=limited_butler)
+        return super()._check_existing_outputs(
+            quantum, task_node, limited_butler=limited_butler, log_extra=log_extra
+        )
 
     def updatedQuantumInputs(
         self, quantum: Quantum, task_node: TaskNode, /, limited_butler: LimitedButler
