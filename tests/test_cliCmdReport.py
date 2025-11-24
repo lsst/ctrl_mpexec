@@ -87,6 +87,7 @@ class ReportTest(unittest.TestCase):
             root=self.root,
             metadata=metadata,
         )
+        butler.close()
         # Check that we can get the proper run collection from the qgraph
         self.assertEqual(check_output_run(qgraph, "run"), [])
 
@@ -272,6 +273,7 @@ class ReportTest(unittest.TestCase):
             root=self.root,
             metadata=metadata,
         )
+        butler.close()
 
         # Check that we can get the proper run collection from the qgraph
         self.assertEqual(check_output_run(qgraph1, "run"), [])

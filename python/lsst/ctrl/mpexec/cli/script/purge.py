@@ -156,8 +156,7 @@ class PurgeResult(ConfirmableResult):
         if self.failure:
             # This should not happen, it is a logic error.
             raise RuntimeError("Can not purge, there were errors preparing collections.")
-        butler = Butler.from_config(self.butler_config, writeable=True)
-        with butler.transaction():
+        with Butler.from_config(self.butler_config, writeable=True) as butler, butler.transaction():
             for c in itertools.chain(self.others_to_remove, self.chains_to_remove):
                 butler.registry.removeCollection(c)
             butler.removeRuns(self.runs_to_remove)
@@ -290,24 +289,23 @@ def purge(
         to remove the datasets after confirmation, if needed.
     """
     result = PurgeResult(butler_config)
-    butler = Butler.from_config(butler_config)
+    with Butler.from_config(butler_config) as butler:
+        try:
+            collection_type = butler.registry.getCollectionType(collection)
+        except MissingCollectionError:
+            result.fail(TopCollectionNotFoundFailure(collection))
+            return result
 
-    try:
-        collection_type = butler.registry.getCollectionType(collection)
-    except MissingCollectionError:
-        result.fail(TopCollectionNotFoundFailure(collection))
-        return result
-
-    if collection_type != CollectionType.CHAINED:
-        result.fail(TopCollectionIsNotChainedFailure(collection, collection_type))
-    elif parents := check_parents(butler, collection, []):
-        result.fail(TopCollectionHasParentsFailure(collection, parents))
-    else:
-        prepare_to_remove(
-            top_collection=collection,
-            parent_collection=collection,
-            purge_result=result,
-            butler=butler,
-            recursive=recursive,
-        )
+        if collection_type != CollectionType.CHAINED:
+            result.fail(TopCollectionIsNotChainedFailure(collection, collection_type))
+        elif parents := check_parents(butler, collection, []):
+            result.fail(TopCollectionHasParentsFailure(collection, parents))
+        else:
+            prepare_to_remove(
+                top_collection=collection,
+                parent_collection=collection,
+                purge_result=result,
+                butler=butler,
+                recursive=recursive,
+            )
     return result

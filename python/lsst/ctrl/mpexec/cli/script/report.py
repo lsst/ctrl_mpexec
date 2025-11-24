@@ -66,54 +66,54 @@ def report(
         List only the counts (or data_ids if number of failures < 5). This
         option is good for those who just want to see totals.
     """
-    butler = Butler.from_config(butler_config, writeable=False)
     qgraph = QuantumGraph.loadUri(qgraph_uri)
-    report = QuantumGraphExecutionReport.make_reports(butler, qgraph)
-    if not full_output_filename:
-        # this is the option to print to the command-line
-        summary_dict = report.to_summary_dict(butler, logs, human_readable=True)
-        dataset_table_rows = []
-        data_products = []
-        quanta_summary = []
-        error_summary = []
-        for task in summary_dict.keys():
-            for data_product in summary_dict[task]["outputs"]:
-                dataset_table_rows.append(summary_dict[task]["outputs"][data_product])
-                data_products.append(data_product)
+    with Butler.from_config(butler_config, writeable=False) as butler:
+        report = QuantumGraphExecutionReport.make_reports(butler, qgraph)
+        if not full_output_filename:
+            # this is the option to print to the command-line
+            summary_dict = report.to_summary_dict(butler, logs, human_readable=True)
+            dataset_table_rows = []
+            data_products = []
+            quanta_summary = []
+            error_summary = []
+            for task in summary_dict.keys():
+                for data_product in summary_dict[task]["outputs"]:
+                    dataset_table_rows.append(summary_dict[task]["outputs"][data_product])
+                    data_products.append(data_product)
 
-            if len(summary_dict[task]["failed_quanta"]) > 5:
-                quanta_summary.append(
-                    {
-                        "Task": task,
-                        "Failed": len(summary_dict[task]["failed_quanta"]),
-                        "Blocked": summary_dict[task]["n_quanta_blocked"],
-                        "Succeeded": summary_dict[task]["n_succeeded"],
-                        "Expected": summary_dict[task]["n_expected"],
-                    }
-                )
-            else:
-                quanta_summary.append(
-                    {
-                        "Task": task,
-                        "Failed": summary_dict[task]["failed_quanta"],
-                        "Blocked": summary_dict[task]["n_quanta_blocked"],
-                        "Succeeded": summary_dict[task]["n_succeeded"],
-                        "Expected": summary_dict[task]["n_expected"],
-                    }
-                )
-            if "errors" in summary_dict[task].keys():
-                error_summary.append({task: summary_dict[task]["errors"]})
-        quanta = Table(quanta_summary)
-        datasets = Table(dataset_table_rows)
-        datasets.add_column(data_products, index=0, name="DatasetType")
-        quanta.pprint_all()
-        print("\n")
-        if not brief:
-            pprint.pprint(error_summary)
+                if len(summary_dict[task]["failed_quanta"]) > 5:
+                    quanta_summary.append(
+                        {
+                            "Task": task,
+                            "Failed": len(summary_dict[task]["failed_quanta"]),
+                            "Blocked": summary_dict[task]["n_quanta_blocked"],
+                            "Succeeded": summary_dict[task]["n_succeeded"],
+                            "Expected": summary_dict[task]["n_expected"],
+                        }
+                    )
+                else:
+                    quanta_summary.append(
+                        {
+                            "Task": task,
+                            "Failed": summary_dict[task]["failed_quanta"],
+                            "Blocked": summary_dict[task]["n_quanta_blocked"],
+                            "Succeeded": summary_dict[task]["n_succeeded"],
+                            "Expected": summary_dict[task]["n_expected"],
+                        }
+                    )
+                if "errors" in summary_dict[task].keys():
+                    error_summary.append({task: summary_dict[task]["errors"]})
+            quanta = Table(quanta_summary)
+            datasets = Table(dataset_table_rows)
+            datasets.add_column(data_products, index=0, name="DatasetType")
+            quanta.pprint_all()
             print("\n")
-        datasets.pprint_all()
-    else:
-        report.write_summary_yaml(butler, full_output_filename, do_store_logs=logs)
+            if not brief:
+                pprint.pprint(error_summary)
+                print("\n")
+            datasets.pprint_all()
+        else:
+            report.write_summary_yaml(butler, full_output_filename, do_store_logs=logs)
 
 
 def report_v2(
@@ -190,18 +190,18 @@ def report_v2(
         the flow of quanta and datasets through the graph and to identify where
         problems may be occurring.
     """
-    butler = Butler.from_config(butler_config, writeable=False)
-    qpg = QuantumProvenanceGraph(
-        butler,
-        qgraph_uris,
-        collections=collections,
-        where=where,
-        curse_failed_logs=curse_failed_logs,
-        read_caveats=read_caveats,
-        use_qbb=use_qbb,
-        n_cores=n_cores,
-    )
-    summary = qpg.to_summary(butler, do_store_logs=logs)
+    with Butler.from_config(butler_config, writeable=False) as butler:
+        qpg = QuantumProvenanceGraph(
+            butler,
+            qgraph_uris,
+            collections=collections,
+            where=where,
+            curse_failed_logs=curse_failed_logs,
+            read_caveats=read_caveats,
+            use_qbb=use_qbb,
+            n_cores=n_cores,
+        )
+        summary = qpg.to_summary(butler, do_store_logs=logs)
 
     if view_graph:
         from lsst.pipe.base.pipeline_graph.visualization import (

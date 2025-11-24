@@ -138,7 +138,11 @@ def build(
     if butler_config:
         butler = Butler.from_config(butler_config, writeable=False)
 
-    pipeline_graph_factory = PipelineGraphFactory(pipeline, butler, select_tasks)
+    try:
+        pipeline_graph_factory = PipelineGraphFactory(pipeline, butler, select_tasks)
+    finally:
+        if butler is not None:
+            butler.close()
 
     if pipeline_dot:
         with open(pipeline_dot, "w") as stream:

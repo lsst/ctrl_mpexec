@@ -55,6 +55,7 @@ class CleanupCollectionTest(unittest.TestCase):
             self.root,
             configFile=os.path.join(TESTDIR, "config/metricTestRepoButler.yaml"),
         )
+        self.enterContext(self.testRepo.butler)
 
     def tearDown(self):
         removeTestTempDir(self.root)
@@ -82,8 +83,8 @@ class CleanupCollectionTest(unittest.TestCase):
         self.assertIn("Will remove:\n  runs: \n  others: ingest\n", result.output)
         self.assertIn("Done.", result.output)
 
-        butler = Butler.from_config(self.root)
-        self.assertEqual(set(butler.registry.queryCollections()), {"in", "ingest/run"})
+        with Butler.from_config(self.root) as butler:
+            self.assertEqual(set(butler.registry.queryCollections()), {"in", "ingest/run"})
 
     def test_nonExistantCollection(self):
         """Test running cleanup on a collection that has never existed."""

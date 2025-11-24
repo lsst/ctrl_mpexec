@@ -220,107 +220,115 @@ def qgraph(
         replace_run=replace_run,
         prune_replaced=prune_replaced,
     )
+    with butler:
+        if skip_existing and run:
+            skip_existing_in += (run,)
 
-    if skip_existing and run:
-        skip_existing_in += (run,)
-
-    qgc: PredictedQuantumGraphComponents
-    if qgraph is not None:
-        # click passes empty tuple as default value for qgraph_node_id
-        quantum_ids = (
-            {uuid.UUID(q) if not isinstance(q, uuid.UUID) else q for q in qgraph_node_id}
-            if qgraph_node_id
-            else None
-        )
-        qgraph = ResourcePath(qgraph)
-        match qgraph.getExtension():
-            case ".qgraph":
-                qgc = PredictedQuantumGraphComponents.from_old_quantum_graph(
-                    QuantumGraph.loadUri(
-                        qgraph,
-                        butler.dimensions,
-                        nodes=quantum_ids,
-                        graphID=BuildId(qgraph_id) if qgraph_id is not None else None,
+        qgc: PredictedQuantumGraphComponents
+        if qgraph is not None:
+            # click passes empty tuple as default value for qgraph_node_id
+            quantum_ids = (
+                {uuid.UUID(q) if not isinstance(q, uuid.UUID) else q for q in qgraph_node_id}
+                if qgraph_node_id
+                else None
+            )
+            qgraph = ResourcePath(qgraph)
+            match qgraph.getExtension():
+                case ".qgraph":
+                    qgc = PredictedQuantumGraphComponents.from_old_quantum_graph(
+                        QuantumGraph.loadUri(
+                            qgraph,
+                            butler.dimensions,
+                            nodes=quantum_ids,
+                            graphID=BuildId(qgraph_id) if qgraph_id is not None else None,
+                        )
                     )
-                )
-            case ".qg":
-                if qgraph_id is not None:
-                    _LOG.warning("--qgraph-id is ignored when loading new '.qg' files.")
-                if for_execution or for_init_output_run or save_qgraph or show.needs_full_qg:
-                    import_mode = TaskImportMode.ASSUME_CONSISTENT_EDGES
-                else:
-                    import_mode = TaskImportMode.DO_NOT_IMPORT
-                with PredictedQuantumGraph.open(qgraph, import_mode=import_mode) as reader:
-                    if for_execution or qgraph_dot or qgraph_mermaid or show.needs_full_qg or qgraph_node_id:
-                        # This reads everything for the given quanta.
-                        reader.read_execution_quanta(quantum_ids)
-                    elif for_init_output_run:
-                        reader.read_init_quanta()
+                case ".qg":
+                    if qgraph_id is not None:
+                        _LOG.warning("--qgraph-id is ignored when loading new '.qg' files.")
+                    if for_execution or for_init_output_run or save_qgraph or show.needs_full_qg:
+                        import_mode = TaskImportMode.ASSUME_CONSISTENT_EDGES
                     else:
-                        reader.read_thin_graph()
-                    qgc = reader.components
-            case ext:
-                raise ValueError(f"Unrecognized extension for quantum graph: {ext!r}")
+                        import_mode = TaskImportMode.DO_NOT_IMPORT
+                    with PredictedQuantumGraph.open(qgraph, import_mode=import_mode) as reader:
+                        if (
+                            for_execution
+                            or qgraph_dot
+                            or qgraph_mermaid
+                            or show.needs_full_qg
+                            or qgraph_node_id
+                        ):
+                            # This reads everything for the given quanta.
+                            reader.read_execution_quanta(quantum_ids)
+                        elif for_init_output_run:
+                            reader.read_init_quanta()
+                        else:
+                            reader.read_thin_graph()
+                        qgc = reader.components
+                case ext:
+                    raise ValueError(f"Unrecognized extension for quantum graph: {ext!r}")
 
-        # pipeline can not be provided in this case
-        if pipeline_graph_factory:
-            raise ValueError(
-                "Pipeline must not be given when quantum graph is read from "
-                f"file: {bool(pipeline_graph_factory)}"
-            )
-    else:
-        if pipeline_graph_factory is None:
-            raise ValueError("Pipeline must be given when quantum graph is not read from file.")
-        # We can't resolve the pipeline graph if we're mocking until after
-        # we've done the mocking (and the QG build will resolve on its own
-        # anyway).
-        pipeline_graph = pipeline_graph_factory(resolve=False)
-        if mock:
-            from lsst.pipe.base.tests.mocks import mock_pipeline_graph
+            # pipeline can not be provided in this case
+            if pipeline_graph_factory:
+                raise ValueError(
+                    "Pipeline must not be given when quantum graph is read from "
+                    f"file: {bool(pipeline_graph_factory)}"
+                )
+        else:
+            if pipeline_graph_factory is None:
+                raise ValueError("Pipeline must be given when quantum graph is not read from file.")
+            # We can't resolve the pipeline graph if we're mocking until after
+            # we've done the mocking (and the QG build will resolve on its own
+            # anyway).
+            pipeline_graph = pipeline_graph_factory(resolve=False)
+            if mock:
+                from lsst.pipe.base.tests.mocks import mock_pipeline_graph
 
-            pipeline_graph = mock_pipeline_graph(
+                pipeline_graph = mock_pipeline_graph(
+                    pipeline_graph,
+                    unmocked_dataset_types=unmocked_dataset_types,
+                    force_failures=mock_failure,
+                )
+            data_id_tables = []
+            for table_file in data_id_table:
+                with ResourcePath(table_file).as_local() as local_path:
+                    table = Table.read(local_path.ospath)
+                    # Add the filename to the metadata for more logging
+                    # information down in the QG builder.
+                    table.meta["filename"] = table_file
+                    data_id_tables.append(table)
+            # make execution plan (a.k.a. DAG) for pipeline
+            graph_builder = AllDimensionsQuantumGraphBuilder(
                 pipeline_graph,
-                unmocked_dataset_types=unmocked_dataset_types,
-                force_failures=mock_failure,
+                butler,
+                where=data_query,
+                skip_existing_in=skip_existing_in,
+                clobber=clobber_outputs,
+                dataset_query_constraint=DatasetQueryConstraintVariant.fromExpression(
+                    dataset_query_constraint
+                ),
+                input_collections=collections,
+                output_run=run,
+                data_id_tables=data_id_tables,
             )
-        data_id_tables = []
-        for table_file in data_id_table:
-            with ResourcePath(table_file).as_local() as local_path:
-                table = Table.read(local_path.ospath)
-                # Add the filename to the metadata for more logging
-                # information down in the QG builder.
-                table.meta["filename"] = table_file
-                data_id_tables.append(table)
-        # make execution plan (a.k.a. DAG) for pipeline
-        graph_builder = AllDimensionsQuantumGraphBuilder(
-            pipeline_graph,
-            butler,
-            where=data_query,
-            skip_existing_in=skip_existing_in,
-            clobber=clobber_outputs,
-            dataset_query_constraint=DatasetQueryConstraintVariant.fromExpression(dataset_query_constraint),
-            input_collections=collections,
-            output_run=run,
-            data_id_tables=data_id_tables,
-        )
-        # Accumulate metadata (QB builder adds some of its own).
-        metadata = {
-            "butler_argument": str(butler_config),
-            "extend_run": extend_run,
-            "skip_existing_in": skip_existing_in,
-            "skip_existing": skip_existing,
-            "data_query": data_query,
-        }
-        assert run is not None, "Butler output run collection must be defined"
-        qgc = graph_builder.finish(
-            output, metadata=metadata, attach_datastore_records=qgraph_datastore_records
-        )
+            # Accumulate metadata (QB builder adds some of its own).
+            metadata = {
+                "butler_argument": str(butler_config),
+                "extend_run": extend_run,
+                "skip_existing_in": skip_existing_in,
+                "skip_existing": skip_existing,
+                "data_query": data_query,
+            }
+            assert run is not None, "Butler output run collection must be defined"
+            qgc = graph_builder.finish(
+                output, metadata=metadata, attach_datastore_records=qgraph_datastore_records
+            )
 
-    if save_qgraph:
-        _LOG.verbose("Writing quantum graph to %r.", save_qgraph)
-        qgc.write(save_qgraph)
+        if save_qgraph:
+            _LOG.verbose("Writing quantum graph to %r.", save_qgraph)
+            qgc.write(save_qgraph)
 
-    qg = qgc.assemble()
+        qg = qgc.assemble()
 
     if not summarize_quantum_graph(qg):
         return None

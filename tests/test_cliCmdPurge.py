@@ -54,6 +54,7 @@ class PurgeTest(unittest.TestCase):
             self.root,
             configFile=os.path.join(TESTDIR, "config/metricTestRepoButler.yaml"),
         )
+        self.enterContext(self.testRepo.butler)
 
     def tearDown(self):
         removeTestTempDir(self.root)
