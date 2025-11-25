@@ -40,6 +40,7 @@ from lsst.ctrl.mpexec.cli.cmd.commands import PipetaskCommand, coverage_context
 from lsst.ctrl.mpexec.cli.utils import collect_pipeline_actions
 from lsst.ctrl.mpexec.showInfo import ShowInfo
 from lsst.daf.butler import CollectionType, MissingCollectionError
+from lsst.daf.butler.cli.utils import LogCliRunner
 from lsst.pipe.base.mp_graph_executor import MPGraphExecutorError
 from lsst.pipe.base.script import transfer_from_graph
 from lsst.pipe.base.tests.mocks import DirectButlerRepo, DynamicTestPipelineTaskConfig
@@ -60,7 +61,9 @@ class RunTestCase(unittest.TestCase):
             kwargs = collect_pipeline_actions(ctx, **kwargs)
             mock(**kwargs)
 
-        runner = click.testing.CliRunner()
+        # At least one tests requires that we enable INFO logging so use
+        # the specialist runner.
+        runner = LogCliRunner()
         result = runner.invoke(fake_run, args, catch_exceptions=False)
         if result.exit_code != 0:
             raise RuntimeError(f"Failure getting default args for 'run': {result}")
