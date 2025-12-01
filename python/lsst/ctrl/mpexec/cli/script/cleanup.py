@@ -95,8 +95,7 @@ class CleanupResult(ConfirmableResult):
         return msg
 
     def on_confirmation(self) -> None:
-        butler = Butler.from_config(self.butler_config, writeable=True)
-        with butler.transaction():
+        with Butler.from_config(self.butler_config, writeable=True) as butler, butler.transaction():
             for collection in self.others_to_remove:
                 butler.registry.removeCollection(collection)
             butler.removeRuns(self.runs_to_remove)
@@ -128,25 +127,25 @@ def cleanup(
     collection : str
         The name of the chained collection.
     """
-    butler = Butler.from_config(butler_config)
-    result = CleanupResult(butler_config)
-    try:
-        to_keep = set(butler.registry.getCollectionChain(collection))
-    except MissingCollectionError:
-        result.failure = NoSuchCollectionFailure(collection)
-        return result
-    except CollectionTypeError:
-        result.failure = NotChainedCollectionFailure(
-            collection, butler.registry.getCollectionType(collection).name
-        )
-        return result
-    to_keep.add(collection)
-    glob = collection + "*"
-    to_consider = set(butler.registry.queryCollections(glob))
-    to_remove = to_consider - to_keep
-    for r in to_remove:
-        if butler.registry.getCollectionType(r) == CollectionType.RUN:
-            result.runs_to_remove.append(r)
-        else:
-            result.others_to_remove.append(r)
+    with Butler.from_config(butler_config) as butler:
+        result = CleanupResult(butler_config)
+        try:
+            to_keep = set(butler.registry.getCollectionChain(collection))
+        except MissingCollectionError:
+            result.failure = NoSuchCollectionFailure(collection)
+            return result
+        except CollectionTypeError:
+            result.failure = NotChainedCollectionFailure(
+                collection, butler.registry.getCollectionType(collection).name
+            )
+            return result
+        to_keep.add(collection)
+        glob = collection + "*"
+        to_consider = set(butler.registry.queryCollections(glob))
+        to_remove = to_consider - to_keep
+        for r in to_remove:
+            if butler.registry.getCollectionType(r) == CollectionType.RUN:
+                result.runs_to_remove.append(r)
+            else:
+                result.others_to_remove.append(r)
     return result

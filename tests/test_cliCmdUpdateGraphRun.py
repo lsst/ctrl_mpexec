@@ -54,6 +54,7 @@ class UpdateGraphRunTest(unittest.TestCase):
     def test_update(self):
         """Test for updating output run in a graph."""
         helper = InMemoryRepo()
+        self.enterContext(helper)
         helper.add_task()
         helper.add_task()
         qgc = helper.make_quantum_graph_builder().finish(attach_datastore_records=False)

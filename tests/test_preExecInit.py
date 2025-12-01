@@ -62,6 +62,7 @@ class PreExecInitTestCase(unittest.TestCase):
             with self.subTest(extendRun=extendRun):
                 with temporaryDirectory() as tmpdir:
                     butler, qgraph = makeSimpleQGraph(root=tmpdir)
+                    self.enterContext(butler)
                     preExecInit = PreExecInit(butler=butler, taskFactory=taskFactory, extendRun=extendRun)
                     preExecInit.saveInitOutputs(qgraph)
 
@@ -71,6 +72,7 @@ class PreExecInitTestCase(unittest.TestCase):
             with self.subTest(extendRun=extendRun):
                 with temporaryDirectory() as tmpdir:
                     butler, qgraph = makeSimpleQGraph(root=tmpdir)
+                    self.enterContext(butler)
                     preExecInit = PreExecInit(butler=butler, taskFactory=taskFactory, extendRun=extendRun)
                     preExecInit.saveInitOutputs(qgraph)
                     if extendRun:
@@ -86,6 +88,7 @@ class PreExecInitTestCase(unittest.TestCase):
             with self.subTest(extendRun=extendRun):
                 with temporaryDirectory() as tmpdir:
                     butler, qgraph = makeSimpleQGraph(root=tmpdir)
+                    self.enterContext(butler)
                     preExecInit = PreExecInit(butler=butler, taskFactory=None, extendRun=extendRun)
                     preExecInit.saveConfigs(qgraph)
 
@@ -94,6 +97,7 @@ class PreExecInitTestCase(unittest.TestCase):
             with self.subTest(extendRun=extendRun):
                 with temporaryDirectory() as tmpdir:
                     butler, qgraph = makeSimpleQGraph(root=tmpdir)
+                    self.enterContext(butler)
                     preExecInit = PreExecInit(butler=butler, taskFactory=None, extendRun=extendRun)
                     preExecInit.saveConfigs(qgraph)
                     if extendRun:
@@ -109,6 +113,7 @@ class PreExecInitTestCase(unittest.TestCase):
             with self.subTest(extendRun=extendRun):
                 with temporaryDirectory() as tmpdir:
                     butler, qgraph = makeSimpleQGraph(root=tmpdir)
+                    self.enterContext(butler)
                     preExecInit = PreExecInit(butler=butler, taskFactory=None, extendRun=extendRun)
                     preExecInit.savePackageVersions(qgraph)
 
@@ -117,6 +122,7 @@ class PreExecInitTestCase(unittest.TestCase):
             with self.subTest(extendRun=extendRun):
                 with temporaryDirectory() as tmpdir:
                     butler, qgraph = makeSimpleQGraph(root=tmpdir)
+                    self.enterContext(butler)
                     preExecInit = PreExecInit(butler=butler, taskFactory=None, extendRun=extendRun)
                     preExecInit.savePackageVersions(qgraph)
                     if extendRun:

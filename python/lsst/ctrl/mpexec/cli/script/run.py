@@ -235,7 +235,7 @@ def run(
 
     # Make butler instance. QuantumGraph should have an output run defined,
     # but we ignore it here and let command line decide actual output run.
-    butler = ButlerFactory.make_write_butler(
+    with ButlerFactory.make_write_butler(
         butler_config,
         qg.pipeline_graph,
         output=output,
@@ -245,74 +245,73 @@ def run(
         rebase=rebase,
         replace_run=replace_run,
         prune_replaced=prune_replaced,
-    )
+    ) as butler:
+        assert butler.run is not None, "Guaranteed by make_write_butler."
+        if skip_existing:
+            skip_existing_in += (butler.run,)
 
-    assert butler.run is not None, "Guaranteed by make_write_butler."
-    if skip_existing:
-        skip_existing_in += (butler.run,)
+        # Enable lsstDebug debugging. Note that this is done once in the
+        # main process before PreExecInit and it is also repeated before
+        # running each task in SingleQuantumExecutor (which may not be
+        # needed if `multiprocessing` always uses fork start method).
+        if enable_lsst_debug:
+            try:
+                _LOG.debug("Will try to import debug.py")
+                import debug  # type: ignore  # noqa: F401
+            except ImportError:
+                _LOG.warning("No 'debug' module found.")
 
-    # Enable lsstDebug debugging. Note that this is done once in the
-    # main process before PreExecInit and it is also repeated before
-    # running each task in SingleQuantumExecutor (which may not be
-    # needed if `multiprocessing` always uses fork start method).
-    if enable_lsst_debug:
+        # Save all InitOutputs, configs, etc.
+        if register_dataset_types:
+            qg.pipeline_graph.register_dataset_types(butler, include_packages=not no_versions)
+        if not skip_init_writes:
+            qg.write_init_outputs(butler, skip_existing=skip_existing)
+            qg.write_configs(butler, compare_existing=extend_run)
+            if not no_versions:
+                qg.write_packages(butler, compare_existing=extend_run)
+
+        if init_only:
+            return
+
+        if task_factory is None:
+            task_factory = TaskFactory()
+        resources = ExecutionResources(
+            num_cores=cores_per_quantum, max_mem=memory_per_quantum, default_mem_units=u.MB
+        )
+        quantum_executor = SingleQuantumExecutor(
+            butler=butler,
+            task_factory=task_factory,
+            skip_existing_in=skip_existing_in,
+            clobber_outputs=clobber_outputs,
+            enable_lsst_debug=enable_lsst_debug,
+            resources=resources,
+            raise_on_partial_outputs=raise_on_partial_outputs,
+        )
+
+        if timeout is None:
+            timeout = MP_TIMEOUT
+        executor = MPGraphExecutor(
+            num_proc=processes,
+            timeout=timeout,
+            start_method=start_method,
+            quantum_executor=quantum_executor,
+            fail_fast=fail_fast,
+            pdb=pdb,
+            execution_graph_fixup=_import_graph_fixup(graph_fixup),
+        )
+        # Have to reset connection pool to avoid sharing connections with
+        # forked processes.
+        butler.registry.resetConnectionPool()
         try:
-            _LOG.debug("Will try to import debug.py")
-            import debug  # type: ignore  # noqa: F401
-        except ImportError:
-            _LOG.warning("No 'debug' module found.")
-
-    # Save all InitOutputs, configs, etc.
-    if register_dataset_types:
-        qg.pipeline_graph.register_dataset_types(butler, include_packages=not no_versions)
-    if not skip_init_writes:
-        qg.write_init_outputs(butler, skip_existing=skip_existing)
-        qg.write_configs(butler, compare_existing=extend_run)
-        if not no_versions:
-            qg.write_packages(butler, compare_existing=extend_run)
-
-    if init_only:
-        return
-
-    if task_factory is None:
-        task_factory = TaskFactory()
-    resources = ExecutionResources(
-        num_cores=cores_per_quantum, max_mem=memory_per_quantum, default_mem_units=u.MB
-    )
-    quantum_executor = SingleQuantumExecutor(
-        butler=butler,
-        task_factory=task_factory,
-        skip_existing_in=skip_existing_in,
-        clobber_outputs=clobber_outputs,
-        enable_lsst_debug=enable_lsst_debug,
-        resources=resources,
-        raise_on_partial_outputs=raise_on_partial_outputs,
-    )
-
-    if timeout is None:
-        timeout = MP_TIMEOUT
-    executor = MPGraphExecutor(
-        num_proc=processes,
-        timeout=timeout,
-        start_method=start_method,
-        quantum_executor=quantum_executor,
-        fail_fast=fail_fast,
-        pdb=pdb,
-        execution_graph_fixup=_import_graph_fixup(graph_fixup),
-    )
-    # Have to reset connection pool to avoid sharing connections with
-    # forked processes.
-    butler.registry.resetConnectionPool()
-    try:
-        with lsst.utils.timer.profile(profile, _LOG):
-            executor.execute(qg)
-    finally:
-        if summary:
-            report = executor.getReport()
-            if report:
-                with ResourcePath(summary).open("w") as out:
-                    # Do not save fields that are not set.
-                    out.write(report.model_dump_json(exclude_none=True, indent=2))
+            with lsst.utils.timer.profile(profile, _LOG):
+                executor.execute(qg)
+        finally:
+            if summary:
+                report = executor.getReport()
+                if report:
+                    with ResourcePath(summary).open("w") as out:
+                        # Do not save fields that are not set.
+                        out.write(report.model_dump_json(exclude_none=True, indent=2))
 
 
 def _import_graph_fixup(graph_fixup: str) -> ExecutionGraphFixup | None:

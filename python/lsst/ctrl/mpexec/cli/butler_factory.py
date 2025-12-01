@@ -311,95 +311,38 @@ class ButlerFactory:
             of ``args``.
         """
         butler = Butler.from_config(butler_config, writeable=False)
-        self = cls(
-            butler,
-            output=output,
-            output_run=output_run,
-            inputs=inputs,
-            extend_run=extend_run,
-            rebase=rebase,
-            writeable=False,
-        )
-        self.check(extend_run=extend_run, replace_run=replace_run, prune_replaced=prune_replaced)
-        if self.output and self.output.exists:
-            if replace_run:
-                replaced = self.output.chain[0]
-                inputs = list(self.output.chain[1:])
-                _LOG.debug(
-                    "Simulating collection search in '%s' after removing '%s'.", self.output.name, replaced
-                )
+        try:
+            self = cls(
+                butler,
+                output=output,
+                output_run=output_run,
+                inputs=inputs,
+                extend_run=extend_run,
+                rebase=rebase,
+                writeable=False,
+            )
+            self.check(extend_run=extend_run, replace_run=replace_run, prune_replaced=prune_replaced)
+            if self.output and self.output.exists:
+                if replace_run:
+                    replaced = self.output.chain[0]
+                    inputs = list(self.output.chain[1:])
+                    _LOG.debug(
+                        "Simulating collection search in '%s' after removing '%s'.",
+                        self.output.name,
+                        replaced,
+                    )
+                else:
+                    inputs = [self.output.name]
             else:
-                inputs = [self.output.name]
-        else:
-            inputs = list(self.inputs)
-        if extend_run:
-            assert self.output_run is not None, "Output collection has to be specified."
-            inputs.insert(0, self.output_run.name)
-        collSearch = CollectionWildcard.from_expression(inputs).require_ordered()
+                inputs = list(self.inputs)
+            if extend_run:
+                assert self.output_run is not None, "Output collection has to be specified."
+                inputs.insert(0, self.output_run.name)
+            collSearch = CollectionWildcard.from_expression(inputs).require_ordered()
+        except Exception:
+            butler.close()
+            raise
         return butler, collSearch, self
-
-    @classmethod
-    def make_read_butler(
-        cls,
-        butler_config: ResourcePathExpression,
-        *,
-        output: str | None,
-        output_run: str | None,
-        inputs: str | Iterable[str],
-        extend_run: bool = False,
-        rebase: bool = False,
-        replace_run: bool,
-        prune_replaced: str | None = None,
-    ) -> Butler:
-        """Construct a read-only butler according to the given command-line
-        arguments.
-
-        Parameters
-        ----------
-        butler_config : convertible to `lsst.resources.ResourcePath`
-            Path to configuration for the butler.
-        output : `str` or `None`
-            The name of a `~lsst.daf.butler.CollectionType.CHAINED`
-            input/output collection.
-        output_run : `str` or `None`
-            The name of a `~lsst.daf.butler.CollectionType.RUN` input/output
-            collection.
-        inputs : `str` or `~collections.abc.Iterable` [`str`]
-            Input collection name or iterable of collection names.
-        extend_run : `bool`
-            A boolean indicating whether ``output_run`` should already exist
-            and be extended.
-        rebase : `bool`
-            A boolean indicating whether to force the ``output`` collection to
-            be consistent with ``inputs`` and ``output`` run such that the
-            ``output`` collection has output run collections first (i.e. those
-            that start with the same prefix), then the new inputs, then any
-            original inputs not included in the new inputs.
-        replace_run : `bool`
-            Whether the ``output_run`` should be replaced in the ``output``
-            chain.
-        prune_replaced : `str` or `None`
-            If ``replace_run=True``, whether/how datasets in the old run should
-            be removed.  Options are ``"purge"``, ``"unstore"``, and `None`.
-
-        Returns
-        -------
-        butler : `lsst.daf.butler.Butler`
-            A read-only butler initialized with the given collections.
-        """
-        cls.define_datastore_cache()  # Ensure that this butler can use a shared cache.
-        butler, inputs, _ = cls._make_read_parts(
-            butler_config,
-            output=output,
-            output_run=output_run,
-            inputs=inputs,
-            extend_run=extend_run,
-            rebase=rebase,
-            replace_run=replace_run,
-            prune_replaced=prune_replaced,
-        )
-        _LOG.debug("Preparing butler to read from %s.", inputs)
-        return Butler.from_config(butler=butler, collections=inputs)
 
     @classmethod
     def make_butler_and_collections(

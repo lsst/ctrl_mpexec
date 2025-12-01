@@ -94,7 +94,7 @@ def pre_exec_init_qbb(
 
     # Make QBB.
     _LOG.verbose("Initializing quantum-backed butler.")
-    butler = qg.make_init_qbb(butler_config, config_search_paths=config_search_path)
-    # Save all InitOutputs, configs, etc.
-    _LOG.verbose("Instantiating tasks and saving init-outputs.")
-    qg.init_output_run(butler)
+    with qg.make_init_qbb(butler_config, config_search_paths=config_search_path) as butler:
+        # Save all InitOutputs, configs, etc.
+        _LOG.verbose("Instantiating tasks and saving init-outputs.")
+        qg.init_output_run(butler)

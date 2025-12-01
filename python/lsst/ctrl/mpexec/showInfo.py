@@ -389,7 +389,7 @@ class ShowInfo:
             Path to configuration for the butler.
         """
 
-        def dumpURIs(thisRef: DatasetRef) -> None:
+        def dumpURIs(butler: Butler, thisRef: DatasetRef) -> None:
             primary, components = butler.getURIs(thisRef, predict=True, run="TBD")
             if primary:
                 print(f"    {primary}", file=self.stream)
@@ -398,17 +398,19 @@ class ShowInfo:
                 for compName, compUri in components.items():
                     print(f"        {compName}: {compUri}", file=self.stream)
 
-        butler = Butler.from_config(butler_config)
-        xgraph = qg.quantum_only_xgraph
-        execution_quanta = qg.build_execution_quanta()
-        for quantum_id, quantum_data in xgraph.nodes.items():
-            print(f"Quantum {quantum_id}: {quantum_data['pipeline_node'].task_class_name}", file=self.stream)
-            print("  inputs:", file=self.stream)
-            execution_quantum = execution_quanta[quantum_id]
-            for refs in execution_quantum.inputs.values():
-                for ref in refs:
-                    dumpURIs(ref)
-            print("  outputs:", file=self.stream)
-            for refs in execution_quantum.outputs.values():
-                for ref in refs:
-                    dumpURIs(ref)
+        with Butler.from_config(butler_config) as butler:
+            xgraph = qg.quantum_only_xgraph
+            execution_quanta = qg.build_execution_quanta()
+            for quantum_id, quantum_data in xgraph.nodes.items():
+                print(
+                    f"Quantum {quantum_id}: {quantum_data['pipeline_node'].task_class_name}", file=self.stream
+                )
+                print("  inputs:", file=self.stream)
+                execution_quantum = execution_quanta[quantum_id]
+                for refs in execution_quantum.inputs.values():
+                    for ref in refs:
+                        dumpURIs(butler, ref)
+                print("  outputs:", file=self.stream)
+                for refs in execution_quantum.outputs.values():
+                    for ref in refs:
+                        dumpURIs(butler, ref)
