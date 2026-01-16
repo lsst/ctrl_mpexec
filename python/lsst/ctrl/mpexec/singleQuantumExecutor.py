@@ -162,9 +162,17 @@ class SingleQuantumExecutor(lsst.pipe.base.single_quantum_executor.SingleQuantum
         limited_butler: LimitedButler,
         quantum_id: uuid.UUID | None = None,
     ) -> tuple[QuantumSuccessCaveats, list[uuid.UUID], ButlerMetrics]:
-        return super()._run_quantum(
-            task, quantum, task_node, limited_butler=limited_butler, quantum_id=quantum_id
-        )
+        ids_put: list[uuid.UUID] = []
+        with limited_butler.record_metrics() as butler_metrics:
+            quantum_success_caveats = super()._run_quantum(
+                task,
+                quantum,
+                task_node,
+                limited_butler=limited_butler,
+                quantum_id=quantum_id,
+                ids_put=ids_put,
+            )
+        return quantum_success_caveats, ids_put, butler_metrics
 
     def writeMetadata(
         self, quantum: Quantum, metadata: Any, task_node: TaskNode, /, limited_butler: LimitedButler
