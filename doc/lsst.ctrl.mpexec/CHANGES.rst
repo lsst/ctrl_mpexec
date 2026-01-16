@@ -1,3 +1,37 @@
+lsst-ctrl-mpexec v30.0.0 (2026-01-16)
+=====================================
+
+New Features
+------------
+
+- Added the ``--show subsets`` option to ``pipetask build``. (`DM-52505 <https://rubinobs.atlassian.net/browse/DM-52505>`_)
+
+
+API Changes
+-----------
+
+- Moved pipeline executors and their support code to ``lsst.pipe.base``.
+
+  Deprecated forwarding shims have been added here, and will be removed after v30. (`DM-48980 <https://rubinobs.atlassian.net/browse/DM-48980>`_)
+
+
+Bug Fixes
+---------
+
+- Fixed a bug (introduced in `DM-51850 <https://rubinobs.atlassian.net/browse/DM-51850>`_) that led quantum-count summaries printed by ``run``, ``run-qbb`` and ``qgraph`` to reflect the full graph even when only a subset of its quanta were loaded. (`DM-52866 <https://rubinobs.atlassian.net/browse/DM-52866>`_)
+
+
+An API Removal or Deprecation
+-----------------------------
+
+- Removed multiple ``pipetask`` options:
+
+  - ``--save-execution-butler``, ``--clobber-execution-butler``, ``--target-datastore-root``, and ``--transfer``: execution butler has been fully superseded by quantum-backed butler.
+  - ``--order-pipeline``: already does nothing.
+  - ``--save-single-quanta``: superseded by support for single-quantum reads from larger quantum graph files. (`DM-52044 <https://rubinobs.atlassian.net/browse/DM-52044>`_)
+- Removed the ``--show-qgraph-header`` option from ``pipetask qgraph``. (`DM-52190 <https://rubinobs.atlassian.net/browse/DM-52190>`_)
+
+
 lsst-ctrl-mpexec v29.1.0 (2025-06-13)
 =====================================
 
