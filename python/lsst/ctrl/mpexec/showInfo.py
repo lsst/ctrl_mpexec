@@ -113,6 +113,7 @@ class ShowInfo:
         "pipeline-graph",
         "task-graph",
         "subsets",
+        "inputs",
     }
     graph_commands = {"graph", "workflow", "uri"}
 
@@ -186,6 +187,15 @@ class ShowInfo:
                     visualization.show(
                         pipeline_graph_factory(visualization_only=True), self.stream, dataset_types=False
                     )
+                case "inputs":
+                    pg = pipeline_graph_factory(visualization_only=True)
+                    for dataset_type_name, dataset_type_node in sorted(pg.iter_overall_inputs()):
+                        assert dataset_type_node is not None, "Pipeline graph was just resolved."
+                        print(
+                            dataset_type_name,
+                            dataset_type_node.dimensions,
+                            dataset_type_node.storage_class_name,
+                        )
                 case _:
                     raise RuntimeError(f"Unexpectedly tried to process command {command!r}.")
             self.handled.add(command)
