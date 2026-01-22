@@ -322,7 +322,8 @@ show_option = MWOptionDecorator(
         show subset labels and associated tasks; ``uri`` to show
         predicted dataset URIs of quanta; ``pipeline-graph`` for a
         text-based visualization of the pipeline (tasks and dataset types);
-        ``task-graph`` for a text-based visualization of just the tasks.
+        ``task-graph`` for a text-based visualization of just the tasks;
+        ``inputs`` for a list of overall-input dataset types.
         With -b, pipeline-graph and task-graph include additional information.
         """
     ),

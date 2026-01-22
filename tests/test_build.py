@@ -277,6 +277,10 @@ class BuildTestCase(unittest.TestCase):
                 "### Subtasks for task `lsst.pipe.base.tests.mocks.DynamicTestPipelineTask'", result.output
             )
 
+            result = runner.invoke(pipetaskCli, ["build", "-p", pipeline_file, "--show", "inputs"])
+            self.assertEqual(result.exit_code, 0)
+            self.assertIn("d1", result.output)
+
     def test_show_unrecognized(self):
         """Test that ShowInfo raises when given unrecognized commands."""
         with self.assertRaises(ValueError):
