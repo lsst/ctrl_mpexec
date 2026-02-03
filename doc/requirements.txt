@@ -1,1 +1,2 @@
 lsst-sphinxutils @ git+https://github.com/lsst/sphinxutils@main
+sphinx-click
