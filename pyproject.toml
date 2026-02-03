@@ -37,6 +37,7 @@ dynamic = ["version"]
 
 [project.urls]
 "Homepage" = "https://github.com/lsst/ctrl_mpexec"
+"Source" = "https://github.com/lsst/ctrl_mpexec"
 
 [project.optional-dependencies]
 coverage = ["coverage"]
