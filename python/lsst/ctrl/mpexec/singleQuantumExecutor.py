@@ -54,10 +54,6 @@ if TYPE_CHECKING:
 class SingleQuantumExecutor(lsst.pipe.base.single_quantum_executor.SingleQuantumExecutor):
     """Executor class which runs one Quantum at a time.
 
-    This is a deprecated backwards-compatibility shim for
-    `lsst.pipe.base.single_quantum_executor.SingleQuantumExecutor`, which has
-    the same functionality with very minor interface changes.
-
     Parameters
     ----------
     butler : `~lsst.daf.butler.Butler` or `None`
@@ -79,7 +75,7 @@ class SingleQuantumExecutor(lsst.pipe.base.single_quantum_executor.SingleQuantum
         a quantum will be removed. Only used when ``butler`` is not `None`.
     enableLsstDebug : `bool`, optional
         Enable debugging with ``lsstDebug`` facility for a task.
-    limited_butler_factory : `Callable`, optional
+    limited_butler_factory : `~collections.abc.Callable`, optional
         A method that creates a `~lsst.daf.butler.LimitedButler` instance for a
         given Quantum. This parameter must be defined if ``butler`` is `None`.
         If ``butler`` is not `None` then this parameter is ignored.
@@ -98,7 +94,7 @@ class SingleQuantumExecutor(lsst.pipe.base.single_quantum_executor.SingleQuantum
         of those to `False`, it also avoids all dataset existence checks.
     raise_on_partial_outputs : `bool`, optional
         If `True` raise exceptions chained by
-        `lsst.pipe.base.AnnotatedPartialOutputError` immediately, instead of
+        `lsst.pipe.base.AnnotatedPartialOutputsError` immediately, instead of
         considering the partial result a success and continuing to run
         downstream tasks.
     job_metadata : `~collections.abc.Mapping`
@@ -106,6 +102,13 @@ class SingleQuantumExecutor(lsst.pipe.base.single_quantum_executor.SingleQuantum
         the "job" key.  This is intended to correspond to information common
         to all quanta being executed in a single process, such as the time
         taken to load the quantum graph in a BPS job.
+
+    Notes
+    -----
+    This is a deprecated backwards-compatibility shim for
+    `lsst.pipe.base.single_quantum_executor.SingleQuantumExecutor`, which has
+    the same functionality with very minor interface changes.
+
     """
 
     def __init__(

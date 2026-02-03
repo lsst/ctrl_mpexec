@@ -274,7 +274,7 @@ API Changes
   * New class ``PreExecInitLimited`` which performs pre-exec-init in case of Quantum-backed butler.
     The code that it shares with a regular ``PreExecInit`` class is now in their common base class ``PreExecInitBase``. (`DM-33497 <https://rubinobs.atlassian.net/browse/DM-33497>`_)
 - Added new ``resources`` parameter to ``SingleQuantumExecutor``, ``SimplePipelineExecutor``, and ``SeparablePipelineExecutor`` constructors.
-  This optional parameter is a `~lsst.pipe.base.ExecutionResources` object and allows the execution context to be passed into the `~lsst.pipe.base.PipelinesTask.runQuantum` method. (`DM-39661 <https://rubinobs.atlassian.net/browse/DM-39661>`_)
+  This optional parameter is a `~lsst.pipe.base.ExecutionResources` object and allows the execution context to be passed into the `~lsst.pipe.base.PipelineTask.runQuantum` method. (`DM-39661 <https://rubinobs.atlassian.net/browse/DM-39661>`_)
 
 
 Bug Fixes
@@ -294,7 +294,7 @@ Other Changes and Additions
     Previously this did not matter (the graph run was being ignored) but with the change to always use the ``DatasetRef`` from the graph it becomes critical that they match. (`DM-38779 <https://rubinobs.atlassian.net/browse/DM-38779>`_)
 - Revive the previously-bitrotted pipeline mocking system.
 
-  Most of the implementation has been moved to `pipe_base`, and the point at which mocking occurs has moved from execution to just before `QuantumGraph` generation, which changes which `pipetask` subcommands the `--mock` option is valid for. (`DM-38952 <https://rubinobs.atlassian.net/browse/DM-38952>`_)
+  Most of the implementation has been moved to ``pipe_base``, and the point at which mocking occurs has moved from execution to just before ``QuantumGraph`` generation, which changes which ``pipetask`` subcommands the ``--mock`` option is valid for. (`DM-38952 <https://rubinobs.atlassian.net/browse/DM-38952>`_)
 - Updated the directed graph color scheme with an aim towards making node text easier to read.
   The previous pipeline directed graph nodes used dark gray as their background color.
   It had been reported that it is difficult to read the black text on the dark gray background.

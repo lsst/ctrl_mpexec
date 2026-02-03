@@ -45,7 +45,7 @@ def report(
 ) -> None:
     """Summarize the produced, missing and expected quanta and
     datasets belonging to an executed quantum graph using the
-    `QuantumGraphExecutionReport`.
+    `lsst.pipe.base.execution_reports.QuantumGraphExecutionReport`.
 
     Parameters
     ----------
@@ -141,16 +141,17 @@ def report_v2(
     butler_config : `str`
         The Butler used for this report. This should match the Butler used for
         the run associated with the executed quantum graph.
-    qgraph_uris : `Sequence` [`str`]
+    qgraph_uris : `~collections.abc.Sequence` [`str`]
         One or more uris to the serialized Quantum Graph(s).
-    collections : `Sequence` [`str`] | None`
+    collections : `~collections.abc.Sequence` [`str`] | `None`
         Collection(s) associated with said graphs/processing. For use in
-        `lsst.daf.butler.registry.queryDatasets` if paring down the query would
+        `lsst.daf.butler.Registry.queryDatasets` if paring down the query would
         be useful.
     where : `str`
         A "where" string to use to constrain the collections, if passed.
     full_output_filename : `str`
-        Output the full pydantic model `QuantumProvenanceGraph.Summary` object
+        Output the full pydantic model
+        `lsst.pipe.base.quantum_provenance_graph.Summary` object
         into a JSON file. This is ideal for error-matching and cataloguing
         tools such as the ones used by Campaign Management software and pilots,
         and for searching and counting specific kinds or instances of failures.
@@ -184,7 +185,8 @@ def report_v2(
     n_cores : `int`, optional
         Number of cores for metadata and log reads.
     view_graph : `bool`
-        Display a graph representation of `QuantumProvenanceGraph.Summary` on
+        Display a graph representation of
+        `lsst.pipe.base.quantum_provenance_graph.Summary` on
         stdout instead of the default plain-text summary. Pipeline graph nodes
         are then annotated with their status. This is a useful way to visualize
         the flow of quanta and datasets through the graph and to identify where
@@ -235,25 +237,29 @@ def report_v2(
 def aggregate_reports(
     filenames: Sequence[str], full_output_filename: str | None, brief: bool = False
 ) -> None:
-    """Aggregrate multiple `QuantumProvenanceGraph` summaries on separate
-    dataquery-identified groups into one wholistic report. This is intended for
-    reports over the same tasks in the same pipeline, after `pipetask report`
-    has been resolved over all graphs associated with each group.
+    """Aggregrate multiple
+    `lsst.pipe.base.quantum_provenance_graph.QuantumProvenanceGraph` summaries
+    on separate dataquery-identified groups into one wholistic report.
+
+    This is intended for reports over the same tasks in the same pipeline,
+    after ``pipetask report`` has been resolved over all graphs associated with
+    each group.
 
     Parameters
     ----------
-    filenames : `Sequence[str]`
-        The paths to the JSON files produced by `pipetask report` (note: this
-        is only compatible with the multi-graph or `--force-v2` option). These
-        files correspond to the `QuantumProvenanceGraph.Summary` objects which
-        are produced for each group.
-    full_output_filename : `str | None`
+    filenames : `~collections.abc.Sequence` [`str`]
+        The paths to the JSON files produced by ``pipetask report`` (note: this
+        is only compatible with the multi-graph or ``--force-v2`` option).
+        These files correspond to the
+        `lsst.pipe.base.quantum_provenance_graph.Summary` objects
+        which are produced for each group.
+    full_output_filename : `str` | `None`
         The name of the JSON file in which to store the aggregate report, if
         passed. This is passed to `print_summary` at the end of this function.
-    brief : `bool = False`
+    brief : `bool`, optional
         Only display short (counts-only) summary on stdout. This includes
         counts and not error messages or data_ids (similar to BPS report).
-        This option will still report all `cursed` datasets and `wonky`
+        This option will still report all ``cursed`` datasets and ``wonky``
         quanta. This is passed to `print_summary` at the end of this function.
     """
     summaries: list[Summary] = []
@@ -266,15 +272,15 @@ def aggregate_reports(
 
 
 def print_summary(summary: Summary, full_output_filename: str | None, brief: bool = False) -> None:
-    """Take a `QuantumProvenanceGraph.Summary` object and write it to a file
-    and/or the screen.
+    """Take a `lsst.pipe.base.quantum_provenance_graph.Summary` object and
+    write it to a file and/or the screen.
 
     Parameters
     ----------
-    summary : `QuantumProvenanceGraph.Summary`
+    summary : `lsst.pipe.base.quantum_provenance_graph.Summary`
         This `Pydantic` model contains all the information derived from the
-        `QuantumProvenanceGraph`.
-    full_output_filename : `str | None`
+        `lsst.pipe.base.quantum_provenance_graphQuantumProvenanceGraph`.
+    full_output_filename : `str` | `None`
         Name of the JSON file in which to store summary information, if
         passed.
     brief : `bool`

@@ -393,7 +393,7 @@ class ButlerFactory:
         butler : `lsst.daf.butler.Butler`
             A read-only butler that collections will be added to and/or queried
             from.
-        inputs : `Sequence` [ `str` ]
+        inputs : `~collections.abc.Sequence` [ `str` ]
             Collections to search for datasets.
         run : `str` or `None`
             Name of the output `~lsst.daf.butler.CollectionType.RUN` collection

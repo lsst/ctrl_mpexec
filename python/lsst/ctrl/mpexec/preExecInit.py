@@ -27,7 +27,7 @@
 
 from __future__ import annotations
 
-__all__ = ["PreExecInit"]
+__all__ = ["PreExecInit", "PreExecInitBase"]
 
 # -------------------------------
 #  Imports of standard modules --
@@ -157,7 +157,7 @@ class PreExecInitBase(abc.ABC):
 
         Raises
         ------
-        ConflictingDefinitionError
+        lsst.daf.butler.registry.ConflictingDefinitionError
             Raised if existing object in butler is different from new data, or
             if ``extendRun`` is `False` and datasets already exists.
             Content of a butler collection should not be changed if this

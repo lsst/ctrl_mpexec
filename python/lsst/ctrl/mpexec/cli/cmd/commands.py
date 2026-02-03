@@ -357,7 +357,7 @@ def update_graph_run(
     is_flag=True,
     default=False,
     help="Use the QuantumProvenanceGraph instead of the QuantumGraphExecutionReport, "
-    "even when there is only one qgraph. Otherwise, the `QuantumGraphExecutionReport` "
+    "even when there is only one qgraph. Otherwise, the QuantumGraphExecutionReport "
     "will run on one graph by default.",
 )
 @click.option(
@@ -400,18 +400,18 @@ def report(
     recoveries and persistent failures. Identify mismatch errors between
     attempts.
 
-    Save the report as a file (`--full-output-filename`) or print it to stdout
-    (default). If the terminal is overwhelmed with data_ids from failures try
-    the `--brief` option.
+    Save the report as a file (``--full-output-filename``) or print it to
+    stdout (default). If the terminal is overwhelmed with data_ids from
+    failures try the ``--brief`` option.
 
-    Butler `collections` and `where` options are for use in
-    `lsst.daf.butler.queryDatasets` if paring down the collections would be
-    useful. Pass collections in order of most to least recent. By default the
-    collections and query will be taken from the graphs.
+    Butler ``collections`` and ``where`` options are for use in
+    `lsst.daf.butler.Registry.queryDatasets` if paring down the collections
+    would be useful. Pass collections in order of most to least recent. By
+    default the collections and query will be taken from the graphs.
 
     REPO is the location of the butler/registry config file.
 
-    QGRAPHS is a `Sequence` of links to serialized Quantum Graphs which have
+    QGRAPHS is a sequence of links to serialized Quantum Graphs which have
     been executed and are to be analyzed. Pass the graphs in order of first to
     last executed.
     """
@@ -456,12 +456,13 @@ def aggregate_reports(
     Summary over common tasks and datasets. Intended for use when the same
     pipeline has been run over all groups (i.e., to aggregate all reports
     for a given step). This functionality is only compatible with reports
-    from the `QuantumProvenanceGraph`, so the reports must be run over multiple
-    groups or with the `--force-v2` option.
+    from the `~lsst.pipe.base.quantum_provenance_graph.QuantumProvenanceGraph`,
+    so the reports must be run over multiple groups or with the ``--force-v2``
+    option.
 
-    Save the report as a file (`--full-output-filename`) or print it to stdout
-    (default). If the terminal is overwhelmed with data_ids from failures try
-    the `--brief` option.
+    Save the report as a file (``--full-output-filename``) or print it to
+    stdout (default). If the terminal is overwhelmed with data_ids from
+    failures try the ``--brief`` option.
 
     FILENAMES are the space-separated paths to json file output created by
     pipetask report.
