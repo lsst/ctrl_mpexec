@@ -1,3 +1,15 @@
+lsst-ctrl-mpexec v30.0.1 (2026-02-03)
+=====================================
+
+Dropped support for Python 3.11.
+Tested on Python 3.14.
+
+New Features
+------------
+
+- Adds the ``--show inputs`` option to ``pipetask build``. (`DM-52738 <https://rubinobs.atlassian.net/browse/DM-52738>`_)
+
+
 lsst-ctrl-mpexec v30.0.0 (2026-01-16)
 =====================================
 
