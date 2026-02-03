@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "lsst-ctrl-mpexec"
-requires-python = ">=3.11.0"
+requires-python = ">=3.12.0"
 description = "Pipeline execution infrastructure for the Rubin Observatory LSST Science Pipelines."
 license = "BSD-3-Clause OR GPL-3.0-or-later"
 license-files = ["COPYRIGHT", "LICENSE", "bsd_license.txt", "gpl-v3.0.txt"]
@@ -16,7 +16,6 @@ classifiers = [
     "Intended Audience :: Science/Research",
     "Operating System :: OS Independent",
     "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
     "Programming Language :: Python :: 3.14",
@@ -98,7 +97,7 @@ pipetask = "lsst.ctrl.mpexec.cli.pipetask:main"
 
 [tool.black]
 line-length = 110
-target-version = ["py311"]
+target-version = ["py312"]
 
 [tool.isort]
 profile = "black"
@@ -133,7 +132,7 @@ exclude_lines = [
 
 [tool.ruff]
 line-length = 110
-target-version = "py311"
+target-version = "py312"
 exclude = [
     "__init__.py",
 ]
