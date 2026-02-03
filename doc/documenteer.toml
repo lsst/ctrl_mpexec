@@ -1,0 +1,26 @@
+[project]
+title = "lsst-ctrl-mpexec"
+
+[project.python]
+package = "lsst-ctrl-mpexec"
+
+[build]
+clean = true
+
+[sphinx]
+extensions = [
+    "sphinx_click"
+]
+nitpick_ignore = [
+    ["py:obj", "lsst.ctrl.mpexec.MPGraphExecutorError"],
+    ["py:obj", "lsst.ctrl.mpexec.MPTimeoutError"],
+    ["py:obj", "lsst.ctrl.mpexec.ExecutionStatus"],
+    ["py:obj", "lsst.pipe.base.quantum_provenance_graph.QuantumProvenanceGraph"],
+]
+
+
+[sphinx.intersphinx.projects]
+astropy = "https://docs.astropy.org/en/stable"
+lsst = "https://pipelines.lsst.io/v/daily"
+python = "https://docs.python.org/3"
+click = "https://click.palletsprojects.com/en/stable"

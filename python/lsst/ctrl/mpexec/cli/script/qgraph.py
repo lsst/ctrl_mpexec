@@ -100,7 +100,7 @@ def qgraph(
     ----------
     pipeline_graph_factory : `..PipelineGraphFactory` or `None`
         A factory that holds the pipeline and can produce a pipeline graph.
-        If this is not `None` then `qgraph` should be `None`.
+        If this is not `None` then ``qgraph`` should be `None`.
     qgraph : convertible to `lsst.resources.ResourcePath`, or `None`
         URI location for a serialized quantum graph definition. If this option
         is not `None` then ``pipeline_graph_factory`` should be `None`.

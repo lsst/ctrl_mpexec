@@ -49,10 +49,6 @@ class MPGraphExecutor(lsst.pipe.base.mp_graph_executor.MPGraphExecutor):
     """Implementation of QuantumGraphExecutor using same-host multiprocess
     execution of Quanta.
 
-    This is a deprecated backwards-compatibility shim for
-    `lsst.pipe.base.mp_graph_executor.MPGraphExecutor`, which has
-    the same functionality with very minor interface changes.
-
     Parameters
     ----------
     numProc : `int`
@@ -74,6 +70,13 @@ class MPGraphExecutor(lsst.pipe.base.mp_graph_executor.MPGraphExecutor):
             `lsst.pipe.base.execution_graph_fixup.ExecutionGraphFixup`, \
             optional
         Instance used for modification of execution graph.
+
+    Notes
+    -----
+    This is a deprecated backwards-compatibility shim for
+    `lsst.pipe.base.mp_graph_executor.MPGraphExecutor`, which has
+    the same functionality with very minor interface changes.
+
     """
 
     def __init__(
