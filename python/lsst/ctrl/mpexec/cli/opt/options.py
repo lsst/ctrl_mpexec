@@ -358,6 +358,23 @@ skip_existing_option = MWOptionDecorator(
 )
 
 
+retained_dataset_types_option = MWOptionDecorator(
+    "--retained-dataset-types",
+    default=None,
+    metavar="PATH",
+    type=MWPath(file_okay=True, dir_okay=False, readable=True),
+    help=unwrap(
+        """Path to a YAML file listing dataset type names or glob-style wildcard
+        patterns that should exist in --skip-existing-in when the producing
+        task ran successfully.  When a quantum should run, the builder propagates the
+        must-run signal backward through non-retained input datasets, forcing
+        the upstream quanta that need to regenerate those intermediates to also
+        run.  Has no effect without ``skip_existing_in``.
+        """
+    ),
+)
+
+
 clobber_outputs_option = MWOptionDecorator(
     "--clobber-outputs",
     help=(

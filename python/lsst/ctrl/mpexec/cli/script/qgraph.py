@@ -33,6 +33,7 @@ import uuid
 from collections.abc import Iterable, Mapping, Sequence
 from typing import TYPE_CHECKING
 
+import yaml
 from astropy.table import Table
 
 from lsst.pipe.base import BuildId, QuantumGraph
@@ -68,6 +69,7 @@ def qgraph(
     qgraph_datastore_records: bool,
     skip_existing_in: Iterable[str] | None,
     skip_existing: bool,
+    retained_dataset_types: str | None,
     save_qgraph: ResourcePathExpression | None,
     qgraph_dot: str | None,
     qgraph_mermaid: str | None,
@@ -119,6 +121,13 @@ def qgraph(
         from the QuantumGraph.
     skip_existing : `bool`
         Appends output RUN collection to the ``skip_existing_in`` list.
+    retained_dataset_types : `str` or `None`
+        Path to a YAML file listing dataset type names or glob-style wildcard
+        patterns that should exist in ``skip_existing_in`` when the producing
+        task ran successfully.  When a quantum should run, the builder
+        propagates the must-run signal backward through non-retained input
+        datasets, forcing the upstream quanta that need to regenerate those
+        intermediates to also run.  Has no effect without ``skip_existing_in``.
     save_qgraph : convertible to `lsst.resources.ResourcePath` or `None`
         URI location for saving the quantum graph.
     qgraph_dot : `str` or `None`
@@ -205,6 +214,15 @@ def qgraph(
         skip_existing = True
 
     skip_existing_in = tuple(skip_existing_in) if skip_existing_in is not None else ()
+    retained_dataset_type_patterns: list[str] | None = None
+    if retained_dataset_types is not None:
+        with open(retained_dataset_types) as f:
+            retained_dataset_type_patterns = yaml.safe_load(f)
+        if not isinstance(retained_dataset_type_patterns, list) or not retained_dataset_type_patterns:
+            raise ValueError(
+                f"--retained-dataset-types file {retained_dataset_types!r} must contain "
+                "a non-empty YAML sequence of strings."
+            )
     if data_query is None:
         data_query = ""
     inputs = list(ensure_iterable(input)) if input else []
@@ -303,6 +321,7 @@ def qgraph(
                 butler,
                 where=data_query,
                 skip_existing_in=skip_existing_in,
+                retained_dataset_types=retained_dataset_type_patterns,
                 clobber=clobber_outputs,
                 dataset_query_constraint=DatasetQueryConstraintVariant.fromExpression(
                     dataset_query_constraint
@@ -317,6 +336,7 @@ def qgraph(
                 "extend_run": extend_run,
                 "skip_existing_in": skip_existing_in,
                 "skip_existing": skip_existing,
+                "retained_dataset_types": retained_dataset_types,
                 "data_query": data_query,
             }
             assert run is not None, "Butler output run collection must be defined"
