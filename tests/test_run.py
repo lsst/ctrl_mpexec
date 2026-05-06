@@ -652,6 +652,115 @@ class RunTestCase(unittest.TestCase):
             with helper.butler.query() as query:
                 self.assertEqual(query.datasets("dataset_auto1", collections=["output"]).count(), 3)
 
+    def test_ignore_existing_metadata_for_option(self):
+        """--ignore-existing-metadata-for is accepted by run_options and
+        forwarded to script.qgraph as a tuple of task labels.
+
+        Verifies comma-splitting and accumulation across repeated invocations.
+        """
+        kwargs = self._make_run_args(
+            "-b",
+            "fake_repo",
+            "-i",
+            "fake_input",
+            "-o",
+            "fake_output",
+            "--ignore-existing-metadata-for",
+            "task_a,task_b",
+            "--ignore-existing-metadata-for",
+            "task_c",
+        )
+        self.assertEqual(kwargs["ignore_existing_metadata_for"], ("task_a", "task_b", "task_c"))
+
+    def test_simple_qg_ignore_existing_metadata_for_not_skipped(self):
+        """With --ignore-existing-metadata-for, a task whose metadata exists
+        in skip_existing_in but whose outputs do not is not skipped.
+        """
+        with DirectButlerRepo.make_temporary() as (helper, root):
+            helper.add_task()
+            helper.insert_datasets("dataset_auto0")
+            kwargs = self._make_run_args(
+                "-b",
+                root,
+                "-i",
+                helper.input_chain,
+                "-o",
+                "output",
+                "--register-dataset-types",
+                pipeline_graph_factory=PipelineGraphFactory(pipeline_graph=helper.pipeline_graph),
+            )
+            qg1 = script.qgraph(**kwargs)
+            run1 = qg1.header.output_run
+            kwargs["output_run"] = run1
+            script.run(qg1, **kwargs)
+            # Prune the task output, leaving only metadata — simulates a prior
+            # run that retained metadata but not all output datasets.
+            helper.butler.pruneDatasets(
+                helper.butler.query_datasets("dataset_auto1", collections=run1),
+                purge=True,
+                unstore=True,
+                disassociate=True,
+            )
+            kwargs = self._make_run_args(
+                "-b",
+                root,
+                "-i",
+                helper.input_chain,
+                "-o",
+                "output",
+                "--skip-existing-in",
+                "output",
+                "--ignore-existing-metadata-for",
+                "task_auto1",
+                pipeline_graph_factory=PipelineGraphFactory(pipeline_graph=helper.pipeline_graph),
+            )
+            qg2 = script.qgraph(**kwargs)
+            # Output is absent so the task must not be skipped.
+            self.assertEqual(len(qg2.quanta_by_task["task_auto1"]), 1)
+            self.assertEqual(len(qg2), 1)
+
+    def test_simple_qg_ignore_existing_metadata_for_skipped(self):
+        """With --ignore-existing-metadata-for, a task whose outputs are all
+        present in skip_existing_in is still skipped, even if metadata is
+        absent.
+
+        Verifies that the option does not re-run when outputs are complete.
+        """
+        with DirectButlerRepo.make_temporary() as (helper, root):
+            helper.add_task()
+            helper.insert_datasets("dataset_auto0")
+            kwargs = self._make_run_args(
+                "-b",
+                root,
+                "-i",
+                helper.input_chain,
+                "-o",
+                "output",
+                "--register-dataset-types",
+                pipeline_graph_factory=PipelineGraphFactory(pipeline_graph=helper.pipeline_graph),
+            )
+            qg1 = script.qgraph(**kwargs)
+            kwargs["output_run"] = qg1.header.output_run
+            script.run(qg1, **kwargs)
+            # All outputs are retained — task should still be skipped.
+            kwargs = self._make_run_args(
+                "-b",
+                root,
+                "-i",
+                helper.input_chain,
+                "-o",
+                "output",
+                "--register-dataset-types",
+                "--skip-existing-in",
+                "output",
+                "--ignore-existing-metadata-for",
+                "task_auto1",
+                pipeline_graph_factory=PipelineGraphFactory(pipeline_graph=helper.pipeline_graph),
+            )
+            qg2 = script.qgraph(**kwargs)
+            # All outputs present so the task is skipped; graph is empty
+            self.assertIsNone(qg2)
+
 
 class CoverageTestCase(unittest.TestCase):
     """Test the coverage context manager."""

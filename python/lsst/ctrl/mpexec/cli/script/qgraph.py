@@ -68,6 +68,7 @@ def qgraph(
     qgraph_datastore_records: bool,
     skip_existing_in: Iterable[str] | None,
     skip_existing: bool,
+    ignore_existing_metadata_for: Iterable[str] | None,
     save_qgraph: ResourcePathExpression | None,
     qgraph_dot: str | None,
     qgraph_mermaid: str | None,
@@ -119,6 +120,11 @@ def qgraph(
         from the QuantumGraph.
     skip_existing : `bool`
         Appends output RUN collection to the ``skip_existing_in`` list.
+    ignore_existing_metadata_for : `~collections.abc.Iterable` [ `str` ] or \
+            `None`
+        Task labels for which the completion signal for ``skip_existing_in``
+        is changed from task metadata to all non-metadata, non-log outputs
+        existing. Has no effect without ``skip_existing_in``.
     save_qgraph : convertible to `lsst.resources.ResourcePath` or `None`
         URI location for saving the quantum graph.
     qgraph_dot : `str` or `None`
@@ -205,6 +211,7 @@ def qgraph(
         skip_existing = True
 
     skip_existing_in = tuple(skip_existing_in) if skip_existing_in is not None else ()
+    ignore_existing_metadata_for = tuple(ignore_existing_metadata_for or ())
     if data_query is None:
         data_query = ""
     inputs = list(ensure_iterable(input)) if input else []
@@ -303,6 +310,7 @@ def qgraph(
                 butler,
                 where=data_query,
                 skip_existing_in=skip_existing_in,
+                ignore_metadata_for=ignore_existing_metadata_for,
                 clobber=clobber_outputs,
                 dataset_query_constraint=DatasetQueryConstraintVariant.fromExpression(
                     dataset_query_constraint
@@ -317,6 +325,7 @@ def qgraph(
                 "extend_run": extend_run,
                 "skip_existing_in": skip_existing_in,
                 "skip_existing": skip_existing,
+                "ignore_existing_metadata_for": ignore_existing_metadata_for,
                 "data_query": data_query,
             }
             assert run is not None, "Butler output run collection must be defined"

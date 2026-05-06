@@ -358,6 +358,22 @@ skip_existing_option = MWOptionDecorator(
 )
 
 
+ignore_existing_metadata_for_option = MWOptionDecorator(
+    "--ignore-existing-metadata-for",
+    callback=split_commas,
+    default=None,
+    metavar="LABEL",
+    multiple=True,
+    help=unwrap(
+        """Task labels for which existing task metadata is ignored when
+        using --skip-existing-in.  Those tasks are re-evaluated based on
+        whether their actual outputs exist rather than whether their
+        metadata exists.  Has no effect without --skip-existing-in.
+        """
+    ),
+)
+
+
 clobber_outputs_option = MWOptionDecorator(
     "--clobber-outputs",
     help=(
