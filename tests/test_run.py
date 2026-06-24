@@ -25,8 +25,10 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+import contextlib
 import logging
 import os
+import tempfile
 import time
 import unittest
 import unittest.mock
@@ -44,6 +46,34 @@ from lsst.daf.butler.cli.utils import LogCliRunner
 from lsst.pipe.base.mp_graph_executor import MPGraphExecutorError
 from lsst.pipe.base.script import transfer_from_graph
 from lsst.pipe.base.tests.mocks import DirectButlerRepo, DynamicTestPipelineTaskConfig
+
+
+# Copied from test_build.py
+@contextlib.contextmanager
+def make_tmp_file(contents=None, suffix=None):
+    """Context manager for generating temporary file name.
+
+    Temporary file is deleted on exiting context.
+
+    Parameters
+    ----------
+    contents : `bytes` or `None`, optional
+        Data to write into a file.
+    suffix : `str` or `None`, optional
+        Suffix to use for temporary file.
+
+    Yields
+    ------
+    `str`
+        Name of the temporary file.
+    """
+    fd, tmpname = tempfile.mkstemp(suffix=suffix)
+    if contents:
+        os.write(fd, contents)
+    os.close(fd)
+    yield tmpname
+    with contextlib.suppress(OSError):
+        os.remove(tmpname)
 
 
 class RunTestCase(unittest.TestCase):
@@ -651,6 +681,157 @@ class RunTestCase(unittest.TestCase):
                 script.run(qg, **kwargs)
             with helper.butler.query() as query:
                 self.assertEqual(query.datasets("dataset_auto1", collections=["output"]).count(), 3)
+
+    def test_retained_dataset_types_option(self):
+        """--retained-dataset-types accepts a file path."""
+        with make_tmp_file(b"- '*_metadata'\n- '*_log'\n", suffix=".yaml") as retained_path:
+            kwargs = self._make_run_args(
+                "-b",
+                "fake_repo",
+                "-i",
+                "fake_input",
+                "-o",
+                "fake_output",
+                "--retained-dataset-types",
+                retained_path,
+            )
+            self.assertEqual(kwargs["retained_dataset_types"], retained_path)
+
+    def test_simple_qg_retained_forces_rerun(self):
+        """With --retained-dataset-types listing only metadata types, when
+        task_auto2 has no metadata and must run, task_auto1 is forced to rerun
+        because dataset_auto1 is not retained.
+        """
+        with DirectButlerRepo.make_temporary() as (helper, root):
+            helper.add_task()
+            helper.add_task()
+            helper.insert_datasets("dataset_auto0")
+            kwargs = self._make_run_args(
+                "-b",
+                root,
+                "-i",
+                helper.input_chain,
+                "-o",
+                "output",
+                "--register-dataset-types",
+                pipeline_graph_factory=PipelineGraphFactory(pipeline_graph=helper.pipeline_graph),
+            )
+            qg1 = script.qgraph(**kwargs)
+            run1 = qg1.header.output_run
+            kwargs["output_run"] = run1
+            script.run(qg1, **kwargs)
+            # Simulate: task_auto1 ran (metadata kept) but intermediate output
+            # not retained; task_auto2 failed (no metadata, no output).
+            helper.butler.pruneDatasets(
+                helper.butler.query_datasets("dataset_auto1", collections=run1),
+                purge=True,
+                unstore=True,
+                disassociate=True,
+            )
+            helper.butler.pruneDatasets(
+                helper.butler.query_datasets("task_auto2_metadata", collections=run1),
+                purge=True,
+                unstore=True,
+                disassociate=True,
+            )
+            helper.butler.pruneDatasets(
+                helper.butler.query_datasets("dataset_auto2", collections=run1),
+                purge=True,
+                unstore=True,
+                disassociate=True,
+            )
+            time.sleep(1)  # Make sure we don't get the same RUN timestamp.
+            # Only metadata types are retained; dataset_auto1 is not retained.
+            with make_tmp_file(b"- '*_metadata'\n", suffix=".yaml") as retained_path:
+                kwargs = self._make_run_args(
+                    "-b",
+                    root,
+                    "-i",
+                    helper.input_chain,
+                    "-o",
+                    "output",
+                    "--skip-existing-in",
+                    "output",
+                    "--retained-dataset-types",
+                    retained_path,
+                    pipeline_graph_factory=PipelineGraphFactory(pipeline_graph=helper.pipeline_graph),
+                )
+                qg2 = script.qgraph(**kwargs)
+            # Both tasks must run: dataset_auto1 is not retained, so
+            # task_auto1 is forced to regenerate it for task_auto2.
+            self.assertEqual(len(qg2.quanta_by_task["task_auto1"]), 1)
+            self.assertEqual(len(qg2.quanta_by_task["task_auto2"]), 1)
+            self.assertEqual(len(qg2), 2)
+
+    def test_simple_qg_retained_both_skipped(self):
+        """When both tasks have metadata, both are skipped regardless of which
+        dataset types are not retained.
+        """
+        with DirectButlerRepo.make_temporary() as (helper, root):
+            helper.add_task()
+            helper.add_task()
+            helper.insert_datasets("dataset_auto0")
+            kwargs = self._make_run_args(
+                "-b",
+                root,
+                "-i",
+                helper.input_chain,
+                "-o",
+                "output",
+                "--register-dataset-types",
+                pipeline_graph_factory=PipelineGraphFactory(pipeline_graph=helper.pipeline_graph),
+            )
+            qg1 = script.qgraph(**kwargs)
+            run1 = qg1.header.output_run
+            kwargs["output_run"] = run1
+            script.run(qg1, **kwargs)
+            # Prune only the intermediate; both task metadata are retained.
+            helper.butler.pruneDatasets(
+                helper.butler.query_datasets("dataset_auto1", collections=run1),
+                purge=True,
+                unstore=True,
+                disassociate=True,
+            )
+            time.sleep(1)  # Make sure we don't get the same RUN timestamp.
+            with make_tmp_file(b"- '*_metadata'\n", suffix=".yaml") as retained_path:
+                kwargs = self._make_run_args(
+                    "-b",
+                    root,
+                    "-i",
+                    helper.input_chain,
+                    "-o",
+                    "output",
+                    "--register-dataset-types",
+                    "--skip-existing-in",
+                    "output",
+                    "--retained-dataset-types",
+                    retained_path,
+                    pipeline_graph_factory=PipelineGraphFactory(pipeline_graph=helper.pipeline_graph),
+                )
+                qg2 = script.qgraph(**kwargs)
+            # Both tasks have metadata so both are skipped; graph is empty.
+            self.assertIsNone(qg2)
+
+    def test_retained_dataset_types_invalid_yaml_raises(self):
+        """--retained-dataset-types raises ValueError for a non-list YAML
+        or an empty sequence.
+        """
+        with DirectButlerRepo.make_temporary() as (helper, root):
+            helper.add_task()
+            helper.insert_datasets("dataset_auto0")
+            base_kwargs = self._make_run_args(
+                "-b",
+                root,
+                "-i",
+                helper.input_chain,
+                "-o",
+                "output",
+                pipeline_graph_factory=PipelineGraphFactory(pipeline_graph=helper.pipeline_graph),
+            )
+            for content in (b"key: value\n", b"[]\n"):
+                with make_tmp_file(content, suffix=".yaml") as retained_path:
+                    with self.assertRaises(ValueError):
+                        script.qgraph(**{**base_kwargs, "retained_dataset_types": retained_path})
 
 
 class CoverageTestCase(unittest.TestCase):
