@@ -31,6 +31,7 @@ import os
 import textwrap
 import unittest
 
+import click
 import click.testing
 
 from lsst.ctrl.mpexec.cli import opt, script

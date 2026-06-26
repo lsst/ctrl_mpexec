@@ -70,6 +70,7 @@ def qgraph(
     skip_existing_in: Iterable[str] | None,
     skip_existing: bool,
     retained_dataset_types: str | None,
+    prune_unanchored_quanta: tuple[str, str] | None = None,
     save_qgraph: ResourcePathExpression | None,
     qgraph_dot: str | None,
     qgraph_mermaid: str | None,
@@ -128,6 +129,10 @@ def qgraph(
         propagates the must-run signal backward through non-retained input
         datasets, forcing the upstream quanta that need to regenerate those
         intermediates to also run.  Has no effect without ``skip_existing_in``.
+    prune_unanchored_quanta : `tuple` [ `str`, `str` ] or `None`, optional
+        A ``(source_label, anchor_label)`` pair of task labels.  If not `None`,
+        source quanta with no reachable anchor quantum downstream are removed,
+        along with their entire downstream chain.
     save_qgraph : convertible to `lsst.resources.ResourcePath` or `None`
         URI location for saving the quantum graph.
     qgraph_dot : `str` or `None`
@@ -322,6 +327,7 @@ def qgraph(
                 where=data_query,
                 skip_existing_in=skip_existing_in,
                 retained_dataset_types=retained_dataset_type_patterns,
+                prune_unanchored_quanta=prune_unanchored_quanta,
                 clobber=clobber_outputs,
                 dataset_query_constraint=DatasetQueryConstraintVariant.fromExpression(
                     dataset_query_constraint
