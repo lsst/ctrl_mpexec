@@ -375,6 +375,56 @@ retained_dataset_types_option = MWOptionDecorator(
 )
 
 
+def parse_prune_unanchored_quanta(
+    ctx: click.Context, param: click.Option, value: str | None
+) -> tuple[str, str] | None:
+    """Parse the --prune-unanchored-quanta option value into a tuple.
+
+    Parameters
+    ----------
+    ctx : `click.Context`
+        Context provided by Click.
+    param : `click.Option`
+        Click option.
+    value : `str` or `None`
+        Value from option, expected to be ``SOURCE:ANCHOR`` or `None` if the
+        option was not provided.
+
+    Returns
+    -------
+    result : `tuple` [`str`, `str`] or `None`
+        A ``(source_label, anchor_label)`` tuple, or `None` if ``value`` is
+        `None`.
+
+    Raises
+    ------
+    click.UsageError
+        Raised if ``value`` is not `None` and does not match the
+        ``SOURCE:ANCHOR`` format.
+    """
+    if value is None:
+        return None
+    parts = value.split(":", 1)
+    if len(parts) != 2 or not parts[0] or not parts[1]:
+        raise click.UsageError(
+            f"Invalid value for --prune-unanchored-quanta: {value!r}; expected SOURCE:ANCHOR."
+        )
+    return (parts[0], parts[1])
+
+
+prune_unanchored_quanta_option = MWOptionDecorator(
+    "--prune-unanchored-quanta",
+    callback=parse_prune_unanchored_quanta,
+    default=None,
+    metavar="SOURCE:ANCHOR",
+    help=unwrap(
+        """Remove source quanta that have no reachable anchor quantum downstream,
+        along with their entire downstream chain.  Specify as a colon-separated
+        pair of task labels SOURCE:ANCHOR."""
+    ),
+)
+
+
 clobber_outputs_option = MWOptionDecorator(
     "--clobber-outputs",
     help=(

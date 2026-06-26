@@ -833,6 +833,53 @@ class RunTestCase(unittest.TestCase):
                     with self.assertRaises(ValueError):
                         script.qgraph(**{**base_kwargs, "retained_dataset_types": retained_path})
 
+    def test_simple_qg_prune_unanchored_anchor_absent(self):
+        """With --prune-unanchored-quanta SOURCE:ANCHOR where ANCHOR does not
+        exist in the pipeline, all source quanta are pruned and the graph is
+        empty.
+        """
+        with DirectButlerRepo.make_temporary() as (helper, root):
+            helper.add_task("source")
+            helper.add_task("anchor")
+            helper.insert_datasets("dataset_auto0")
+            kwargs = self._make_run_args(
+                "-b",
+                root,
+                "-i",
+                helper.input_chain,
+                "-o",
+                "output",
+                "--register-dataset-types",
+                "--prune-unanchored-quanta",
+                "source:no_such_task",
+                pipeline_graph_factory=PipelineGraphFactory(pipeline_graph=helper.pipeline_graph),
+            )
+            qg = script.qgraph(**kwargs)
+            self.assertIsNone(qg)
+
+    def test_simple_qg_prune_unanchored_anchor_reachable(self):
+        """With --prune-unanchored-quanta SOURCE:ANCHOR where every source
+        quantum has an anchor quantum downstream, nothing is pruned.
+        """
+        with DirectButlerRepo.make_temporary() as (helper, root):
+            helper.add_task("source")
+            helper.add_task("anchor")
+            helper.insert_datasets("dataset_auto0")
+            kwargs = self._make_run_args(
+                "-b",
+                root,
+                "-i",
+                helper.input_chain,
+                "-o",
+                "output",
+                "--register-dataset-types",
+                "--prune-unanchored-quanta",
+                "source:anchor",
+                pipeline_graph_factory=PipelineGraphFactory(pipeline_graph=helper.pipeline_graph),
+            )
+            qg = script.qgraph(**kwargs)
+            self.assertEqual(len(qg), 2)
+
 
 class CoverageTestCase(unittest.TestCase):
     """Test the coverage context manager."""
