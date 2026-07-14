@@ -108,7 +108,6 @@ class SingleQuantumExecutor(lsst.pipe.base.single_quantum_executor.SingleQuantum
     This is a deprecated backwards-compatibility shim for
     `lsst.pipe.base.single_quantum_executor.SingleQuantumExecutor`, which has
     the same functionality with very minor interface changes.
-
     """
 
     def __init__(

@@ -76,7 +76,6 @@ class MPGraphExecutor(lsst.pipe.base.mp_graph_executor.MPGraphExecutor):
     This is a deprecated backwards-compatibility shim for
     `lsst.pipe.base.mp_graph_executor.MPGraphExecutor`, which has
     the same functionality with very minor interface changes.
-
     """
 
     def __init__(
