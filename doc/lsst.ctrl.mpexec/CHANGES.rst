@@ -1,3 +1,13 @@
+lsst-ctrl-mpexec v30.0.9 (2026-07-14)
+=====================================
+
+New Features
+------------
+
+- Added ``--retained-dataset-types`` option to ``pipetask qgraph`` and ``pipetask run``. (`DM-54879 <https://rubinobs.atlassian.net/browse/DM-54879>`_)
+- Added ``--prune-unanchored-quanta`` option to ``pipetask qgraph`` (`DM-55320 <https://rubinobs.atlassian.net/browse/DM-55320>`_)
+
+
 lsst-ctrl-mpexec v30.0.1 (2026-02-03)
 =====================================
 
