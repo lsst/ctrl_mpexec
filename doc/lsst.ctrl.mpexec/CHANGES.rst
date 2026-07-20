@@ -1,3 +1,12 @@
+lsst-ctrl-mpexec v30.0.10 (2026-07-20)
+======================================
+
+Bug Fixes
+---------
+
+- Disabled implicit threading in `pipetask run` before the pipeline is built rather than just before execution, so that thread pools created during task imports and quantum graph generation are also limited. (`DM-55482 <https://rubinobs.atlassian.net/browse/DM-55482>`_)
+
+
 lsst-ctrl-mpexec v30.0.9 (2026-07-14)
 =====================================
 
