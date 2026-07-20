@@ -46,6 +46,7 @@ from lsst.daf.butler.cli.opt import (
 )
 from lsst.daf.butler.cli.utils import catch_and_exit, option_section, unwrap
 from lsst.pipe.base.quantum_reports import Report
+from lsst.utils.threads import disable_implicit_threading
 
 from .. import opt as ctrlMpExecOpts
 from .. import script
@@ -194,6 +195,11 @@ def qgraph(ctx: click.Context, **kwargs: Any) -> None:
 def run(ctx: click.Context, **kwargs: Any) -> None:
     """Build and execute pipeline and quantum graph."""
     kwargs = collect_pipeline_actions(ctx, **kwargs)
+    if not kwargs.get("enable_implicit_threading"):
+        # Limit thread pools created during pipeline construction and graph
+        # generation, not just those created during execution. script.run
+        # repeats this for callers that do not go through this command.
+        disable_implicit_threading()
     with coverage_context(kwargs):
         show = ShowInfo(kwargs.pop("show", []))
         pipeline_graph_factory = script.build(**kwargs, show=show)
