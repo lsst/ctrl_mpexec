@@ -28,6 +28,7 @@
 import contextlib
 import logging
 import os
+import pickle
 import tempfile
 import time
 import unittest
@@ -39,9 +40,10 @@ import lsst.utils.tests
 from lsst.ctrl.mpexec import PipelineGraphFactory
 from lsst.ctrl.mpexec.cli import opt, script
 from lsst.ctrl.mpexec.cli.cmd.commands import PipetaskCommand, coverage_context
+from lsst.ctrl.mpexec.cli.script.run_qbb import _QBBFactory
 from lsst.ctrl.mpexec.cli.utils import collect_pipeline_actions
 from lsst.ctrl.mpexec.showInfo import ShowInfo
-from lsst.daf.butler import CollectionType, MissingCollectionError
+from lsst.daf.butler import CollectionType, DimensionUniverse, MissingCollectionError, QuantumBackedButler
 from lsst.daf.butler.cli.utils import LogCliRunner
 from lsst.pipe.base.mp_graph_executor import MPGraphExecutorError
 from lsst.pipe.base.script import transfer_from_graph
@@ -879,6 +881,43 @@ class RunTestCase(unittest.TestCase):
             )
             qg = script.qgraph(**kwargs)
             self.assertEqual(len(qg), 2)
+
+
+class QBBFactoryTestCase(unittest.TestCase):
+    """Test the quantum-backed butler factory used by ``run-qbb``."""
+
+    def _make_factory(self, config_search_path):  # numpydoc ignore=PR01,RT01
+        return _QBBFactory(
+            butler_config="butler.yaml",
+            dimensions=DimensionUniverse(),
+            dataset_types={},
+            config_search_path=config_search_path,
+        )
+
+    def testConfigSearchPathForwarded(self):
+        """Test that the configuration search path reaches the butler."""
+        search_path = ["/some/config/dir"]
+        factory = self._make_factory(search_path)
+        with unittest.mock.patch.object(QuantumBackedButler, "initialize") as initialize:
+            factory(unittest.mock.MagicMock())
+        initialize.assert_called_once()
+        self.assertEqual(initialize.call_args.kwargs["search_paths"], search_path)
+
+    def testConfigSearchPathSurvivesPickle(self):
+        """Test that the search path is still used after round-tripping."""
+        search_path = ["/some/config/dir"]
+        factory = pickle.loads(pickle.dumps(self._make_factory(search_path)))
+        self.assertEqual(factory.config_search_path, search_path)
+        with unittest.mock.patch.object(QuantumBackedButler, "initialize") as initialize:
+            factory(unittest.mock.MagicMock())
+        self.assertEqual(initialize.call_args.kwargs["search_paths"], search_path)
+
+    def testNoConfigSearchPath(self):
+        """Test that an absent search path is passed through as `None`."""
+        factory = self._make_factory(None)
+        with unittest.mock.patch.object(QuantumBackedButler, "initialize") as initialize:
+            factory(unittest.mock.MagicMock())
+        self.assertIsNone(initialize.call_args.kwargs["search_paths"])
 
 
 class CoverageTestCase(unittest.TestCase):
