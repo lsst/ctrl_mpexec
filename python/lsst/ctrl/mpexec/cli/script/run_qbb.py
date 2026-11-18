@@ -247,6 +247,7 @@ class _QBBFactory:
             quantum=quantum,
             dimensions=self.dimensions,
             dataset_types=self.dataset_types,
+            search_paths=self.config_search_path,
         )
 
     @classmethod
